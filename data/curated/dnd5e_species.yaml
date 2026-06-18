@@ -1,0 +1,99 @@
+# D&D 5e (2024 PHB) — auto-built from docs/dnd5e/player.pdf
+species:
+- id: aasimar
+  label: Aasimar
+  speed: 30
+  size_options:
+  - medium
+  - small
+  traits:
+  - Celestial Resistance
+  - Darkvision 60 ft.
+  - Healing Hands
+  - Light Bearer
+  - Celestial Revelation (level 3)
+- id: dragonborn
+  label: Dragonborn
+  speed: 30
+  size_options:
+  - medium
+  traits:
+  - Draconic Ancestry
+  - Breath Weapon
+  - Damage Resistance
+  - Darkvision 60 ft.
+- id: dwarf
+  label: Dwarf
+  speed: 30
+  size_options:
+  - medium
+  traits:
+  - Darkvision 120 ft.
+  - Dwarven Resilience
+  - Dwarven Toughness
+  - Stonecunning
+- id: elf
+  label: Elf
+  speed: 30
+  size_options:
+  - medium
+  traits:
+  - Darkvision 60 ft.
+  - Fey Ancestry
+  - Keen Senses
+  - Trance
+- id: gnome
+  label: Gnome
+  speed: 30
+  size_options:
+  - small
+  traits:
+  - Darkvision 60 ft.
+  - Gnomish Cunning
+- id: goliath
+  label: Goliath
+  speed: 35
+  size_options:
+  - medium
+  traits:
+  - Giant Ancestry
+  - Large Form (level 5)
+  - Powerful Build
+- id: halfling
+  label: Halfling
+  speed: 30
+  size_options:
+  - small
+  traits:
+  - Brave
+  - Halfling Nimbleness
+  - Luck
+- id: human
+  label: Human
+  speed: 30
+  size_options:
+  - medium
+  - small
+  traits:
+  - Resourceful (Heroic Inspiration on Long Rest)
+  - Skillful (+1 skill)
+  - Versatile (Origin feat)
+- id: orc
+  label: Orc
+  speed: 30
+  size_options:
+  - medium
+  traits:
+  - Adrenaline Rush
+  - Darkvision 120 ft.
+  - Relentless Endurance
+- id: tiefling
+  label: Tiefling
+  speed: 30
+  size_options:
+  - medium
+  - small
+  traits:
+  - Darkvision 60 ft.
+  - Fiendish Legacy
+  - Otherworldly Presence

@@ -1,0 +1,266 @@
+# D&D 5e (2024 PHB) — armor, common weapons, languages (ch. 6 equipment).
+# Armor Class: light = base + DEX; medium = base + min(DEX, 2); heavy = base (no DEX).
+armor:
+- id: none
+  label: Unarmored
+  category: none
+  base_ac: 10
+  add_dex: true
+- id: padded
+  label: Padded
+  category: light
+  base_ac: 11
+  add_dex: true
+- id: leather
+  label: Leather
+  category: light
+  base_ac: 11
+  add_dex: true
+- id: studded_leather
+  label: Studded Leather
+  category: light
+  base_ac: 12
+  add_dex: true
+- id: hide
+  label: Hide
+  category: medium
+  base_ac: 12
+  dex_cap: 2
+- id: chain_shirt
+  label: Chain Shirt
+  category: medium
+  base_ac: 13
+  dex_cap: 2
+- id: scale_mail
+  label: Scale Mail
+  category: medium
+  base_ac: 14
+  dex_cap: 2
+- id: breastplate
+  label: Breastplate
+  category: medium
+  base_ac: 14
+  dex_cap: 2
+- id: half_plate
+  label: Half Plate
+  category: medium
+  base_ac: 15
+  dex_cap: 2
+- id: ring_mail
+  label: Ring Mail
+  category: heavy
+  base_ac: 14
+- id: chain_mail
+  label: Chain Mail
+  category: heavy
+  base_ac: 16
+  strength: 13
+- id: splint
+  label: Splint
+  category: heavy
+  base_ac: 17
+  strength: 15
+- id: plate
+  label: Plate
+  category: heavy
+  base_ac: 18
+  strength: 15
+shield_ac: 2
+# Common weapons for quick add (damage uses one die; ability picked from STR/DEX).
+weapons:
+- id: club
+  label: Club
+  damage: 1d4
+  damage_type: bludgeoning
+  category: simple
+  properties: [light]
+- id: dagger
+  label: Dagger
+  damage: 1d4
+  damage_type: piercing
+  category: simple
+  properties: [finesse, light, thrown]
+- id: handaxe
+  label: Handaxe
+  damage: 1d6
+  damage_type: slashing
+  category: simple
+  properties: [light, thrown]
+- id: mace
+  label: Mace
+  damage: 1d6
+  damage_type: bludgeoning
+  category: simple
+  properties: []
+- id: quarterstaff
+  label: Quarterstaff
+  damage: 1d6
+  damage_type: bludgeoning
+  category: simple
+  properties: [versatile]
+- id: spear
+  label: Spear
+  damage: 1d6
+  damage_type: piercing
+  category: simple
+  properties: [thrown, versatile]
+- id: shortbow
+  label: Shortbow
+  damage: 1d6
+  damage_type: piercing
+  category: simple
+  properties: [ammunition, ranged, two-handed]
+- id: light_crossbow
+  label: Crossbow, Light
+  damage: 1d8
+  damage_type: piercing
+  category: simple
+  properties: [ammunition, loading, ranged, two-handed]
+- id: shortsword
+  label: Shortsword
+  damage: 1d6
+  damage_type: piercing
+  category: martial
+  properties: [finesse, light]
+- id: rapier
+  label: Rapier
+  damage: 1d8
+  damage_type: piercing
+  category: martial
+  properties: [finesse]
+- id: longsword
+  label: Longsword
+  damage: 1d8
+  damage_type: slashing
+  category: martial
+  properties: [versatile]
+- id: battleaxe
+  label: Battleaxe
+  damage: 1d8
+  damage_type: slashing
+  category: martial
+  properties: [versatile]
+- id: warhammer
+  label: Warhammer
+  damage: 1d8
+  damage_type: bludgeoning
+  category: martial
+  properties: [versatile]
+- id: greatsword
+  label: Greatsword
+  damage: 2d6
+  damage_type: slashing
+  category: martial
+  properties: [heavy, two-handed]
+- id: greataxe
+  label: Greataxe
+  damage: 1d12
+  damage_type: slashing
+  category: martial
+  properties: [heavy, two-handed]
+- id: maul
+  label: Maul
+  damage: 2d6
+  damage_type: bludgeoning
+  category: martial
+  properties: [heavy, two-handed]
+- id: longbow
+  label: Longbow
+  damage: 1d8
+  damage_type: piercing
+  category: martial
+  properties: [ammunition, heavy, ranged, two-handed]
+- id: heavy_crossbow
+  label: Crossbow, Heavy
+  damage: 1d10
+  damage_type: piercing
+  category: martial
+  properties: [ammunition, heavy, loading, ranged, two-handed]
+# Standard + rare languages (PHB 2024 ch. 2).
+languages:
+- common
+- common sign language
+- draconic
+- dwarvish
+- elvish
+- giant
+- gnomish
+- goblin
+- halfling
+- orc
+- abyssal
+- celestial
+- deep speech
+- druidic
+- infernal
+- primordial
+- sylvan
+- thieves' cant
+- undercommon
+
+# PHB 2024 simplified starting packages (level 1)
+class_starting_gear:
+  barbarian:
+    items: [Explorer's Pack, Javelins (4)]
+    weapons: [{name: Greataxe, damage: 1d12, damage_type: slashing, ability: str}]
+    armor: none
+    currency: {gp: 15}
+  bard:
+    items: [Entertainer's Pack, Lute, Leather armor, Dagger]
+    weapons: [{name: Rapier, damage: 1d8, damage_type: piercing, ability: dex}]
+    armor: leather
+    currency: {gp: 15}
+  cleric:
+    items: [Priest's Pack, Holy symbol, Chain shirt]
+    weapons: [{name: Mace, damage: 1d6, damage_type: bludgeoning, ability: str}]
+    armor: chain_shirt
+    shield: true
+    currency: {gp: 15}
+  druid:
+    items: [Explorer's Pack, Leather armor, Druidic focus, Sickle]
+    weapons: [{name: Sickle, damage: 1d4, damage_type: slashing, ability: str}]
+    armor: leather
+    shield: true
+    currency: {gp: 15}
+  fighter:
+    items: [Explorer's Pack, Chain mail]
+    weapons: [{name: Longsword, damage: 1d8, damage_type: slashing, ability: str}]
+    armor: chain_mail
+    shield: true
+    currency: {gp: 15}
+  monk:
+    items: [Explorer's Pack, Shortsword, Dart (10)]
+    weapons: [{name: Shortsword, damage: 1d6, damage_type: piercing, ability: dex}]
+    armor: none
+    currency: {gp: 15}
+  paladin:
+    items: [Priest's Pack, Holy symbol, Chain mail]
+    weapons: [{name: Longsword, damage: 1d8, damage_type: slashing, ability: str}]
+    armor: chain_mail
+    shield: true
+    currency: {gp: 15}
+  ranger:
+    items: [Explorer's Pack, Longbow, Quiver (20 arrows), Leather armor]
+    weapons: [{name: Longbow, damage: 1d8, damage_type: piercing, ability: dex}]
+    armor: leather
+    currency: {gp: 15}
+  rogue:
+    items: [Burglar's Pack, Leather armor, Thieves' tools, Dagger (2)]
+    weapons: [{name: Shortsword, damage: 1d6, damage_type: piercing, ability: dex}]
+    armor: leather
+    currency: {gp: 15}
+  sorcerer:
+    items: [Scholar's Pack, Arcane focus, Dagger]
+    weapons: [{name: Light crossbow, damage: 1d8, damage_type: piercing, ability: dex}]
+    armor: none
+    currency: {gp: 15}
+  warlock:
+    items: [Scholar's Pack, Arcane focus, Leather armor]
+    weapons: [{name: Light crossbow, damage: 1d8, damage_type: piercing, ability: dex}]
+    armor: leather
+    currency: {gp: 15}
+  wizard:
+    items: [Scholar's Pack, Arcane focus, Spellbook, Dagger]
+    weapons: [{name: Dagger, damage: 1d4, damage_type: piercing, ability: dex}]
+    armor: none
+    currency: {gp: 15}

@@ -1,0 +1,539 @@
+# PHB 2024 base class features by level
+classes:
+  barbarian:
+    '1':
+    - Rage
+    - Unarmored Defense
+    - Weapon Mastery
+    '2':
+    - Danger Sense
+    - Reckless Attack
+    '3':
+    - Barbarian Subclass
+    - Primal Knowledge
+    '4':
+    - Ability Score Improvement
+    '5':
+    - Extra Attack
+    - Fast Movement
+    '6':
+    - Subclass feature
+    '7':
+    - Feral Instinct
+    - Instinctive Pounce
+    '8':
+    - Ability Score Improvement
+    '9':
+    - Brutal Strike
+    '10':
+    - Subclass feature
+    '11':
+    - Relentless Rage
+    '12':
+    - Ability Score Improvement
+    '13':
+    - Improved Brutal Strike
+    '14':
+    - Subclass feature
+    '15':
+    - Persistent Rage
+    '16':
+    - Ability Score Improvement
+    '17':
+    - Improved Brutal Strike
+    '18':
+    - Indomitable Might
+    '19':
+    - Epic Boon
+    '20':
+    - Primal Champion
+  bard:
+    '1':
+    - Bardic Inspiration
+    - Spellcasting
+    '2':
+    - Expertise
+    - Jack of All Trades
+    '3':
+    - Bard Subclass
+    '4':
+    - Ability Score Improvement
+    '5':
+    - Font of Inspiration
+    '6':
+    - Subclass feature
+    '7':
+    - Countercharm
+    '8':
+    - Ability Score Improvement
+    '9':
+    - Expertise
+    '10':
+    - Magical Secrets
+    '11':
+    - Subclass feature
+    '12':
+    - Ability Score Improvement
+    '13':
+    - —
+    '14':
+    - Magical Secrets
+    '15':
+    - —
+    '16':
+    - Ability Score Improvement
+    '17':
+    - —
+    '18':
+    - Superior Inspiration
+    '19':
+    - Epic Boon
+    '20':
+    - Words of Creation
+  cleric:
+    '1':
+    - Spellcasting
+    - Divine Order
+    '2':
+    - Channel Divinity
+    '3':
+    - Cleric Subclass
+    '4':
+    - Ability Score Improvement
+    '5':
+    - Sear Undead
+    '6':
+    - Subclass feature
+    '7':
+    - Blessed Strikes
+    '8':
+    - Ability Score Improvement
+    '9':
+    - —
+    '10':
+    - Divine Intervention
+    '11':
+    - —
+    '12':
+    - Ability Score Improvement
+    '13':
+    - —
+    '14':
+    - Improved Blessed Strikes
+    '15':
+    - —
+    '16':
+    - Ability Score Improvement
+    '17':
+    - —
+    '18':
+    - Greater Divine Intervention
+    '19':
+    - Epic Boon
+    '20':
+    - Greater Divine Intervention improvement
+  druid:
+    '1':
+    - Spellcasting
+    - Druidic
+    - Primal Order
+    '2':
+    - Wild Shape
+    - Wild Companion
+    '3':
+    - Druid Subclass
+    '4':
+    - Ability Score Improvement
+    '5':
+    - Wild Resurgence
+    '6':
+    - Subclass feature
+    '7':
+    - Elemental Fury
+    '8':
+    - Ability Score Improvement
+    '9':
+    - —
+    '10':
+    - Subclass feature
+    '11':
+    - —
+    '12':
+    - Ability Score Improvement
+    '13':
+    - —
+    '14':
+    - Subclass feature
+    '15':
+    - Improved Elemental Fury
+    '16':
+    - Ability Score Improvement
+    '17':
+    - —
+    '18':
+    - Beast Spells
+    '19':
+    - Epic Boon
+    '20':
+    - Archdruid
+  fighter:
+    '1':
+    - Fighting Style
+    - Second Wind
+    - Weapon Mastery
+    '2':
+    - Action Surge
+    - Tactical Mind
+    '3':
+    - Fighter Subclass
+    '4':
+    - Ability Score Improvement
+    '5':
+    - Extra Attack
+    - Tactical Shift
+    '6':
+    - Ability Score Improvement
+    '7':
+    - Subclass feature
+    '8':
+    - Ability Score Improvement
+    '9':
+    - Indomitable
+    - Tactical Master
+    '10':
+    - Subclass feature
+    '11':
+    - Two Extra Attacks
+    '12':
+    - Ability Score Improvement
+    '13':
+    - —
+    '14':
+    - Ability Score Improvement
+    '15':
+    - Subclass feature
+    '16':
+    - Ability Score Improvement
+    '17':
+    - Action Surge (2)
+    - Indomitable (2)
+    '18':
+    - —
+    '19':
+    - Epic Boon
+    '20':
+    - Three Extra Attacks
+  monk:
+    '1':
+    - Martial Arts
+    - Unarmored Defense
+    '2':
+    - Ki
+    - Unarmored Movement
+    - Uncanny Metabolism
+    '3':
+    - Monk Subclass
+    - Deflect Attacks
+    '4':
+    - Ability Score Improvement
+    - Slow Fall
+    '5':
+    - Extra Attack
+    - Stunning Strike
+    '6':
+    - Subclass feature
+    - Empowered Strikes
+    '7':
+    - Evasion
+    '8':
+    - Ability Score Improvement
+    '9':
+    - Acrobatic Movement
+    '10':
+    - Heightened Focus
+    - Self-Restoration
+    '11':
+    - Subclass feature
+    '12':
+    - Ability Score Improvement
+    '13':
+    - Deflect Energy
+    '14':
+    - Disciplined Survivor
+    '15':
+    - Perfect Focus
+    '16':
+    - Ability Score Improvement
+    '17':
+    - Subclass feature
+    '18':
+    - Superior Defense
+    '19':
+    - Epic Boon
+    '20':
+    - Body and Mind
+  paladin:
+    '1':
+    - Lay On Hands
+    - Spellcasting
+    - Weapon Mastery
+    '2':
+    - Fighting Style
+    - Paladin's Smite
+    '3':
+    - Paladin Subclass
+    - Channel Divinity
+    '4':
+    - Ability Score Improvement
+    '5':
+    - Extra Attack
+    - Faithful Steed
+    '6':
+    - Aura of Protection
+    '7':
+    - Subclass feature
+    '8':
+    - Ability Score Improvement
+    '9':
+    - Abjure Foes
+    '10':
+    - Aura of Courage
+    '11':
+    - Radiant Strikes
+    '12':
+    - Ability Score Improvement
+    '13':
+    - —
+    '14':
+    - Restoring Touch
+    '15':
+    - Subclass feature
+    '16':
+    - Ability Score Improvement
+    '17':
+    - —
+    '18':
+    - Aura Expansion
+    '19':
+    - Epic Boon
+    '20':
+    - Subclass capstone
+  ranger:
+    '1':
+    - Spellcasting
+    - Favored Enemy
+    - Weapon Mastery
+    '2':
+    - Fighting Style
+    - Deft Explorer
+    '3':
+    - Ranger Subclass
+    '4':
+    - Ability Score Improvement
+    '5':
+    - Extra Attack
+    '6':
+    - Roving
+    '7':
+    - Subclass feature
+    '8':
+    - Ability Score Improvement
+    '9':
+    - Expertise
+    '10':
+    - Subclass feature
+    '11':
+    - —
+    '12':
+    - Ability Score Improvement
+    '13':
+    - Relentless Hunter
+    '14':
+    - Nature's Veil
+    '15':
+    - Subclass feature
+    '16':
+    - Ability Score Improvement
+    '17':
+    - Precise Hunter
+    '18':
+    - Feral Senses
+    '19':
+    - Epic Boon
+    '20':
+    - Foe Slayer
+  rogue:
+    '1':
+    - Expertise
+    - Sneak Attack
+    - Thieves' Cant
+    - Weapon Mastery
+    '2':
+    - Cunning Action
+    '3':
+    - Rogue Subclass
+    - Steady Aim
+    '4':
+    - Ability Score Improvement
+    '5':
+    - Cunning Strike
+    - Uncanny Dodge
+    '6':
+    - Expertise
+    '7':
+    - Evasion
+    - Reliable Talent
+    '8':
+    - Ability Score Improvement
+    '9':
+    - Subclass feature
+    '10':
+    - Ability Score Improvement
+    '11':
+    - Improved Cunning Strike
+    '12':
+    - Ability Score Improvement
+    '13':
+    - Subclass feature
+    '14':
+    - Devious Strikes
+    '15':
+    - Slippery Mind
+    '16':
+    - Ability Score Improvement
+    '17':
+    - Subclass feature
+    '18':
+    - Elusive
+    '19':
+    - Epic Boon
+    '20':
+    - Stroke of Luck
+  sorcerer:
+    '1':
+    - Spellcasting
+    - Innate Sorcery
+    '2':
+    - Font of Magic
+    - Metamagic
+    '3':
+    - Sorcerer Subclass
+    '4':
+    - Ability Score Improvement
+    '5':
+    - Sorcerous Restoration
+    '6':
+    - Subclass feature
+    '7':
+    - Sorcery Incarnate
+    '8':
+    - Ability Score Improvement
+    '9':
+    - —
+    '10':
+    - Metamagic
+    '11':
+    - —
+    '12':
+    - Ability Score Improvement
+    '13':
+    - —
+    '14':
+    - Subclass feature
+    '15':
+    - —
+    '16':
+    - Ability Score Improvement
+    '17':
+    - Metamagic
+    '18':
+    - —
+    '19':
+    - Epic Boon
+    '20':
+    - Arcane Apotheosis
+  warlock:
+    '1':
+    - Pact Magic
+    - Eldritch Invocations
+    '2':
+    - Magical Cunning
+    '3':
+    - Warlock Subclass
+    '4':
+    - Ability Score Improvement
+    '5':
+    - —
+    '6':
+    - Subclass feature
+    '7':
+    - —
+    '8':
+    - Ability Score Improvement
+    '9':
+    - Contact Patron
+    '10':
+    - Subclass feature
+    '11':
+    - Mystic Arcanum (6th level)
+    '12':
+    - Ability Score Improvement
+    '13':
+    - Mystic Arcanum (7th level)
+    '14':
+    - Subclass feature
+    '15':
+    - Mystic Arcanum (8th level)
+    '16':
+    - Ability Score Improvement
+    '17':
+    - Mystic Arcanum (9th level)
+    '18':
+    - —
+    '19':
+    - Epic Boon
+    '20':
+    - Eldritch Master
+  wizard:
+    '1':
+    - Spellcasting
+    - Ritual Adept
+    - Arcane Recovery
+    '2':
+    - Scholar
+    '3':
+    - Wizard Subclass
+    '4':
+    - Ability Score Improvement
+    '5':
+    - Memorize Spell
+    '6':
+    - Subclass feature
+    '7':
+    - —
+    '8':
+    - Ability Score Improvement
+    '9':
+    - —
+    '10':
+    - Subclass feature
+    '11':
+    - —
+    '12':
+    - Ability Score Improvement
+    '13':
+    - —
+    '14':
+    - Subclass feature
+    '15':
+    - —
+    '16':
+    - Ability Score Improvement
+    '17':
+    - —
+    '18':
+    - Spell Mastery
+    '19':
+    - Epic Boon
+    '20':
+    - Signature Spells

@@ -1,0 +1,178 @@
+# D&D 5e (2024 PHB) — auto-built from docs/dnd5e/player.pdf
+backgrounds:
+- id: acolyte
+  label: Acolyte
+  ability_scores:
+  - int
+  - wis
+  - cha
+  feat: Magic Initiate (Cleric)
+  skills:
+  - insight
+  - religion
+  tool: Calligrapher's Supplies
+- id: artisan
+  label: Artisan
+  ability_scores:
+  - str
+  - dex
+  - int
+  feat: Crafter
+  skills:
+  - investigation
+  - persuasion
+  tool: Artisan's Tools
+- id: charlatan
+  label: Charlatan
+  ability_scores:
+  - dex
+  - con
+  - cha
+  feat: Skilled
+  skills:
+  - deception
+  - sleight_of_hand
+  tool: Forgery Kit
+- id: criminal
+  label: Criminal
+  ability_scores:
+  - dex
+  - con
+  - int
+  feat: Alert
+  skills:
+  - sleight_of_hand
+  - stealth
+  tool: Thieves' Tools
+- id: entertainer
+  label: Entertainer
+  ability_scores:
+  - str
+  - dex
+  - cha
+  feat: Musician
+  skills:
+  - acrobatics
+  - performance
+  tool: Musical Instrument
+- id: farmer
+  label: Farmer
+  ability_scores:
+  - str
+  - con
+  - wis
+  feat: Tough
+  skills:
+  - animal_handling
+  - nature
+  tool: Carpenter's Tools
+- id: guard
+  label: Guard
+  ability_scores:
+  - str
+  - int
+  - wis
+  feat: Alert
+  skills:
+  - athletics
+  - perception
+  tool: Gaming Set
+- id: guide
+  label: Guide
+  ability_scores:
+  - dex
+  - con
+  - wis
+  feat: Magic Initiate (Druid)
+  skills:
+  - stealth
+  - survival
+  tool: Cartographer's Tools
+- id: hermit
+  label: Hermit
+  ability_scores:
+  - con
+  - wis
+  - cha
+  feat: Healer
+  skills:
+  - medicine
+  - religion
+  tool: Herbalism Kit
+- id: merchant
+  label: Merchant
+  ability_scores:
+  - con
+  - int
+  - cha
+  feat: Lucky
+  skills:
+  - animal_handling
+  - persuasion
+  tool: Navigator's Tools
+- id: noble
+  label: Noble
+  ability_scores:
+  - str
+  - int
+  - cha
+  feat: Skilled
+  skills:
+  - history
+  - persuasion
+  tool: Gaming Set
+- id: sage
+  label: Sage
+  ability_scores:
+  - con
+  - int
+  - wis
+  feat: Magic Initiate (Wizard)
+  skills:
+  - arcana
+  - history
+  tool: Calligrapher's Supplies
+- id: sailor
+  label: Sailor
+  ability_scores:
+  - str
+  - dex
+  - wis
+  feat: Tavern Brawler
+  skills:
+  - acrobatics
+  - perception
+  tool: Navigator's Tools
+- id: scribe
+  label: Scribe
+  ability_scores:
+  - dex
+  - int
+  - wis
+  feat: Skilled
+  skills:
+  - investigation
+  - perception
+  tool: Calligrapher's Supplies
+- id: soldier
+  label: Soldier
+  ability_scores:
+  - str
+  - dex
+  - con
+  feat: Savage Attacker
+  skills:
+  - athletics
+  - intimidation
+  tool: Gaming Set
+- id: wayfarer
+  label: Wayfarer
+  ability_scores:
+  - dex
+  - wis
+  - cha
+  feat: Lucky
+  skills:
+  - insight
+  - stealth
+  tool: Thieves' Tools

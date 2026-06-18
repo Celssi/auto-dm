@@ -1,0 +1,8 @@
+# Subclass spells always prepared (PHB 2024) — not counted against prepared limit
+circle_of_the_moon:
+  class_id: druid
+  label: Circle of the Moon
+  always_prepared:
+    - Cure Wounds
+    - Moonbeam
+    - Starry Wisp

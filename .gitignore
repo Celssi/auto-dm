@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Secrets & local config
+.env
+.env.*
+!.env.example
+
+# Generated / local data
+data/chroma/
+data/ocr_cache/
+data/saves/
+data/debug/
+data/eval/
+
+# Rulebook PDFs (copyright — place your own copies locally)
+dnd5e/*.pdf
+/*.pdf
+
+# Node / frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Logs & OS
+*.log
+.DS_Store
+Thumbs.db
+
+# IDE (optional local settings)
+.idea/
+.vscode/
+*.swp
+*.swo

@@ -1,0 +1,187 @@
+# Forgotten Realms supplements — Heroes of Faerûn (player options)
+# Adventures in Faerûn content is primarily adventure/RAG (not character builder).
+#
+# Shown when include_faerun=true or campaign_setting=faerun.
+# Background feat/skills are starter values — verify against heroes_faerun.pdf or RAG.
+
+source: heroes_faerun
+label: Heroes of Faerûn
+
+class_extensions:
+  bard:
+    subclasses:
+      - College of the Moon
+  cleric:
+    subclasses:
+      - Knowledge Domain
+  fighter:
+    subclasses:
+      - Purple Dragon Knight
+      - Banneret
+  paladin:
+    subclasses:
+      - Oath of the Noble Genies
+  ranger:
+    subclasses:
+      - Winter Walker
+  rogue:
+    subclasses:
+      - Scion of the Three
+  sorcerer:
+    subclasses:
+      - Spellfire Sorcery
+  wizard:
+    subclasses:
+      - Bladesinger
+
+backgrounds:
+  # Regional (10)
+  - id: chondathan_freebooter
+    label: Chondathan Freebooter
+    source: faerun
+    category: regional
+    ability_scores: [str, dex, wis]
+    feat: Tavern Brawler
+    skills: [acrobatics, perception]
+    tool: Navigator's Tools
+  - id: dead_magic_dweller
+    label: Dead Magic Dweller
+    source: faerun
+    category: regional
+    ability_scores: [con, int, wis]
+    feat: Magic Initiate (Wizard)
+    skills: [arcana, survival]
+    tool: Calligrapher's Supplies
+  - id: flaming_fist_mercenary
+    label: Flaming Fist Mercenary
+    source: faerun
+    category: regional
+    ability_scores: [str, con, wis]
+    feat: Savage Attacker
+    skills: [athletics, intimidation]
+    tool: Gaming Set
+  - id: genie_touched
+    label: Genie Touched
+    source: faerun
+    category: regional
+    ability_scores: [dex, con, cha]
+    feat: Magic Initiate (Wizard)
+    skills: [arcana, persuasion]
+    tool: Calligrapher's Supplies
+  - id: ice_fisher
+    label: Ice Fisher
+    source: faerun
+    category: regional
+    ability_scores: [con, wis, cha]
+    feat: Tough
+    skills: [animal_handling, survival]
+    tool: Carpenter's Tools
+  - id: moonwell_pilgrim
+    label: Moonwell Pilgrim
+    source: faerun
+    category: regional
+    ability_scores: [wis, cha, int]
+    feat: Magic Initiate (Druid)
+    skills: [nature, religion]
+    tool: Herbalism Kit
+  - id: mulhorandi_tomb_raider
+    label: Mulhorandi Tomb Raider
+    source: faerun
+    category: regional
+    ability_scores: [dex, int, wis]
+    feat: Alert
+    skills: [investigation, religion]
+    tool: Thieves' Tools
+  - id: mythalkeeper
+    label: Mythalkeeper
+    source: faerun
+    category: regional
+    ability_scores: [int, wis, cha]
+    feat: Magic Initiate (Wizard)
+    skills: [arcana, history]
+    tool: Calligrapher's Supplies
+  - id: rashemi_wanderer
+    label: Rashemi Wanderer
+    source: faerun
+    category: regional
+    ability_scores: [con, wis, dex]
+    feat: Healer
+    skills: [medicine, survival]
+    tool: Herbalism Kit
+  - id: shadowmasters_exile
+    label: Shadowmasters Exile
+    source: faerun
+    category: regional
+    ability_scores: [dex, int, cha]
+    feat: Alert
+    skills: [deception, stealth]
+    tool: Disguise Kit
+  # Faction (8)
+  - id: dragon_cultist
+    label: Dragon Cultist
+    source: faerun
+    category: faction
+    ability_scores: [str, con, cha]
+    feat: Skilled
+    skills: [intimidation, religion]
+    tool: Dragonchess Set
+  - id: emerald_enclave_caretaker
+    label: Emerald Enclave Caretaker
+    source: faerun
+    category: faction
+    ability_scores: [con, wis, dex]
+    feat: Magic Initiate (Druid)
+    skills: [nature, survival]
+    tool: Herbalism Kit
+  - id: harper
+    label: Harper Agent
+    source: faerun
+    category: faction
+    ability_scores: [dex, wis, cha]
+    feat: Skilled
+    skills: [investigation, persuasion]
+    tool: Musical Instrument
+  - id: knight_of_the_gauntlet
+    label: Knight of the Gauntlet
+    source: faerun
+    category: faction
+    ability_scores: [str, wis, cha]
+    feat: Savage Attacker
+    skills: [athletics, religion]
+    tool: Gaming Set
+  - id: lords_alliance_vassal
+    label: Lords' Alliance Vassal
+    source: faerun
+    category: faction
+    ability_scores: [str, int, cha]
+    feat: Skilled
+    skills: [history, persuasion]
+    tool: Gaming Set
+  - id: purple_dragon_squire
+    label: Purple Dragon Squire
+    source: faerun
+    category: faction
+    ability_scores: [str, dex, wis]
+    feat: Alert
+    skills: [athletics, history]
+    tool: Gaming Set
+  - id: zhentarim_mercenary
+    label: Zhentarim Mercenary
+    source: faerun
+    category: faction
+    ability_scores: [dex, con, cha]
+    feat: Alert
+    skills: [deception, intimidation]
+    tool: Thieves' Tools
+
+# Spell names for RAG/wizard hints — not full spell tables (use heroes_faerun RAG faction).
+spell_names:
+  - Circle Magic
+  - Spellfire Burst
+
+equipment:
+  regional_items:
+    - Moonwell chalice
+    - Purple Dragon tabard
+    - Harper pin
+    - Zhentarim contract seal

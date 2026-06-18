@@ -1,0 +1,20 @@
+# D&D 5e solo yes/no oracle (d6)
+answers:
+  "1":
+    answer: "No"
+    twist: "and the situation grows worse"
+  "2":
+    answer: "No"
+    twist: ""
+  "3":
+    answer: "No"
+    twist: "but something else happens"
+  "4":
+    answer: "Yes"
+    twist: "but at a cost"
+  "5":
+    answer: "Yes"
+    twist: ""
+  "6":
+    answer: "Yes"
+    twist: "and something extra happens"

@@ -1,0 +1,82 @@
+# PHB 2024 multiclass prerequisites and proficiencies gained when multiclassing INTO a class.
+
+classes:
+  barbarian:
+    prerequisites:
+      str: 13
+    proficiencies:
+      armor: [shields]
+      weapons: [simple, martial]
+  bard:
+    prerequisites:
+      cha: 13
+    proficiencies:
+      armor: [light]
+      skills: 1
+      tools: [musical instrument]
+  cleric:
+    prerequisites:
+      wis: 13
+    proficiencies:
+      armor: [light, shields]
+  druid:
+    prerequisites:
+      wis: 13
+    proficiencies:
+      armor: [shields]
+  fighter:
+    prerequisites:
+      str: 13
+      dex: 13
+    proficiencies:
+      armor: [light]
+      weapons: [simple, martial]
+  monk:
+    prerequisites:
+      dex: 13
+      wis: 13
+    proficiencies:
+      weapons: [simple, shortsword]
+  paladin:
+    prerequisites:
+      str: 13
+      cha: 13
+    proficiencies:
+      armor: [light, shields]
+      weapons: [simple, martial]
+  ranger:
+    prerequisites:
+      dex: 13
+      wis: 13
+    proficiencies:
+      armor: [light, shields]
+      weapons: [simple, martial]
+      skills: 1
+  rogue:
+    prerequisites:
+      dex: 13
+    proficiencies:
+      armor: [light]
+      skills: 1
+      tools: [thieves' tools]
+  sorcerer:
+    prerequisites:
+      cha: 13
+    proficiencies:
+      spells: [cantrip]
+  warlock:
+    prerequisites:
+      cha: 13
+    proficiencies:
+      armor: [light]
+      weapons: [simple]
+  wizard:
+    prerequisites:
+      int: 13
+    proficiencies:
+      spells: [cantrip]
+
+# Effective caster level = sum(full levels) + floor(half-caster levels / 2)
+full_casters: [bard, cleric, druid, sorcerer, wizard]
+half_casters: [paladin, ranger]
+pact_casters: [warlock]

@@ -1,0 +1,158 @@
+# D&D 5e (2024 PHB) — auto-built from docs/dnd5e/player.pdf
+skills:
+- id: acrobatics
+  label: Acrobatics
+  ability: dex
+- id: animal_handling
+  label: Animal Handling
+  ability: wis
+- id: arcana
+  label: Arcana
+  ability: int
+- id: athletics
+  label: Athletics
+  ability: str
+- id: deception
+  label: Deception
+  ability: cha
+- id: history
+  label: History
+  ability: int
+- id: insight
+  label: Insight
+  ability: wis
+- id: intimidation
+  label: Intimidation
+  ability: cha
+- id: investigation
+  label: Investigation
+  ability: int
+- id: medicine
+  label: Medicine
+  ability: wis
+- id: nature
+  label: Nature
+  ability: int
+- id: perception
+  label: Perception
+  ability: wis
+- id: performance
+  label: Performance
+  ability: cha
+- id: persuasion
+  label: Persuasion
+  ability: cha
+- id: religion
+  label: Religion
+  ability: int
+- id: sleight_of_hand
+  label: Sleight of Hand
+  ability: dex
+- id: stealth
+  label: Stealth
+  ability: dex
+- id: survival
+  label: Survival
+  ability: wis
+alignments:
+- lawful_good
+- neutral_good
+- chaotic_good
+- lawful_neutral
+- true_neutral
+- chaotic_neutral
+- lawful_evil
+- neutral_evil
+- chaotic_evil
+standard_array:
+- 15
+- 14
+- 13
+- 12
+- 10
+- 8
+standard_array_by_class:
+  barbarian:
+    str: 15
+    dex: 13
+    con: 14
+    int: 10
+    wis: 12
+    cha: 8
+  bard:
+    str: 8
+    dex: 14
+    con: 12
+    int: 13
+    wis: 10
+    cha: 15
+  cleric:
+    str: 14
+    dex: 8
+    con: 13
+    int: 10
+    wis: 15
+    cha: 12
+  druid:
+    str: 8
+    dex: 12
+    con: 14
+    int: 13
+    wis: 15
+    cha: 10
+  fighter:
+    str: 15
+    dex: 14
+    con: 13
+    int: 8
+    wis: 10
+    cha: 12
+  monk:
+    str: 12
+    dex: 15
+    con: 13
+    int: 10
+    wis: 14
+    cha: 8
+  paladin:
+    str: 15
+    dex: 10
+    con: 13
+    int: 8
+    wis: 12
+    cha: 14
+  ranger:
+    str: 12
+    dex: 15
+    con: 13
+    int: 8
+    wis: 14
+    cha: 10
+  rogue:
+    str: 12
+    dex: 15
+    con: 13
+    int: 14
+    wis: 10
+    cha: 8
+  sorcerer:
+    str: 10
+    dex: 13
+    con: 14
+    int: 12
+    wis: 8
+    cha: 15
+  warlock:
+    str: 8
+    dex: 14
+    con: 13
+    int: 12
+    wis: 10
+    cha: 15
+  wizard:
+    str: 8
+    dex: 14
+    con: 13
+    int: 15
+    wis: 12
+    cha: 10

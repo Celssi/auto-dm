@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  @apply bg-bg text-gray-100 antialiased;
+}
+
+.panel {
+  @apply bg-panel border border-border rounded-lg;
+}
+
+.btn {
+  @apply px-3 py-1.5 rounded-md text-sm font-medium transition-colors;
+}
+
+.btn-primary {
+  @apply btn bg-accent text-bg hover:bg-yellow-500;
+}
+
+.btn-ghost {
+  @apply btn bg-transparent border border-border hover:bg-panel;
+}
+
+.input {
+  @apply w-full bg-bg border border-border rounded px-2 py-1 text-sm focus:outline-none focus:border-accent;
+}
+
+.sheet-box {
+  @apply border border-gray-400 bg-white text-black font-sheet text-xs;
+}

@@ -1,0 +1,43 @@
+[project]
+name = "auto-dm"
+version = "0.1.0"
+description = "Automated D&D 5e 2024 solo DM with RAG, character sheets, and Claude Opus"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "chromadb>=1.5.0,<2",
+    "llama-index-core>=0.14.0,<0.15",
+    "llama-index-embeddings-ollama>=0.9.0,<0.10",
+    "llama-index-llms-ollama>=0.10.0,<0.11",
+    "llama-index-llms-anthropic>=0.11.0,<0.12",
+    "llama-index-vector-stores-chroma>=0.5.0,<0.6",
+    "langchain-core>=1.0.0,<2",
+    "langchain-anthropic>=0.3.0,<1",
+    "langgraph>=1.0.0,<2",
+    "langchain-ollama>=1.0.0,<2",
+    "pymupdf>=1.27.0,<2",
+    "pypdf>=6.0.0,<7",
+    "cryptography>=43.0.0,<46",
+    "pytesseract>=0.3.13,<0.4",
+    "pillow>=12.0.0,<13",
+    "pyyaml>=6.0,<7",
+    "fastapi>=0.115.0,<1",
+    "uvicorn[standard]>=0.32.0,<1",
+    "sse-starlette>=2.0.0,<3",
+    "sentence-transformers>=3.0.0,<4",
+    "pydantic>=2.0,<3",
+]
+
+[build-system]
+requires = ["hatchling>=1.26.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["backend"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I"]

@@ -1,0 +1,574 @@
+"""Apply PHB 2024 rules when building or leveling a D&D 5e character."""
+
+from __future__ import annotations
+
+import random
+from typing import Any
+
+from backend.characters.character_data import (
+    equipment_data,
+    full_caster_slots,
+    get_armor,
+    get_background,
+    get_class,
+    get_species,
+    half_caster_slots,
+    shield_ac_bonus,
+    skills_data,
+)
+from backend.characters.entity import ABILITY_KEYS, Dnd5eCharacter
+from backend.characters.features import unlocked_features
+from backend.characters.spell_resources import (
+    compute_wild_shape_max,
+    preserve_remaining_spell_slots,
+    recover_pact_slots_on_short_rest,
+    sync_wild_shape_uses,
+)
+from backend.characters.multiclass import (
+    asi_feat_slots_multiclass,
+    can_multiclass_into,
+    class_levels_dict,
+    compute_multiclass_spell_slots,
+    hit_dice_pool,
+    normalize_class_entries,
+    primary_class_entry,
+    sync_legacy_class_fields,
+    total_class_level,
+)
+
+_SPELLCASTING_FULL = {"bard", "cleric", "druid", "sorcerer", "wizard"}
+_SPELLCASTING_HALF = {"paladin", "ranger"}
+_SPELLCASTING_PACT = {"warlock"}
+
+
+def _level_index(level: int) -> int:
+    return max(0, min(19, int(level or 1) - 1))
+
+
+def _by_level(table: list | None, level: int, default: int = 0) -> int:
+    if not isinstance(table, list) or not table:
+        return default
+    return int(table[_level_index(level)] or default)
+
+
+def apply_background_asi(
+    scores: dict[str, int],
+    background_id: str,
+    *,
+    plus2: str = "",
+    plus1: str = "",
+    all_three: bool = False,
+) -> dict[str, int]:
+    """Background ASI: +2/+1 to two of three abilities, or +1 to all three."""
+    bg = get_background(background_id)
+    if not bg:
+        return dict(scores)
+    out = dict(scores)
+    options = [str(a).lower() for a in (bg.get("ability_scores") or []) if str(a).lower() in ABILITY_KEYS]
+    if not options:
+        return out
+    if all_three:
+        for ab in options[:3]:
+            out[ab] = min(20, out.get(ab, 8) + 1)
+        return out
+    p2 = plus2.lower() if plus2.lower() in options else options[0]
+    remaining = [a for a in options if a != p2]
+    p1 = plus1.lower() if plus1.lower() in remaining else (remaining[0] if remaining else p2)
+    out[p2] = min(20, out.get(p2, 8) + 2)
+    out[p1] = min(20, out.get(p1, 8) + 1)
+    return out
+
+
+def standard_array_for_class(class_id: str) -> dict[str, int]:
+    table = skills_data().get("standard_array_by_class") or {}
+    row = table.get(class_id)
+    if isinstance(row, dict):
+        return {k: int(row.get(k, 10) or 10) for k in ABILITY_KEYS}
+    return {k: 10 for k in ABILITY_KEYS}
+
+
+def compute_spell_slots(char: Dnd5eCharacter) -> dict[str, int]:
+    levels = class_levels_dict(char)
+    caster_classes = sum(
+        1 for cid, lv in levels.items() if lv > 0 and (get_class(cid) or {}).get("spellcasting")
+    )
+    if len(levels) > 1 or caster_classes > 1:
+        mc = compute_multiclass_spell_slots(char)
+        if mc:
+            return mc
+    cls = get_class(char.class_name)
+    if not cls or not cls.get("spellcasting"):
+        return {}
+    cid = char.class_name
+    level = levels.get(cid, char.level)
+    mode = cls.get("spellcasting")
+    if mode == "pact":
+        pact = cls.get("pact_slots_by_level") or []
+        row = pact[_level_index(level)] if pact else {}
+        if isinstance(row, dict):
+            count = int(row.get("slots", 0) or 0)
+            slot_level = int(row.get("level", 1) or 1)
+            if count > 0:
+                return {str(slot_level): count}
+        return {}
+    if cid in _SPELLCASTING_HALF or mode == "prepared" and cid in _SPELLCASTING_HALF:
+        return half_caster_slots(level)
+    if cid in _SPELLCASTING_FULL or mode in ("prepared", "known"):
+        return full_caster_slots(level)
+    return {}
+
+
+def compute_max_hp(char: Dnd5eCharacter, *, first_level: bool = False) -> int:
+    levels = class_levels_dict(char)
+    if len(levels) <= 1:
+        cls = get_class(char.class_name)
+        hit_die = int((cls or {}).get("hit_die", 8) or 8)
+        con_mod = char.ability_modifier("con")
+        if char.level <= 1:
+            return max(1, hit_die + con_mod)
+        per_level = max(1, (hit_die // 2) + 1 + con_mod)
+        return max(1, hit_die + con_mod + per_level * (char.level - 1))
+    con_mod = char.ability_modifier("con")
+    total = 0
+    for cid, lv in levels.items():
+        cls = get_class(cid) or {}
+        hit_die = int(cls.get("hit_die", 8) or 8)
+        total += max(1, hit_die + con_mod)
+        if lv > 1:
+            per_level = max(1, (hit_die // 2) + 1 + con_mod)
+            total += per_level * (lv - 1)
+    return max(1, total)
+
+
+def merge_proficiencies(char: Dnd5eCharacter) -> tuple[list[str], list[str], list[str]]:
+    """Return (skills, saves, tools) after all classes + background."""
+    saves: set[str] = set()
+    skills = list(char.skill_proficiencies or [])
+    tools = list(char.tool_proficiencies or [])
+    bg = get_background(char.background)
+    for entry in normalize_class_entries(char):
+        cls = get_class(entry["class_name"])
+        for s in (cls or {}).get("saving_throws") or []:
+            saves.add(str(s).lower())
+        for sk in entry.get("class_skill_choices") or []:
+            s = str(sk).lower()
+            if s and s not in skills:
+                skills.append(s)
+    for sk in char.class_skill_choices or []:
+        s = str(sk).lower()
+        if s and s not in skills:
+            skills.append(s)
+    if bg:
+        for sk in bg.get("skills") or []:
+            s = str(sk).lower()
+            if s and s not in skills:
+                skills.append(s)
+        tool = str(bg.get("tool") or "").strip()
+        if tool and tool not in tools:
+            tools.append(tool)
+    if char.species == "human" and char.human_skill:
+        hs = str(char.human_skill).lower()
+        if hs and hs not in skills:
+            skills.append(hs)
+    return skills, sorted(saves), tools
+
+
+def spell_limits(char: Dnd5eCharacter) -> dict[str, int]:
+    totals = {"cantrips": 0, "prepared": 0, "known": 0}
+    entries = normalize_class_entries(char)
+    if not entries:
+        entries = [{"class_name": char.class_name, "level": char.level}]
+    for entry in entries:
+        cls = get_class(entry["class_name"])
+        if not cls or not cls.get("spellcasting"):
+            continue
+        level = int(entry["level"])
+        totals["cantrips"] += _by_level(cls.get("cantrips_by_level"), level, 0)
+        totals["prepared"] += _by_level(cls.get("prepared_by_level"), level, 0)
+        totals["known"] += _by_level(cls.get("spells_known_by_level"), level, 0)
+    return totals
+
+
+def apply_starting_equipment(char: Dnd5eCharacter) -> Dnd5eCharacter:
+    """Apply PHB starting gear when inventory is empty and class is set."""
+    if char.inventory or not char.class_name:
+        return char
+    gear = equipment_data().get("class_starting_gear") or {}
+    package = gear.get(char.class_name)
+    if not isinstance(package, dict):
+        return char
+    items = list(package.get("items") or [])
+    weapons = list(package.get("weapons") or [])
+    if items:
+        char.inventory = [str(i) for i in items]
+    if weapons and not char.weapons:
+        char.weapons = [
+            {
+                "name": str(w.get("name", "")),
+                "damage": str(w.get("damage", "1d6")),
+                "damage_type": str(w.get("damage_type", "")),
+                "ability": str(w.get("ability", "str")),
+                "proficient": True,
+            }
+            for w in weapons
+            if isinstance(w, dict)
+        ]
+    armor_id = str(package.get("armor") or "")
+    if armor_id and char.armor in ("", "none"):
+        char.armor = armor_id
+    if package.get("shield"):
+        char.shield = True
+    coins = package.get("currency") or {}
+    if isinstance(coins, dict) and not sum(int(char.currency.get(k, 0) or 0) for k in ("cp", "sp", "ep", "gp", "pp")):
+        char.currency = {k: int(coins.get(k, 0) or 0) for k in ("cp", "sp", "ep", "gp", "pp")}
+    return char
+
+
+def rebuild_character(char: Dnd5eCharacter, *, recompute_hp: bool = False) -> Dnd5eCharacter:
+    """Recompute derived stats from class, species, background, and level."""
+    char.clamp()
+    # Resolve the *base* (pre-background) ability scores, then derive the final
+    # scores by applying the background increase exactly once. Tracking the base
+    # separately keeps rebuild idempotent — without it, repeated saves would stack
+    # the +2/+1 onto already-boosted scores.
+    if char.class_name and not char.ability_scores_set:
+        base = standard_array_for_class(char.class_name)
+    elif char.base_ability_scores:
+        base = {
+            k: int(char.base_ability_scores.get(k, char.ability_scores.get(k, 10)) or 10)
+            for k in ABILITY_KEYS
+        }
+    else:
+        base = {k: int(char.ability_scores.get(k, 10) or 10) for k in ABILITY_KEYS}
+    char.base_ability_scores = dict(base)
+
+    final = dict(base)
+    if char.background and char.background_asi_mode != "manual":
+        final = apply_background_asi(
+            final,
+            char.background,
+            plus2=char.background_asi_plus2,
+            plus1=char.background_asi_plus1,
+            all_three=char.background_asi_all_three,
+        )
+    # Apply ability score improvements taken at level-up (idempotent: summed from
+    # the recorded choices, not the already-derived scores). Derive feats too.
+    feat_names: list[str] = []
+    for choice in char.asi_choices:
+        if not isinstance(choice, dict):
+            continue
+        if choice.get("type") == "feat":
+            name = str(choice.get("feat") or "").strip()
+            if name:
+                feat_names.append(name)
+        else:
+            for ab, amount in (choice.get("plus") or {}).items():
+                if ab in ABILITY_KEYS:
+                    final[ab] = min(20, final.get(ab, 10) + int(amount or 0))
+    char.feats = feat_names
+    char.ability_scores = final
+
+    sp = get_species(char.species)
+    if sp:
+        char.speed = int(sp.get("speed", char.speed) or char.speed)
+        sizes = sp.get("size_options") or ["medium"]
+        if char.size not in sizes:
+            char.size = str(sizes[0])
+        if char.species == "human":
+            char.heroic_inspiration = True  # Resourceful: gain on long rest
+
+    skills, saves, tools = merge_proficiencies(char)
+    char.skill_proficiencies = skills
+    char.save_proficiencies = saves
+    char.tool_proficiencies = tools
+
+    cls = get_class(char.class_name)
+    if cls:
+        char.hit_die = int(cls.get("hit_die", char.hit_die) or char.hit_die)
+    char.hit_dice_max = total_class_level(char) or char.level
+    if char.hit_dice_spent > char.hit_dice_max:
+        char.hit_dice_spent = char.hit_dice_max
+
+    sync_legacy_class_fields(char)
+    prev_slots = dict(char.spell_slots)
+    max_slots = compute_spell_slots(char)
+    char.spell_slots = preserve_remaining_spell_slots(prev_slots, max_slots)
+    sync_wild_shape_uses(char)
+
+    if char.class_name:
+        bg = get_background(char.background)
+        if bg and not char.origin_feat:
+            char.origin_feat = str(bg.get("feat") or "")
+
+    if recompute_hp or char.max_hp <= 0:
+        new_max = compute_max_hp(char)
+        char.max_hp = new_max
+        if char.hp <= 0 or char.hp > char.max_hp:
+            char.hp = char.max_hp
+
+    # Armor Class from worn armor + shield, unless the player set it manually.
+    if not char.ac_manual:
+        char.ac = compute_ac(char)
+    elif char.ac <= 0:
+        char.ac = 10 + char.ability_modifier("dex")
+
+    char.clamp()
+    return char
+
+
+def finalize_new_character(char: Dnd5eCharacter) -> Dnd5eCharacter:
+    """Full rebuild for new characters including starting equipment."""
+    if not char.classes and char.class_name:
+        char.classes = [
+            {
+                "class_name": char.class_name,
+                "level": max(1, char.level),
+                "subclass": char.subclass,
+                "class_skill_choices": list(char.class_skill_choices or []),
+            }
+        ]
+    char = apply_starting_equipment(char)
+    char = rebuild_character(char, recompute_hp=True)
+    ws_max = compute_wild_shape_max(char)
+    if ws_max > 0:
+        char.wild_shape_uses = ws_max
+    return char
+
+
+def compute_ac(char: Dnd5eCharacter) -> int:
+    """AC from worn armor + shield (PHB 2024 armor table)."""
+    dex = char.ability_modifier("dex")
+    armor = get_armor(char.armor) if char.armor and char.armor != "none" else None
+    if not armor:
+        base = 10 + dex
+    else:
+        base = int(armor.get("base_ac", 10) or 10)
+        category = str(armor.get("category", "") or "")
+        if armor.get("add_dex") or category == "light":
+            base += dex
+        elif "dex_cap" in armor or category == "medium":
+            base += min(dex, int(armor.get("dex_cap", 2) or 2))
+        # heavy armor adds no DEX
+    if char.shield:
+        base += shield_ac_bonus()
+    return max(1, min(30, base))
+
+
+def level_up(
+    char: Dnd5eCharacter,
+    *,
+    hp_roll: int | None = None,
+    class_name: str | None = None,
+) -> Dnd5eCharacter:
+    if total_class_level(char) >= 20:
+        return char
+    entries = normalize_class_entries(char)
+    target = (class_name or (primary_class_entry(char) or {}).get("class_name") or char.class_name or "").strip().lower()
+    if not target:
+        return char
+    leveled_existing = False
+    for entry in entries:
+        if entry["class_name"] == target:
+            entry["level"] = int(entry["level"]) + 1
+            leveled_existing = True
+            break
+    if not leveled_existing:
+        ok, _ = can_multiclass_into(char, target)
+        if not ok and entries:
+            return char
+        entries.append(
+            {"class_name": target, "level": 1, "subclass": "", "class_skill_choices": []}
+        )
+    char.classes = entries
+    sync_legacy_class_fields(char)
+    cls = get_class(target)
+    hit_die = int((cls or {}).get("hit_die", 8) or 8)
+    con_mod = char.ability_modifier("con")
+    if hp_roll is None:
+        hp_roll = random.randint(1, hit_die)
+    gain = max(1, int(hp_roll) + con_mod)
+    char.max_hp = max(1, char.max_hp + gain)
+    char.hp = min(char.max_hp, char.hp + gain)
+    return rebuild_character(char, recompute_hp=False)
+
+
+def add_multiclass_level(char: Dnd5eCharacter, class_id: str) -> tuple[Dnd5eCharacter, str]:
+    """Add first level in a new class if prerequisites met."""
+    class_id = class_id.strip().lower()
+    levels = class_levels_dict(char)
+    if class_id in levels:
+        return char, "Already has levels in that class"
+    if total_class_level(char) >= 20:
+        return char, "Already level 20"
+    ok, reason = can_multiclass_into(char, class_id)
+    if not ok:
+        return char, reason or "Prerequisites not met"
+    entries = normalize_class_entries(char)
+    entries.append({"class_name": class_id, "level": 1, "subclass": "", "class_skill_choices": []})
+    char.classes = entries
+    return rebuild_character(char, recompute_hp=True), ""
+
+
+# Levels that grant an Ability Score Improvement / feat. Most classes use the
+# default; Fighter and Rogue get extras (PHB 2024).
+_ASI_LEVELS_DEFAULT = (4, 8, 12, 16, 19)
+_ASI_LEVELS_BY_CLASS = {
+    "fighter": (4, 6, 8, 12, 14, 16, 19),
+    "rogue": (4, 8, 10, 12, 16, 19),
+}
+
+
+def asi_feat_slots(class_id: str, level: int) -> int:
+    """Number of ASI/feat choices unlocked by the given level."""
+    levels = _ASI_LEVELS_BY_CLASS.get(class_id, _ASI_LEVELS_DEFAULT)
+    return sum(1 for lv in levels if level >= lv)
+
+
+def character_creation_summary(char: Dnd5eCharacter) -> dict[str, Any]:
+    limits = spell_limits(char)
+    cls = get_class(char.class_name) or {}
+    entries = normalize_class_entries(char)
+    slots = asi_feat_slots_multiclass(char) if len(class_levels_dict(char)) > 1 else (
+        asi_feat_slots(char.class_name, char.level) if char.class_name else 0
+    )
+    taken = len(char.asi_choices)
+    primary = primary_class_entry(char) or {}
+    return {
+        "proficiency_bonus": char.proficiency_bonus(),
+        "spell_limits": limits,
+        "spellcasting": cls.get("spellcasting"),
+        "subclass_level": cls.get("subclass_level", 3),
+        "needs_subclass": any(
+            int(e.get("level", 0)) >= int((get_class(e["class_name"]) or {}).get("subclass_level", 3) or 3)
+            and not e.get("subclass")
+            for e in entries
+        ),
+        "hit_die": char.hit_die,
+        "hit_dice_available": max(0, char.hit_dice_max - char.hit_dice_spent),
+        "hit_dice_pool": hit_dice_pool(char),
+        "asi_feat_slots": slots,
+        "asi_feat_taken": taken,
+        "needs_asi": slots > taken,
+        "ac": char.ac,
+        "classes": entries,
+        "multiclass": len(class_levels_dict(char)) > 1,
+        "unlocked_features": unlocked_features(char),
+        "primary_class": primary.get("class_name"),
+        "spell_slots_max": compute_spell_slots(char),
+        "wild_shape_max": compute_wild_shape_max(char),
+        "wild_shape_uses": char.wild_shape_uses,
+    }
+
+
+def short_rest_heal(
+    char: Dnd5eCharacter,
+    *,
+    dice_to_spend: int = 1,
+) -> dict[str, Any]:
+    """Spend Hit Dice during a short rest (PHB 2024)."""
+    available = max(0, char.hit_dice_max - char.hit_dice_spent)
+    spend = min(max(0, int(dice_to_spend)), available)
+    if spend <= 0:
+        return {
+            "healing": 0,
+            "rolls": [],
+            "dice_spent": 0,
+            "summary": "",
+            "entity_updates": {},
+        }
+    con_mod = char.ability_modifier("con")
+    rolls: list[int] = []
+    total = 0
+    for _ in range(spend):
+        roll = random.randint(1, char.hit_die)
+        healed = max(1, roll + con_mod)
+        rolls.append(roll)
+        total += healed
+    new_hp = min(char.max_hp, char.hp + total)
+    char.hp = new_hp
+    char.hit_dice_spent = char.hit_dice_spent + spend
+    return {
+        "healing": total,
+        "rolls": rolls,
+        "dice_spent": spend,
+        "summary": (
+            f"Spent {spend}d{char.hit_die} {rolls} + {con_mod:+d} CON "
+            f"→ **{total}** HP restored ({char.hp - total} → {new_hp})"
+        ),
+        "entity_updates": {
+            "hp": new_hp,
+            "hit_dice_spent": char.hit_dice_spent,
+        },
+    }
+
+
+def apply_short_rest(
+    char: Dnd5eCharacter,
+    *,
+    dice_to_spend: int = 0,
+) -> dict[str, Any]:
+    """Short rest: Pact Magic recovery + optional Hit Dice healing."""
+    parts: list[str] = ["Short rest."]
+    entity: dict[str, Any] = {}
+
+    pact_line = recover_pact_slots_on_short_rest(char)
+    if pact_line:
+        parts.append(pact_line)
+        entity["spell_slots"] = dict(char.spell_slots)
+
+    if dice_to_spend > 0:
+        heal = short_rest_heal(char, dice_to_spend=dice_to_spend)
+        if heal.get("summary"):
+            parts.append(heal["summary"])
+        entity.update(heal.get("entity_updates") or {})
+
+    summary = " ".join(parts)
+    if summary == "Short rest.":
+        summary = "Short rest (no resources spent or recovered)."
+    return {"summary": summary, "entity_updates": entity}
+
+
+def elf_trance_rest_note(char: Dnd5eCharacter) -> str:
+    """Narrative note only — elves finish a long rest in 4 hours of Trance (PHB 2024)."""
+    if (char.species or "").strip().lower() == "elf":
+        return " Rested in **4-hour Trance** (elf trait — same benefits as an 8-hour long rest)."
+    return ""
+
+
+def long_rest_recover(char: Dnd5eCharacter) -> dict[str, Any]:
+    """Apply long rest recovery (HP, Hit Dice, spell slots)."""
+    char.hp = char.max_hp
+    char.hit_dice_spent = 0
+    char.spell_slots = compute_spell_slots(char)
+    char.death_save_successes = 0
+    char.death_save_failures = 0
+    char.exhaustion = max(0, char.exhaustion - 1)  # PHB 2024: long rest removes 1 level
+    char.concentration = ""
+    char.wild_shape_uses = compute_wild_shape_max(char)
+    if char.species == "human":
+        char.heroic_inspiration = True
+    char.clamp()
+    slots = ", ".join(f"L{k}×{v}" for k, v in sorted(char.spell_slots.items(), key=lambda x: int(x[0])))
+    summary = f"Long rest: HP restored to **{char.hp}/{char.max_hp}**, all Hit Dice available"
+    if slots:
+        summary += f", spell slots restored ({slots})"
+    ws_max = compute_wild_shape_max(char)
+    if ws_max > 0:
+        summary += f", Wild Shape uses restored ({ws_max}/{ws_max})"
+    if char.exhaustion:
+        summary += f", exhaustion now level {char.exhaustion}"
+    summary += elf_trance_rest_note(char)
+    return {
+        "summary": summary,
+        "entity_updates": {
+            "hp": char.hp,
+            "hit_dice_spent": 0,
+            "spell_slots": dict(char.spell_slots),
+            "heroic_inspiration": char.heroic_inspiration,
+            "death_save_successes": 0,
+            "death_save_failures": 0,
+            "exhaustion": char.exhaustion,
+            "concentration": "",
+            "wild_shape_uses": char.wild_shape_uses,
+        },
+    }

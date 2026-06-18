@@ -1,0 +1,691 @@
+# PHB 2024 + Heroes of Faerûn subclass features by level
+subclasses:
+  path_of_the_berserker:
+    class_id: barbarian
+    label: Path of the Berserker
+    features:
+      3:
+      - Frenzy
+      6:
+      - Mindless Rage
+      10:
+      - Retaliation
+      14:
+      - Intimidating Presence
+  path_of_the_wild_heart:
+    class_id: barbarian
+    label: Path of the Wild Heart
+    features:
+      3:
+      - Animal Speaker
+      6:
+      - Rage of the Wilds
+      10:
+      - Power of the Wilds
+      14:
+      - Epic Boon
+  path_of_the_world_tree:
+    class_id: barbarian
+    label: Path of the World Tree
+    features:
+      3:
+      - Vitality of the Tree
+      6:
+      - Branches of the Tree
+      10:
+      - Battering Roots
+      14:
+      - Travel Along the Tree
+  path_of_the_zealot:
+    class_id: barbarian
+    label: Path of the Zealot
+    features:
+      3:
+      - Divine Fury
+      6:
+      - Warrior of the Gods
+      10:
+      - Fanatical Focus
+      14:
+      - Zealous Presence
+  college_of_dance:
+    class_id: bard
+    label: College of Dance
+    features:
+      3:
+      - Dazzling Footwork
+      6:
+      - Inspiring Movement
+      14:
+      - Leading Evasion
+  college_of_glamour:
+    class_id: bard
+    label: College of Glamour
+    features:
+      3:
+      - Mantle of Inspiration
+      6:
+      - Mantle of Majesty
+      14:
+      - Unbreakable Majesty
+  college_of_lore:
+    class_id: bard
+    label: College of Lore
+    features:
+      3:
+      - Bonus Proficiencies
+      - Cutting Words
+      6:
+      - Additional Magical Secrets
+      14:
+      - Peerless Skill
+  college_of_valor:
+    class_id: bard
+    label: College of Valor
+    features:
+      3:
+      - Combat Inspiration
+      - Martial Training
+      6:
+      - Extra Attack
+      14:
+      - Battle Magic
+  life_domain:
+    class_id: cleric
+    label: Life Domain
+    features:
+      3:
+      - Disciple of Life
+      6:
+      - Preserve Life
+      17:
+      - Blessed Healer
+  light_domain:
+    class_id: cleric
+    label: Light Domain
+    features:
+      3:
+      - Warding Flare
+      6:
+      - Radiance of the Dawn
+      17:
+      - Corona of Light
+  trickery_domain:
+    class_id: cleric
+    label: Trickery Domain
+    features:
+      3:
+      - Blessing of the Trickster
+      6:
+      - Invoke Duplicity
+      17:
+      - Improved Duplicity
+  war_domain:
+    class_id: cleric
+    label: War Domain
+    features:
+      3:
+      - War Priest
+      6:
+      - Guided Strike
+      17:
+      - Avatar of Battle
+  circle_of_the_land:
+    class_id: druid
+    label: Circle of the Land
+    features:
+      3:
+      - Bonus Cantrip
+      - Natural Recovery
+      6:
+      - Land's Aid
+      10:
+      - Nature's Ward
+      14:
+      - Nature's Sanctuary
+  circle_of_the_moon:
+    class_id: druid
+    label: Circle of the Moon
+    features:
+      3:
+      - Circle Forms
+      6:
+      - Improved Circle Forms
+      10:
+      - Moonlight Step
+      14:
+      - Lunar Form
+  circle_of_the_sea:
+    class_id: druid
+    label: Circle of the Sea
+    features:
+      3:
+      - Aquatic Affinity
+      6:
+      - Stormborn
+      10:
+      - Oceanic Gift
+      14:
+      - Tidal Mastery
+  circle_of_stars:
+    class_id: druid
+    label: Circle of the Stars
+    features:
+      3:
+      - Star Map
+      6:
+      - Cosmic Omen
+      10:
+      - Twinkling Constellations
+      14:
+      - Full of Stars
+  champion:
+    class_id: fighter
+    label: Champion
+    features:
+      3:
+      - Improved Critical
+      7:
+      - Additional Fighting Style
+      10:
+      - Heroic Warrior
+      15:
+      - Superior Critical
+      18:
+      - Survivor
+  battle_master:
+    class_id: fighter
+    label: Battle Master
+    features:
+      3:
+      - Combat Superiority
+      - Student of War
+      7:
+      - Know Your Enemy
+      10:
+      - Improved Combat Superiority
+      15:
+      - Relentless
+      18:
+      - Ultimate Combat Superiority
+  eldritch_knight:
+    class_id: fighter
+    label: Eldritch Knight
+    features:
+      3:
+      - Spellcasting
+      7:
+      - War Magic
+      10:
+      - Eldritch Strike
+      15:
+      - Arcane Charge
+      18:
+      - Improved War Magic
+  psi_warrior:
+    class_id: fighter
+    label: Psi Warrior
+    features:
+      3:
+      - Psionic Power
+      7:
+      - Telekinetic Adept
+      10:
+      - Guarded Mind
+      15:
+      - Bulwark of Force
+      18:
+      - Telekinetic Master
+  warrior_of_mercy:
+    class_id: monk
+    label: Warrior of Mercy
+    features:
+      3:
+      - Hand of Harm
+      - Hand of Healing
+      6:
+      - Physician's Touch
+      11:
+      - Flurry of Healing and Harm
+      17:
+      - Hand of Ultimate Mercy
+  warrior_of_shadow:
+    class_id: monk
+    label: Warrior of Shadow
+    features:
+      3:
+      - Shadow Arts
+      6:
+      - Shadow Step
+      11:
+      - Improved Shadow Step
+      17:
+      - Cloak of Shadows
+  warrior_of_the_elements:
+    class_id: monk
+    label: Warrior of the Elements
+    features:
+      3:
+      - Elemental Attunement
+      6:
+      - Elemental Burst
+      11:
+      - Stride of the Elements
+      17:
+      - Elemental Epitome
+  warrior_of_the_open_hand:
+    class_id: monk
+    label: Warrior of the Open Hand
+    features:
+      3:
+      - Open Hand Technique
+      6:
+      - Wholeness of Body
+      11:
+      - Fleeting Step
+      17:
+      - Quivering Palm
+  oath_of_devotion:
+    class_id: paladin
+    label: Oath of Devotion
+    features:
+      3:
+      - Sacred Weapon
+      - Turn the Unholy
+      7:
+      - Aura of Devotion
+      15:
+      - Smite of Protection
+      20:
+      - Holy Nimbus
+  oath_of_glory:
+    class_id: paladin
+    label: Oath of Glory
+    features:
+      3:
+      - Peerless Athlete
+      - Inspiring Smite
+      7:
+      - Aura of Alacrity
+      15:
+      - Glorious Defense
+      20:
+      - Living Legend
+  oath_of_the_ancients:
+    class_id: paladin
+    label: Oath of the Ancients
+    features:
+      3:
+      - Nature's Wrath
+      - Turn the Faithless
+      7:
+      - Aura of Warding
+      15:
+      - Undying Sentinel
+      20:
+      - Elder Champion
+  oath_of_vengeance:
+    class_id: paladin
+    label: Oath of Vengeance
+    features:
+      3:
+      - Vow of Enmity
+      - Abjure Enemy
+      7:
+      - Relentless Avenger
+      15:
+      - Soul of Vengeance
+      20:
+      - Avenging Angel
+  beast_master:
+    class_id: ranger
+    label: Beast Master
+    features:
+      3:
+      - Primal Companion
+      7:
+      - Exceptional Training
+      11:
+      - Bestial Fury
+      15:
+      - Share Spells
+  fey_wanderer:
+    class_id: ranger
+    label: Fey Wanderer
+    features:
+      3:
+      - Dreadful Strikes
+      - Feywild Gifts
+      7:
+      - Beguiling Twist
+      11:
+      - Fey Reinforcements
+      15:
+      - Misty Wanderer
+  gloom_stalker:
+    class_id: ranger
+    label: Gloom Stalker
+    features:
+      3:
+      - Dread Ambusher
+      7:
+      - Iron Mind
+      11:
+      - Stalker's Flurry
+      15:
+      - Shadowy Dodge
+  hunter:
+    class_id: ranger
+    label: Hunter
+    features:
+      3:
+      - Hunter's Lore
+      7:
+      - Defensive Tactics
+      11:
+      - Superior Hunter's Defense
+      15:
+      - Superior Hunter's Prey
+  arcane_trickster:
+    class_id: rogue
+    label: Arcane Trickster
+    features:
+      3:
+      - Spellcasting
+      - Mage Hand Legerdemain
+      9:
+      - Magical Ambush
+      13:
+      - Versatile Trickster
+      17:
+      - Spell Thief
+  assassin:
+    class_id: rogue
+    label: Assassin
+    features:
+      3:
+      - Assassinate
+      - Assassin's Tools
+      9:
+      - Infiltration Expertise
+      13:
+      - Envenom Weapons
+      17:
+      - Death Strike
+  soulknife:
+    class_id: rogue
+    label: Soulknife
+    features:
+      3:
+      - Psionic Power
+      - Psychic Blades
+      9:
+      - Soul Blades
+      13:
+      - Psychic Veil
+      17:
+      - Rend Mind
+  thief:
+    class_id: rogue
+    label: Thief
+    features:
+      3:
+      - Fast Hands
+      - Second-Story Work
+      9:
+      - Supreme Sneak
+      13:
+      - Use Magic Device
+      17:
+      - Thief's Reflexes
+  aberrant_sorcery:
+    class_id: sorcerer
+    label: Aberrant Sorcery
+    features:
+      3:
+      - Psionic Spells
+      6:
+      - Psychic Defenses
+      14:
+      - ' Revelation in Flesh'
+      18:
+      - Warping Implosion
+  clockwork_sorcery:
+    class_id: sorcerer
+    label: Clockwork Sorcery
+    features:
+      3:
+      - Clockwork Spells
+      6:
+      - Bastion of Law
+      14:
+      - Trance of Order
+      18:
+      - Clockwork Cavalcade
+  draconic_sorcery:
+    class_id: sorcerer
+    label: Draconic Sorcery
+    features:
+      3:
+      - Draconic Resilience
+      6:
+      - Elemental Affinity
+      14:
+      - Dragon Wings
+      18:
+      - Draconic Presence
+  wild_magic_sorcery:
+    class_id: sorcerer
+    label: Wild Magic Sorcery
+    features:
+      3:
+      - Wild Magic Surge
+      - Tides of Chaos
+      6:
+      - Bend Luck
+      14:
+      - Controlled Chaos
+      18:
+      - Spell Bombardment
+  archfey_patron:
+    class_id: warlock
+    label: Archfey Patron
+    features:
+      3:
+      - Steps of the Fey
+      6:
+      - Misty Escape
+      10:
+      - Beguiling Defenses
+      14:
+      - Bewitching Magic
+  celestial_patron:
+    class_id: warlock
+    label: Celestial Patron
+    features:
+      3:
+      - Healing Light
+      6:
+      - Radiant Soul
+      10:
+      - Celestial Resilience
+      14:
+      - Searing Vengeance
+  fiend_patron:
+    class_id: warlock
+    label: Fiend Patron
+    features:
+      3:
+      - Dark One's Blessing
+      6:
+      - Dark One's Own Luck
+      10:
+      - Fiendish Resilience
+      14:
+      - Hurl Through Hell
+  great_old_one_patron:
+    class_id: warlock
+    label: Great Old One Patron
+    features:
+      3:
+      - Awakened Mind
+      6:
+      - Psychic Spells
+      10:
+      - Clairvoyant Combatant
+      14:
+      - Create Thrall
+  abjurer:
+    class_id: wizard
+    label: Abjurer
+    features:
+      3:
+      - Abjuration Savant
+      - Arcane Ward
+      6:
+      - Projected Ward
+      10:
+      - Spell Breaker
+      14:
+      - Spell Resistance
+  diviner:
+    class_id: wizard
+    label: Diviner
+    features:
+      3:
+      - Divination Savant
+      - Portent
+      6:
+      - Expert Divination
+      10:
+      - The Third Eye
+      14:
+      - Greater Portent
+  evoker:
+    class_id: wizard
+    label: Evoker
+    features:
+      3:
+      - Evocation Savant
+      - Potent Cantrip
+      6:
+      - Sculpt Spells
+      10:
+      - Empowered Evocation
+      14:
+      - Overchannel
+  illusionist:
+    class_id: wizard
+    label: Illusionist
+    features:
+      3:
+      - Illusion Savant
+      - Improved Illusions
+      6:
+      - Phantasmal Creatures
+      10:
+      - Illusory Self
+      14:
+      - Illusory Reality
+  college_of_the_moon:
+    class_id: bard
+    label: College of the Moon
+    source: faerun
+    features:
+      3:
+      - Moonlit Lore
+      6:
+      - Lunar Inspiration
+      14:
+      - Mythic Performance
+  knowledge_domain:
+    class_id: cleric
+    label: Knowledge Domain
+    source: faerun
+    features:
+      3:
+      - Blessings of Knowledge
+      6:
+      - Knowledge of the Ages
+      17:
+      - Visions of the Past
+  purple_dragon_knight:
+    class_id: fighter
+    label: Purple Dragon Knight
+    source: faerun
+    features:
+      3:
+      - Rallying Cry
+      7:
+      - Royal Envoy
+      10:
+      - Inspiring Surge
+      15:
+      - Bulwark
+      18:
+      - Sovereign Companion
+  oath_of_the_noble_genies:
+    class_id: paladin
+    label: Oath of the Noble Genies
+    source: faerun
+    features:
+      3:
+      - Genie Magic
+      7:
+      - Elemental Aura
+      15:
+      - Noble Resilience
+      20:
+      - Genie's Vengeance
+  winter_walker:
+    class_id: ranger
+    label: Winter Walker
+    source: faerun
+    features:
+      3:
+      - Frozen Step
+      7:
+      - Arctic Survival
+      11:
+      - Glacial Strike
+      15:
+      - Heart of the Frost
+  scion_of_the_three:
+    class_id: rogue
+    label: Scion of the Three
+    source: faerun
+    features:
+      3:
+      - Deadly Blessing
+      9:
+      - Bane's Command
+      13:
+      - Myrkul's Whispers
+      17:
+      - Bhaal's Assassination
+  spellfire_sorcery:
+    class_id: sorcerer
+    label: Spellfire Sorcery
+    source: faerun
+    features:
+      3:
+      - Spellfire Affinity
+      6:
+      - Weave Burst
+      14:
+      - Living Conduit
+      18:
+      - Spellfire Nova
+  bladesinger:
+    class_id: wizard
+    label: Bladesinger
+    source: faerun
+    features:
+      3:
+      - Bladesong
+      6:
+      - Extra Attack
+      10:
+      - Song of Defense
+      14:
+      - Song of Victory
