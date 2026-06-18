@@ -1,6 +1,7 @@
 import type {
   ChatResult,
   ChatMessage,
+  CombatStateSnapshot,
   JournalEntity,
   PlayerProgress,
   NextAdventure,
@@ -53,6 +54,7 @@ export interface PlayState {
   adventureComplete: boolean;
   nextAdventure: NextAdventure | null;
   startingNext: boolean;
+  combatState: CombatStateSnapshot | null;
 }
 
 export type PlayAction =
@@ -103,6 +105,7 @@ export function createInitialPlayState(sessionId = '', wizardTab: 'continue' | '
     adventureComplete: false,
     nextAdventure: null,
     startingNext: false,
+    combatState: null,
   };
 }
 

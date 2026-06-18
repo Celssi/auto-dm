@@ -7,6 +7,8 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from backend.dm.campaign_repair import extract_encounters_from_outline
+from backend.dm.encounters import save_adventure_encounters
 from backend.dm.campaign_bootstrap import flesh_out_planned_adventure, generate_adventure_outline
 from backend.dm.story_director import (
     ensure_story_progress,
@@ -89,6 +91,9 @@ def create(body: AdventureCreateBody):
     adv_id = save_adventure(None, meta, outline=outline)
     if outline:
         ensure_story_progress(adv_id, outline)
+        encounters = extract_encounters_from_outline(outline, body.name)
+        if encounters:
+            save_adventure_encounters(adv_id, encounters)
     adv = get_adventure(adv_id)
     return {"id": adv_id, "adventure": _adventure_for_player(adv or {})}
 

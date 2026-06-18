@@ -8,6 +8,12 @@ from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 
 from backend.characters.entity import character_from_dict, format_for_prompt
+from backend.dm.campaign_repair import (
+    extract_encounters_from_outline,
+    extract_journal_from_text,
+    save_journal_entries,
+)
+from backend.dm.encounters import load_adventure_encounters, save_adventure_encounters
 from backend.dm.session_opening import attach_opening_to_session
 from backend.dm.story_director import ensure_story_progress
 from backend.dm.story_memory import generate_opening_summary
@@ -179,6 +185,9 @@ def bootstrap_campaign(
     write_adventure_summary(adventure_id, summary)
 
     ensure_story_progress(adventure_id, spec.adventure_outline)
+    encounters = extract_encounters_from_outline(spec.adventure_outline, spec.adventure_name)
+    if encounters:
+        save_adventure_encounters(adventure_id, encounters)
 
     session_id = create_session(
         character_id=character_id,
@@ -450,6 +459,24 @@ def materialize_campaign_plan(
     for loc in spec.locations:
         save_campaign_location(campaign_id, slugify(loc.name), {"name": loc.name, "body": loc.body})
 
+    if not spec.npcs or not spec.locations:
+        extracted = extract_journal_from_text(
+            spec.story_arc,
+            [(a.name, a.outline) for a in sorted(spec.adventures, key=lambda a: a.sequence)],
+        )
+        if not spec.npcs:
+            for npc in extracted.npcs:
+                if npc.name.strip():
+                    save_campaign_npc(
+                        campaign_id, slugify(npc.name), {"name": npc.name, "body": npc.body}
+                    )
+        if not spec.locations:
+            for loc in extracted.locations:
+                if loc.name.strip():
+                    save_campaign_location(
+                        campaign_id, slugify(loc.name), {"name": loc.name, "body": loc.body}
+                    )
+
     existing_ids = {a["id"] for a in list_adventures()}
     adventure_ids: list[str] = []
     sorted_advs = sorted(spec.adventures, key=lambda a: a.sequence)
@@ -476,6 +503,9 @@ def materialize_campaign_plan(
             outline=adv.outline,
             log=f"# Adventure log\n\n_Planned adventure {adv.sequence} in {camp_name}._\n",
         )
+        encounters = extract_encounters_from_outline(adv.outline, adv.name)
+        if encounters:
+            save_adventure_encounters(adv_id, encounters)
         adventure_ids.append(adv_id)
 
     result: dict[str, Any] = {
@@ -548,6 +578,10 @@ def flesh_out_planned_adventure(
     write_adventure_summary(adventure_id, summary)
 
     ensure_story_progress(adventure_id, outline)
+    if not load_adventure_encounters(adventure_id):
+        encounters = extract_encounters_from_outline(outline, adv.get("name", adventure_id))
+        if encounters:
+            save_adventure_encounters(adventure_id, encounters)
 
     adv_name = adv.get("name", adventure_id)
     session_id = create_session(

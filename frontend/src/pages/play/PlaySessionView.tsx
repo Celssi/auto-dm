@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { m, AnimatePresence } from '../../lib/framer';
 import { Swords } from 'lucide-react';
-import type { ChatMessage, PlayerProgress, Source, SpellConfirmation } from '../../api/client';
+import type { ChatMessage, CombatStateSnapshot, PlayerProgress, Source, SpellConfirmation } from '../../api/client';
 import type { Character } from '../../types';
 import PlayCharacterSidebar from '../../components/play/PlayCharacterSidebar';
 import ListLoading from '../../components/ui/ListLoading';
@@ -61,6 +61,7 @@ export default function PlaySessionView({
     nextAdventure,
     startingNext,
     campaignId,
+    combatState,
   } = state;
 
   return (
@@ -108,6 +109,7 @@ export default function PlaySessionView({
         lonelog={lonelog}
         sources={sources}
         loading={loading}
+        combatState={combatState}
         onRunOracle={onRunOracle}
         onRunShortcut={onRunShortcut}
       />
@@ -390,6 +392,7 @@ function PlayToolsPanel({
   lonelog,
   sources,
   loading,
+  combatState,
   onRunOracle,
   onRunShortcut,
 }: {
@@ -398,11 +401,13 @@ function PlayToolsPanel({
   lonelog: string[];
   sources: Source[];
   loading: boolean;
+  combatState: CombatStateSnapshot | null;
   onRunOracle: (id: string) => void;
   onRunShortcut: (id: string) => void;
 }) {
   return (
     <aside className="lg:col-span-3 panel-glow overflow-hidden p-3 min-h-0 flex flex-col gap-2">
+      {combatState && combatState.status === 'active' && <CombatPanel state={combatState} />}
       <div className="shrink-0">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Oracles</h2>
         <div className="grid grid-cols-2 gap-1 max-h-[9rem] overflow-y-auto pr-0.5">
@@ -476,5 +481,44 @@ function PlayToolsPanel({
         </div>
       )}
     </aside>
+  );
+}
+
+function CombatPanel({ state }: { state: CombatStateSnapshot }) {
+  const byId = new Map(state.combatants.map((c) => [c.id, c]));
+  return (
+    <div className="shrink-0 rounded-lg border border-red-500/30 bg-red-500/5 p-2.5 space-y-2">
+      <div className="flex items-center justify-between gap-2">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-red-300/90">Combat</h2>
+        <span className="text-[10px] text-muted">Round {state.round}</span>
+      </div>
+      <p className="text-sm font-medium text-gray-200 truncate" title={state.encounter_name}>
+        {state.encounter_name}
+      </p>
+      <ol className="space-y-1 max-h-[10rem] overflow-y-auto pr-0.5">
+        {state.order.map((id) => {
+          const c = byId.get(id);
+          if (!c) return null;
+          const isCurrent = id === state.current_combatant_id;
+          const down = c.hp <= 0;
+          return (
+            <li
+              key={id}
+              className={`text-xs rounded px-2 py-1 border ${
+                isCurrent ? 'border-accent/50 bg-accent/10 text-gray-100' : 'border-border/50 bg-bg/30 text-gray-400'
+              } ${down ? 'opacity-50 line-through' : ''}`}
+            >
+              <span className="font-medium">{c.name}</span>
+              {c.kind === 'enemy' && (
+                <span className="text-muted ml-1">
+                  HP {c.hp}/{c.max_hp} · AC {c.ac}
+                </span>
+              )}
+              {isCurrent && <span className="ml-1 text-accent text-[10px] uppercase">turn</span>}
+            </li>
+          );
+        })}
+      </ol>
+    </div>
   );
 }

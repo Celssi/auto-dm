@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from backend.dm.campaign_repair import repair_campaign
 from backend.dm.world_context import world_context_for_campaign
 from backend.journal_storage import (
     delete_campaign,
@@ -166,3 +167,11 @@ def remove_location(campaign_id: str, location_id: str):
     if not delete_campaign_location(campaign_id, location_id):
         raise HTTPException(404, "Location not found")
     return {"ok": True}
+
+
+@router.post("/{campaign_id}/repair")
+def repair(campaign_id: str):
+    try:
+        return repair_campaign(campaign_id)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e

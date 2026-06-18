@@ -223,6 +223,7 @@ export default function PlayPage() {
           ...(result.player_progress ? { playerProgress: result.player_progress } : {}),
           adventureComplete: !!result.adventure_complete,
           nextAdventure: result.next_adventure ?? null,
+          combatState: result.combat_state && result.combat_state.status === 'active' ? result.combat_state : null,
         },
       });
       const log = await api.getLonelog(sessionId);

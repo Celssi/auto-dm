@@ -16,6 +16,14 @@ from backend.characters.character_builder import (
 from backend.characters.entity import character_from_dict, character_to_dict
 from backend.characters.spell_resources import is_spell_available
 from backend.dm.actions import SHORTCUTS, run_shortcut
+from backend.dm.combat_manager import (
+    format_combat_context,
+    finish_player_turn,
+    pick_encounter_to_start,
+    run_enemy_turns_until_player,
+    start_encounter,
+)
+from backend.dm.encounters import combat_state_view, load_combat_state
 from backend.dm.continuity_guard import apply_continuity_guard
 from backend.dm.journal_keeper import run_journal_keeper
 from backend.dm.lonelog import format_mechanical, format_narrative
@@ -115,6 +123,8 @@ class DMState(TypedDict, total=False):
     adventure_complete: bool
     next_adventure: dict | None
     player_progress: dict
+    combat_state: dict
+    combat_events: list[str]
 
 
 def _factions(include_faerun: bool) -> list[str]:
@@ -217,6 +227,35 @@ def _needs_journal_keeper(state: DMState) -> bool:
     return len(names) >= 2
 
 
+def combat_manager_pre_node(state: DMState) -> DMState:
+    session_id = state.get("session_id", "")
+    adventure = state.get("adventure") or {}
+    adv_id = adventure.get("id", "")
+    if not session_id or not adv_id:
+        return {}
+
+    combat = load_combat_state(session_id)
+    if not combat:
+        progress = load_story_progress(adv_id)
+        active_beat = ""
+        if progress:
+            active = next((c for c in progress.checkpoints if c.status == "active"), None)
+            if active:
+                active_beat = active.title
+        enc = pick_encounter_to_start(
+            adv_id,
+            active_beat=active_beat,
+            user_message=state.get("user_message") or "",
+        )
+        if enc:
+            combat = start_encounter(session_id, enc, state.get("character") or {})
+
+    updates: DMState = {"in_combat": bool(combat and combat.status == "active")}
+    if combat:
+        updates["combat_state"] = combat.model_dump()
+    return updates
+
+
 def router_node(state: DMState) -> DMState:
     msg = state.get("user_message", "")
     shortcut = _detect_shortcut(msg)
@@ -244,6 +283,15 @@ def router_node(state: DMState) -> DMState:
 
 
 def combat_mechanics_node(state: DMState) -> DMState:
+    combat_raw = state.get("combat_state")
+    if combat_raw:
+        from backend.dm.encounters import CombatState
+
+        cs = CombatState.model_validate(combat_raw)
+        ctx = format_combat_context(cs)
+        if ctx:
+            return {"combat_context": ctx, "in_combat": True}
+
     if not state.get("in_combat") and not state.get("shortcut_result"):
         return {"combat_context": ""}
     char_dict = state.get("character") or {}
@@ -543,9 +591,33 @@ def journal_keeper_node(state: DMState) -> DMState:
     return {"journal_updates": counts} if counts else {}
 
 
+def combat_manager_post_node(state: DMState) -> DMState:
+    if state.get("shortcut_result", {}).get("task") == "rules_help":
+        return {}
+    session_id = state.get("session_id", "")
+    if not session_id or not load_combat_state(session_id):
+        return {}
+
+    char_dict = state.get("character") or {}
+    combat_after, char_dict, events = finish_player_turn(session_id, char_dict)
+    result: DMState = {}
+    if char_dict != state.get("character"):
+        result["character"] = char_dict
+    if events:
+        result["combat_events"] = events
+    if combat_after:
+        view = combat_state_view(
+            combat_after if combat_after.status == "active" else load_combat_state(session_id)
+        )
+        if view:
+            result["combat_state"] = view
+    return result
+
+
 def build_dm_graph():
     graph = StateGraph(DMState)
     graph.add_node("router", wrap_node("router", router_node))
+    graph.add_node("combat_manager_pre", wrap_node("combat_manager_pre", combat_manager_pre_node))
     graph.add_node("combat", wrap_node("combat_mechanics", combat_mechanics_node))
     graph.add_node("rules", wrap_node("rules_referee", rules_referee_node))
     graph.add_node(
@@ -561,9 +633,13 @@ def build_dm_graph():
         "story_director_update", wrap_node("story_director_update", story_director_update_node)
     )
     graph.add_node("journal_keeper", wrap_node("journal_keeper", journal_keeper_node))
+    graph.add_node(
+        "combat_manager_post", wrap_node("combat_manager_post", combat_manager_post_node)
+    )
 
     graph.set_entry_point("router")
-    graph.add_edge("router", "combat")
+    graph.add_edge("router", "combat_manager_pre")
+    graph.add_edge("combat_manager_pre", "combat")
     graph.add_edge("combat", "rules")
     graph.add_edge("rules", "story_director_brief")
     graph.add_edge("story_director_brief", "narrator")
@@ -574,7 +650,8 @@ def build_dm_graph():
     graph.add_edge("scribe", "chronicler")
     graph.add_edge("chronicler", "story_director_update")
     graph.add_edge("story_director_update", "journal_keeper")
-    graph.add_edge("journal_keeper", END)
+    graph.add_edge("journal_keeper", "combat_manager_post")
+    graph.add_edge("combat_manager_post", END)
     return graph.compile()
 
 
@@ -728,6 +805,26 @@ def run_dm_turn(
     if early is not None:
         return early
 
+    adventure = get_adventure(session["adventure_id"]) or {}
+    adv_id = adventure.get("id", "")
+    character_id = session["character_id"]
+
+    pre_combat_events: list[str] = []
+    if adv_id and not load_combat_state(session_id):
+        progress = load_story_progress(adv_id)
+        active_beat = ""
+        if progress:
+            active = next((c for c in progress.checkpoints if c.status == "active"), None)
+            if active:
+                active_beat = active.title
+        enc = pick_encounter_to_start(adv_id, active_beat=active_beat, user_message=user_message)
+        if enc:
+            start_encounter(session_id, enc, char)
+
+    _, char, pre_combat_events = run_enemy_turns_until_player(session_id, char)
+    if char != get_character(character_id):
+        save_character(character_id, char)
+
     prefs = load_settings()
     state: DMState = {
         "session_id": session_id,
@@ -737,17 +834,28 @@ def run_dm_turn(
         "include_faerun": session.get("include_faerun", False)
         or prefs.get("include_faerun", False),
         "messages": messages[:-1],
+        "combat_events": pre_combat_events,
     }
     with dm_turn_trace(session_id, user_message):
         result = get_dm_graph().invoke(state)
     response = result.get("response", "")
+    post_events = list(result.get("combat_events") or [])
+    all_combat_lines = pre_combat_events + post_events
+    if all_combat_lines:
+        combat_block = "\n\n".join(all_combat_lines)
+        response = f"{combat_block}\n\n{response}" if response.strip() else combat_block
+
     sources = result.get("rules_sources") or []
     updated_char = result.get("character") or char
     if updated_char != char:
-        save_character(session["character_id"], updated_char)
+        save_character(character_id, updated_char)
 
     messages.append({"role": "assistant", "content": response})
     save_session_messages(session_id, messages)
+    for line in pre_combat_events + post_events:
+        append_session_log(session_id, format_mechanical(line))
+
+    combat_view = combat_state_view(load_combat_state(session_id))
 
     return {
         "response": response,
@@ -757,6 +865,7 @@ def run_dm_turn(
         "adventure_complete": bool(result.get("adventure_complete")),
         "next_adventure": result.get("next_adventure"),
         "player_progress": result.get("player_progress") or {},
+        "combat_state": combat_view,
     }
 
 

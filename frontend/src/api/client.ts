@@ -209,6 +209,31 @@ export interface NextAdventure {
   name: string;
 }
 
+export interface CombatantSnapshot {
+  id: string;
+  name: string;
+  kind: 'player' | 'enemy' | 'ally';
+  monster_name?: string;
+  initiative: number;
+  hp: number;
+  max_hp: number;
+  ac: number;
+  attack_bonus?: number;
+  damage?: string;
+  conditions?: string[];
+}
+
+export interface CombatStateSnapshot {
+  encounter_id: string;
+  encounter_name: string;
+  round: number;
+  turn_index: number;
+  current_combatant_id: string;
+  order: string[];
+  combatants: CombatantSnapshot[];
+  status: 'active' | 'ended';
+}
+
 export interface CampaignMeta {
   id: string;
   name: string;
@@ -304,6 +329,7 @@ export interface ChatResult {
   adventure_complete?: boolean;
   next_adventure?: NextAdventure | null;
   player_progress?: PlayerProgress;
+  combat_state?: CombatStateSnapshot;
 }
 
 export interface Shortcut {

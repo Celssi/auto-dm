@@ -1,12 +1,4 @@
-import {
-  Children,
-  cloneElement,
-  isValidElement,
-  useCallback,
-  useMemo,
-  type JSX,
-  type ReactNode,
-} from 'react';
+import { Children, cloneElement, isValidElement, useCallback, useMemo, type JSX, type ReactNode } from 'react';
 import ReactMarkdown from 'react-markdown';
 import JournalTip from './JournalTip';
 import { buildEntityMatcher, entityByMatchedName, type JournalEntity } from '../../lib/journalTips';

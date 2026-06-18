@@ -17,11 +17,7 @@
   --font-sans: 'DM Sans', system-ui, sans-serif;
   --font-display: 'Cinzel', Georgia, serif;
   --font-sheet: 'Bookman Old Style', Georgia, serif;
-  --background-image-gradient-radial: radial-gradient(
-    ellipse at top,
-    rgba(212, 175, 55, 0.06) 0%,
-    transparent 55%
-  );
+  --background-image-gradient-radial: radial-gradient(ellipse at top, rgba(212, 175, 55, 0.06) 0%, transparent 55%);
 }
 
 @utility shadow-glow {
