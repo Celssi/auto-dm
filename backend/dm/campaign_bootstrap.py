@@ -9,19 +9,24 @@ from pydantic import BaseModel, Field
 
 from backend.characters.entity import character_from_dict, format_for_prompt
 from backend.journal_storage import (
+    get_campaign,
     save_campaign,
     save_campaign_location,
     save_campaign_npc,
     slugify,
 )
 from backend.dm.story_memory import generate_full_summary
+from backend.dm.world_context import prior_adventures_context, world_context_for_campaign
 from backend.llm import get_langchain_chat_llm
 from backend.rag.engine import query_rules
 from backend.rag.plugin import get_all_factions
 from backend.settings_store import load_settings
 from backend.storage import (
     create_session,
+    find_session_for_adventure,
     get_character,
+    list_adventures,
+    list_adventures_for_campaign,
     save_adventure,
     save_session_messages,
     write_adventure_summary,
@@ -175,7 +180,7 @@ def bootstrap_campaign(
     session_id = create_session(
         character_id=character_id,
         adventure_id=adventure_id,
-        name=f"{camp_name} — session 1",
+        name=f"{camp_name} - session 1",
         include_faerun=include_faerun,
     )
     opening = spec.opening_scene.strip()
@@ -193,14 +198,176 @@ def bootstrap_campaign(
     }
 
 
+class AdventureContinuationSpec(BaseModel):
+    adventure_name: str
+    adventure_outline: str = Field(description="Markdown outline with acts, encounters, endings")
+    opening_scene: str = Field(description="2-4 paragraphs continuing from prior adventures")
+    new_npcs: list[JournalEntrySpec] = Field(default_factory=list, description="0-4 new or updated NPCs")
+    new_locations: list[JournalEntrySpec] = Field(
+        default_factory=list,
+        description="0-3 new or updated locations",
+    )
+
+
+def generate_adventure_spec_for_campaign(
+    *,
+    campaign_id: str,
+    mode: BootstrapMode,
+    theme: str,
+    character_id: str,
+    include_faerun: bool = False,
+    adventure_name: str = "",
+) -> AdventureContinuationSpec:
+    campaign = get_campaign(campaign_id)
+    if not campaign:
+        raise ValueError(f"Campaign not found: {campaign_id}")
+    char = get_character(character_id)
+    if not char:
+        raise ValueError(f"Character not found: {character_id}")
+    char_obj = character_from_dict(char)
+    prefs = load_settings()
+    include_faerun = include_faerun or prefs.get("include_faerun", False)
+    context, _ = rag_context_for_theme(mode=mode, theme=theme, include_faerun=include_faerun)
+
+    prior_adventures = list_adventures_for_campaign(campaign_id)
+    prior_names = ", ".join(a.get("name", a["id"]) for a in prior_adventures) or "(none yet)"
+    world = world_context_for_campaign(campaign_id, has_adventure_summary=True)
+    prior_summaries = prior_adventures_context(campaign_id)
+    name_hint = f'\nPreferred adventure name: "{adventure_name}".' if adventure_name.strip() else ""
+
+    prompt = f"""Design the NEXT adventure in an ongoing D&D 5e (2024) SOLO campaign.
+
+This is NOT a new campaign — continue from established canon. Do not reset or contradict prior events.
+
+Campaign ID: {campaign_id}
+Prior adventures: {prior_names}
+New adventure theme/hook: {theme}
+Mode: {mode}
+{name_hint}
+
+Player character:
+{format_for_prompt(char_obj)}
+
+Campaign world context (NPCs, locations, story arc — treat as canonical):
+{world[:6000]}
+
+Summaries of completed adventures in this campaign:
+{prior_summaries[:5000] or '(first adventure in campaign — use campaign story arc only)'}
+
+Rulebook reference:
+{context[:3000]}
+
+Requirements:
+- adventure_outline: markdown with Premise, Act 1, Key conflicts, Possible endings
+- opening_scene: drop the player INTO the new arc; reference prior events naturally; end with a clear choice
+- new_npcs / new_locations: only entries that are NEW or materially changed; leave empty if none
+- Names must be consistent with the campaign journal
+"""
+    llm = get_langchain_chat_llm("claude").with_structured_output(AdventureContinuationSpec)
+    return llm.invoke([HumanMessage(content=prompt)])
+
+
+def bootstrap_adventure_for_campaign(
+    *,
+    campaign_id: str,
+    character_id: str,
+    mode: BootstrapMode = "freeform",
+    theme: str,
+    include_faerun: bool = False,
+    adventure_name: str = "",
+) -> dict[str, Any]:
+    if not theme.strip():
+        raise ValueError("Theme is required")
+    campaign = get_campaign(campaign_id)
+    if not campaign:
+        raise ValueError(f"Campaign not found: {campaign_id}")
+
+    spec = generate_adventure_spec_for_campaign(
+        campaign_id=campaign_id,
+        mode=mode,
+        theme=theme.strip(),
+        character_id=character_id,
+        include_faerun=include_faerun,
+        adventure_name=adventure_name,
+    )
+
+    adv_name = adventure_name.strip() or spec.adventure_name
+    adventure_id = slugify(adv_name)
+    existing_ids = {a["id"] for a in list_adventures()}
+    if adventure_id in existing_ids:
+        adventure_id = f"{adventure_id}-{len(existing_ids) + 1}"
+
+    for npc in spec.new_npcs:
+        save_campaign_npc(campaign_id, slugify(npc.name), {"name": npc.name, "body": npc.body})
+    for loc in spec.new_locations:
+        save_campaign_location(campaign_id, slugify(loc.name), {"name": loc.name, "body": loc.body})
+
+    character_ids = list(campaign.get("character_ids") or [])
+    if character_id not in character_ids:
+        character_ids.append(character_id)
+        save_campaign(campaign_id, {**campaign, "character_ids": character_ids})
+
+    save_adventure(
+        adventure_id,
+        {
+            "name": adv_name,
+            "mode": mode,
+            "theme": theme.strip(),
+            "character_id": character_id,
+            "campaign_id": campaign_id,
+            "include_faerun": include_faerun,
+            "status": "active",
+        },
+        outline=spec.adventure_outline,
+        log=f"# Adventure log\n\n_New adventure in {campaign.get('name', campaign_id)}._\n\n{spec.opening_scene.strip()}\n",
+    )
+
+    story_arc = (campaign.get("story_arc") or "").strip()
+    summary = generate_full_summary(
+        log=spec.opening_scene,
+        outline=spec.adventure_outline,
+        story_arc=story_arc,
+        opening_scene=spec.opening_scene,
+    )
+    write_adventure_summary(adventure_id, summary)
+
+    session_num = len(list_adventures_for_campaign(campaign_id))
+    session_id = create_session(
+        character_id=character_id,
+        adventure_id=adventure_id,
+        name=f"{campaign.get('name', campaign_id)} - {adv_name} (session {session_num})",
+        include_faerun=include_faerun,
+    )
+    opening = spec.opening_scene.strip()
+    save_session_messages(session_id, [{"role": "assistant", "content": opening}])
+
+    return {
+        "session_id": session_id,
+        "campaign_id": campaign_id,
+        "adventure_id": adventure_id,
+        "opening_scene": opening,
+        "counts": {"npcs": len(spec.new_npcs), "locations": len(spec.new_locations)},
+    }
+
+
 def generate_adventure_outline(
     *,
     mode: str,
     theme: str,
     character_id: str,
     include_faerun: bool = False,
+    campaign_id: str = "",
 ) -> str:
-    """Legacy markdown-only outline for Adventures API."""
+    """Markdown outline for Adventures API."""
+    if campaign_id.strip():
+        spec = generate_adventure_spec_for_campaign(
+            campaign_id=campaign_id.strip(),
+            mode=mode if mode in ("freeform", "module") else "freeform",  # type: ignore[arg-type]
+            theme=theme,
+            character_id=character_id,
+            include_faerun=include_faerun,
+        )
+        return spec.adventure_outline
     spec = generate_bootstrap_spec(
         mode=mode if mode in ("freeform", "module") else "freeform",  # type: ignore[arg-type]
         theme=theme,

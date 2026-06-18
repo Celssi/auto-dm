@@ -123,7 +123,7 @@ def _combined_log() -> str:
 
 def _build_outline() -> str:
     return (
-        "# Leyri's First Campaign\n\n"
+        "# Leyri's First Adventure\n\n"
         "_Playable adventure linked to campaign journal `leyri-campaign`._\n\n"
         "NPCs, locations, and the full campaign arc live in **Campaigns** — "
         "the DM loads them automatically during play.\n"
@@ -304,7 +304,7 @@ def main() -> int:
     save_adventure(
         ADV_ID,
         {
-            "name": "Leyri's First Campaign",
+            "name": "Leyri's First Adventure",
             "mode": "freeform",
             "status": "active",
             "character_id": CHAR_ID,

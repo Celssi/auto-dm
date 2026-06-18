@@ -99,9 +99,9 @@ ADVENTURES_DIR = SAVES_DIR / "adventures"
 ADVENTURES_INDEX = ADVENTURES_DIR / "index.json"
 
 
-def list_adventures() -> list[dict[str, str]]:
+def list_adventures(campaign_id: str | None = None) -> list[dict[str, str]]:
     index = _read_json(ADVENTURES_INDEX, [])
-    return [
+    rows = [
         {
             "id": a["id"],
             "name": a.get("name", "Adventure"),
@@ -112,6 +112,13 @@ def list_adventures() -> list[dict[str, str]]:
         for a in index
         if a.get("id")
     ]
+    if campaign_id:
+        rows = [a for a in rows if a.get("campaign_id") == campaign_id]
+    return rows
+
+
+def list_adventures_for_campaign(campaign_id: str) -> list[dict[str, str]]:
+    return list_adventures(campaign_id=campaign_id)
 
 
 def get_adventure(adv_id: str) -> dict | None:
@@ -208,6 +215,13 @@ SESSIONS_INDEX = SESSIONS_DIR / "index.json"
 def list_sessions() -> list[dict[str, str]]:
     index = _read_json(SESSIONS_INDEX, [])
     return [s for s in index if s.get("id")]
+
+
+def find_session_for_adventure(adventure_id: str) -> dict[str, str] | None:
+    for session in list_sessions():
+        if session.get("adventure_id") == adventure_id:
+            return session
+    return None
 
 
 def get_session(session_id: str) -> dict | None:

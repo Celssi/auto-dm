@@ -265,3 +265,29 @@ def delete_campaign_location(campaign_id: str, location_id: str) -> bool:
         return False
     path.unlink()
     return True
+
+
+def list_campaign_entities(campaign_id: str) -> list[dict[str, str]]:
+    """NPCs and locations with journal bodies for UI tooltips."""
+    entities: list[dict[str, str]] = []
+    for row in list_campaign_npcs(campaign_id):
+        npc = get_campaign_npc(campaign_id, row["id"])
+        if npc and npc.get("name"):
+            entities.append(
+                {
+                    "kind": "npc",
+                    "name": str(npc["name"]),
+                    "body": str(npc.get("body") or "").strip(),
+                }
+            )
+    for row in list_campaign_locations(campaign_id):
+        loc = get_campaign_location(campaign_id, row["id"])
+        if loc and loc.get("name"):
+            entities.append(
+                {
+                    "kind": "location",
+                    "name": str(loc["name"]),
+                    "body": str(loc.get("body") or "").strip(),
+                }
+            )
+    return entities

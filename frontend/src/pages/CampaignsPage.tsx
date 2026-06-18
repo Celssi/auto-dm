@@ -1,188 +1,208 @@
-import { useCallback, useEffect, useState } from "react";
-import { api, type CampaignFull, type JournalEntry } from "../api/client";
-
-type Tab = "story" | "npcs" | "locations";
+import { useCallback, useEffect, useReducer } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { m, AnimatePresence } from '../lib/framer';
+import { BookOpen } from 'lucide-react';
+import { api } from '../api/client';
+import PageHeader from '../components/ui/PageHeader';
+import ListCard from '../components/ui/ListCard';
+import EmptyState from '../components/ui/EmptyState';
+import ListLoading from '../components/ui/ListLoading';
+import AnimatedPage from '../components/ui/AnimatedPage';
+import { fadeUp } from '../components/ui/motion';
+import CampaignCreateForm from './campaigns/CampaignCreateForm';
+import CampaignDetailPanel from './campaigns/CampaignDetailPanel';
+import { campaignsReducer, initialCampaignsState, type CampaignTab } from './campaigns/campaignsState';
 
 export default function CampaignsPage() {
-  const [campaigns, setCampaigns] = useState<{ id: string; name: string }[]>([]);
-  const [selected, setSelected] = useState<CampaignFull | null>(null);
-  const [tab, setTab] = useState<Tab>("story");
-  const [entry, setEntry] = useState<JournalEntry | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [creating, setCreating] = useState(false);
-  const [form, setForm] = useState({ name: "", story_arc: "" });
+  const navigate = useNavigate();
+  const [state, dispatch] = useReducer(campaignsReducer, initialCampaignsState);
 
   const load = useCallback(async () => {
-    const res = await api.listCampaigns();
-    setCampaigns(res.campaigns);
+    const [res, chars] = await Promise.all([api.listCampaigns(), api.listCharacters()]);
+    dispatch({ type: 'set', patch: { campaigns: res.campaigns, characters: chars.characters, campaignsLoaded: true } });
+  }, []);
+
+  const loadAdventures = useCallback(async (campaignId: string) => {
+    dispatch({ type: 'set', patch: { adventuresLoaded: false } });
+    const res = await api.listCampaignAdventures(campaignId);
+    dispatch({ type: 'set', patch: { campaignAdventures: res.adventures, adventuresLoaded: true } });
   }, []);
 
   useEffect(() => {
-    load().catch((e) => setError(String(e)));
+    load().catch((e) => dispatch({ type: 'set', patch: { error: String(e) } }));
   }, [load]);
 
   const open = async (id: string) => {
-    setEntry(null);
+    dispatch({ type: 'set', patch: { entry: null, newAdventureOpen: false } });
     const { campaign } = await api.getCampaign(id);
-    setSelected(campaign);
-    setTab("story");
+    const defaultChar = campaign.character_ids?.[0] || '';
+    dispatch({
+      type: 'set',
+      patch: { selected: campaign, tab: 'story', adventureForm: { ...state.adventureForm, character_id: defaultChar } },
+    });
+    await loadAdventures(id);
   };
 
   const create = async () => {
-    setError(null);
+    dispatch({ type: 'set', patch: { error: null } });
     try {
-      const res = await api.createCampaign(form);
-      setSelected(res.campaign);
-      setCreating(false);
-      setForm({ name: "", story_arc: "" });
+      const res = await api.createCampaign(state.form);
+      dispatch({ type: 'set', patch: { selected: res.campaign, creating: false, form: { name: '', story_arc: '' } } });
       await load();
+      await loadAdventures(res.id);
     } catch (e) {
-      setError(String(e));
+      dispatch({ type: 'set', patch: { error: String(e) } });
     }
   };
 
-  const openEntry = async (kind: "npc" | "location", id: string) => {
-    if (!selected) return;
-    if (kind === "npc") {
-      const { npc } = await api.getCampaignNpc(selected.id, id);
-      setEntry(npc);
+  const startNewAdventure = async () => {
+    const { selected, adventureForm } = state;
+    if (!selected || !adventureForm.character_id || !adventureForm.theme.trim()) return;
+    dispatch({ type: 'set', patch: { error: null, bootstrapping: true } });
+    try {
+      const result = await api.bootstrapCampaignAdventure({
+        campaign_id: selected.id,
+        character_id: adventureForm.character_id,
+        mode: adventureForm.mode,
+        theme: adventureForm.theme.trim(),
+        include_faerun: adventureForm.include_faerun,
+        adventure_name: adventureForm.adventure_name.trim(),
+      });
+      dispatch({
+        type: 'set',
+        patch: { newAdventureOpen: false, adventureForm: { ...adventureForm, theme: '', adventure_name: '' } },
+      });
+      await loadAdventures(selected.id);
+      navigate(`/play/${result.session_id}`);
+    } catch (e) {
+      dispatch({
+        type: 'set',
+        patch: { error: e instanceof Error ? e.message : 'Failed to start adventure' },
+      });
+    } finally {
+      dispatch({ type: 'set', patch: { bootstrapping: false } });
+    }
+  };
+
+  const playAdventure = async (adventureId: string) => {
+    dispatch({ type: 'set', patch: { error: null } });
+    try {
+      const { session_id } = await api.startAdventureSession(adventureId);
+      navigate(`/play/${session_id}`);
+    } catch (e) {
+      dispatch({
+        type: 'set',
+        patch: { error: e instanceof Error ? e.message : 'Failed to start session' },
+      });
+    }
+  };
+
+  const openEntry = async (kind: 'npc' | 'location', id: string) => {
+    if (!state.selected) return;
+    if (kind === 'npc') {
+      const { npc } = await api.getCampaignNpc(state.selected.id, id);
+      dispatch({ type: 'set', patch: { entry: npc } });
     } else {
-      const { location } = await api.getCampaignLocation(selected.id, id);
-      setEntry(location);
+      const { location } = await api.getCampaignLocation(state.selected.id, id);
+      dispatch({ type: 'set', patch: { entry: location } });
     }
   };
 
   const saveEntry = async () => {
+    const { selected, entry, tab } = state;
     if (!selected || !entry) return;
-    if (tab === "npcs") {
+    if (tab === 'npcs') {
       await api.updateCampaignNpc(selected.id, entry.id, { name: entry.name, body: entry.body });
-    } else if (tab === "locations") {
+    } else if (tab === 'locations') {
       await api.updateCampaignLocation(selected.id, entry.id, { name: entry.name, body: entry.body });
     }
     await open(selected.id);
-    setEntry(null);
+    dispatch({ type: 'set', patch: { entry: null } });
   };
 
-  const list = tab === "npcs" ? selected?.npcs : tab === "locations" ? selected?.locations : [];
+  const onTabChange = (tab: CampaignTab) => {
+    dispatch({ type: 'set', patch: { tab, entry: null, newAdventureOpen: false } });
+  };
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold">Campaigns</h1>
-        <button type="button" className="btn-primary" onClick={() => setCreating(true)}>
-          New campaign
-        </button>
-      </div>
+    <AnimatedPage className="space-y-6">
+      <PageHeader
+        title="Campaigns"
+        subtitle="Story arcs, adventures, NPCs, and locations. Shared memory across every adventure in a campaign."
+        actions={
+          <button type="button" className="btn-primary" onClick={() => dispatch({ type: 'set', patch: { creating: true } })}>
+            New campaign
+          </button>
+        }
+      />
 
-      {error && <p className="text-red-400 text-sm">{error}</p>}
-
-      {creating && (
-        <div className="panel p-4 space-y-3">
-          <input
-            className="input"
-            placeholder="Campaign name"
-            value={form.name}
-            onChange={(e) => setForm({ ...form, name: e.target.value })}
-          />
-          <textarea
-            className="input min-h-[120px]"
-            placeholder="Story arc / campaign notes"
-            value={form.story_arc}
-            onChange={(e) => setForm({ ...form, story_arc: e.target.value })}
-          />
-          <div className="flex gap-2">
-            <button type="button" className="btn-primary" onClick={create}>
-              Create
-            </button>
-            <button type="button" className="btn-ghost" onClick={() => setCreating(false)}>
-              Cancel
-            </button>
-          </div>
-        </div>
+      {state.error && (
+        <m.div
+          variants={fadeUp}
+          className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger"
+        >
+          {state.error}
+        </m.div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-        <ul className="panel divide-y divide-border">
-          {campaigns.map((c) => (
-            <li key={c.id}>
-              <button
-                type="button"
-                className="w-full text-left p-4 hover:bg-bg/50"
-                onClick={() => open(c.id)}
-              >
-                <div className="font-medium">{c.name}</div>
-                <div className="text-xs text-muted">{c.id}</div>
-              </button>
-            </li>
-          ))}
-        </ul>
-
-        {selected && (
-          <div className="lg:col-span-2 panel p-4 space-y-4">
-            <h2 className="font-semibold text-lg">{selected.name}</h2>
-            <div className="flex gap-2 text-sm">
-              {(["story", "npcs", "locations"] as Tab[]).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  className={tab === t ? "btn-primary text-xs px-3 py-1" : "btn-ghost text-xs px-3 py-1"}
-                  onClick={() => {
-                    setTab(t);
-                    setEntry(null);
-                  }}
-                >
-                  {t === "story" ? "Story arc" : t === "npcs" ? `NPCs (${selected.npcs?.length ?? 0})` : `Locations (${selected.locations?.length ?? 0})`}
-                </button>
-              ))}
-            </div>
-
-            {tab === "story" && (
-              <pre className="text-sm whitespace-pre-wrap text-muted max-h-[60vh] overflow-y-auto">
-                {selected.story_arc || "_No story arc yet._"}
-              </pre>
-            )}
-
-            {tab !== "story" && !entry && (
-              <ul className="divide-y divide-border max-h-[50vh] overflow-y-auto">
-                {(list || []).map((row) => (
-                  <li key={row.id}>
-                    <button
-                      type="button"
-                      className="w-full text-left py-2 hover:text-accent"
-                      onClick={() => openEntry(tab === "npcs" ? "npc" : "location", row.id)}
-                    >
-                      {row.name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            {entry && (
-              <div className="space-y-3">
-                <input
-                  className="input"
-                  value={entry.name}
-                  onChange={(e) => setEntry({ ...entry, name: e.target.value })}
-                />
-                <textarea
-                  className="input min-h-[280px] font-mono text-sm"
-                  value={entry.body}
-                  onChange={(e) => setEntry({ ...entry, body: e.target.value })}
-                />
-                <div className="flex gap-2">
-                  <button type="button" className="btn-primary" onClick={saveEntry}>
-                    Save
-                  </button>
-                  <button type="button" className="btn-ghost" onClick={() => setEntry(null)}>
-                    Back
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
+      <AnimatePresence>
+        {state.creating && (
+          <CampaignCreateForm
+            form={state.form}
+            onPatch={(patch) => dispatch({ type: 'patchForm', patch })}
+            onCreate={create}
+            onCancel={() => dispatch({ type: 'set', patch: { creating: false } })}
+          />
         )}
-      </div>
-    </div>
+      </AnimatePresence>
+
+      <m.div variants={fadeUp} className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+        <div className="space-y-2">
+          {!state.campaignsLoaded ? (
+            <ListLoading />
+          ) : state.campaigns.length === 0 ? (
+            <EmptyState
+              icon={<BookOpen size={32} />}
+              title="No campaigns yet"
+              description="Create a campaign to track your story arc, NPCs, and locations."
+              action={
+                <button
+                  type="button"
+                  className="btn-primary"
+                  onClick={() => dispatch({ type: 'set', patch: { creating: true } })}
+                >
+                  New campaign
+                </button>
+              }
+            />
+          ) : (
+            state.campaigns.map((c) => (
+              <ListCard
+                key={c.id}
+                title={c.name}
+                subtitle={c.id}
+                selected={state.selected?.id === c.id}
+                onClick={() => open(c.id)}
+              />
+            ))
+          )}
+        </div>
+
+        {state.selected && (
+          <CampaignDetailPanel
+            campaign={state.selected}
+            state={state}
+            onTabChange={onTabChange}
+            onOpenEntry={openEntry}
+            onSaveEntry={saveEntry}
+            onSetEntry={(entry) => dispatch({ type: 'set', patch: { entry } })}
+            onToggleNewAdventure={() => dispatch({ type: 'set', patch: { newAdventureOpen: !state.newAdventureOpen } })}
+            onPatchAdventureForm={(patch) => dispatch({ type: 'patchAdventureForm', patch })}
+            onStartNewAdventure={startNewAdventure}
+            onPlayAdventure={playAdventure}
+          />
+        )}
+      </m.div>
+    </AnimatedPage>
   );
 }

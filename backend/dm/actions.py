@@ -179,7 +179,7 @@ def run_shortcut(
         status = ""
         if roll == 20:
             succ, fail = 0, 0
-            status = "**Natural 20 — regain 1 HP and wake up!**"
+            status = "**Natural 20: regain 1 HP and wake up!**"
             updates = {"hp": 1, "death_save_successes": 0, "death_save_failures": 0}
         else:
             if roll == 1:
@@ -189,10 +189,10 @@ def run_shortcut(
             else:
                 fail = min(3, fail + 1)
             if succ >= 3:
-                status = "**Three successes — stable** (still at 0 HP)."
+                status = "**Three successes: stable** (still at 0 HP)."
                 updates = {"death_save_successes": 0, "death_save_failures": 0}
             elif fail >= 3:
-                status = "**Three failures — the character dies.**"
+                status = "**Three failures: the character dies.**"
                 updates = {"death_save_successes": 0, "death_save_failures": 3}
             else:
                 updates = {"death_save_successes": succ, "death_save_failures": fail}

@@ -13,11 +13,13 @@ from backend.journal_storage import (
     get_campaign,
     get_campaign_location,
     get_campaign_npc,
+    list_campaign_entities,
     list_campaigns,
     save_campaign,
     save_campaign_location,
     save_campaign_npc,
 )
+from backend.storage import list_adventures_for_campaign
 
 router = APIRouter(prefix="/api/campaigns", tags=["campaigns"])
 
@@ -82,6 +84,20 @@ def remove(campaign_id: str):
 def world_context(campaign_id: str):
     text = world_context_for_campaign(campaign_id)
     return {"campaign_id": campaign_id, "context": text}
+
+
+@router.get("/{campaign_id}/adventures")
+def list_campaign_adventures(campaign_id: str):
+    if not get_campaign(campaign_id):
+        raise HTTPException(404, "Campaign not found")
+    return {"adventures": list_adventures_for_campaign(campaign_id)}
+
+
+@router.get("/{campaign_id}/entities")
+def campaign_entities(campaign_id: str):
+    if not get_campaign(campaign_id):
+        raise HTTPException(404, "Campaign not found")
+    return {"entities": list_campaign_entities(campaign_id)}
 
 
 # --- NPCs ---

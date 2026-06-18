@@ -127,7 +127,7 @@ def is_spell_cancel(message: str) -> bool:
 
 def confirmation_message(resolution: SpellQueryResolution) -> str:
     return (
-        f'You wrote **"{resolution.requested}"** — did you mean **{resolution.spell_name}**?\n\n'
+        f'You wrote **"{resolution.requested}"**. Did you mean **{resolution.spell_name}**?\n\n'
         f"Reply **yes** or tap **Cast {resolution.spell_name}** to spend the slot deterministically, "
         f"or **no** to continue without the cast shortcut."
     )

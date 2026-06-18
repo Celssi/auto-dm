@@ -9,6 +9,7 @@ from backend.rag.ingest import run_ingest
 from backend.rag.retrieval_core import get_collection
 from backend.rag.engine import query_rules
 from backend.rag.plugin import get_all_factions
+from backend.glossary import glossary_payload, lookup_entries
 from backend.settings_store import load_settings, save_settings
 from pydantic import BaseModel
 
@@ -28,6 +29,11 @@ class RulesSearchBody(BaseModel):
 class IngestBody(BaseModel):
     include_faerun: bool = False
     force_ocr: bool = False
+
+
+class GlossaryLookupBody(BaseModel):
+    names: list[str]
+    use_rag: bool = True
 
 
 @router.get("/settings")
@@ -65,6 +71,16 @@ def reindex(body: IngestBody):
     collection = get_collection()
     count = collection.count() if collection else 0
     return {"ok": code == 0, "chunk_count": count}
+
+
+@router.get("/glossary")
+def get_glossary():
+    return glossary_payload()
+
+
+@router.post("/glossary/lookup")
+def glossary_lookup(body: GlossaryLookupBody):
+    return {"entries": lookup_entries(body.names, use_rag=body.use_rag)}
 
 
 @router.post("/rules/search")

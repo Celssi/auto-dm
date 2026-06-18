@@ -1,6 +1,10 @@
-import { useEffect, useState } from "react";
-import { api } from "../../api/client";
-import type { Character, ClassLevel } from "../../types";
+import { useEffect, useState } from 'react';
+import { api } from '../../api/client';
+import type { Character, ClassLevel } from '../../types';
+import { Field } from '../ui/forms/Field';
+import TextInput from '../ui/forms/TextInput';
+import ChoiceGroup from '../ui/forms/ChoiceGroup';
+import { displayLabel } from '../../lib/displayText';
 
 interface Props {
   character: Character;
@@ -9,17 +13,25 @@ interface Props {
 
 export default function MulticlassPanel({ character, onChange }: Props) {
   const [options, setOptions] = useState<{ id: string; label: string }[]>([]);
-  const [addClass, setAddClass] = useState("");
+  const [addClass, setAddClass] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  const entries = (character.classes?.length
-    ? character.classes
-    : character.class_name
-      ? [{ class_name: character.class_name, level: character.level, subclass: character.subclass || "" }]
-      : []) as ClassLevel[];
+  const entries = (
+    character.classes?.length
+      ? character.classes
+      : character.class_name
+        ? [
+            {
+              class_name: character.class_name,
+              level: character.level,
+              subclass: character.subclass || '',
+            },
+          ]
+        : []
+  ) as ClassLevel[];
 
   useEffect(() => {
-    api.getCharacterOptions(character.campaign_setting === "faerun").then((o) => {
+    api.getCharacterOptions(character.campaign_setting === 'faerun').then((o) => {
       setOptions((o.classes as { id: string; label: string }[]) || []);
     });
   }, [character.campaign_setting]);
@@ -40,51 +52,49 @@ export default function MulticlassPanel({ character, onChange }: Props) {
         const res = await api.addMulticlass(String(character.id), addClass);
         onChange((res.character.classes as ClassLevel[]) || []);
       } else {
-        onChange([
-          ...entries,
-          { class_name: addClass, level: 1, subclass: "", class_skill_choices: [] },
-        ]);
+        onChange([...entries, { class_name: addClass, level: 1, subclass: '', class_skill_choices: [] }]);
       }
-      setAddClass("");
+      setAddClass('');
     } catch (e) {
       setError(String(e));
     }
   };
 
   return (
-    <div className="panel p-4 space-y-3">
-      <h3 className="font-semibold text-sm">Multiclass</h3>
-      {entries.length === 0 && <p className="text-xs text-muted">Set a primary class first.</p>}
+    <div className="panel-glow p-4 space-y-4 h-full">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-accent">Multiclass</h3>
+      {entries.length === 0 && <p className="text-sm text-muted">Set a primary class first.</p>}
       {entries.map((e, i) => (
-        <div key={`${e.class_name}-${i}`} className="grid grid-cols-3 gap-2 text-sm">
-          <span className="capitalize">{e.class_name}</span>
-          <span>Lv {e.level}</span>
-          <input
-            className="input text-xs"
+        <div
+          key={`${e.class_name}-${i}`}
+          className="grid grid-cols-[1fr_auto_1fr] gap-3 items-center rounded-lg border border-border bg-bg/30 px-3 py-2 text-sm"
+        >
+          <span className="font-medium">{displayLabel(e.class_name)}</span>
+          <span className="text-accent tabular-nums">Lv {e.level}</span>
+          <TextInput
+            inputClassName="text-xs py-1.5"
             placeholder="Subclass"
-            value={e.subclass || ""}
+            value={e.subclass || ''}
             onChange={(ev) => updateEntry(i, { subclass: ev.target.value })}
           />
         </div>
       ))}
       {character.level < 20 && available.length > 0 && (
-        <div className="flex gap-2 items-end">
-          <label className="flex-1 block">
-            <span className="text-xs text-muted">Add class (level 1)</span>
-            <select className="input mt-1" value={addClass} onChange={(ev) => setAddClass(ev.target.value)}>
-              <option value="">—</option>
-              {available.map((c) => (
-                <option key={c.id} value={c.id}>{c.label}</option>
-              ))}
-            </select>
-          </label>
-          <button type="button" className="btn-ghost text-xs" disabled={!addClass} onClick={tryAdd}>
-            Add
+        <Field label="Add class (level 1)">
+          <ChoiceGroup
+            value={addClass}
+            onChange={setAddClass}
+            options={available.map((c) => ({ value: c.id, label: c.label }))}
+            allowEmpty
+            columns={2}
+          />
+          <button type="button" className="btn-primary text-xs mt-2" disabled={!addClass} onClick={tryAdd}>
+            Add class
           </button>
-        </div>
+        </Field>
       )}
-      {error && <p className="text-xs text-red-400">{error}</p>}
-      <p className="text-[10px] text-muted">
+      {error && <p className="text-xs text-danger">{error}</p>}
+      <p className="text-[10px] text-muted leading-relaxed">
         Multiclass requires ability score prerequisites (e.g. WIZ INT 13). Level up picks which class gains a level.
       </p>
     </div>

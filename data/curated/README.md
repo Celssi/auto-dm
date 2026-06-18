@@ -6,6 +6,7 @@ Static character-creation and oracle data extracted from rulebooks.
 
 | File | Source | Scope |
 |------|--------|--------|
+| `dnd5e_glossary.yaml` | PHB 2024 OCR | Full spell, skill, and feat descriptions for UI tooltips |
 | `dnd5e_classes.yaml` | PHB 2024 | 12 classes, spell slot tables |
 | `dnd5e_species.yaml` | PHB 2024 | Core species |
 | `dnd5e_backgrounds.yaml` | PHB 2024 | 16 backgrounds |
@@ -21,7 +22,8 @@ Static character-creation and oracle data extracted from rulebooks.
 Regenerate feature YAML after edits:
 
 ```bash
-python scripts/build_feature_yaml.py
+python -m scripts.build_feature_yaml
+python -m scripts.build_glossary_db   # spell/skill/feat tooltip text from OCR
 ```
 
 ## Faerûn (conditional)
@@ -41,7 +43,7 @@ Background mechanics in `dnd5e_faerun.yaml` are starter values — verify agains
 ## Adding content
 
 1. Edit the relevant YAML (or `dnd5e_faerun.yaml` for supplement options).
-2. Run `python -m scripts.validate_dnd5e_character`.
+2. Run `python -m scripts.validate_dnd5e_character` and `python -m scripts.validate_glossary`.
 3. Restart the API (cached loaders reset on process restart).
 
 Future: a script could extract Faerûn backgrounds from PDF/OCR into this file automatically.

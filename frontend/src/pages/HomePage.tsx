@@ -1,62 +1,102 @@
-import { Link } from "react-router-dom";
-import { BookOpen, Swords, Users, Play } from "lucide-react";
+import { Link } from 'react-router-dom';
+import { m } from '../lib/framer';
+import { BookOpen, Swords, Users, Play, Sparkles } from 'lucide-react';
+import PageHeader from '../components/ui/PageHeader';
+import StatusBadge from '../components/ui/StatusBadge';
+import AnimatedPage from '../components/ui/AnimatedPage';
+import { fadeUp, staggerContainer } from '../components/ui/motion';
 
 interface Props {
   indexed: boolean;
   claudeOk: boolean;
   recentSession?: { id: string; name: string } | null;
+  sessionsLoaded?: boolean;
 }
 
-export default function HomePage({ indexed, claudeOk, recentSession }: Props) {
+const cards = [
+  {
+    to: '/characters',
+    icon: Users,
+    title: 'Characters',
+    desc: 'Create and manage PHB 2024 character sheets.',
+  },
+  {
+    to: '/adventures',
+    icon: BookOpen,
+    title: 'Adventures',
+    desc: 'Freeform or Faerûn module adventures.',
+  },
+  {
+    to: '/play',
+    icon: Swords,
+    title: 'Play',
+    desc: 'Start or resume a solo session.',
+  },
+];
+
+export default function HomePage({ indexed, claudeOk, recentSession, sessionsLoaded = false }: Props) {
   return (
-    <div className="max-w-3xl mx-auto space-y-8">
-      <header>
-        <h1 className="text-3xl font-bold text-accent">Auto-DM</h1>
-        <p className="text-muted mt-2">D&D 5e (2024) solo play with Claude Opus as your Dungeon Master.</p>
-      </header>
+    <AnimatedPage className="max-w-4xl mx-auto space-y-10">
+      <PageHeader
+        title="Auto-DM"
+        subtitle="D&D 5e (2024) solo play with Claude as your Dungeon Master: rules lookup, oracles, and a living journal."
+      />
 
-      <div className="flex gap-4 text-sm">
-        <span className={indexed ? "text-green-400" : "text-yellow-400"}>
-          Rules index: {indexed ? "ready" : "not indexed — run ingest"}
-        </span>
-        <span className={claudeOk ? "text-green-400" : "text-red-400"}>
-          Claude: {claudeOk ? "configured" : "missing API key"}
-        </span>
-      </div>
+      <m.div variants={fadeUp} className="flex flex-wrap gap-2">
+        <StatusBadge status={indexed ? 'ok' : 'warn'} label={indexed ? 'Rules index ready' : 'Rules not indexed'} />
+        <StatusBadge status={claudeOk ? 'ok' : 'error'} label={claudeOk ? 'Claude configured' : 'Missing API key'} />
+      </m.div>
 
-      {recentSession && (
-        <div className="panel p-4">
-          <p className="text-sm text-muted mb-2">Continue playing</p>
-          <Link to={`/play/${recentSession.id}`} className="btn-primary inline-flex items-center gap-2">
-            <Play size={16} /> {recentSession.name}
+      <m.div variants={fadeUp} className="grid sm:grid-cols-2 gap-4">
+        {recentSession && (
+          <div className="panel-glow p-5 sm:col-span-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div>
+              <p className="label-text mb-1">Continue playing</p>
+              <p className="font-display text-lg text-gray-100">{recentSession.name}</p>
+            </div>
+            <Link to={`/play/${recentSession.id}`} className="btn-primary inline-flex items-center gap-2 shrink-0">
+              <Play size={16} /> Resume session
+            </Link>
+          </div>
+        )}
+
+        <div className="panel-glow p-5 flex flex-col justify-between gap-4">
+          <div>
+            <p className="label-text mb-1">New story</p>
+            <p className="text-sm text-muted">Generate a campaign, adventure, and opening scene in one step.</p>
+          </div>
+          <Link to="/play?new=1" className="btn-primary inline-flex items-center gap-2 w-fit">
+            <Sparkles size={16} /> Start new campaign
           </Link>
         </div>
-      )}
 
-      <div className="panel p-4">
-        <p className="text-sm text-muted mb-2">Ready for a fresh story?</p>
-        <Link to="/play?new=1" className="btn-primary inline-flex items-center gap-2">
-          <Play size={16} /> Start new campaign
-        </Link>
-      </div>
+        {!sessionsLoaded
+          ? null
+          : !recentSession && (
+              <div className="panel p-5 flex items-center">
+                <p className="text-sm text-muted">
+                  No active sessions yet. Start a new campaign or create a character first.
+                </p>
+              </div>
+            )}
+      </m.div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Link to="/characters" className="panel p-6 hover:border-accent transition-colors">
-          <Users className="text-accent mb-3" size={28} />
-          <h2 className="font-semibold">Characters</h2>
-          <p className="text-sm text-muted mt-1">Create and manage PHB 2024 character sheets.</p>
-        </Link>
-        <Link to="/adventures" className="panel p-6 hover:border-accent transition-colors">
-          <BookOpen className="text-accent mb-3" size={28} />
-          <h2 className="font-semibold">Adventures</h2>
-          <p className="text-sm text-muted mt-1">Freeform or Faerûn module adventures.</p>
-        </Link>
-        <Link to="/play" className="panel p-6 hover:border-accent transition-colors">
-          <Swords className="text-accent mb-3" size={28} />
-          <h2 className="font-semibold">Play</h2>
-          <p className="text-sm text-muted mt-1">Start or resume a solo session.</p>
-        </Link>
-      </div>
-    </div>
+      <m.div variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        {cards.map(({ to, icon: Icon, title, desc }) => (
+          <m.div key={to} variants={fadeUp}>
+            <Link
+              to={to}
+              className="panel-glow block p-6 h-full group hover:border-accent/40 hover:shadow-glow transition-all duration-300"
+            >
+              <Icon className="text-accent mb-4 group-hover:scale-110 transition-transform duration-300" size={28} />
+              <h2 className="font-display font-semibold text-lg text-gray-100 group-hover:text-accent transition-colors">
+                {title}
+              </h2>
+              <p className="text-sm text-muted mt-2 leading-relaxed">{desc}</p>
+            </Link>
+          </m.div>
+        ))}
+      </m.div>
+    </AnimatedPage>
   );
 }

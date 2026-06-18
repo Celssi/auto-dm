@@ -1,8 +1,8 @@
-const BASE = "/api";
+const BASE = '/api';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { "Content-Type": "application/json", ...init?.headers },
+    headers: { 'Content-Type': 'application/json', ...init?.headers },
     ...init,
   });
   if (!res.ok) {
@@ -13,29 +13,29 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
-  health: () => request<{ indexed: boolean; claude_configured: boolean }>("/health"),
+  health: () => request<{ indexed: boolean; claude_configured: boolean }>('/health'),
 
-  getSettings: () => request<{ settings: { include_faerun: boolean; use_rerank: boolean } }>("/settings"),
+  getSettings: () => request<{ settings: { include_faerun: boolean; use_rerank: boolean } }>('/settings'),
   updateSettings: (settings: Partial<{ include_faerun: boolean; use_rerank: boolean }>) =>
-    request<{ settings: { include_faerun: boolean; use_rerank: boolean } }>("/settings", {
-      method: "PUT",
+    request<{ settings: { include_faerun: boolean; use_rerank: boolean } }>('/settings', {
+      method: 'PUT',
       body: JSON.stringify(settings),
     }),
 
-  listCharacters: () => request<{ characters: { id: string; name: string }[] }>("/characters"),
+  listCharacters: () => request<{ characters: { id: string; name: string }[] }>('/characters'),
   getCharacter: (id: string) => request<{ character: Record<string, unknown> }>(`/characters/${id}`),
   getCharacterOptions: (includeFaerun = false) =>
     request<Record<string, unknown>>(`/characters/options?include_faerun=${includeFaerun}`),
   getCharacterSummary: (id: string) =>
     request<{ summary: Record<string, unknown>; character: Record<string, unknown> }>(`/characters/${id}/summary`),
   createCharacter: (character: Record<string, unknown>) =>
-    request<{ id: string; character: Record<string, unknown> }>("/characters", {
-      method: "POST",
+    request<{ id: string; character: Record<string, unknown> }>('/characters', {
+      method: 'POST',
       body: JSON.stringify({ character }),
     }),
   updateCharacter: (id: string, character: Record<string, unknown>) =>
     request<{ character: Record<string, unknown> }>(`/characters/${id}`, {
-      method: "PUT",
+      method: 'PUT',
       body: JSON.stringify({ character }),
     }),
   levelUpCharacter: (
@@ -43,94 +43,112 @@ export const api = {
     body?: { hp_roll?: number; asi_choices?: Record<string, unknown>[]; class_name?: string },
   ) =>
     request<{ character: Record<string, unknown>; summary: Record<string, unknown> }>(`/characters/${id}/level-up`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify(body || {}),
     }),
   addMulticlass: (id: string, class_name: string) =>
     request<{ character: Record<string, unknown>; summary: Record<string, unknown> }>(`/characters/${id}/multiclass`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ class_name }),
     }),
-  deleteCharacter: (id: string) =>
-    request<{ ok: boolean }>(`/characters/${id}`, { method: "DELETE" }),
+  deleteCharacter: (id: string) => request<{ ok: boolean }>(`/characters/${id}`, { method: 'DELETE' }),
 
-  listAdventures: () => request<{ adventures: AdventureMeta[] }>("/adventures"),
+  listAdventures: (campaignId?: string) =>
+    request<{ adventures: AdventureMeta[] }>(
+      campaignId ? `/adventures?campaign_id=${encodeURIComponent(campaignId)}` : '/adventures',
+    ),
   getAdventure: (id: string) => request<{ adventure: AdventureFull }>(`/adventures/${id}`),
   createAdventure: (body: CreateAdventureBody) =>
-    request<{ id: string; adventure: AdventureFull }>("/adventures", {
-      method: "POST",
+    request<{ id: string; adventure: AdventureFull }>('/adventures', {
+      method: 'POST',
       body: JSON.stringify(body),
     }),
   updateAdventure: (id: string, meta: Record<string, unknown>, outline?: string) =>
     request<{ adventure: AdventureFull }>(`/adventures/${id}`, {
-      method: "PUT",
+      method: 'PUT',
       body: JSON.stringify({ meta, outline }),
     }),
-  deleteAdventure: (id: string) =>
-    request<{ ok: boolean }>(`/adventures/${id}`, { method: "DELETE" }),
+  deleteAdventure: (id: string) => request<{ ok: boolean }>(`/adventures/${id}`, { method: 'DELETE' }),
+  startAdventureSession: (adventureId: string) =>
+    request<{ session_id: string; created: boolean }>(`/adventures/${adventureId}/start-session`, {
+      method: 'POST',
+    }),
 
-  listSessions: () => request<{ sessions: SessionMeta[] }>("/sessions"),
+  listSessions: () => request<{ sessions: SessionMeta[] }>('/sessions'),
   getSession: (id: string) => request<{ session: SessionFull }>(`/sessions/${id}`),
   createSession: (body: CreateSessionBody) =>
-    request<{ id: string; session: SessionFull }>("/sessions", {
-      method: "POST",
+    request<{ id: string; session: SessionFull }>('/sessions', {
+      method: 'POST',
       body: JSON.stringify(body),
     }),
   chat: (sessionId: string, message: string) =>
     request<ChatResult>(`/sessions/${sessionId}/chat`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ message }),
     }),
-  getShortcuts: () => request<{ shortcuts: Shortcut[] }>("/sessions/shortcuts"),
-  getOracles: () => request<{ oracles: Oracle[] }>("/sessions/oracles"),
-  runOracle: (sessionId: string, oracle_id: string, likelihood_level = "fifty_fifty") =>
+  getShortcuts: () => request<{ shortcuts: Shortcut[] }>('/sessions/shortcuts'),
+  getOracles: () => request<{ oracles: Oracle[] }>('/sessions/oracles'),
+  runOracle: (sessionId: string, oracle_id: string, likelihood_level = 'fifty_fifty') =>
     request<{ summary: string }>(`/sessions/${sessionId}/oracle`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ oracle_id, likelihood_level }),
     }),
   runShortcut: (sessionId: string, shortcut_id: string, params?: Record<string, unknown>) =>
     request<Record<string, unknown>>(`/sessions/${sessionId}/shortcut`, {
-      method: "POST",
+      method: 'POST',
       body: JSON.stringify({ shortcut_id, params: params || {} }),
     }),
-  getLonelog: (sessionId: string) =>
-    request<{ lines: string[] }>(`/sessions/${sessionId}/lonelog`),
+  getLonelog: (sessionId: string) => request<{ lines: string[] }>(`/sessions/${sessionId}/lonelog`),
   searchRules: (question: string, include_faerun = false) =>
-    request<{ answer: string; sources: Source[] }>("/rules/search", {
-      method: "POST",
+    request<{ answer: string; sources: Source[] }>('/rules/search', {
+      method: 'POST',
       body: JSON.stringify({ question, include_faerun }),
     }),
   reindex: (include_faerun = false) =>
-    request<{ ok: boolean; chunk_count: number }>("/index/reindex", {
-      method: "POST",
+    request<{ ok: boolean; chunk_count: number }>('/index/reindex', {
+      method: 'POST',
       body: JSON.stringify({ include_faerun }),
     }),
+  getGlossary: () => request<{ count: number; entries: Record<string, unknown> }>('/glossary'),
+  lookupGlossary: (names: string[], use_rag = true) =>
+    request<{
+      entries: Record<string, { kind: string; title: string; summary: string | null; level?: number }>;
+    }>('/glossary/lookup', { method: 'POST', body: JSON.stringify({ names, use_rag }) }),
 
-  listCampaigns: () => request<{ campaigns: CampaignMeta[] }>("/campaigns"),
+  listCampaigns: () => request<{ campaigns: CampaignMeta[] }>('/campaigns'),
   getCampaign: (id: string) => request<{ campaign: CampaignFull }>(`/campaigns/${id}`),
+  listCampaignAdventures: (campaignId: string) =>
+    request<{ adventures: AdventureMeta[] }>(`/campaigns/${campaignId}/adventures`),
+  getCampaignEntities: (campaignId: string) =>
+    request<{ entities: JournalEntity[] }>(`/campaigns/${campaignId}/entities`),
   createCampaign: (body: { name: string; story_arc?: string; character_ids?: string[] }) =>
-    request<{ id: string; campaign: CampaignFull }>("/campaigns", {
-      method: "POST",
+    request<{ id: string; campaign: CampaignFull }>('/campaigns', {
+      method: 'POST',
       body: JSON.stringify(body),
     }),
   getCampaignNpc: (campaignId: string, npcId: string) =>
     request<{ npc: JournalEntry }>(`/campaigns/${campaignId}/npcs/${npcId}`),
   updateCampaignNpc: (campaignId: string, npcId: string, body: { name: string; body: string }) =>
     request<{ npc: JournalEntry }>(`/campaigns/${campaignId}/npcs/${npcId}`, {
-      method: "PUT",
+      method: 'PUT',
       body: JSON.stringify(body),
     }),
   getCampaignLocation: (campaignId: string, locationId: string) =>
     request<{ location: JournalEntry }>(`/campaigns/${campaignId}/locations/${locationId}`),
   updateCampaignLocation: (campaignId: string, locationId: string, body: { name: string; body: string }) =>
     request<{ location: JournalEntry }>(`/campaigns/${campaignId}/locations/${locationId}`, {
-      method: "PUT",
+      method: 'PUT',
       body: JSON.stringify(body),
     }),
 
   bootstrapCampaign: (body: BootstrapCampaignBody) =>
-    request<BootstrapCampaignResult>("/play/bootstrap", {
-      method: "POST",
+    request<BootstrapCampaignResult>('/play/bootstrap', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  bootstrapCampaignAdventure: (body: BootstrapAdventureBody) =>
+    request<BootstrapCampaignResult>('/play/bootstrap-adventure', {
+      method: 'POST',
       body: JSON.stringify(body),
     }),
 };
@@ -160,6 +178,12 @@ export interface CampaignMeta {
 export interface JournalEntry {
   id: string;
   campaign_id: string;
+  name: string;
+  body: string;
+}
+
+export interface JournalEntity {
+  kind: 'npc' | 'location';
   name: string;
   body: string;
 }
@@ -234,7 +258,7 @@ export interface Source {
 
 export interface BootstrapCampaignBody {
   character_id: string;
-  mode?: "freeform" | "module";
+  mode?: 'freeform' | 'module';
   theme: string;
   include_faerun?: boolean;
   campaign_name?: string;
@@ -246,4 +270,13 @@ export interface BootstrapCampaignResult {
   adventure_id: string;
   opening_scene: string;
   counts: { npcs: number; locations: number };
+}
+
+export interface BootstrapAdventureBody {
+  campaign_id: string;
+  character_id: string;
+  mode?: 'freeform' | 'module';
+  theme: string;
+  include_faerun?: boolean;
+  adventure_name?: string;
 }

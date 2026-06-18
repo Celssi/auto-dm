@@ -30,25 +30,16 @@ export function spellLimitsFromClass(
   };
 }
 
-export function spellUsesKnownList(mode: string | null | undefined): boolean {
-  return mode === "known" || mode === "pact";
+function spellUsesKnownList(mode: string | null | undefined): boolean {
+  return mode === 'known' || mode === 'pact';
 }
 
-export function spellPickLimit(
-  mode: string | null | undefined,
-  limits: { cantrips: number; prepared: number; known: number },
-): number {
-  return spellUsesKnownList(mode) ? limits.known : limits.prepared;
-}
-
-export function spellListField(
-  mode: string | null | undefined,
-): "known_spells" | "prepared_spells" {
-  return spellUsesKnownList(mode) ? "known_spells" : "prepared_spells";
+export function spellListField(mode: string | null | undefined): 'known_spells' | 'prepared_spells' {
+  return spellUsesKnownList(mode) ? 'known_spells' : 'prepared_spells';
 }
 
 export function spellPickLabel(mode: string | null | undefined): string {
-  if (mode === "pact") return "Spells known (pact magic)";
-  if (mode === "known") return "Spells known";
-  return "Prepared spells";
+  if (mode === 'pact') return 'Spells known (pact magic)';
+  if (mode === 'known') return 'Spells known';
+  return 'Prepared spells';
 }

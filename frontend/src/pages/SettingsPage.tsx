@@ -1,5 +1,12 @@
-import { useEffect, useState } from "react";
-import { api } from "../api/client";
+import { useEffect, useState } from 'react';
+import { m } from '../lib/framer';
+import { Database, Settings2, Sparkles } from 'lucide-react';
+import { api } from '../api/client';
+import PageHeader from '../components/ui/PageHeader';
+import StatusBadge from '../components/ui/StatusBadge';
+import Toggle from '../components/ui/forms/Toggle';
+import AnimatedPage from '../components/ui/AnimatedPage';
+import { fadeUp } from '../components/ui/motion';
 
 export default function SettingsPage() {
   const [settings, setSettings] = useState({ include_faerun: false, use_rerank: true });
@@ -15,7 +22,7 @@ export default function SettingsPage() {
   const save = async () => {
     const r = await api.updateSettings(settings);
     setSettings(r.settings);
-    setMessage("Settings saved.");
+    setMessage('Settings saved.');
   };
 
   const reindex = async (includeFaerun: boolean) => {
@@ -23,7 +30,7 @@ export default function SettingsPage() {
     setMessage(null);
     try {
       const r = await api.reindex(includeFaerun);
-      setMessage(r.ok ? `Indexed ${r.chunk_count} chunks.` : "Indexing failed.");
+      setMessage(r.ok ? `Indexed ${r.chunk_count} chunks.` : 'Indexing failed.');
       const h = await api.health();
       setHealth(h);
     } finally {
@@ -32,51 +39,69 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="max-w-lg space-y-6">
-      <h1 className="text-2xl font-bold">Settings</h1>
+    <AnimatedPage className="max-w-2xl space-y-8">
+      <PageHeader title="Settings" subtitle="Rules search, indexing, and system status." />
 
       {health && (
-        <div className="panel p-4 text-sm space-y-1">
-          <p>Rules index: {health.indexed ? "ready" : "not indexed"}</p>
-          <p>Claude API: {health.claude_configured ? "configured" : "missing key"}</p>
-        </div>
+        <m.div variants={fadeUp} className="flex flex-wrap gap-2">
+          <StatusBadge
+            status={health.indexed ? 'ok' : 'warn'}
+            label={health.indexed ? 'Rules index ready' : 'Not indexed'}
+          />
+          <StatusBadge
+            status={health.claude_configured ? 'ok' : 'error'}
+            label={health.claude_configured ? 'Claude API configured' : 'Missing API key'}
+          />
+        </m.div>
       )}
 
-      <div className="panel p-4 space-y-4">
-        <h2 className="font-semibold">Rules search</h2>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={settings.include_faerun}
-            onChange={(e) => setSettings({ ...settings, include_faerun: e.target.checked })}
-          />
-          Include Heroes of Faerûn & Adventures in Faerûn in rules search
-        </label>
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={settings.use_rerank}
-            onChange={(e) => setSettings({ ...settings, use_rerank: e.target.checked })}
-          />
-          Use cross-encoder reranking (Quality+)
-        </label>
-        <button type="button" className="btn-primary" onClick={save}>Save settings</button>
-      </div>
+      <m.div variants={fadeUp} className="panel-glow p-5 space-y-5">
+        <div className="flex items-center gap-2">
+          <Settings2 size={18} className="text-accent" />
+          <h2 className="font-display font-semibold text-gray-100">Rules search</h2>
+        </div>
+        <Toggle
+          checked={settings.include_faerun}
+          onChange={(include_faerun) => setSettings({ ...settings, include_faerun })}
+          label="Include Heroes of Faerûn & Adventures in Faerûn in rules search"
+        />
+        <Toggle
+          checked={settings.use_rerank}
+          onChange={(use_rerank) => setSettings({ ...settings, use_rerank })}
+          label="Use cross-encoder reranking (Quality+)"
+        />
+        <button type="button" className="btn-primary" onClick={save}>
+          Save settings
+        </button>
+      </m.div>
 
-      <div className="panel p-4 space-y-3">
-        <h2 className="font-semibold">Index rulebooks</h2>
-        <p className="text-sm text-muted">Requires Ollama with nomic-embed-text. First run may take hours with OCR.</p>
+      <m.div variants={fadeUp} className="panel-glow p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Database size={18} className="text-accent" />
+          <h2 className="font-display font-semibold text-gray-100">Index rulebooks</h2>
+        </div>
+        <p className="text-sm text-muted leading-relaxed">
+          Requires Ollama with nomic-embed-text. First run may take hours with OCR.
+        </p>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-ghost" disabled={indexing} onClick={() => reindex(false)}>
-            Index core (PHB, DMG, MM)
+            {indexing ? 'Indexing…' : 'Index core (PHB, DMG, MM)'}
           </button>
           <button type="button" className="btn-ghost" disabled={indexing} onClick={() => reindex(true)}>
-            Index core + Faerûn
+            {indexing ? 'Indexing…' : 'Index core + Faerûn'}
           </button>
         </div>
-      </div>
+      </m.div>
 
-      {message && <p className="text-sm text-accent">{message}</p>}
-    </div>
+      {message && (
+        <m.p
+          initial={{ opacity: 0, y: 4 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-sm text-accent flex items-center gap-2"
+        >
+          <Sparkles size={14} /> {message}
+        </m.p>
+      )}
+    </AnimatedPage>
   );
 }

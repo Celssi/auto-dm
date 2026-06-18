@@ -17,6 +17,7 @@ from backend.dm.actions import SHORTCUTS, run_shortcut
 from backend.dm.continuity_guard import apply_continuity_guard
 from backend.dm.journal_keeper import run_journal_keeper
 from backend.dm.resource_keeper import run_resource_keeper
+from backend.dm.story_memory import build_narrative_context, increment_summary
 from backend.dm.lonelog import format_mechanical, format_narrative
 from backend.dm.narrator import synthesize_lonelog_summary
 from backend.dm.prompts import dnd5e_system_prompt
@@ -489,7 +490,7 @@ def _handle_spell_autocomplete(
             return _finish_early_turn(
                 session_id,
                 messages,
-                response=f"Okay — not casting **{spell_name or 'that spell'}**. What do you do instead?",
+                response=f"Okay, not casting **{spell_name or 'that spell'}**. What do you do instead?",
                 character=char,
                 character_id=character_id,
                 clear_pending=True,

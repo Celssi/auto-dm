@@ -135,18 +135,19 @@ def main() -> int:
     args = parser.parse_args()
 
     print("=== Structural audit ===")
-    # Re-use existing validator
-    proc = subprocess.run(
-        [sys.executable, "-m", "scripts.validate_dnd5e_character"],
-        cwd=ROOT,
-        capture_output=True,
-        text=True,
-    )
-    if proc.returncode != 0:
-        print(proc.stdout)
-        print(proc.stderr, file=sys.stderr)
-        return proc.returncode
-    print(proc.stdout.strip())
+    # Re-use existing validators
+    for script in ("scripts.validate_dnd5e_character", "scripts.validate_glossary"):
+        proc = subprocess.run(
+            [sys.executable, "-m", script],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+        )
+        if proc.returncode != 0:
+            print(proc.stdout)
+            print(proc.stderr, file=sys.stderr)
+            return proc.returncode
+        print(proc.stdout.strip())
 
     struct_issues = structural_audit()
     if struct_issues:

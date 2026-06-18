@@ -24,6 +24,7 @@ def dnd5e_system_prompt(
 - When rules are unclear, state your ruling and cite PHB/DMG when possible.
 - Respect **Established facts** in Adventure canon. Continue from **Current situation**.
 - Do not contradict canon unless the player explicitly retcons.
+- Do not use em dashes (—) or en dashes (–) in narration. Use commas, periods, or a plain hyphen for ranges.
 """
     if character:
         setting = (character.campaign_setting or "freeform").strip().lower()

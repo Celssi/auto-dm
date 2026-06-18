@@ -9,10 +9,13 @@ from backend.journal_storage import (
     list_campaign_locations,
     list_campaign_npcs,
 )
+from backend.storage import get_adventure_summary, list_adventures_for_campaign
 
 MAX_BODY = 600
 MAX_NPCS = 10
 MAX_LOCATIONS = 8
+MAX_PRIOR_SUMMARY = 1500
+MAX_PRIOR_ADVENTURES = 5
 
 
 def _clip(text: str, limit: int = MAX_BODY) -> str:
@@ -22,9 +25,40 @@ def _clip(text: str, limit: int = MAX_BODY) -> str:
     return text[:limit] + "…"
 
 
-def world_context_for_campaign(campaign_id: str | None, *, has_adventure_summary: bool = False) -> str:
+def prior_adventures_context(
+    campaign_id: str | None,
+    *,
+    exclude_adventure_id: str | None = None,
+) -> str:
     if not campaign_id:
         return ""
+    adventures = list_adventures_for_campaign(campaign_id)
+    parts: list[str] = []
+    for adv in adventures:
+        adv_id = adv.get("id", "")
+        if not adv_id or adv_id == exclude_adventure_id:
+            continue
+        summary = get_adventure_summary(adv_id).strip()
+        if not summary:
+            continue
+        name = adv.get("name") or adv_id
+        parts.append(f"### {name}\n{_clip(summary, MAX_PRIOR_SUMMARY)}")
+        if len(parts) >= MAX_PRIOR_ADVENTURES:
+            break
+    if not parts:
+        return ""
+    return "## Previous adventures in this campaign\n\n" + "\n\n".join(parts)
+
+
+def world_context_for_campaign(
+    campaign_id: str | None,
+    *,
+    has_adventure_summary: bool = False,
+    exclude_adventure_id: str | None = None,
+) -> str:
+    if not campaign_id:
+        return ""
+
     campaign = get_campaign(campaign_id)
     if not campaign:
         return ""
@@ -34,6 +68,10 @@ def world_context_for_campaign(campaign_id: str | None, *, has_adventure_summary
     if arc:
         arc_limit = 800 if has_adventure_summary else 2000
         parts.append(_clip(arc, arc_limit))
+
+    prior = prior_adventures_context(campaign_id, exclude_adventure_id=exclude_adventure_id)
+    if prior:
+        parts.append(prior)
 
     npc_rows = list_campaign_npcs(campaign_id)[:MAX_NPCS]
     if npc_rows:

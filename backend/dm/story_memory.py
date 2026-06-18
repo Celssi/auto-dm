@@ -46,7 +46,11 @@ def build_narrative_context(
     canon = _clip(adventure.get("summary") or "", CANON_MAX)
     recent = recent_scenes_from_log(adventure.get("log") or "")
     has_canon = bool(canon.strip())
-    world_bible = world_context_for_campaign(campaign_id, has_adventure_summary=has_canon)
+    world_bible = world_context_for_campaign(
+        campaign_id,
+        has_adventure_summary=has_canon,
+        exclude_adventure_id=adventure.get("id"),
+    )
 
     if character and recent:
         setting = (character.campaign_setting or "freeform").strip().lower()
@@ -126,6 +130,7 @@ Rules:
 - Current situation: where play should resume NOW (time, place, mood, immediate tensions)
 - Open mysteries: unresolved questions and hooks
 - Be factual; no speculation. Include character level if known from the log.
+- Do not use em dashes or en dashes; use commas, periods, or plain hyphens for ranges
 
 Adventure outline:
 {outline[:2000] or '(none)'}
@@ -177,6 +182,7 @@ Rules:
 - Add/remove Established facts and Open mysteries as needed
 - Do NOT drop important earlier facts
 - Keep the full document under ~2500 words
+- Do not use em dashes or en dashes; use commas, periods, or plain hyphens for ranges
 
 Existing canon:
 {existing[:6000] or '(empty — create initial canon from this turn)'}
