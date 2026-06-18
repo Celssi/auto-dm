@@ -107,6 +107,34 @@ def clear_combat_state(session_id: str) -> None:
         path.unlink()
 
 
+def _completed_encounters_path(session_id: str) -> Path:
+    return SAVES_DIR / "sessions" / session_id / "encounters_completed.json"
+
+
+def load_completed_encounter_ids(session_id: str) -> set[str]:
+    path = _completed_encounters_path(session_id)
+    if not path.is_file():
+        return set()
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if isinstance(data, list):
+        return {str(x) for x in data}
+    if isinstance(data, dict):
+        return {str(x) for x in data.get("completed", [])}
+    return set()
+
+
+def mark_encounter_completed(session_id: str, encounter_id: str) -> None:
+    if not encounter_id:
+        return
+    completed = load_completed_encounter_ids(session_id)
+    if encounter_id in completed:
+        return
+    completed.add(encounter_id)
+    path = _completed_encounters_path(session_id)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(sorted(completed), indent=2), encoding="utf-8")
+
+
 def new_encounter_id(name: str) -> str:
     base = name.lower().replace(" ", "-")[:32] or "encounter"
     return f"{base}-{uuid.uuid4().hex[:6]}"

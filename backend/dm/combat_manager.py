@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+import re
 import uuid
 from typing import Any
 
@@ -14,9 +15,12 @@ from backend.dm.encounters import (
     clear_combat_state,
     load_adventure_encounters,
     load_combat_state,
+    load_completed_encounter_ids,
+    mark_encounter_completed,
     save_combat_state,
 )
 from backend.dm.monster_resolver import lookup_monster
+from backend.dm.story_director import load_story_progress
 from backend.play_tools import roll_dice
 
 
@@ -235,8 +239,7 @@ def run_enemy_turns_until_player(
             state, char_dict, events = resolve_enemy_turn(state, char_dict)
             all_events.extend(events)
             if state.status == "ended":
-                clear_combat_state(session_id)
-                save_combat_state(session_id, state)
+                _finish_combat(session_id, state)
                 break
             save_combat_state(session_id, state)
             continue
@@ -263,7 +266,7 @@ def finish_player_turn(
         state = advance_turn(state)
         if _all_enemies_defeated(state):
             state.status = "ended"
-            clear_combat_state(session_id)
+            _finish_combat(session_id, state)
             return state, char_dict, ["All enemies defeated. Combat ended."]
         save_combat_state(session_id, state)
 
@@ -296,25 +299,223 @@ def format_combat_context(state: CombatState | None) -> str:
     return "\n".join(lines)
 
 
+def _finish_combat(session_id: str, state: CombatState) -> None:
+    mark_encounter_completed(session_id, state.encounter_id)
+    clear_combat_state(session_id)
+    save_combat_state(session_id, state)
+
+
 def pick_encounter_to_start(
     adventure_id: str,
     *,
+    session_id: str = "",
     active_beat: str = "",
+    active_beat_notes: str = "",
     user_message: str = "",
+    recent_dm_text: str = "",
 ) -> EncounterSpec | None:
-    """Choose a planned encounter matching the current beat or combat trigger."""
+    """Choose a planned encounter when the story beat or scene calls for combat."""
     encounters = load_adventure_encounters(adventure_id)
     if not encounters:
         return None
-    msg = user_message.lower()
-    combat_triggers = ("attack", "fight", "combat", "initiative", "charge", "strike", "/initiative")
-    if not any(t in msg for t in combat_triggers):
+
+    completed: set[str] = load_completed_encounter_ids(session_id) if session_id else set()
+    pending = [enc for enc in encounters if enc.id not in completed]
+    if not pending:
         return None
-    if active_beat:
-        beat_lower = active_beat.lower()
-        for enc in encounters:
-            if enc.trigger_beat and enc.trigger_beat.lower() in beat_lower:
-                return enc
-            if beat_lower in enc.name.lower() or beat_lower in enc.description.lower():
-                return enc
-    return encounters[0]
+
+    best: EncounterSpec | None = None
+    best_beat_score = 0
+    best_total = 0
+    for enc in pending:
+        beat_score, reactive_score = _score_encounter_match(
+            enc,
+            active_beat=active_beat,
+            active_beat_notes=active_beat_notes,
+            user_message=user_message,
+            recent_dm_text=recent_dm_text,
+        )
+        total = beat_score + reactive_score
+        if beat_score > best_beat_score or (beat_score == best_beat_score and total > best_total):
+            best_beat_score = beat_score
+            best_total = total
+            best = enc
+        elif beat_score == best_beat_score and total > best_total:
+            best_total = total
+            best = enc
+
+    if best is None:
+        return None
+    reactive = best_total - best_beat_score
+    if best_beat_score >= 70:
+        return best
+    if best_beat_score >= 50 and reactive == 0:
+        return best
+    if best_total >= 55 and reactive >= 15:
+        return best
+    return None
+
+
+def _normalize_text(text: str) -> str:
+    return " ".join((text or "").lower().split())
+
+
+def _text_aligns(a: str, b: str) -> bool:
+    a_norm = _normalize_text(a)
+    b_norm = _normalize_text(b)
+    if not a_norm or not b_norm:
+        return False
+    if a_norm in b_norm or b_norm in a_norm:
+        return True
+    words_a = {w for w in a_norm.split() if len(w) > 3}
+    words_b = {w for w in b_norm.split() if len(w) > 3}
+    return bool(words_a & words_b)
+
+
+_COMBAT_HINTS = (
+    "encounter:",
+    "boss fight",
+    "combat",
+    "ambush",
+    "assault",
+    "battle",
+)
+
+
+def _has_active_combat_hint(text: str) -> bool:
+    lowered = _normalize_text(text)
+    if "encounter:" in lowered:
+        return True
+    patterns = (
+        r"\bcombat\b",
+        r"\bfight\b",
+        r"\bboss\b",
+        r"\bambush\b",
+        r"\bbattle\b",
+        r"\bassault\b",
+        r"\brepel\b",
+        r"\bsurge\b",
+        r"\battack\b",
+        r"\braid\b",
+    )
+    return any(re.search(p, lowered) for p in patterns)
+
+
+def _trigger_in_context(trigger: str, ctx: str) -> bool:
+    if not trigger or not ctx:
+        return False
+    pattern = r"\b" + re.escape(trigger) + r"\b"
+    return bool(re.search(pattern, ctx))
+
+
+def _message_has_combat_intent(msg: str) -> bool:
+    lowered = msg.lower()
+    triggers = ("attack", "fight", "combat", "initiative", "charge", "strike", "/initiative")
+    return any(t in lowered for t in triggers)
+
+
+def _score_encounter_match(
+    enc: EncounterSpec,
+    *,
+    active_beat: str,
+    active_beat_notes: str,
+    user_message: str,
+    recent_dm_text: str,
+) -> tuple[int, int]:
+    beat_score = 0
+    reactive_score = 0
+    beat_title = _normalize_text(active_beat)
+    beat_notes = _normalize_text(active_beat_notes)
+    beat_ctx = _normalize_text(f"{active_beat} {active_beat_notes}")
+    scene_ctx = _normalize_text(f"{beat_ctx} {user_message} {recent_dm_text}")
+    trigger = _normalize_text(enc.trigger_beat)
+    enc_name = _normalize_text(enc.name)
+    enc_desc = _normalize_text(enc.description)
+
+    if beat_title and trigger:
+        if trigger == beat_title:
+            beat_score += 100
+        elif _trigger_in_context(trigger, beat_title):
+            beat_score += 85
+        elif _trigger_in_context(trigger, beat_ctx):
+            beat_score += 75
+
+    if beat_title and (_text_aligns(enc_name, beat_title) or _text_aligns(enc_desc, beat_title)):
+        beat_score += 70
+
+    if beat_notes and "encounter:" in beat_notes:
+        for enemy in enc.enemies:
+            monster = _normalize_text(enemy.monster_name)
+            if monster and monster in beat_notes:
+                beat_score += 80
+
+    if trigger and _trigger_in_context(trigger, beat_ctx):
+        beat_score += 20
+    if enc_name and enc_name in beat_ctx:
+        beat_score += 15
+
+    for enemy in enc.enemies:
+        monster = _normalize_text(enemy.monster_name)
+        label = _normalize_text(enemy.label)
+        if monster and monster in beat_ctx and _has_active_combat_hint(beat_ctx):
+            beat_score += 25
+        if label and label in beat_ctx and _has_active_combat_hint(beat_ctx):
+            beat_score += 15
+
+    if enc_name and enc_name in _normalize_text(user_message):
+        reactive_score += 40
+    for enemy in enc.enemies:
+        if enemy.monster_name.lower() in user_message.lower():
+            reactive_score += 35
+
+    if _message_has_combat_intent(user_message):
+        reactive_score += 15
+
+    if recent_dm_text and _has_active_combat_hint(recent_dm_text):
+        for enemy in enc.enemies:
+            if enemy.monster_name.lower() in recent_dm_text.lower():
+                reactive_score += 25
+
+    return beat_score, reactive_score
+
+
+def _recent_dm_text(messages: list | None) -> str:
+    for msg in reversed(messages or []):
+        if msg.get("role") == "assistant":
+            return str(msg.get("content") or "")
+    return ""
+
+
+def try_start_planned_encounter(
+    session_id: str,
+    adventure_id: str,
+    char_dict: dict,
+    *,
+    user_message: str = "",
+    messages: list | None = None,
+) -> CombatState | None:
+    """Start a planned encounter when the story beat or scene calls for combat."""
+    existing = load_combat_state(session_id)
+    if existing:
+        return existing
+
+    active_beat = ""
+    active_beat_notes = ""
+    progress = load_story_progress(adventure_id)
+    if progress:
+        active = next((c for c in progress.checkpoints if c.status == "active"), None)
+        if active:
+            active_beat = active.title
+            active_beat_notes = active.dm_notes or ""
+
+    enc = pick_encounter_to_start(
+        adventure_id,
+        session_id=session_id,
+        active_beat=active_beat,
+        active_beat_notes=active_beat_notes,
+        user_message=user_message,
+        recent_dm_text=_recent_dm_text(messages),
+    )
+    if enc:
+        return start_encounter(session_id, enc, char_dict)
+    return None

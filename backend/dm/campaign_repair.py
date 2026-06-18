@@ -62,7 +62,7 @@ WAKING_DEEP_ENCOUNTERS: dict[str, list[EncounterSpec]] = {
         EncounterSpec(
             id="sunken-sanctum",
             name="Sunken Sanctum Guardian",
-            trigger_beat="Sunken Sanctum",
+            trigger_beat="Priestess",
             description="Corrupted sahuagin guard the Crown fragment.",
             enemies=[
                 EncounterEnemySpec(monster_name="Sahuagin Priest", count=1, label="Priestess"),

@@ -107,7 +107,7 @@ def test_start_encounter_and_initiative_order():
     assert current_combatant(state).kind == "player"
 
 
-def test_pick_encounter_requires_combat_keywords():
+def test_pick_encounter_auto_on_beat_match():
     tmpdir = Path(tempfile.mkdtemp())
     cfg.SAVES_DIR = tmpdir
     import backend.dm.encounters as enc
@@ -121,16 +121,79 @@ def test_pick_encounter_requires_combat_keywords():
                 id="e1",
                 name="Ambush",
                 trigger_beat="Dock fight",
+                description="Merrow attack the harbor.",
+                enemies=[EncounterEnemySpec(monster_name="Merrow", count=2)],
+            )
+        ],
+    )
+    picked = pick_encounter_to_start(
+        adv_id,
+        session_id="sess-1",
+        active_beat="Blood on the Docks",
+        active_beat_notes="ENCOUNTER: 3-5 merrow surge from the black water onto the harbor docks.",
+        user_message="I look around nervously",
+    )
+    assert picked is not None
+    assert picked.name == "Ambush"
+
+
+def test_pick_encounter_not_early_on_setup_beat():
+    tmpdir = Path(tempfile.mkdtemp())
+    cfg.SAVES_DIR = tmpdir
+    import backend.dm.encounters as enc
+
+    enc.SAVES_DIR = tmpdir
+    adv_id = "adv-test"
+    save_adventure_encounters(
+        adv_id,
+        [
+            EncounterSpec(
+                id="e1",
+                name="Merrow Harbor Raid",
+                trigger_beat="Merrow raid",
+                description="Merrow attack the harbor.",
                 enemies=[EncounterEnemySpec(monster_name="Merrow", count=2)],
             )
         ],
     )
     assert (
-        pick_encounter_to_start(adv_id, active_beat="Dock fight", user_message="look around")
+        pick_encounter_to_start(
+            adv_id,
+            session_id="sess-1",
+            active_beat="The Tide Moot",
+            active_beat_notes="Prove your worth by dealing with the merrow raiding party later.",
+            user_message="I ask Marceska about passage",
+        )
         is None
     )
-    picked = pick_encounter_to_start(
-        adv_id, active_beat="Dock fight", user_message="I attack the merrow"
+
+
+def test_completed_encounter_not_restarted():
+    tmpdir = Path(tempfile.mkdtemp())
+    cfg.SAVES_DIR = tmpdir
+    import backend.dm.encounters as enc
+
+    enc.SAVES_DIR = tmpdir
+    adv_id = "adv-test"
+    session_id = "sess-done"
+    save_adventure_encounters(
+        adv_id,
+        [
+            EncounterSpec(
+                id="e1",
+                name="Ambush",
+                trigger_beat="Dock fight",
+                enemies=[EncounterEnemySpec(monster_name="Merrow", count=2)],
+            )
+        ],
     )
-    assert picked is not None
-    assert picked.name == "Ambush"
+    enc.mark_encounter_completed(session_id, "e1")
+    assert (
+        pick_encounter_to_start(
+            adv_id,
+            session_id=session_id,
+            active_beat="Dock fight",
+            user_message="I attack",
+        )
+        is None
+    )

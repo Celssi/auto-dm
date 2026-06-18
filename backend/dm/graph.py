@@ -19,9 +19,8 @@ from backend.dm.actions import SHORTCUTS, run_shortcut
 from backend.dm.combat_manager import (
     format_combat_context,
     finish_player_turn,
-    pick_encounter_to_start,
     run_enemy_turns_until_player,
-    start_encounter,
+    try_start_planned_encounter,
 )
 from backend.dm.encounters import combat_state_view, load_combat_state
 from backend.dm.continuity_guard import apply_continuity_guard
@@ -236,19 +235,13 @@ def combat_manager_pre_node(state: DMState) -> DMState:
 
     combat = load_combat_state(session_id)
     if not combat:
-        progress = load_story_progress(adv_id)
-        active_beat = ""
-        if progress:
-            active = next((c for c in progress.checkpoints if c.status == "active"), None)
-            if active:
-                active_beat = active.title
-        enc = pick_encounter_to_start(
+        combat = try_start_planned_encounter(
+            session_id,
             adv_id,
-            active_beat=active_beat,
+            state.get("character") or {},
             user_message=state.get("user_message") or "",
+            messages=state.get("messages") or [],
         )
-        if enc:
-            combat = start_encounter(session_id, enc, state.get("character") or {})
 
     updates: DMState = {"in_combat": bool(combat and combat.status == "active")}
     if combat:
@@ -811,15 +804,13 @@ def run_dm_turn(
 
     pre_combat_events: list[str] = []
     if adv_id and not load_combat_state(session_id):
-        progress = load_story_progress(adv_id)
-        active_beat = ""
-        if progress:
-            active = next((c for c in progress.checkpoints if c.status == "active"), None)
-            if active:
-                active_beat = active.title
-        enc = pick_encounter_to_start(adv_id, active_beat=active_beat, user_message=user_message)
-        if enc:
-            start_encounter(session_id, enc, char)
+        try_start_planned_encounter(
+            session_id,
+            adv_id,
+            char,
+            user_message=user_message,
+            messages=messages[:-1],
+        )
 
     _, char, pre_combat_events = run_enemy_turns_until_player(session_id, char)
     if char != get_character(character_id):
