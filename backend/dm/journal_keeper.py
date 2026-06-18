@@ -30,8 +30,12 @@ class JournalTurnUpdates(BaseModel):
     updated_npcs: list[JournalEntryUpdate] = Field(default_factory=list)
     new_locations: list[JournalEntryUpdate] = Field(default_factory=list)
     updated_locations: list[JournalEntryUpdate] = Field(default_factory=list)
-    campaign_note: str = Field(default="", description="Major plot beat to append to campaign arc, or empty")
-    adventure_log: str = Field(default="", description="Extra factual log line if scribe missed something, or empty")
+    campaign_note: str = Field(
+        default="", description="Major plot beat to append to campaign arc, or empty"
+    )
+    adventure_log: str = Field(
+        default="", description="Extra factual log line if scribe missed something, or empty"
+    )
 
 
 def _name_list(campaign_id: str) -> tuple[list[str], list[str]]:
@@ -49,8 +53,8 @@ def extract_journal_updates(
     npc_names, loc_names = _name_list(campaign_id)
     prompt = f"""Analyze this D&D solo play turn and extract journal updates ONLY when clearly warranted.
 
-Existing NPCs: {', '.join(npc_names) or '(none)'}
-Existing locations: {', '.join(loc_names) or '(none)'}
+Existing NPCs: {", ".join(npc_names) or "(none)"}
+Existing locations: {", ".join(loc_names) or "(none)"}
 
 Rules:
 - new_npcs/new_locations: ONLY for newly introduced NAMED characters or places not in existing lists
@@ -87,7 +91,9 @@ def apply_journal_updates(
             continue
         entry_id = find_journal_entry_id(campaign_id, "npcs", npc.name)
         if not entry_id:
-            save_campaign_npc(campaign_id, None, {"name": npc.name.strip(), "body": npc.body.strip()})
+            save_campaign_npc(
+                campaign_id, None, {"name": npc.name.strip(), "body": npc.body.strip()}
+            )
             counts["new_npcs"] += 1
             continue
         existing = get_campaign_npc(campaign_id, entry_id) or {}
@@ -108,7 +114,9 @@ def apply_journal_updates(
     for loc in updates.new_locations:
         if not loc.name.strip():
             continue
-        save_campaign_location(campaign_id, None, {"name": loc.name.strip(), "body": loc.body.strip()})
+        save_campaign_location(
+            campaign_id, None, {"name": loc.name.strip(), "body": loc.body.strip()}
+        )
         counts["new_locations"] += 1
 
     for loc in updates.updated_locations:
@@ -116,7 +124,9 @@ def apply_journal_updates(
             continue
         entry_id = find_journal_entry_id(campaign_id, "locations", loc.name)
         if not entry_id:
-            save_campaign_location(campaign_id, None, {"name": loc.name.strip(), "body": loc.body.strip()})
+            save_campaign_location(
+                campaign_id, None, {"name": loc.name.strip(), "body": loc.body.strip()}
+            )
             counts["new_locations"] += 1
             continue
         existing = get_campaign_location(campaign_id, entry_id) or {}

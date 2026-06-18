@@ -23,7 +23,7 @@ Regenerate feature YAML after edits:
 
 ```bash
 python -m scripts.build_feature_yaml
-python -m scripts.build_glossary_db   # spell/skill/feat tooltip text from OCR
+python -m scripts.build_glossary_db   # spell/skill/feat tooltip text from OCR (also runs after `python -m scripts.ingest`)
 ```
 
 ## Faerûn (conditional)

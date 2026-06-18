@@ -10,7 +10,6 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from backend.characters.character_builder import (
-    character_creation_summary,
     compute_spell_slots,
     level_up,
     rebuild_character,
@@ -24,9 +23,8 @@ from backend.characters.character_data import (
     list_backgrounds,
     list_classes,
     list_species,
-    spell_list_for,
 )
-from backend.characters.entity import Dnd5eCharacter, character_from_dict, character_to_dict
+from backend.characters.entity import Dnd5eCharacter
 from backend.characters.multiclass import class_levels_dict
 
 
@@ -107,7 +105,7 @@ def main() -> int:
     assert mc.level == 3
     assert len(class_levels_dict(mc)) == 2
 
-    from backend.characters.features import unlocked_features, subclass_features_for
+    from backend.characters.features import subclass_features_for, unlocked_features
 
     feats = subclass_features_for("barbarian", "Path of the Berserker", 3)
     assert "Frenzy" in feats
@@ -115,7 +113,14 @@ def main() -> int:
         rebuild_character(
             Dnd5eCharacter(
                 name="Barb",
-                classes=[{"class_name": "barbarian", "level": 3, "subclass": "Path of the Berserker", "class_skill_choices": []}],
+                classes=[
+                    {
+                        "class_name": "barbarian",
+                        "level": 3,
+                        "subclass": "Path of the Berserker",
+                        "class_skill_choices": [],
+                    }
+                ],
             )
         )
     )

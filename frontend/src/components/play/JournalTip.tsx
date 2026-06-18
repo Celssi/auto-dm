@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { m, AnimatePresence } from '../../lib/framer';
 import { formatJournalBody, type JournalEntity } from '../../lib/journalTips';
+import MarkdownContent from '../ui/MarkdownContent';
 
 const KIND_LABEL: Record<string, string> = {
   npc: 'NPC',
@@ -86,7 +87,6 @@ export default function JournalTip({ entity, text }: Props) {
   }, [open, updatePlacement]);
 
   const body = formatJournalBody(entity.body);
-  const paragraphs = body.split(/\n\n+/).filter(Boolean);
 
   const tip =
     open && placement
@@ -114,14 +114,12 @@ export default function JournalTip({ entity, text }: Props) {
               <p className="text-[10px] uppercase tracking-wider text-accent/80 mb-1.5 shrink-0">
                 {KIND_LABEL[entity.kind] || entity.kind}
               </p>
-              {paragraphs.length ? (
+              {body.trim() ? (
                 <div
-                  className="overflow-y-auto overflow-x-hidden space-y-2 pr-1 text-xs text-gray-200 leading-relaxed"
+                  className="overflow-y-auto overflow-x-hidden pr-1"
                   style={{ maxHeight: Math.max(80, placement.maxHeight - 72) }}
                 >
-                  {paragraphs.map((para) => (
-                    <p key={`journal-para-${para.slice(0, 40)}-${para.length}`}>{para}</p>
-                  ))}
+                  <MarkdownContent content={body} className="text-xs" />
                 </div>
               ) : (
                 <p className="text-muted italic text-xs">No journal entry yet.</p>

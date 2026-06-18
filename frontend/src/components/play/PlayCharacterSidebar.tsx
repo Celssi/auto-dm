@@ -39,7 +39,8 @@ export default function PlayCharacterSidebar({ character: c, summary }: Props) {
   const classLine =
     (c.classes?.length
       ? c.classes.map((e) => `${displayLabel(e.class_name)} ${e.level}`).join(' · ')
-      : `${displayLabel(c.class_name) || EMPTY_FIELD} ${c.level || 1}`) + (c.subclass ? ` (${displayLabel(c.subclass)})` : '');
+      : `${displayLabel(c.class_name) || EMPTY_FIELD} ${c.level || 1}`) +
+    (c.subclass ? ` (${displayLabel(c.subclass)})` : '');
 
   const proficientSkills = [
     'perception',

@@ -8,6 +8,7 @@ from pydantic import BaseModel
 from backend.dm.actions import SHORTCUTS, run_shortcut
 from backend.dm.graph import run_dm_turn
 from backend.dm.lonelog import format_mechanical
+from backend.dm.opening_scene import begin_session
 from backend.dm.oracles import ORACLE_TOOLS, run_oracle
 from backend.settings_store import load_settings
 from backend.storage import (
@@ -77,6 +78,14 @@ def create(body: SessionCreateBody):
         include_faerun=body.include_faerun or prefs.get("include_faerun", False),
     )
     return {"id": session_id, "session": get_session(session_id)}
+
+
+@router.post("/{session_id}/begin")
+def begin(session_id: str):
+    try:
+        return begin_session(session_id)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
 
 
 @router.post("/{session_id}/chat")

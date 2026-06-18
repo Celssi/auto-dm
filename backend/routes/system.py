@@ -3,15 +3,15 @@
 from __future__ import annotations
 
 from fastapi import APIRouter
+from pydantic import BaseModel
 
 from backend.config import ANTHROPIC_API_KEY, CLAUDE_CHAT_MODEL, COLLECTION_NAME
-from backend.rag.ingest import run_ingest
-from backend.rag.retrieval_core import get_collection
-from backend.rag.engine import query_rules
-from backend.rag.plugin import get_all_factions
 from backend.glossary import glossary_payload, lookup_entries
+from backend.rag.engine import query_rules
+from backend.rag.ingest import run_ingest
+from backend.rag.plugin import get_all_factions
+from backend.rag.retrieval_core import get_collection
 from backend.settings_store import load_settings, save_settings
-from pydantic import BaseModel
 
 router = APIRouter(prefix="/api", tags=["system"])
 

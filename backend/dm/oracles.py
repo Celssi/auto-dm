@@ -6,7 +6,6 @@ import random
 from typing import Any
 
 from backend.dm.curated import roll_oracle
-from backend.play_tools import roll_dice
 
 YES_NO_ANSWERS = [
     "Yes",
@@ -26,46 +25,98 @@ LIKELIHOOD_TABLES: dict[str, list[str]] = {
 }
 
 LOCATION_TYPES = [
-    "Ancient ruins", "Dense forest", "Busy marketplace", "Mountain pass",
-    "Tavern common room", "Cave system", "Noble estate", "Abandoned temple",
-    "Coastal cliff", "Swamp hamlet", "Underground tunnel", "Castle courtyard",
+    "Ancient ruins",
+    "Dense forest",
+    "Busy marketplace",
+    "Mountain pass",
+    "Tavern common room",
+    "Cave system",
+    "Noble estate",
+    "Abandoned temple",
+    "Coastal cliff",
+    "Swamp hamlet",
+    "Underground tunnel",
+    "Castle courtyard",
 ]
 
 ATMOSPHERES = [
-    "Tense and foreboding", "Peaceful and serene", "Chaotic and busy",
-    "Mysterious and quiet", "Oppressive and dark", "Warm and welcoming",
-    "Eerie and unsettling", "Triumphant and hopeful",
+    "Tense and foreboding",
+    "Peaceful and serene",
+    "Chaotic and busy",
+    "Mysterious and quiet",
+    "Oppressive and dark",
+    "Warm and welcoming",
+    "Eerie and unsettling",
+    "Triumphant and hopeful",
 ]
 
 WEATHER = [
-    "Clear skies", "Light rain", "Heavy storm", "Thick fog", "Snow flurries",
-    "Blazing heat", "Cold wind", "Overcast gloom",
+    "Clear skies",
+    "Light rain",
+    "Heavy storm",
+    "Thick fog",
+    "Snow flurries",
+    "Blazing heat",
+    "Cold wind",
+    "Overcast gloom",
 ]
 
 TIMES_OF_DAY = [
-    "Pre-dawn", "Morning", "Midday", "Afternoon", "Dusk", "Night", "Deep night",
+    "Pre-dawn",
+    "Morning",
+    "Midday",
+    "Afternoon",
+    "Dusk",
+    "Night",
+    "Deep night",
 ]
 
 NPC_TRAITS = [
-    "Suspicious merchant", "Weary guard", "Cheerful innkeeper", "Secretive scholar",
-    "Gruff blacksmith", "Nervous acolyte", "Bold adventurer", "Mysterious stranger",
+    "Suspicious merchant",
+    "Weary guard",
+    "Cheerful innkeeper",
+    "Secretive scholar",
+    "Gruff blacksmith",
+    "Nervous acolyte",
+    "Bold adventurer",
+    "Mysterious stranger",
 ]
 
 NPC_MOODS = [
-    "Hostile", "Wary", "Neutral", "Friendly", "Helpful", "Desperate", "Amused",
+    "Hostile",
+    "Wary",
+    "Neutral",
+    "Friendly",
+    "Helpful",
+    "Desperate",
+    "Amused",
 ]
 
 DUNGEON_ROOMS = [
-    "Empty chamber with cracked pillars", "Rubble-filled hall", "Flooded cellar",
-    "Trapped corridor", "Shrine to a forgotten god", "Guard post with braziers",
-    "Natural cavern with stalactites", "Arcane laboratory", "Prison cells",
-    "Treasure vault (locked)", "Collapsing bridge over a chasm",
+    "Empty chamber with cracked pillars",
+    "Rubble-filled hall",
+    "Flooded cellar",
+    "Trapped corridor",
+    "Shrine to a forgotten god",
+    "Guard post with braziers",
+    "Natural cavern with stalactites",
+    "Arcane laboratory",
+    "Prison cells",
+    "Treasure vault (locked)",
+    "Collapsing bridge over a chasm",
 ]
 
 DUNGEON_FEATURES = [
-    "Hidden door", "Pressure plate trap", "Faded murals", "Recent footprints",
-    "Distant dripping water", "Old bloodstains", "Flickering magical light",
-    "Collapsed ceiling", "Iron portcullis", "Whispering voices",
+    "Hidden door",
+    "Pressure plate trap",
+    "Faded murals",
+    "Recent footprints",
+    "Distant dripping water",
+    "Old bloodstains",
+    "Flickering magical light",
+    "Collapsed ceiling",
+    "Iron portcullis",
+    "Whispering voices",
 ]
 
 

@@ -14,6 +14,27 @@ function escapeRegex(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
+export function lookupGlossary(
+  name: string,
+  entries: Record<string, GlossaryEntry>,
+  classId?: string,
+): GlossaryEntry | null {
+  const candidates: string[] = [];
+  if (classId) {
+    candidates.push(glossaryKey(`${classId}_${name}`));
+  }
+  candidates.push(glossaryKey(name));
+  const paren = name.split('(')[0].trim();
+  if (paren !== name) {
+    candidates.push(glossaryKey(paren));
+  }
+  for (const key of candidates) {
+    const hit = entries[key];
+    if (hit?.summary) return hit;
+  }
+  return fuzzyGlossaryLookup(name, entries);
+}
+
 export function fuzzyGlossaryLookup(name: string, entries: Record<string, GlossaryEntry>): GlossaryEntry | null {
   const key = glossaryKey(name);
   const exact = entries[key];

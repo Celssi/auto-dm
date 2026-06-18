@@ -33,10 +33,16 @@ class SpellCast(BaseModel):
 class ResourceTurnUpdates(BaseModel):
     casts: list[SpellCast] = Field(default_factory=list)
     end_concentration: bool = Field(default=False)
-    new_concentration: str = Field(default="", description="Spell name if concentrating, else empty")
+    new_concentration: str = Field(
+        default="", description="Spell name if concentrating, else empty"
+    )
     wild_shape_used: bool = Field(default=False)
-    short_rest: bool = Field(default=False, description="Character clearly finished a short rest this turn")
-    spend_hit_dice: int = Field(default=0, ge=0, le=20, description="Hit Dice spent during short rest, if stated")
+    short_rest: bool = Field(
+        default=False, description="Character clearly finished a short rest this turn"
+    )
+    spend_hit_dice: int = Field(
+        default=0, ge=0, le=20, description="Hit Dice spent during short rest, if stated"
+    )
 
 
 def narrative_short_rest_detected(user_message: str, dm_response: str) -> bool:
@@ -60,7 +66,9 @@ def parse_hit_dice_to_spend(user_message: str, dm_response: str) -> int:
     return 0
 
 
-def _apply_short_rest_updates(char: Dnd5eCharacter, *, dice_to_spend: int) -> tuple[dict, list[str]]:
+def _apply_short_rest_updates(
+    char: Dnd5eCharacter, *, dice_to_spend: int
+) -> tuple[dict, list[str]]:
     rest = apply_short_rest(char, dice_to_spend=dice_to_spend)
     entity = dict(rest.get("entity_updates") or {})
     summary = str(rest.get("summary") or "Short rest.")
@@ -91,7 +99,7 @@ Rules:
   - Cantrips: include in casts but they never spend slots
 - new_concentration: spell name if a concentration spell begins; empty otherwise
 - end_concentration: true only if concentration clearly ended (new conc spell, dropped, incapacitated)
-- wild_shape_used: true only if Wild Shape was activated this turn{f' (max {ws_max} uses/long rest)' if ws_max else ''}
+- wild_shape_used: true only if Wild Shape was activated this turn{f" (max {ws_max} uses/long rest)" if ws_max else ""}
 - Do NOT guess. Prefer empty lists/false over speculation.
 - Long rest is handled elsewhere — do not set short_rest for a long rest.
 
@@ -117,7 +125,9 @@ def run_resource_keeper(
         dice = parse_hit_dice_to_spend(user_message, dm_response)
         return _apply_short_rest_updates(char, dice_to_spend=dice)
 
-    updates = extract_resource_updates(char=char, user_message=user_message, dm_response=dm_response)
+    updates = extract_resource_updates(
+        char=char, user_message=user_message, dm_response=dm_response
+    )
     if updates.short_rest:
         return _apply_short_rest_updates(char, dice_to_spend=updates.spend_hit_dice)
 

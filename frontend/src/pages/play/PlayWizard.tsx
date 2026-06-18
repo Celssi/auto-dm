@@ -35,8 +35,18 @@ export default function PlayWizard({
   onStartSession,
   onBootstrapAndPlay,
 }: Props) {
-  const { metaLoaded, sessions, characters, adventures, wizardTab, newSession, newCampaign, includeFaerun, bootstrapError, bootstrapping } =
-    state;
+  const {
+    metaLoaded,
+    sessions,
+    characters,
+    adventures,
+    wizardTab,
+    newSession,
+    newCampaign,
+    includeFaerun,
+    bootstrapError,
+    bootstrapping,
+  } = state;
 
   return (
     <AnimatedPage className="max-w-xl mx-auto space-y-6">

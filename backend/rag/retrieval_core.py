@@ -7,7 +7,7 @@ import re
 import chromadb
 from llama_index.core import Settings, VectorStoreIndex
 from llama_index.core.schema import NodeWithScore, TextNode
-from llama_index.core.vector_stores import MetadataFilters, FilterCondition
+from llama_index.core.vector_stores import FilterCondition, MetadataFilters
 from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.llms.ollama import Ollama
 from llama_index.vector_stores.chroma import ChromaVectorStore
@@ -136,8 +136,25 @@ def _doc_matches_factions(meta: dict | None, factions: list[str] | None) -> bool
 
 # Short but meaningful game tokens that the length filter would otherwise drop.
 _KEEP_SHORT = {
-    "ac", "hp", "dc", "xp", "gp", "sp", "cp", "pp", "ep", "ki", "pb",
-    "str", "dex", "con", "int", "wis", "cha", "cr", "rp",
+    "ac",
+    "hp",
+    "dc",
+    "xp",
+    "gp",
+    "sp",
+    "cp",
+    "pp",
+    "ep",
+    "ki",
+    "pb",
+    "str",
+    "dex",
+    "con",
+    "int",
+    "wis",
+    "cha",
+    "cr",
+    "rp",
 }
 _DICE_RE = re.compile(r"^\d*d\d+$")  # d20, 2d6, d8 ...
 

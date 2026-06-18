@@ -1,11 +1,11 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api/client';
-import { fuzzyGlossaryLookup, glossaryKey, type GlossaryEntry } from '../lib/glossary';
+import { lookupGlossary, glossaryKey, type GlossaryEntry } from '../lib/glossary';
 
 interface GlossaryContextValue {
   ready: boolean;
-  getEntry: (name: string) => GlossaryEntry | null;
-  fetchEntry: (name: string) => Promise<GlossaryEntry | null>;
+  getEntry: (name: string, classId?: string) => GlossaryEntry | null;
+  fetchEntry: (name: string, classId?: string) => Promise<GlossaryEntry | null>;
 }
 
 const GlossaryContext = createContext<GlossaryContextValue | null>(null);
@@ -32,41 +32,42 @@ export function GlossaryProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const getEntry = useCallback(
-    (name: string) => {
-      const cached = getCache(cacheRef).get(glossaryKey(name));
+    (name: string, classId?: string) => {
+      const cacheKey = classId ? `${classId}:${glossaryKey(name)}` : glossaryKey(name);
+      const cached = getCache(cacheRef).get(cacheKey);
       if (cached) return cached;
-      return fuzzyGlossaryLookup(name, entries);
+      return lookupGlossary(name, entries, classId);
     },
     [entries],
   );
 
   const fetchEntry = useCallback(
-    async (name: string) => {
-      const key = glossaryKey(name);
-      const cached = getCache(cacheRef).get(key);
+    async (name: string, classId?: string) => {
+      const cacheKey = classId ? `${classId}:${glossaryKey(name)}` : glossaryKey(name);
+      const cached = getCache(cacheRef).get(cacheKey);
       if (cached) return cached;
 
-      const staticHit = fuzzyGlossaryLookup(name, entries);
+      const staticHit = lookupGlossary(name, entries, classId);
       if (staticHit?.summary && staticHit.kind !== 'unknown') {
-        getCache(cacheRef).set(key, staticHit);
+        getCache(cacheRef).set(cacheKey, staticHit);
         return staticHit;
       }
 
-      const pending = getCache(inflightRef).get(key);
+      const pending = getCache(inflightRef).get(cacheKey);
       if (pending) return pending;
 
       const promise = api
         .lookupGlossary([name], true)
         .then((res) => {
           const entry = res.entries[name] as GlossaryEntry | undefined;
-          if (entry) getCache(cacheRef).set(key, entry);
+          if (entry) getCache(cacheRef).set(cacheKey, entry);
           return entry ?? null;
         })
         .finally(() => {
-          getCache(inflightRef).delete(key);
+          getCache(inflightRef).delete(cacheKey);
         });
 
-      getCache(inflightRef).set(key, promise);
+      getCache(inflightRef).set(cacheKey, promise);
       return promise;
     },
     [entries],

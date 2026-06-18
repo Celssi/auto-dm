@@ -17,11 +17,7 @@ export default function WizardBasicsStep({ char, patch, classes, species, backgr
   return (
     <div className="space-y-5">
       <Field label="Name">
-        <TextInput
-          value={char.name}
-          onChange={(e) => patch({ name: e.target.value })}
-          placeholder="Character name"
-        />
+        <TextInput value={char.name} onChange={(e) => patch({ name: e.target.value })} placeholder="Character name" />
       </Field>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
         <Field label="Class">

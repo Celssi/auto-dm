@@ -74,6 +74,7 @@ echo "=== Auto-DM full ingest ==="
 echo "Project: $ROOT"
 echo "PDFs:    PHB + DMG + MM + Faerûn"
 echo "OCR:     ingest=$([[ "$FORCE_INGEST_OCR" == "1" ]] && echo 'force refresh' || ([[ "$SKIP_INGEST_OCR" == "1" ]] && echo 'disabled' || echo 'use cache')); audit=use cache"
+echo "Glossary: rebuilt from PHB OCR after ingest"
 echo "Audit:   $([[ "$SKIP_AUDIT" == "1" ]] && echo 'skipped' || echo 'structural + glossary + PDF backgrounds')"
 echo ""
 

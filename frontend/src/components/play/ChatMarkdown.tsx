@@ -1,4 +1,12 @@
-import { Children, cloneElement, isValidElement, useCallback, useMemo, type ReactNode } from 'react';
+import {
+  Children,
+  cloneElement,
+  isValidElement,
+  useCallback,
+  useMemo,
+  type JSX,
+  type ReactNode,
+} from 'react';
 import ReactMarkdown from 'react-markdown';
 import JournalTip from './JournalTip';
 import { buildEntityMatcher, entityByMatchedName, type JournalEntity } from '../../lib/journalTips';
@@ -34,8 +42,12 @@ function enrichChildren(
     if (typeof child === 'string') {
       return enrichText(child, entities, matcher, key);
     }
-    if (isValidElement(child) && child.props.children) {
-      return cloneElement(child, { key: child.key ?? key }, enrichChildren(child.props.children, entities, matcher, key));
+    if (isValidElement<{ children?: ReactNode }>(child) && child.props.children) {
+      return cloneElement(
+        child,
+        { key: child.key ?? key },
+        enrichChildren(child.props.children, entities, matcher, key),
+      );
     }
     return child;
   });
@@ -46,15 +58,19 @@ interface Props {
   entities?: JournalEntity[];
 }
 
+type HtmlTag = Extract<keyof JSX.IntrinsicElements, string>;
+
 export default function ChatMarkdown({ content, entities = EMPTY_ENTITIES }: Props) {
   const matcher = useMemo(() => buildEntityMatcher(entities), [entities]);
 
   const wrap = useCallback(
-    (Tag: keyof JSX.IntrinsicElements) =>
-      ({ children }: { children?: ReactNode }) => {
-        const inner = enrichChildren(children, entities, matcher, Tag);
+    (tag: HtmlTag) => {
+      const Tag = tag;
+      return ({ children }: { children?: ReactNode }) => {
+        const inner = enrichChildren(children, entities, matcher, tag);
         return <Tag>{inner}</Tag>;
-      },
+      };
+    },
     [entities, matcher],
   );
 

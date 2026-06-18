@@ -11,7 +11,6 @@ import pytesseract
 from pypdf import PdfReader
 from pytesseract import TesseractNotFoundError
 
-from backend.rag.progress import ocr_progress_callback
 from backend.config import (
     OCR_CACHE_DIR,
     OCR_MIN_CHARS_SAMPLE,
@@ -19,6 +18,7 @@ from backend.config import (
     TESSERACT_CONFIG,
     TESSERACT_LANG,
 )
+from backend.rag.progress import ocr_progress_callback
 from backend.rag.text_utils import clean_text, is_meaningful
 
 # Stay under PIL's decompression bomb limit on oversized PDF pages (e.g. DMG spreads).
@@ -80,17 +80,16 @@ def ocr_pdf_pages(
 ) -> list[dict]:
     """Run Tesseract on each page. progress_callback(current, total) optional."""
     if not tesseract_available():
-        raise OcrNotAvailableError(
-            "Tesseract not found. Install with: brew install tesseract"
-        )
+        raise OcrNotAvailableError("Tesseract not found. Install with: brew install tesseract")
 
     dpi = dpi or OCR_RENDER_DPI
     doc = _open_pdf(pdf_path)
     pages_out: list[dict] = []
     total = len(doc)
 
-    from PIL import Image
     import io
+
+    from PIL import Image
 
     for i in range(total):
         page = doc[i]
@@ -117,16 +116,15 @@ def ocr_pdf_page_indices(
     if not page_indices:
         return []
     if not tesseract_available():
-        raise OcrNotAvailableError(
-            "Tesseract not found. Install with: brew install tesseract"
-        )
+        raise OcrNotAvailableError("Tesseract not found. Install with: brew install tesseract")
 
     dpi = dpi or OCR_RENDER_DPI
     wanted = sorted({p for p in page_indices if p > 0})
     doc = _open_pdf(pdf_path)
 
-    from PIL import Image
     import io
+
+    from PIL import Image
 
     pages_out: list[tuple[int, str]] = []
     total = len(wanted)

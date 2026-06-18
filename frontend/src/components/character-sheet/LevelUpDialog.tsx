@@ -93,7 +93,10 @@ export default function LevelUpDialog({ character, summary, onConfirm, onCancel 
           <Field label={`ASI / Feat (${summary.asi_feat_taken}/${summary.asi_feat_slots} taken)`}>
             <div className="space-y-3 max-h-48 overflow-y-auto">
               {localAsi.map((choice, i) => (
-                <div key={`asi-${choice.type}-${i}-${choice.type === 'feat' ? String(choice.feat || '') : 'plus'}`} className="text-xs border border-border rounded-lg p-3 bg-bg/30">
+                <div
+                  key={`asi-${choice.type}-${i}-${choice.type === 'feat' ? String(choice.feat || '') : 'plus'}`}
+                  className="text-xs border border-border rounded-lg p-3 bg-bg/30"
+                >
                   {choice.type === 'feat' ? (
                     <TextInput
                       inputClassName="text-xs"

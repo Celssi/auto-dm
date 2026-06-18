@@ -150,7 +150,9 @@ def _print_console(event: dict[str, Any]) -> None:
         return
 
     # Fallback for other events
-    extras = {k: v for k, v in event.items() if k not in ("ts", "agent", "phase", "session_id", "turn_id")}
+    extras = {
+        k: v for k, v in event.items() if k not in ("ts", "agent", "phase", "session_id", "turn_id")
+    }
     if extras:
         _logger.info("[DM] %s · %s  %s", agent, phase, _preview(extras, 300))
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -32,8 +33,8 @@ from backend.rag.ocr import (
     ocr_pdf_page_indices,
     tesseract_available,
 )
-from backend.rag.progress import ocr_progress_callback
 from backend.rag.plugin import get_core_pdfs, get_faerun_pdfs, get_ocr_pdfs, get_pdf_sources
+from backend.rag.progress import ocr_progress_callback
 from backend.rag.text_utils import clean_text, is_low_quality, is_meaningful
 
 
@@ -152,7 +153,9 @@ def extract_pages(
 ) -> tuple[list[tuple[int, str, str]], str]:
     pypdf_pages = extract_pages_pypdf(pdf_path)
     page_map: dict[int, str] = {page_num: txt for page_num, txt in pypdf_pages if txt}
-    methods: dict[int, str] = {page_num: "pypdf" for page_num, _ in pypdf_pages if page_num in page_map}
+    methods: dict[int, str] = {
+        page_num: "pypdf" for page_num, _ in pypdf_pages if page_num in page_map
+    }
 
     ocr_pdfs = ocr_pdfs or []
     key = _pdf_key(pdf_path)
@@ -359,7 +362,25 @@ def run_ingest(
         show_progress=True,
     )
     print(f"Done. Index '{COLLECTION_NAME}' stored in {CHROMA_DIR}")
+    _build_glossary_after_ingest()
     return 0
+
+
+def _build_glossary_after_ingest() -> None:
+    """Rebuild tooltip glossary from PHB OCR cache (created during ingest)."""
+    from backend.config import OCR_CACHE_DIR
+
+    player_cache = OCR_CACHE_DIR / "player.json"
+    if not player_cache.is_file():
+        print("\nGlossary: skipped (no PHB OCR cache — index player.pdf first)")
+        return
+    print("\n=== Glossary (UI tooltips) ===")
+    proc = subprocess.run(
+        [sys.executable, "-m", "scripts.build_glossary_db"],
+        cwd=Path(__file__).resolve().parents[2],
+    )
+    if proc.returncode != 0:
+        print("WARNING: glossary build failed (tooltips may be incomplete)", file=sys.stderr)
 
 
 def main() -> None:
@@ -376,7 +397,9 @@ def main() -> None:
     args = parser.parse_args()
     include_faerun = args.include_faerun
     core_only = not include_faerun or args.core
-    label = "core" if core_only and not include_faerun else ("core+faerun" if include_faerun else "all")
+    label = (
+        "core" if core_only and not include_faerun else ("core+faerun" if include_faerun else "all")
+    )
     print(f"Ingest D&D 5e ({label}) from {DOCS_DIR}")
     sys.exit(
         run_ingest(

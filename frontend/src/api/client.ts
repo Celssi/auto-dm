@@ -7,6 +7,17 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const err = await res.text();
+    try {
+      const parsed = JSON.parse(err) as { detail?: string | { msg?: string }[] };
+      if (typeof parsed.detail === 'string') {
+        throw new Error(parsed.detail);
+      }
+      if (Array.isArray(parsed.detail)) {
+        throw new Error(parsed.detail.map((d) => d.msg || JSON.stringify(d)).join('; '));
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message !== err) throw e;
+    }
     throw new Error(err || res.statusText);
   }
   return res.json();
@@ -70,9 +81,15 @@ export const api = {
     }),
   deleteAdventure: (id: string) => request<{ ok: boolean }>(`/adventures/${id}`, { method: 'DELETE' }),
   startAdventureSession: (adventureId: string) =>
-    request<{ session_id: string; created: boolean }>(`/adventures/${adventureId}/start-session`, {
+    request<{ session_id: string; created: boolean; activated?: boolean }>(`/adventures/${adventureId}/start-session`, {
       method: 'POST',
     }),
+  completeAdventure: (adventureId: string) =>
+    request<{
+      adventure: AdventureFull;
+      next_adventure: NextAdventure | null;
+      player_progress: PlayerProgress;
+    }>(`/adventures/${adventureId}/complete`, { method: 'POST' }),
 
   listSessions: () => request<{ sessions: SessionMeta[] }>('/sessions'),
   getSession: (id: string) => request<{ session: SessionFull }>(`/sessions/${id}`),
@@ -81,6 +98,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  deleteSession: (id: string) => request<{ ok: boolean }>(`/sessions/${id}`, { method: 'DELETE' }),
+
   chat: (sessionId: string, message: string) =>
     request<ChatResult>(`/sessions/${sessionId}/chat`, {
       method: 'POST',
@@ -99,6 +118,7 @@ export const api = {
       body: JSON.stringify({ shortcut_id, params: params || {} }),
     }),
   getLonelog: (sessionId: string) => request<{ lines: string[] }>(`/sessions/${sessionId}/lonelog`),
+  beginSession: (sessionId: string) => request<BeginSessionResult>(`/sessions/${sessionId}/begin`, { method: 'POST' }),
   searchRules: (question: string, include_faerun = false) =>
     request<{ answer: string; sources: Source[] }>('/rules/search', {
       method: 'POST',
@@ -126,6 +146,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  deleteCampaign: (id: string) => request<{ ok: boolean }>(`/campaigns/${id}`, { method: 'DELETE' }),
   getCampaignNpc: (campaignId: string, npcId: string) =>
     request<{ npc: JournalEntry }>(`/campaigns/${campaignId}/npcs/${npcId}`),
   updateCampaignNpc: (campaignId: string, npcId: string, body: { name: string; body: string }) =>
@@ -151,6 +172,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  generateCampaign: (body: GenerateCampaignBody) =>
+    request<GenerateCampaignResult>('/play/generate-campaign', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
 };
 
 export interface AdventureMeta {
@@ -159,14 +185,28 @@ export interface AdventureMeta {
   mode: string;
   status?: string;
   campaign_id?: string;
+  sequence?: number;
+  source_module?: ModuleSource;
 }
 
 export interface AdventureFull extends AdventureMeta {
   theme?: string;
-  outline?: string;
   log?: string;
   include_faerun?: boolean;
   campaign_id?: string;
+  player_progress?: PlayerProgress;
+}
+
+export interface PlayerProgress {
+  stage: string;
+  completed_beats: string[];
+  has_active_beat: boolean;
+  adventure_complete?: boolean;
+}
+
+export interface NextAdventure {
+  id: string;
+  name: string;
 }
 
 export interface CampaignMeta {
@@ -193,6 +233,18 @@ export interface CampaignFull extends CampaignMeta {
   character_ids?: string[];
   npcs?: { id: string; name: string }[];
   locations?: { id: string; name: string }[];
+  generation_mode?: string;
+  source_module?: ModuleSource;
+  theme?: string;
+  adventure_count?: number;
+}
+
+export interface ModuleSource {
+  title: string;
+  source_label?: string;
+  chapter?: string;
+  pages?: string;
+  notes?: string;
 }
 
 export interface SessionMeta {
@@ -202,10 +254,22 @@ export interface SessionMeta {
   adventure_id: string;
 }
 
+export interface ChatMessage {
+  role: string;
+  content: string;
+}
+
 export interface SessionFull extends SessionMeta {
   include_faerun?: boolean;
-  messages?: Array<{ role: string; content: string }>;
+  messages?: ChatMessage[];
   lonelog?: string;
+}
+
+export interface BeginSessionResult {
+  session_id: string;
+  adventure_id: string;
+  opening_scene: string;
+  message: ChatMessage;
 }
 
 export interface CreateAdventureBody {
@@ -236,6 +300,10 @@ export interface ChatResult {
   sources: Source[];
   character: Record<string, unknown>;
   spell_confirmation?: SpellConfirmation;
+  lonelog_lines?: string[];
+  adventure_complete?: boolean;
+  next_adventure?: NextAdventure | null;
+  player_progress?: PlayerProgress;
 }
 
 export interface Shortcut {
@@ -276,7 +344,27 @@ export interface BootstrapAdventureBody {
   campaign_id: string;
   character_id: string;
   mode?: 'freeform' | 'module';
-  theme: string;
+  theme?: string;
   include_faerun?: boolean;
   adventure_name?: string;
+  auto_continue?: boolean;
+}
+
+export interface GenerateCampaignBody {
+  character_id?: string;
+  mode?: 'freeform' | 'module';
+  theme: string;
+  adventure_count?: number;
+  include_faerun?: boolean;
+  campaign_name?: string;
+  bootstrap_first?: boolean;
+}
+
+export interface GenerateCampaignResult {
+  campaign_id: string;
+  adventure_ids: string[];
+  session_id?: string;
+  adventure_id?: string;
+  opening_scene?: string;
+  counts: { adventures: number; npcs: number; locations: number };
 }

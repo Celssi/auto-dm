@@ -16,7 +16,13 @@ from backend.characters.character_data import skills_data
 from backend.config import CURATED_DIR, pdf_path
 from backend.llm import get_langchain_chat_llm
 from backend.rag.engine import query_rules
-from backend.rag.ocr import OcrNotAvailableError, load_cache, load_or_run_ocr, needs_ocr, tesseract_available
+from backend.rag.ocr import (
+    OcrNotAvailableError,
+    load_cache,
+    load_or_run_ocr,
+    needs_ocr,
+    tesseract_available,
+)
 from backend.rag.retrieval_core import get_collection
 
 PDF_KEYS = {
@@ -82,7 +88,9 @@ def load_curated_backgrounds(source: str) -> list[BackgroundSpec]:
             BackgroundSpec(
                 id=str(row.get("id") or slugify(str(row.get("label", "")))),
                 label=str(row.get("label") or ""),
-                source=str(row.get("source") or ("faerun" if source == "heroes_faerun" else "player")),
+                source=str(
+                    row.get("source") or ("faerun" if source == "heroes_faerun" else "player")
+                ),
                 category=str(row.get("category") or ""),
                 ability_scores=[str(a).lower() for a in (row.get("ability_scores") or [])],
                 feat=str(row.get("feat") or ""),
@@ -191,7 +199,9 @@ def rag_context_for_background(label: str, *, factions: list[str]) -> str:
     return "\n\n".join(parts)
 
 
-def parse_background_from_text(label: str, context: str, *, provider: str = "claude") -> dict[str, Any]:
+def parse_background_from_text(
+    label: str, context: str, *, provider: str = "claude"
+) -> dict[str, Any]:
     llm = get_langchain_chat_llm(provider)  # type: ignore[arg-type]
     system = """You extract D&D 5e (2024) background character-creation data from rulebook text.
 Return ONLY valid JSON with keys:

@@ -1,6 +1,6 @@
 import { m, AnimatePresence } from '../../lib/framer';
 import { Map, Users, Compass, Play, Sparkles } from 'lucide-react';
-import type { AdventureMeta, CampaignFull, JournalEntry } from '../../api/client';
+import type { AdventureMeta, CampaignFull, JournalEntry, ModuleSource } from '../../api/client';
 import TabBar from '../../components/ui/TabBar';
 import EmptyState from '../../components/ui/EmptyState';
 import ListLoading from '../../components/ui/ListLoading';
@@ -10,6 +10,7 @@ import TextArea from '../../components/ui/forms/TextArea';
 import ChoiceGroup from '../../components/ui/forms/ChoiceGroup';
 import SegmentedControl from '../../components/ui/forms/SegmentedControl';
 import Toggle from '../../components/ui/forms/Toggle';
+import MarkdownContent from '../../components/ui/MarkdownContent';
 import type { CampaignTab, CampaignsState } from './campaignsState';
 
 interface Props {
@@ -33,6 +34,8 @@ interface Props {
   onPatchAdventureForm: (patch: Partial<CampaignsState['adventureForm']>) => void;
   onStartNewAdventure: () => void;
   onPlayAdventure: (id: string) => void;
+  onDelete: () => void;
+  onDeleteAdventure: (id: string) => void;
 }
 
 export default function CampaignDetailPanel({
@@ -46,6 +49,8 @@ export default function CampaignDetailPanel({
   onPatchAdventureForm,
   onStartNewAdventure,
   onPlayAdventure,
+  onDelete,
+  onDeleteAdventure,
 }: Props) {
   const list = state.tab === 'npcs' ? campaign.npcs : state.tab === 'locations' ? campaign.locations : [];
   const tabs = [
@@ -56,8 +61,17 @@ export default function CampaignDetailPanel({
   ];
 
   return (
-    <m.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} className="lg:col-span-2 panel-glow p-5 space-y-5">
-      <h2 className="font-display text-xl text-gray-100">{campaign.name}</h2>
+    <m.div
+      initial={{ opacity: 0, x: 12 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="lg:col-span-2 panel-glow p-5 space-y-5"
+    >
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <h2 className="font-display text-xl text-gray-100">{campaign.name}</h2>
+        <button type="button" className="btn-danger text-sm" onClick={onDelete}>
+          Delete campaign
+        </button>
+      </div>
 
       <TabBar tabs={tabs} active={state.tab} onChange={(id) => onTabChange(id as CampaignTab)} />
 
@@ -68,11 +82,16 @@ export default function CampaignDetailPanel({
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
-            className="rounded-lg border border-border bg-bg/40 p-4 max-h-[60vh] overflow-y-auto"
+            className="space-y-4"
           >
-            <pre className="text-sm whitespace-pre-wrap text-gray-300 leading-relaxed font-sans">
-              {campaign.story_arc || 'No story arc yet.'}
-            </pre>
+            {campaign.source_module && <ModuleSourceBadge source={campaign.source_module} />}
+            <div className="rounded-lg border border-border bg-bg/40 p-4 max-h-[60vh] overflow-y-auto">
+              {campaign.story_arc ? (
+                <MarkdownContent content={campaign.story_arc} />
+              ) : (
+                <p className="text-sm text-muted">No story arc yet.</p>
+              )}
+            </div>
           </m.div>
         )}
 
@@ -88,6 +107,7 @@ export default function CampaignDetailPanel({
             onPatchAdventureForm={onPatchAdventureForm}
             onStartNewAdventure={onStartNewAdventure}
             onPlayAdventure={onPlayAdventure}
+            onDeleteAdventure={onDeleteAdventure}
           />
         )}
 
@@ -95,9 +115,7 @@ export default function CampaignDetailPanel({
           <CampaignJournalList tab={state.tab} list={list || []} onOpenEntry={onOpenEntry} />
         )}
 
-        {state.entry && (
-          <CampaignEntryEditor entry={state.entry} onSetEntry={onSetEntry} onSaveEntry={onSaveEntry} />
-        )}
+        {state.entry && <CampaignEntryEditor entry={state.entry} onSetEntry={onSetEntry} onSaveEntry={onSaveEntry} />}
       </AnimatePresence>
     </m.div>
   );
@@ -114,6 +132,7 @@ function CampaignAdventuresTab({
   onPatchAdventureForm,
   onStartNewAdventure,
   onPlayAdventure,
+  onDeleteAdventure,
 }: {
   adventures: AdventureMeta[];
   adventuresLoaded: boolean;
@@ -125,6 +144,7 @@ function CampaignAdventuresTab({
   onPatchAdventureForm: (patch: Partial<CampaignsState['adventureForm']>) => void;
   onStartNewAdventure: () => void;
   onPlayAdventure: (id: string) => void;
+  onDeleteAdventure: (id: string) => void;
 }) {
   return (
     <m.div
@@ -174,14 +194,23 @@ function CampaignAdventuresTab({
                 ]}
               />
             </Field>
-            <Field label="Theme / hook">
-              <TextArea
-                placeholder="What happens next in the campaign?"
-                value={adventureForm.theme}
-                onChange={(e) => onPatchAdventureForm({ theme: e.target.value })}
-                className="min-h-[80px]"
-              />
-            </Field>
+            <Toggle
+              checked={adventureForm.auto_continue}
+              onChange={(auto_continue) =>
+                onPatchAdventureForm({ auto_continue, theme: auto_continue ? '' : adventureForm.theme })
+              }
+              label="AI invents what happens next (no theme needed)"
+            />
+            {!adventureForm.auto_continue && (
+              <Field label="Theme / hook">
+                <TextArea
+                  placeholder="What happens next in the campaign?"
+                  value={adventureForm.theme}
+                  onChange={(e) => onPatchAdventureForm({ theme: e.target.value })}
+                  className="min-h-[80px]"
+                />
+              </Field>
+            )}
             <Field label="Adventure name (optional)">
               <TextInput
                 placeholder="e.g. The Seal Beneath the Tower"
@@ -197,10 +226,20 @@ function CampaignAdventuresTab({
             <button
               type="button"
               className="btn-primary w-full py-2.5"
-              disabled={!adventureForm.character_id || !adventureForm.theme.trim() || bootstrapping}
+              disabled={
+                !adventureForm.character_id ||
+                (!adventureForm.auto_continue && !adventureForm.theme.trim()) ||
+                bootstrapping
+              }
               onClick={onStartNewAdventure}
             >
-              {bootstrapping ? 'Generating adventure… (30-60 s)' : 'Generate & play'}
+              {bootstrapping
+                ? adventureForm.auto_continue
+                  ? 'Inventing next adventure… (30-60 s)'
+                  : 'Generating adventure… (30-60 s)'
+                : adventureForm.auto_continue
+                  ? 'Invent & play'
+                  : 'Generate & play'}
             </button>
           </m.div>
         )}
@@ -219,21 +258,68 @@ function CampaignAdventuresTab({
           {adventures.map((adv) => (
             <li key={adv.id} className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-accent/5">
               <div className="min-w-0">
-                <p className="font-medium text-gray-100 truncate">{adv.name}</p>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {adv.sequence != null && <span className="text-xs text-muted font-mono">#{adv.sequence}</span>}
+                  <p className="font-medium text-gray-100 truncate">{adv.name}</p>
+                  {adv.status === 'planned' && (
+                    <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted/20 text-muted">
+                      planned
+                    </span>
+                  )}
+                  {adv.status === 'completed' && (
+                    <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-accent/20 text-accent">
+                      completed
+                    </span>
+                  )}
+                </div>
                 <p className="text-xs text-muted capitalize">{adv.mode || 'freeform'}</p>
+                {adv.source_module && (
+                  <p className="text-xs text-accent/80 truncate mt-0.5">{formatModuleSource(adv.source_module)}</p>
+                )}
               </div>
-              <button
-                type="button"
-                className="btn-primary text-xs inline-flex items-center gap-1"
-                onClick={() => onPlayAdventure(adv.id)}
-              >
-                <Play size={12} /> Play
-              </button>
+              <div className="flex items-center gap-2 shrink-0">
+                <button type="button" className="btn-danger text-xs" onClick={() => onDeleteAdventure(adv.id)}>
+                  Delete
+                </button>
+                <button
+                  type="button"
+                  className="btn-primary text-xs inline-flex items-center gap-1 shrink-0"
+                  onClick={() => onPlayAdventure(adv.id)}
+                  disabled={adv.status === 'completed'}
+                >
+                  <Play size={12} /> {adv.status === 'planned' ? 'Start' : adv.status === 'completed' ? 'Done' : 'Play'}
+                </button>
+              </div>
             </li>
           ))}
         </ul>
       )}
     </m.div>
+  );
+}
+
+function formatModuleSource(source: ModuleSource): string {
+  const parts = [source.title];
+  if (source.chapter) parts.push(source.chapter);
+  if (source.pages) parts.push(`p. ${source.pages}`);
+  if (source.source_label && !parts.includes(source.source_label)) {
+    parts.push(`(${source.source_label})`);
+  }
+  return parts.join(' · ');
+}
+
+function ModuleSourceBadge({ source }: { source: ModuleSource }) {
+  return (
+    <div className="rounded-lg border border-accent/20 bg-accent/5 px-4 py-3 text-sm space-y-1">
+      <p className="text-xs uppercase tracking-wide text-muted">Source book</p>
+      <p className="text-gray-100 font-medium">{source.title}</p>
+      {(source.source_label || source.chapter || source.pages) && (
+        <p className="text-xs text-muted">
+          {[source.source_label, source.chapter, source.pages ? `p. ${source.pages}` : ''].filter(Boolean).join(' · ')}
+        </p>
+      )}
+      {source.notes && <p className="text-xs text-gray-400 leading-relaxed">{source.notes}</p>}
+    </div>
   );
 }
 

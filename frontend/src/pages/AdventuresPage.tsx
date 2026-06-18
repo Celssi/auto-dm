@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer } from 'react';
+import { useCallback, useEffect, useReducer, useState } from 'react';
 import { m, AnimatePresence } from '../lib/framer';
 import { Compass } from 'lucide-react';
 import { api } from '../api/client';
@@ -7,6 +7,7 @@ import ListCard from '../components/ui/ListCard';
 import EmptyState from '../components/ui/EmptyState';
 import ListLoading from '../components/ui/ListLoading';
 import AnimatedPage from '../components/ui/AnimatedPage';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { fadeUp } from '../components/ui/motion';
 import AdventureCreateForm from './adventures/AdventureCreateForm';
 import AdventureDetailPanel from './adventures/AdventureDetailPanel';
@@ -14,6 +15,8 @@ import { adventuresReducer, initialAdventuresState } from './adventures/adventur
 
 export default function AdventuresPage() {
   const [state, dispatch] = useReducer(adventuresReducer, initialAdventuresState);
+  const [confirmDelete, setConfirmDelete] = useState<{ id: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     const [a, c, camps] = await Promise.all([api.listAdventures(), api.listCharacters(), api.listCampaigns()]);
@@ -48,13 +51,35 @@ export default function AdventuresPage() {
     dispatch({ type: 'set', patch: { selected: adventure } });
   };
 
+  const deleteSelected = async () => {
+    if (!confirmDelete) return;
+    setDeleting(true);
+    dispatch({ type: 'set', patch: { error: null } });
+    try {
+      await api.deleteAdventure(confirmDelete.id);
+      if (state.selected?.id === confirmDelete.id) {
+        dispatch({ type: 'set', patch: { selected: null } });
+      }
+      setConfirmDelete(null);
+      await load();
+    } catch (e) {
+      dispatch({ type: 'set', patch: { error: String(e) } });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   return (
     <AnimatedPage className="space-y-6">
       <PageHeader
         title="Adventures"
         subtitle="Generate and browse adventure outlines: freeform hooks or Faerûn module content."
         actions={
-          <button type="button" className="btn-primary" onClick={() => dispatch({ type: 'set', patch: { creating: true } })}>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={() => dispatch({ type: 'set', patch: { creating: true } })}
+          >
             New adventure
           </button>
         }
@@ -118,8 +143,25 @@ export default function AdventuresPage() {
           )}
         </div>
 
-        {state.selected && <AdventureDetailPanel adventure={state.selected} />}
+        {state.selected && (
+          <AdventureDetailPanel
+            adventure={state.selected}
+            campaignName={state.campaigns.find((c) => c.id === state.selected?.campaign_id)?.name}
+            onDelete={() => setConfirmDelete({ id: state.selected!.id, name: state.selected!.name })}
+          />
+        )}
       </m.div>
+
+      <ConfirmDialog
+        open={confirmDelete !== null}
+        title="Delete adventure"
+        message={
+          confirmDelete ? `Delete "${confirmDelete.name}"? This also deletes any play sessions for this adventure.` : ''
+        }
+        onConfirm={deleteSelected}
+        onCancel={() => setConfirmDelete(null)}
+        busy={deleting}
+      />
     </AnimatedPage>
   );
 }

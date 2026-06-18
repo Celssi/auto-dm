@@ -120,15 +120,11 @@ class Dnd5eCharacter:
         }
         base = self.base_ability_scores if isinstance(self.base_ability_scores, dict) else {}
         self.base_ability_scores = {
-            k: max(1, min(30, int(base[k] or 10)))
-            for k in ABILITY_KEYS
-            if k in base
+            k: max(1, min(30, int(base[k] or 10))) for k in ABILITY_KEYS if k in base
         }
         slots = self.spell_slots if isinstance(self.spell_slots, dict) else {}
         self.spell_slots = {
-            str(k): max(0, min(20, int(v or 0)))
-            for k, v in slots.items()
-            if str(k).isdigit()
+            str(k): max(0, min(20, int(v or 0))) for k, v in slots.items() if str(k).isdigit()
         }
         self.skill_proficiencies = _clean_list(self.skill_proficiencies, 18)
         self.save_proficiencies = _clean_list(self.save_proficiencies, 6)
@@ -265,9 +261,7 @@ def _clean_asi_choices(raw: Any) -> list[dict[str, Any]]:
         else:
             plus_raw = item.get("plus") if isinstance(item.get("plus"), dict) else {}
             plus = {
-                k: max(0, min(2, int(v or 0)))
-                for k, v in plus_raw.items()
-                if k in ABILITY_KEYS
+                k: max(0, min(2, int(v or 0))) for k, v in plus_raw.items() if k in ABILITY_KEYS
             }
             plus = {k: v for k, v in plus.items() if v > 0}
             if not plus:
@@ -449,8 +443,14 @@ def format_for_prompt(
     skills = ", ".join(char.skill_proficiencies) or "(none)"
     cantrips = ", ".join(char.cantrips) or "(none)"
     spells = ", ".join(char.prepared_spells or char.known_spells) or "(none)"
-    feats = ", ".join([char.origin_feat] + list(char.feats)) if (char.origin_feat or char.feats) else "(none)"
-    armor_line = char.armor.replace("_", " ") if char.armor and char.armor != "none" else "unarmored"
+    feats = (
+        ", ".join([char.origin_feat] + list(char.feats))
+        if (char.origin_feat or char.feats)
+        else "(none)"
+    )
+    armor_line = (
+        char.armor.replace("_", " ") if char.armor and char.armor != "none" else "unarmored"
+    )
     if char.shield:
         armor_line += " + shield"
     weapons = (
@@ -467,7 +467,9 @@ def format_for_prompt(
 
     max_slots = compute_spell_slots(char)
     slot_parts: list[str] = []
-    all_levels = sorted({int(k) for k in max_slots} | {int(k) for k in char.spell_slots if str(k).isdigit()})
+    all_levels = sorted(
+        {int(k) for k in max_slots} | {int(k) for k in char.spell_slots if str(k).isdigit()}
+    )
     for lvl in all_levels:
         rem = int(char.spell_slots.get(str(lvl), 0) or 0)
         mx = int(max_slots.get(str(lvl), 0) or 0)
@@ -506,20 +508,23 @@ def format_for_prompt(
         f"- Spell slots: {slots or '(none)'}",
         f"- Proficiency bonus: +{char.proficiency_bonus()}",
         f"- Heroic Inspiration: {'yes' if char.heroic_inspiration else 'no'}",
-        f"- Exhaustion: level {char.exhaustion}" + (f" (−{char.exhaustion} to d20 tests)" if char.exhaustion else ""),
+        f"- Exhaustion: level {char.exhaustion}"
+        + (f" (−{char.exhaustion} to d20 tests)" if char.exhaustion else ""),
         f"- Conditions: {', '.join(char.conditions) or '(none)'}",
         f"- Concentration: {char.concentration or '(none)'}",
     ]
     if ws_max > 0:
         lines.append(f"- Wild Shape uses: {char.wild_shape_uses}/{ws_max}")
-    lines.extend([
-        f"- Death saves: {char.death_save_successes} success / {char.death_save_failures} failure"
-        if char.max_hp and char.hp == 0
-        else "- Death saves: (not dying)",
-        f"- Currency: {coins or '(none)'}",
-        f"- Campaign: {char.campaign_setting or 'freeform'}"
-        + (f" — {char.campaign_notes}" if char.campaign_notes else ""),
-        f"- Story mode: {story_mode}",
-        f"- Deck: {card_source}",
-    ])
+    lines.extend(
+        [
+            f"- Death saves: {char.death_save_successes} success / {char.death_save_failures} failure"
+            if char.max_hp and char.hp == 0
+            else "- Death saves: (not dying)",
+            f"- Currency: {coins or '(none)'}",
+            f"- Campaign: {char.campaign_setting or 'freeform'}"
+            + (f" — {char.campaign_notes}" if char.campaign_notes else ""),
+            f"- Story mode: {story_mode}",
+            f"- Deck: {card_source}",
+        ]
+    )
     return "\n".join(lines)

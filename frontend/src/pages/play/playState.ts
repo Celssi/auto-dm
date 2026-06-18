@@ -1,4 +1,13 @@
-import type { ChatResult, JournalEntity, Shortcut, Source, SpellConfirmation } from '../../api/client';
+import type {
+  ChatResult,
+  ChatMessage,
+  JournalEntity,
+  PlayerProgress,
+  NextAdventure,
+  Shortcut,
+  Source,
+  SpellConfirmation,
+} from '../../api/client';
 import type { Character } from '../../types';
 
 export type PlayMode = 'freeform' | 'module';
@@ -7,10 +16,11 @@ export interface PlayState {
   sessions: { id: string; name: string }[];
   metaLoaded: boolean;
   sessionLoaded: boolean;
+  loadError: string;
   characters: { id: string; name: string }[];
   adventures: { id: string; name: string }[];
   sessionId: string;
-  messages: Array<{ role: string; content: string }>;
+  messages: ChatMessage[];
   character: Character | null;
   characterId: string;
   characterSummary: Record<string, unknown>;
@@ -18,6 +28,8 @@ export interface PlayState {
   loading: boolean;
   bootstrapping: boolean;
   bootstrapError: string;
+  beginning: boolean;
+  beginError: string;
   shortcuts: Shortcut[];
   oracles: { id: string; label: string }[];
   lonelog: string[];
@@ -35,6 +47,12 @@ export interface PlayState {
   spellConfirm: SpellConfirmation | null;
   chatError: string;
   journalEntities: JournalEntity[];
+  adventureId: string;
+  campaignId: string;
+  playerProgress: PlayerProgress | null;
+  adventureComplete: boolean;
+  nextAdventure: NextAdventure | null;
+  startingNext: boolean;
 }
 
 export type PlayAction =
@@ -48,6 +66,7 @@ export function createInitialPlayState(sessionId = '', wizardTab: 'continue' | '
     sessions: [],
     metaLoaded: false,
     sessionLoaded: false,
+    loadError: '',
     characters: [],
     adventures: [],
     sessionId,
@@ -59,6 +78,8 @@ export function createInitialPlayState(sessionId = '', wizardTab: 'continue' | '
     loading: false,
     bootstrapping: false,
     bootstrapError: '',
+    beginning: false,
+    beginError: '',
     shortcuts: [],
     oracles: [],
     lonelog: [],
@@ -76,6 +97,12 @@ export function createInitialPlayState(sessionId = '', wizardTab: 'continue' | '
     spellConfirm: null,
     chatError: '',
     journalEntities: [],
+    adventureId: '',
+    campaignId: '',
+    playerProgress: null,
+    adventureComplete: false,
+    nextAdventure: null,
+    startingNext: false,
   };
 }
 

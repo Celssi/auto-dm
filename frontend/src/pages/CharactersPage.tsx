@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer } from 'react';
+import { useCallback, useEffect, useReducer, useState } from 'react';
 import { m } from '../lib/framer';
 import { UserPlus, Users } from 'lucide-react';
 import { api } from '../api/client';
@@ -14,11 +14,14 @@ import ListCard from '../components/ui/ListCard';
 import EmptyState from '../components/ui/EmptyState';
 import ListLoading from '../components/ui/ListLoading';
 import AnimatedPage from '../components/ui/AnimatedPage';
+import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { fadeUp, staggerContainer } from '../components/ui/motion';
 import { charactersReducer, initialCharactersState } from './characters/charactersState';
 
 export default function CharactersPage() {
   const [state, dispatch] = useReducer(charactersReducer, initialCharactersState);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const load = useCallback(async () => {
     const { characters } = await api.listCharacters();
@@ -73,6 +76,22 @@ export default function CharactersPage() {
     });
   };
 
+  const deleteCharacter = async () => {
+    if (!state.activeId || !character) return;
+    setDeleting(true);
+    dispatch({ type: 'set', patch: { error: null } });
+    try {
+      await api.deleteCharacter(state.activeId);
+      setConfirmDelete(false);
+      dispatch({ type: 'set', patch: { activeId: null, character: null, mode: 'list' } });
+      await load();
+    } catch (e) {
+      dispatch({ type: 'set', patch: { error: String(e) } });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
   const { character, summary, mode } = state;
   const unlockedFeatures = summary.unlocked_features as
     | { class_features?: Record<string, string[]>; subclass_features?: Record<string, string[]> }
@@ -119,7 +138,9 @@ export default function CharactersPage() {
                   <button
                     type="button"
                     className="btn-primary"
-                    onClick={() => dispatch({ type: 'set', patch: { activeId: null, character: null, mode: 'wizard' } })}
+                    onClick={() =>
+                      dispatch({ type: 'set', patch: { activeId: null, character: null, mode: 'wizard' } })
+                    }
                   >
                     Create your first character
                   </button>
@@ -145,14 +166,26 @@ export default function CharactersPage() {
       {mode === 'view' && character && (
         <m.div variants={fadeUp} className="space-y-5">
           <div className="flex flex-wrap items-center gap-2 panel-glow p-3">
-            <button type="button" className="btn-ghost" onClick={() => dispatch({ type: 'set', patch: { mode: 'list' } })}>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => dispatch({ type: 'set', patch: { mode: 'list' } })}
+            >
               ← Back
             </button>
             <div className="w-px h-6 bg-border hidden sm:block" />
-            <button type="button" className="btn-ghost" onClick={() => dispatch({ type: 'set', patch: { mode: 'wizard' } })}>
+            <button
+              type="button"
+              className="btn-ghost"
+              onClick={() => dispatch({ type: 'set', patch: { mode: 'wizard' } })}
+            >
               Edit
             </button>
-            <button type="button" className="btn-primary" onClick={() => dispatch({ type: 'set', patch: { levelUpOpen: true } })}>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => dispatch({ type: 'set', patch: { levelUpOpen: true } })}
+            >
               Level up
             </button>
             <button
@@ -167,6 +200,9 @@ export default function CharactersPage() {
             </button>
             <button type="button" className="btn-primary ml-auto" onClick={() => saveChar(character)}>
               Save changes
+            </button>
+            <button type="button" className="btn-danger" onClick={() => setConfirmDelete(true)}>
+              Delete
             </button>
           </div>
 
@@ -227,6 +263,19 @@ export default function CharactersPage() {
           onCancel={() => dispatch({ type: 'set', patch: { levelUpOpen: false } })}
         />
       )}
+
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete character"
+        message={
+          character
+            ? `Delete "${character.name}"? This also deletes linked adventures and play sessions, and removes the character from campaigns.`
+            : ''
+        }
+        onConfirm={deleteCharacter}
+        onCancel={() => setConfirmDelete(false)}
+        busy={deleting}
+      />
     </AnimatedPage>
   );
 }

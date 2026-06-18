@@ -18,12 +18,6 @@ from backend.characters.character_data import (
 )
 from backend.characters.entity import ABILITY_KEYS, Dnd5eCharacter
 from backend.characters.features import unlocked_features
-from backend.characters.spell_resources import (
-    compute_wild_shape_max,
-    preserve_remaining_spell_slots,
-    recover_pact_slots_on_short_rest,
-    sync_wild_shape_uses,
-)
 from backend.characters.multiclass import (
     asi_feat_slots_multiclass,
     can_multiclass_into,
@@ -34,6 +28,12 @@ from backend.characters.multiclass import (
     primary_class_entry,
     sync_legacy_class_fields,
     total_class_level,
+)
+from backend.characters.spell_resources import (
+    compute_wild_shape_max,
+    preserve_remaining_spell_slots,
+    recover_pact_slots_on_short_rest,
+    sync_wild_shape_uses,
 )
 
 _SPELLCASTING_FULL = {"bard", "cleric", "druid", "sorcerer", "wizard"}
@@ -64,7 +64,9 @@ def apply_background_asi(
     if not bg:
         return dict(scores)
     out = dict(scores)
-    options = [str(a).lower() for a in (bg.get("ability_scores") or []) if str(a).lower() in ABILITY_KEYS]
+    options = [
+        str(a).lower() for a in (bg.get("ability_scores") or []) if str(a).lower() in ABILITY_KEYS
+    ]
     if not options:
         return out
     if all_three:
@@ -219,7 +221,9 @@ def apply_starting_equipment(char: Dnd5eCharacter) -> Dnd5eCharacter:
     if package.get("shield"):
         char.shield = True
     coins = package.get("currency") or {}
-    if isinstance(coins, dict) and not sum(int(char.currency.get(k, 0) or 0) for k in ("cp", "sp", "ep", "gp", "pp")):
+    if isinstance(coins, dict) and not sum(
+        int(char.currency.get(k, 0) or 0) for k in ("cp", "sp", "ep", "gp", "pp")
+    ):
         char.currency = {k: int(coins.get(k, 0) or 0) for k in ("cp", "sp", "ep", "gp", "pp")}
     return char
 
@@ -363,7 +367,11 @@ def level_up(
     if total_class_level(char) >= 20:
         return char
     entries = normalize_class_entries(char)
-    target = (class_name or (primary_class_entry(char) or {}).get("class_name") or char.class_name or "").strip().lower()
+    target = (
+        (class_name or (primary_class_entry(char) or {}).get("class_name") or char.class_name or "")
+        .strip()
+        .lower()
+    )
     if not target:
         return char
     leveled_existing = False
@@ -428,8 +436,10 @@ def character_creation_summary(char: Dnd5eCharacter) -> dict[str, Any]:
     limits = spell_limits(char)
     cls = get_class(char.class_name) or {}
     entries = normalize_class_entries(char)
-    slots = asi_feat_slots_multiclass(char) if len(class_levels_dict(char)) > 1 else (
-        asi_feat_slots(char.class_name, char.level) if char.class_name else 0
+    slots = (
+        asi_feat_slots_multiclass(char)
+        if len(class_levels_dict(char)) > 1
+        else (asi_feat_slots(char.class_name, char.level) if char.class_name else 0)
     )
     taken = len(char.asi_choices)
     primary = primary_class_entry(char) or {}
@@ -439,7 +449,8 @@ def character_creation_summary(char: Dnd5eCharacter) -> dict[str, Any]:
         "spellcasting": cls.get("spellcasting"),
         "subclass_level": cls.get("subclass_level", 3),
         "needs_subclass": any(
-            int(e.get("level", 0)) >= int((get_class(e["class_name"]) or {}).get("subclass_level", 3) or 3)
+            int(e.get("level", 0))
+            >= int((get_class(e["class_name"]) or {}).get("subclass_level", 3) or 3)
             and not e.get("subclass")
             for e in entries
         ),
@@ -548,7 +559,9 @@ def long_rest_recover(char: Dnd5eCharacter) -> dict[str, Any]:
     if char.species == "human":
         char.heroic_inspiration = True
     char.clamp()
-    slots = ", ".join(f"L{k}×{v}" for k, v in sorted(char.spell_slots.items(), key=lambda x: int(x[0])))
+    slots = ", ".join(
+        f"L{k}×{v}" for k, v in sorted(char.spell_slots.items(), key=lambda x: int(x[0]))
+    )
     summary = f"Long rest: HP restored to **{char.hp}/{char.max_hp}**, all Hit Dice available"
     if slots:
         summary += f", spell slots restored ({slots})"

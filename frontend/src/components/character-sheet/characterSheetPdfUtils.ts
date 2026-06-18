@@ -3,8 +3,7 @@ import { displayLabel, EMPTY_FIELD } from '../../lib/displayText';
 import { abilityMod, formatMod, proficiencyBonus } from './sheetUtils';
 
 export function classLine(c: Character): string {
-  const entries =
-    c.classes?.length ? c.classes : [{ class_name: c.class_name, level: c.level, subclass: c.subclass }];
+  const entries = c.classes?.length ? c.classes : [{ class_name: c.class_name, level: c.level, subclass: c.subclass }];
   return (
     entries
       .map((e) => `${displayLabel(e.class_name)} ${e.level}${e.subclass ? ` (${displayLabel(e.subclass)})` : ''}`)

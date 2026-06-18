@@ -39,9 +39,7 @@ def looks_garbled(text: str) -> bool:
     avg_len = sum(len(t) for t in tokens) / len(tokens)
     single_ratio = sum(1 for t in tokens if len(t) == 1) / len(tokens)
     lines = [ln.strip() for ln in text.split("\n") if ln.strip()]
-    short_line_ratio = (
-        sum(1 for ln in lines if len(ln) <= 2) / len(lines) if lines else 0.0
-    )
+    short_line_ratio = sum(1 for ln in lines if len(ln) <= 2) / len(lines) if lines else 0.0
     if avg_len < 2.8:
         return True
     if single_ratio > 0.30 and avg_len < 3.6:

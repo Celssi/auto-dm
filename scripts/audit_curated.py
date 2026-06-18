@@ -29,13 +29,12 @@ from backend.characters.background_extract import (  # noqa: E402
 )
 from backend.characters.character_data import (
     get_background,
-    get_class,
     list_backgrounds,
     list_classes,
     list_species,
 )
 from backend.characters.features import class_features_data, subclass_features_data
-from backend.config import pdf_path, CORE_PDFS, FAERUN_PDFS
+from backend.config import CORE_PDFS, FAERUN_PDFS, pdf_path
 from backend.rag.retrieval_core import get_collection
 
 
@@ -55,7 +54,9 @@ def structural_audit() -> list[str]:
     if len(list_species()) != 10:
         issues.append(f"Expected 10 PHB species, got {len(list_species())}")
     if len(list_backgrounds(include_faerun=False)) != 16:
-        issues.append(f"Expected 16 PHB backgrounds, got {len(list_backgrounds(include_faerun=False))}")
+        issues.append(
+            f"Expected 16 PHB backgrounds, got {len(list_backgrounds(include_faerun=False))}"
+        )
 
     for cls in list_classes(include_faerun=False):
         cid = cls["id"]
@@ -124,9 +125,15 @@ def pdf_background_audit(source: str, *, limit: int = 0, force_ocr: bool = False
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Audit curated D&D 5e YAML against PDFs")
-    parser.add_argument("--skip-pdf", action="store_true", help="Structural checks only (no LLM/OCR)")
-    parser.add_argument("--include-faerun", action="store_true", help="Also audit Heroes of Faerûn backgrounds")
-    parser.add_argument("--limit", type=int, default=0, help="Limit PDF backgrounds checked per source")
+    parser.add_argument(
+        "--skip-pdf", action="store_true", help="Structural checks only (no LLM/OCR)"
+    )
+    parser.add_argument(
+        "--include-faerun", action="store_true", help="Also audit Heroes of Faerûn backgrounds"
+    )
+    parser.add_argument(
+        "--limit", type=int, default=0, help="Limit PDF backgrounds checked per source"
+    )
     parser.add_argument(
         "--force-ocr",
         action="store_true",
@@ -176,7 +183,9 @@ def main() -> int:
     pdf_issues: list[str] = []
     if pdf_path("dnd5e/player.pdf").exists():
         print("\n=== PDF audit: PHB backgrounds (player.pdf) ===")
-        pdf_issues.extend(pdf_background_audit("player", limit=args.limit, force_ocr=args.force_ocr))
+        pdf_issues.extend(
+            pdf_background_audit("player", limit=args.limit, force_ocr=args.force_ocr)
+        )
 
     if args.include_faerun and pdf_path("dnd5e/heroes_faerun.pdf").exists():
         print("\n=== PDF audit: Heroes of Faerûn backgrounds ===")
@@ -188,7 +197,9 @@ def main() -> int:
         print(f"\nPDF mismatches ({len(pdf_issues)}):")
         for issue in pdf_issues:
             print(f"  - {issue}")
-        print("\nFix with: python -m scripts.extract_backgrounds --source <player|heroes_faerun> --apply")
+        print(
+            "\nFix with: python -m scripts.extract_backgrounds --source <player|heroes_faerun> --apply"
+        )
         return 1
 
     print("\nPDF background audit: all matched (or none run)")

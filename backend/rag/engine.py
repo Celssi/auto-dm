@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
+import hashlib
 from dataclasses import dataclass
 from functools import lru_cache
-import hashlib
 
 from llama_index.core.schema import NodeWithScore
 
@@ -56,7 +56,11 @@ def retrieve_nodes(
     key = hashlib.sha256(
         f"{question}|{top_k}|{sorted(factions or [])}|{use_rerank}".encode()
     ).hexdigest()
-    return list(_retrieve_nodes_cached(key, question, top_k, tuple(factions or ()), candidate_k, use_hybrid, use_rerank))
+    return list(
+        _retrieve_nodes_cached(
+            key, question, top_k, tuple(factions or ()), candidate_k, use_hybrid, use_rerank
+        )
+    )
 
 
 @lru_cache(maxsize=256)

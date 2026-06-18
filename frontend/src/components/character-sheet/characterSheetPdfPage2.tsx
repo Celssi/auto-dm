@@ -1,12 +1,6 @@
 import type { Character } from '../../types';
 import { displayLabel, displayLabels, EMPTY_FIELD } from '../../lib/displayText';
-import {
-  abilityMod,
-  formatMod,
-  spellAttackBonus,
-  spellAbility,
-  spellSaveDc,
-} from './sheetUtils';
+import { abilityMod, formatMod, spellAttackBonus, spellAbility, spellSaveDc } from './sheetUtils';
 import type { PdfModule } from './characterSheetPdfTypes';
 import { pdfStyles as s } from './characterSheetPdfStyles';
 import { splitNotes } from './characterSheetPdfUtils';
@@ -45,9 +39,7 @@ export function buildSheetPage2(pdf: PdfModule, c: Character) {
             </Text>
           </View>
           {spellAb ? (
-            <Text style={{ fontSize: 12, marginTop: 4, color: '#555' }}>
-              Ability: {spellAb.toUpperCase()}
-            </Text>
+            <Text style={{ fontSize: 12, marginTop: 4, color: '#555' }}>Ability: {spellAb.toUpperCase()}</Text>
           ) : null}
         </View>
 
@@ -68,7 +60,9 @@ export function buildSheetPage2(pdf: PdfModule, c: Character) {
                     ))}
                   </View>
                   <Text style={{ fontSize: 12 }}>Expended</Text>
-                  <Text style={{ fontSize: 12 }}>{Math.max(0, max - remaining)}/{max || 0}</Text>
+                  <Text style={{ fontSize: 12 }}>
+                    {Math.max(0, max - remaining)}/{max || 0}
+                  </Text>
                 </View>
               );
             })}
@@ -86,18 +80,19 @@ export function buildSheetPage2(pdf: PdfModule, c: Character) {
             <Text style={[s.labelSm, { width: '18%' }]}>C / R / M</Text>
             <Text style={[s.labelSm, { flex: 1 }]}>Notes</Text>
           </View>
-          {[...(c.cantrips || []).map((n) => ({ name: n, level: 'C' })), ...prepared.map((n) => ({ name: n, level: '' }))].map(
-            (sp) => (
-              <View key={`spell-${sp.name}-${sp.level}`} style={s.tableRow}>
-                <Text style={{ width: 24, fontSize: 12 }}>{sp.level}</Text>
-                <Text style={{ width: '22%', fontSize: 12 }}>{displayLabel(sp.name)}</Text>
-                <Text style={{ width: '14%', fontSize: 12 }}> </Text>
-                <Text style={{ width: '12%', fontSize: 12 }}> </Text>
-                <Text style={{ width: '18%', fontSize: 12, color: '#888' }}>○ ○ ○</Text>
-                <Text style={{ flex: 1, fontSize: 12 }}> </Text>
-              </View>
-            ),
-          )}
+          {[
+            ...(c.cantrips || []).map((n) => ({ name: n, level: 'C' })),
+            ...prepared.map((n) => ({ name: n, level: '' })),
+          ].map((sp) => (
+            <View key={`spell-${sp.name}-${sp.level}`} style={s.tableRow}>
+              <Text style={{ width: 24, fontSize: 12 }}>{sp.level}</Text>
+              <Text style={{ width: '22%', fontSize: 12 }}>{displayLabel(sp.name)}</Text>
+              <Text style={{ width: '14%', fontSize: 12 }}> </Text>
+              <Text style={{ width: '12%', fontSize: 12 }}> </Text>
+              <Text style={{ width: '18%', fontSize: 12, color: '#888' }}>○ ○ ○</Text>
+              <Text style={{ flex: 1, fontSize: 12 }}> </Text>
+            </View>
+          ))}
           {Array.from({ length: Math.max(0, 22 - prepared.length - (c.cantrips?.length || 0)) }).map((_, i) => (
             <View key={`spell-placeholder-${i}`} style={s.tableRow}>
               <Text style={{ width: 24 }}> </Text>
@@ -153,7 +148,10 @@ export function buildSheetPage2(pdf: PdfModule, c: Character) {
           <Box title="Coins">
             <View style={[s.row, { padding: 4 }]}>
               {(['cp', 'sp', 'ep', 'gp', 'pp'] as const).map((k) => (
-                <View key={k} style={{ flex: 1, alignItems: 'center', borderRight: k !== 'pp' ? '0.5pt solid #ccc' : undefined }}>
+                <View
+                  key={k}
+                  style={{ flex: 1, alignItems: 'center', borderRight: k !== 'pp' ? '0.5pt solid #ccc' : undefined }}
+                >
                   <Text style={s.labelSm}>{k.toUpperCase()}</Text>
                   <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', marginTop: 2 }}>
                     {c.currency?.[k] || 0}

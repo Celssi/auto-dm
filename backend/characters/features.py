@@ -7,9 +7,9 @@ from typing import Any
 
 import yaml
 
-from backend.config import CURATED_DIR
-from backend.characters.multiclass import slugify, normalize_class_entries
 from backend.characters.entity import Dnd5eCharacter
+from backend.characters.multiclass import normalize_class_entries, slugify
+from backend.config import CURATED_DIR
 
 _CLASS_FEATURES_PATH = CURATED_DIR / "dnd5e_class_features.yaml"
 _SUBCLASS_FEATURES_PATH = CURATED_DIR / "dnd5e_subclass_features.yaml"

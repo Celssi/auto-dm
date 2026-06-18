@@ -8,9 +8,8 @@ from typing import Any
 
 import yaml
 
-from backend.config import CURATED_DIR
-
 from backend.characters.entity import CAMPAIGN_SETTING_OPTIONS
+from backend.config import CURATED_DIR
 
 _SKILLS_PATH = CURATED_DIR / "dnd5e_skills.yaml"
 _CLASSES_PATH = CURATED_DIR / "dnd5e_classes.yaml"

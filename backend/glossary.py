@@ -196,15 +196,36 @@ def build_glossary_index() -> dict[str, dict[str, Any]]:
 
     # Common gear phrases (partial coverage for starting equipment)
     common_items = {
-        "explorerspack": ("Explorer's Pack", "Backpack, bedroll, mess kit, tinderbox, torches, rations, waterskin, and rope."),
-        "explorers pack": ("Explorer's Pack", "Backpack, bedroll, mess kit, tinderbox, torches, rations, waterskin, and rope."),
-        "potionofhealing": ("Potion of Healing", "Uncommon potion. Drink as a Bonus Action to regain 2d4 + 2 HP."),
-        "goodberry": ("Goodberry", "Level 1 spell. Creates berries that restore 1 HP each (up to 10 per casting)."),
-        "druidicfocus": ("Druidic Focus", "Spellcasting focus for druid spells (may replace material components without a listed cost)."),
+        "explorerspack": (
+            "Explorer's Pack",
+            "Backpack, bedroll, mess kit, tinderbox, torches, rations, waterskin, and rope.",
+        ),
+        "explorers pack": (
+            "Explorer's Pack",
+            "Backpack, bedroll, mess kit, tinderbox, torches, rations, waterskin, and rope.",
+        ),
+        "potionofhealing": (
+            "Potion of Healing",
+            "Uncommon potion. Drink as a Bonus Action to regain 2d4 + 2 HP.",
+        ),
+        "goodberry": (
+            "Goodberry",
+            "Level 1 spell. Creates berries that restore 1 HP each (up to 10 per casting).",
+        ),
+        "druidicfocus": (
+            "Druidic Focus",
+            "Spellcasting focus for druid spells (may replace material components without a listed cost).",
+        ),
         "holy symbol": ("Holy Symbol", "Spellcasting focus for cleric/paladin spells."),
-        "spellbook": ("Spellbook", "Wizard spell repository. Required to prepare wizard spells from your book."),
+        "spellbook": (
+            "Spellbook",
+            "Wizard spell repository. Required to prepare wizard spells from your book.",
+        ),
         "thieves tools": ("Thieves' Tools", "Tool used for picking locks and disarming traps."),
-        "herbalism kit": ("Herbalism Kit", "Tools for identifying and applying herbs; used for crafting antitoxins and potions of healing."),
+        "herbalism kit": (
+            "Herbalism Kit",
+            "Tools for identifying and applying herbs; used for crafting antitoxins and potions of healing.",
+        ),
     }
     for key, (title, summary) in common_items.items():
         nk = normalize_spell_name(key)
@@ -265,9 +286,9 @@ def _feature_rag_snippet(name: str) -> str | None:
         from backend.rag.engine import retrieve_nodes
 
         queries = [
-            f'LEVEL {name} class feature PHB 2024',
+            f"LEVEL {name} class feature PHB 2024",
             f'"{name}" class feature',
-            f'{name} You can',
+            f"{name} You can",
         ]
         name_re = re.compile(rf"(?i)\b{re.escape(name)}\b")
         heading_re = re.compile(rf"(?i)LEVEL\s+\d+:\s*{re.escape(name)}\b")
@@ -317,13 +338,48 @@ def _rag_snippet(name: str, *, kind: str = "") -> str | None:
         return None
 
 
-def lookup_entry(name: str, *, use_rag: bool = False) -> dict[str, Any]:
+def _feat_lookup_keys(name: str) -> list[str]:
+    keys = [normalize_spell_name(name)]
+    base = name.split("(")[0].strip()
+    if base != name:
+        keys.append(normalize_spell_name(base))
+    return [k for k in keys if k]
+
+
+def _scoped_feature_match(name: str, index: dict[str, dict[str, Any]]) -> dict[str, Any] | None:
+    nk = normalize_spell_name(name)
+    if not nk:
+        return None
+    suffix = f"_{nk}"
+    matches = {k: v for k, v in index.items() if k.endswith(suffix) and v.get("summary")}
+    if len(matches) == 1:
+        return next(iter(matches.values()))
+    return None
+
+
+def lookup_entry(name: str, *, use_rag: bool = False, class_id: str = "") -> dict[str, Any]:
     name = (name or "").strip()
     if not name or name == "—":
         return {"kind": "unknown", "title": name, "summary": None}
 
     index = build_glossary_index()
+    candidates = [normalize_spell_name(name)]
+    if class_id:
+        candidates.insert(0, normalize_spell_name(f"{class_id}_{name}"))
+    for key in _feat_lookup_keys(name):
+        if key not in candidates:
+            candidates.append(key)
+
+    for key in candidates:
+        hit = index.get(key)
+        if hit and hit.get("summary"):
+            return {**hit, "title": hit.get("title") or name}
+
     hit = _fuzzy_match(name, index)
+    if hit and hit.get("summary"):
+        return {**hit, "title": hit.get("title") or name}
+
+    hit = _scoped_feature_match(name, index)
     if hit and hit.get("summary"):
         return {**hit, "title": hit.get("title") or name}
 

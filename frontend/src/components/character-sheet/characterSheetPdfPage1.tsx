@@ -1,12 +1,6 @@
 import type { Character } from '../../types';
 import { displayLabel, displayLabels, EMPTY_FIELD } from '../../lib/displayText';
-import {
-  formatMod,
-  initiativeMod,
-  passivePerception,
-  proficiencyBonus,
-  spellAttackBonus,
-} from './sheetUtils';
+import { formatMod, initiativeMod, passivePerception, proficiencyBonus, spellAttackBonus } from './sheetUtils';
 import type { PdfModule } from './characterSheetPdfTypes';
 import { pdfStyles as s } from './characterSheetPdfStyles';
 import { classLine, weaponAttack } from './characterSheetPdfUtils';
@@ -205,8 +199,7 @@ export function buildSheetPage1(pdf: PdfModule, c: Character) {
             <Box title="Feats" style={{ flex: 1, minHeight: 90 }}>
               <View style={[s.gridBg, { padding: 6, minHeight: 72 }]}>
                 <Text style={{ fontSize: 12 }}>
-                  {displayLabels([c.origin_feat, ...(c.feats || [])].filter(Boolean) as string[], '\n') ||
-                    EMPTY_FIELD}
+                  {displayLabels([c.origin_feat, ...(c.feats || [])].filter(Boolean) as string[], '\n') || EMPTY_FIELD}
                 </Text>
               </View>
             </Box>

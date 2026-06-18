@@ -5,8 +5,8 @@ from __future__ import annotations
 from typing import Literal
 
 from backend.characters.character_builder import apply_short_rest, long_rest_recover
-from backend.dm.curated import roll_oracle
 from backend.characters.entity import Dnd5eCharacter, character_from_dict, character_to_dict
+from backend.dm.curated import roll_oracle
 from backend.dm.dice import roll_advantage_d20, roll_death_saves
 from backend.dm.resource_keeper import apply_cast_spell_shortcut
 from backend.play_tools import roll_dice
@@ -216,7 +216,13 @@ def run_shortcut(
     if shortcut_id == "oracle":
         result = roll_oracle()
         user = f"**Solo oracle (d6)**\n\n{result['summary']}"
-        return {"user_message": user, "prompt": user, "static": True, "dice": result, "task": "oracle"}
+        return {
+            "user_message": user,
+            "prompt": user,
+            "static": True,
+            "dice": result,
+            "task": "oracle",
+        }
 
     if shortcut_id == "short_rest":
         char = _char_from_kwargs(

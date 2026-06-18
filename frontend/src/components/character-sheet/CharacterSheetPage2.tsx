@@ -1,13 +1,7 @@
 import type { Character } from '../../types';
 import { displayLabel, EMPTY_FIELD } from '../../lib/displayText';
 import GlossaryTip from '../ui/GlossaryTip';
-import {
-  ResourcePips,
-  SheetField,
-  SheetSection,
-  SpellSlotPips,
-  TagList,
-} from './characterSheetViewParts';
+import { ResourcePips, SheetField, SheetSection, SpellSlotPips, TagList } from './characterSheetViewParts';
 
 interface Page2Props {
   character: Character;
@@ -56,7 +50,7 @@ export default function CharacterSheetPage2({ character: c, summary, editable, o
         </SheetSection>
 
         <SheetSection title="Prepared Spells" className="lg:col-span-8">
-          <TagList items={preparedSpells} />
+          <TagList items={preparedSpells} classId={c.class_name} />
         </SheetSection>
       </div>
 
@@ -79,7 +73,10 @@ export default function CharacterSheetPage2({ character: c, summary, editable, o
         <SheetSection title="Attuned Items" className="lg:col-span-3">
           <ul className="space-y-1 text-sm">
             {(attuned.length ? attuned : [EMPTY_FIELD, EMPTY_FIELD, EMPTY_FIELD]).slice(0, 3).map((item, i) => (
-              <li key={item === EMPTY_FIELD ? `attuned-slot-${i}` : item} className={item === EMPTY_FIELD ? 'text-muted' : 'text-gray-300'}>
+              <li
+                key={item === EMPTY_FIELD ? `attuned-slot-${i}` : item}
+                className={item === EMPTY_FIELD ? 'text-muted' : 'text-gray-300'}
+              >
                 {item === EMPTY_FIELD ? item : <GlossaryTip name={item} variant="inline" />}
               </li>
             ))}

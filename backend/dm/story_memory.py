@@ -29,7 +29,9 @@ def _clip(text: str, limit: int) -> str:
     return text[:limit] + "…"
 
 
-def recent_scenes_from_log(log_content: str, *, max_entries: int = RECENT_ENTRIES, max_chars: int = RECENT_MAX) -> str:
+def recent_scenes_from_log(
+    log_content: str, *, max_entries: int = RECENT_ENTRIES, max_chars: int = RECENT_MAX
+) -> str:
     snippets = extract_narrative_snippets(log_content)
     if not snippets:
         return ""
@@ -50,6 +52,7 @@ def build_narrative_context(
         campaign_id,
         has_adventure_summary=has_canon,
         exclude_adventure_id=adventure.get("id"),
+        for_narrator=True,
     )
 
     if character and recent:
@@ -79,7 +82,9 @@ def build_offline_summary(
     """Deterministic canon summary without LLM (migration / backfill fallback)."""
     snippets = extract_narrative_snippets(log)
     beats = "\n".join(f"- {s}" for s in snippets) if snippets else "- (no log entries yet)"
-    current = snippets[-1] if snippets else (outline[:500] or story_arc[:500] or "Adventure beginning.")
+    current = (
+        snippets[-1] if snippets else (outline[:500] or story_arc[:500] or "Adventure beginning.")
+    )
     premise = outline.strip()[:1200] or story_arc.strip()[:1200] or "Solo D&D adventure."
     arc_tail = story_arc.strip()[-1500:] if story_arc else ""
     mysteries = ""
@@ -102,11 +107,58 @@ def build_offline_summary(
 ## Established facts (do not contradict)
 - Facts in Major beats above are canonical.
 - NPC and location details are in the campaign journal.
-{('- Campaign notes: ' + arc_tail[:800]) if arc_tail else ''}
+{("- Campaign notes: " + arc_tail[:800]) if arc_tail else ""}
 
 ## Open mysteries & hooks
 {mysteries}
 """
+
+
+def generate_opening_summary(
+    *,
+    log: str = "",
+    opening_scene: str = "",
+    npc_hints: str = "",
+) -> str:
+    """Spoiler-safe canon from play that has occurred (opening scene / log only)."""
+    llm = get_langchain_chat_llm("claude")
+    prompt = f"""Create an adventure canon summary for a D&D 5e solo campaign DM.
+
+Use exactly these markdown sections:
+{SUMMARY_SECTIONS}
+
+Rules:
+- Document ONLY events that have already occurred in play
+- Do NOT include future plot, acts, encounters, or endings
+- Major beats: chronological bullet list of events from the opening scene and log
+- Established facts: concrete truths established so far (NPC status, locations, items)
+- Current situation: where play should resume NOW (time, place, mood, immediate tensions)
+- Open mysteries: unresolved questions raised IN PLAY so far, not planned future twists
+- Be factual; no speculation. Include character level if known from the log.
+- Do not use em dashes or en dashes; use commas, periods, or plain hyphens for ranges
+
+NPC hints (names/details introduced so far):
+{npc_hints[:1500] or "(none)"}
+
+Opening scene:
+{opening_scene[:3000] or "(none)"}
+
+Adventure log:
+{log[:12000] or "(empty — use opening scene only)"}
+"""
+    response = invoke_chat_llm(
+        llm,
+        [
+            SystemMessage(
+                content="Write spoiler-safe campaign canon from events that have already happened."
+            ),
+            HumanMessage(content=prompt),
+        ],
+        agent="chronicler_opening",
+        provider="claude",
+    )
+    text = response.content if isinstance(response.content, str) else str(response.content)
+    return text.strip()
 
 
 def generate_full_summary(
@@ -133,19 +185,19 @@ Rules:
 - Do not use em dashes or en dashes; use commas, periods, or plain hyphens for ranges
 
 Adventure outline:
-{outline[:2000] or '(none)'}
+{outline[:2000] or "(none)"}
 
 Campaign story arc:
-{story_arc[:3000] or '(none)'}
+{story_arc[:3000] or "(none)"}
 
 NPC hints:
-{npc_hints[:1500] or '(none)'}
+{npc_hints[:1500] or "(none)"}
 
 Opening scene:
-{opening_scene[:1500] or '(none)'}
+{opening_scene[:1500] or "(none)"}
 
 Adventure log:
-{log[:12000] or '(empty — use outline and story arc only)'}
+{log[:12000] or "(empty — use outline and story arc only)"}
 """
     response = invoke_chat_llm(
         llm,
@@ -185,7 +237,7 @@ Rules:
 - Do not use em dashes or en dashes; use commas, periods, or plain hyphens for ranges
 
 Existing canon:
-{existing[:6000] or '(empty — create initial canon from this turn)'}
+{existing[:6000] or "(empty — create initial canon from this turn)"}
 
 Player action:
 {user_message[:1500]}
@@ -194,7 +246,7 @@ DM response (canonical narration):
 {dm_response[:3500]}
 
 Log entry for this turn:
-{log_entry[:500] or '(none)'}
+{log_entry[:500] or "(none)"}
 """
     response = invoke_chat_llm(
         llm,

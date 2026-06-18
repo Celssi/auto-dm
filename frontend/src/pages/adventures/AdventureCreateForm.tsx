@@ -15,14 +15,7 @@ interface Props {
   onCancel: () => void;
 }
 
-export default function AdventureCreateForm({
-  form,
-  characters,
-  campaigns,
-  onPatchForm,
-  onCreate,
-  onCancel,
-}: Props) {
+export default function AdventureCreateForm({ form, characters, campaigns, onPatchForm, onCreate, onCancel }: Props) {
   return (
     <m.div
       initial={{ opacity: 0, height: 0 }}

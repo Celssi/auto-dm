@@ -2,8 +2,12 @@
 
 from __future__ import annotations
 
-from backend.characters.character_builder import apply_short_rest, long_rest_recover, rebuild_character
-from backend.characters.entity import character_from_dict, character_to_dict
+from backend.characters.character_builder import (
+    apply_short_rest,
+    long_rest_recover,
+    rebuild_character,
+)
+from backend.characters.entity import character_from_dict
 from backend.characters.spell_resources import (
     apply_resource_updates,
     apply_spell_cast,
@@ -202,4 +206,3 @@ def test_resource_keeper_node_skips_short_rest_shortcut():
         "user_message": "short rest",
     }
     assert resource_keeper_node(state) == {}
-

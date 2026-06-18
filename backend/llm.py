@@ -76,7 +76,7 @@ def get_langchain_chat_llm(provider: ChatProvider = "claude"):
         return ChatAnthropic(
             model=resolve_claude_model(),
             api_key=key,
-            max_tokens=4096,
+            max_tokens=8192,
         )
     from langchain_ollama import ChatOllama
 

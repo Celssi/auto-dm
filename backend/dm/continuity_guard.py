@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
-
 from langchain_core.messages import HumanMessage
+from pydantic import BaseModel, Field
 
 from backend.llm import get_langchain_chat_llm
 
 
 class ContinuityVerdict(BaseModel):
     has_issues: bool = Field(description="True if the draft contradicts canon")
-    issues: list[str] = Field(default_factory=list, description="Brief descriptions of contradictions")
+    issues: list[str] = Field(
+        default_factory=list, description="Brief descriptions of contradictions"
+    )
     revised_response: str = Field(
         default="",
         description="Full corrected DM response if has_issues, else empty string",
@@ -45,13 +46,13 @@ If there are contradictions, set has_issues=true, list issues briefly, and provi
 - Does not add meta commentary
 
 ## Adventure canon
-{canon_summary[:4000] or '(none)'}
+{canon_summary[:4000] or "(none)"}
 
 ## World bible
-{world_bible[:4000] or '(none)'}
+{world_bible[:4000] or "(none)"}
 
 ## Recent scenes
-{recent_scenes[:3000] or '(none)'}
+{recent_scenes[:3000] or "(none)"}
 
 Player message:
 {user_message[:1500]}

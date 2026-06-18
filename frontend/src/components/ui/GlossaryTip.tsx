@@ -4,6 +4,7 @@ import { m, AnimatePresence } from '../../lib/framer';
 import { displayLabel } from '../../lib/displayText';
 import { useGlossary } from '../../context/GlossaryContext';
 import type { GlossaryEntry } from '../../lib/glossary';
+import MarkdownContent from './MarkdownContent';
 
 interface Props {
   name: string;
@@ -11,6 +12,7 @@ interface Props {
   className?: string;
   wrapperClassName?: string;
   variant?: 'chip' | 'inline' | 'custom';
+  classId?: string;
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -74,20 +76,14 @@ function TooltipPanel({
   if (!entry?.summary) {
     return <p className="text-muted italic text-xs">No description available.</p>;
   }
-  const paragraphs = entry.summary.split(/\n\n+/).filter(Boolean);
   return (
     <>
       <p className="text-[10px] uppercase tracking-wider text-accent/80 mb-1.5 shrink-0">
         {KIND_LABEL[entry.kind] || entry.kind}
         {entry.level != null && entry.level > 0 ? ` · L${entry.level}` : entry.level === 0 ? ' · Cantrip' : ''}
       </p>
-      <div
-        className="overflow-y-auto overflow-x-hidden space-y-2 pr-1 text-xs text-gray-200 leading-relaxed"
-        style={{ maxHeight: Math.max(80, maxHeight - 72) }}
-      >
-        {paragraphs.map((para) => (
-          <p key={`glossary-para-${para.slice(0, 40)}-${para.length}`}>{para}</p>
-        ))}
+      <div className="overflow-y-auto overflow-x-hidden pr-1" style={{ maxHeight: Math.max(80, maxHeight - 72) }}>
+        <MarkdownContent content={entry.summary} className="text-xs" />
       </div>
     </>
   );
@@ -99,6 +95,7 @@ export default function GlossaryTip({
   className = '',
   wrapperClassName = '',
   variant = 'chip',
+  classId,
 }: Props) {
   const { getEntry, fetchEntry } = useGlossary();
   const [open, setOpen] = useState(false);
@@ -117,7 +114,7 @@ export default function GlossaryTip({
   }, []);
 
   const show = useCallback(async () => {
-    const staticEntry = getEntry(name);
+    const staticEntry = getEntry(name, classId);
     if (staticEntry?.summary) {
       setEntry(staticEntry);
       setOpen(true);
@@ -125,10 +122,10 @@ export default function GlossaryTip({
     }
     setLoading(true);
     setOpen(true);
-    const fetched = await fetchEntry(name);
+    const fetched = await fetchEntry(name, classId);
     setEntry(fetched);
     setLoading(false);
-  }, [name, getEntry, fetchEntry]);
+  }, [name, classId, getEntry, fetchEntry]);
 
   const scheduleShow = () => {
     if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
@@ -242,12 +239,20 @@ export default function GlossaryTip({
   );
 }
 
-export function GlossaryTagList({ items, className = '' }: { items: string[]; className?: string }) {
+export function GlossaryTagList({
+  items,
+  className = '',
+  classId,
+}: {
+  items: string[];
+  className?: string;
+  classId?: string;
+}) {
   if (!items.length) return <span className="text-sm text-muted">-</span>;
   return (
     <div className={`flex flex-wrap gap-1.5 ${className}`}>
       {items.map((item) => (
-        <GlossaryTip key={item} name={item} />
+        <GlossaryTip key={item} name={item} classId={classId} />
       ))}
     </div>
   );

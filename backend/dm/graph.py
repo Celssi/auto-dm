@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from typing import Any, TypedDict
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
@@ -12,15 +13,15 @@ from backend.characters.character_builder import (
     level_up,
     rebuild_character,
 )
-from backend.characters.entity import Dnd5eCharacter, character_from_dict, character_to_dict
+from backend.characters.entity import character_from_dict, character_to_dict
+from backend.characters.spell_resources import is_spell_available
 from backend.dm.actions import SHORTCUTS, run_shortcut
 from backend.dm.continuity_guard import apply_continuity_guard
 from backend.dm.journal_keeper import run_journal_keeper
-from backend.dm.resource_keeper import run_resource_keeper
-from backend.dm.story_memory import build_narrative_context, increment_summary
 from backend.dm.lonelog import format_mechanical, format_narrative
 from backend.dm.narrator import synthesize_lonelog_summary
 from backend.dm.prompts import dnd5e_system_prompt
+from backend.dm.resource_keeper import run_resource_keeper
 from backend.dm.spell_autocomplete import (
     confirmation_message,
     execute_confirmed_cast,
@@ -30,12 +31,21 @@ from backend.dm.spell_autocomplete import (
     list_character_spells,
     resolve_spell_query,
 )
-from backend.characters.spell_resources import is_spell_available
+from backend.dm.story_director import (
+    apply_completion_if_done,
+    build_narrator_brief,
+    ensure_story_progress,
+    load_story_progress,
+    player_progress_view,
+    save_story_progress,
+    update_progress_after_turn,
+)
+from backend.dm.story_memory import build_narrative_context, increment_summary
+from backend.dm.trace import dm_turn_trace, log_agent, wrap_node
 from backend.llm import ChatProvider, get_langchain_chat_llm, invoke_chat_llm
 from backend.rag.engine import query_rules
 from backend.rag.plugin import get_all_factions
 from backend.settings_store import load_settings
-from backend.dm.trace import dm_turn_trace, log_agent, wrap_node
 from backend.storage import (
     append_adventure_log,
     append_session_log,
@@ -50,8 +60,30 @@ from backend.storage import (
 
 COMBAT_SHORTCUTS = frozenset({"attack_roll", "initiative", "death_save"})
 COMBAT_KEYWORDS = (
-    "attack", "combat", "fight", "initiative", "damage", "hp", "hit point",
-    "death save", "spell slot", "cast ", "enemy", "monster",
+    "attack",
+    "combat",
+    "fight",
+    "initiative",
+    "damage",
+    "hp",
+    "hit point",
+    "death save",
+    "spell slot",
+    "cast ",
+    "enemy",
+    "monster",
+)
+
+_RESOURCE_SIGNALS = (
+    "cast ",
+    "/cast ",
+    "spell slot",
+    "concentrat",
+    "wild shape",
+    "short rest",
+    "long rest",
+    "hit dice",
+    "ritual",
 )
 
 
@@ -78,6 +110,11 @@ class DMState(TypedDict, total=False):
     continuity_issues: list[str]
     narrative_context: dict
     resource_log: list[str]
+    story_brief: str
+    story_progress: dict
+    adventure_complete: bool
+    next_adventure: dict | None
+    player_progress: dict
 
 
 def _factions(include_faerun: bool) -> list[str]:
@@ -89,8 +126,20 @@ def _factions(include_faerun: bool) -> list[str]:
 def _needs_rules_check(message: str) -> bool:
     lower = message.lower()
     triggers = [
-        "rule", "spell", "how does", "what is", "can i", "does ", "ability",
-        "attack", "save", "rest", "level", "feat", "class feature", "monster",
+        "rule",
+        "spell",
+        "how does",
+        "what is",
+        "can i",
+        "does ",
+        "ability",
+        "attack",
+        "save",
+        "rest",
+        "level",
+        "feat",
+        "class feature",
+        "monster",
     ]
     return any(t in lower for t in triggers)
 
@@ -136,6 +185,36 @@ def _parse_cast_spell_name(message: str) -> str:
     if lower.startswith("cast "):
         return text[5:].strip()
     return ""
+
+
+def _needs_continuity_guard(state: DMState) -> bool:
+    memory = state.get("narrative_context") or {}
+    if not memory.get("canon_summary", "").strip() and not memory.get("recent_scenes", "").strip():
+        return False
+    return bool((state.get("narrative") or state.get("response") or "").strip())
+
+
+def _needs_resource_keeper(state: DMState) -> bool:
+    if state.get("shortcut_result", {}).get("task") in (
+        "rules_help",
+        "long_rest",
+        "short_rest",
+        "cast_spell",
+    ):
+        return False
+    combined = f"{state.get('user_message', '')}\n{state.get('response') or state.get('narrative') or ''}".lower()
+    return any(sig in combined for sig in _RESOURCE_SIGNALS)
+
+
+def _needs_journal_keeper(state: DMState) -> bool:
+    adventure = state.get("adventure") or {}
+    if not adventure.get("campaign_id"):
+        return False
+    dm_response = state.get("response") or state.get("narrative") or ""
+    if len(dm_response.strip()) < 80:
+        return False
+    names = re.findall(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b", dm_response)
+    return len(names) >= 2
 
 
 def router_node(state: DMState) -> DMState:
@@ -188,7 +267,9 @@ def combat_mechanics_node(state: DMState) -> DMState:
         if rag.sources:
             lines.append("Combat rules excerpt:")
             for s in rag.sources[:2]:
-                lines.append(f"- {s.get('source_label', '?')} p.{s.get('page', '?')}: {s.get('text', '')[:200]}")
+                lines.append(
+                    f"- {s.get('source_label', '?')} p.{s.get('page', '?')}: {s.get('text', '')[:200]}"
+                )
     return {"combat_context": "\n".join(lines)}
 
 
@@ -238,20 +319,71 @@ def rules_referee_node(state: DMState) -> DMState:
     }
 
 
+def story_director_brief_node(state: DMState) -> DMState:
+    if state.get("shortcut_result", {}).get("task") == "rules_help":
+        return {}
+    adventure = state.get("adventure") or {}
+    adv_id = adventure.get("id")
+    outline = (adventure.get("outline") or "").strip()
+    if not adv_id or not outline:
+        return {"story_brief": ""}
+    progress = ensure_story_progress(adv_id, outline)
+    if not progress:
+        return {"story_brief": ""}
+    return {
+        "story_brief": build_narrator_brief(progress),
+        "story_progress": progress.model_dump(),
+    }
+
+
+def story_director_update_node(state: DMState) -> DMState:
+    if state.get("shortcut_result", {}).get("task") == "rules_help":
+        return {}
+    adventure = state.get("adventure") or {}
+    adv_id = adventure.get("id")
+    if not adv_id:
+        return {}
+    dm_response = state.get("response") or state.get("narrative") or ""
+    if not dm_response.strip():
+        return {}
+    raw = state.get("story_progress")
+    if raw:
+        from backend.dm.story_director import StoryProgress
+
+        progress = StoryProgress.model_validate(raw)
+    else:
+        progress = load_story_progress(adv_id)
+    if not progress or not progress.checkpoints:
+        return {}
+    updated = update_progress_after_turn(
+        progress,
+        user_message=state.get("user_message") or "",
+        dm_response=dm_response,
+        log_entry=state.get("scribe_log_entry") or "",
+    )
+    save_story_progress(adv_id, updated)
+    completion = apply_completion_if_done(adv_id, updated)
+    return {
+        "story_progress": updated.model_dump(),
+        "adventure_complete": completion.get("adventure_complete", False),
+        "next_adventure": completion.get("next_adventure"),
+        "player_progress": completion.get("player_progress") or player_progress_view(updated),
+    }
+
+
 def narrator_node(state: DMState) -> DMState:
     if state.get("response") and state.get("shortcut_result", {}).get("task") == "rules_help":
         return {"narrative": state["response"], "response": state["response"]}
     char_dict = state.get("character") or {}
     char = character_from_dict(char_dict)
     adventure = state.get("adventure") or {}
-    outline = adventure.get("outline", "")
     prefs = load_settings()
     include_faerun = state.get("include_faerun", False) or prefs.get("include_faerun", False)
     campaign_id = adventure.get("campaign_id")
     memory = build_narrative_context(adventure, campaign_id, char)
     system = dnd5e_system_prompt(
         character=char,
-        adventure_outline=outline,
+        story_brief=state.get("story_brief") or "",
         canon_summary=memory["canon_summary"],
         recent_scenes=memory["recent_scenes"],
         world_context=memory["world_bible"],
@@ -287,6 +419,8 @@ def narrator_node(state: DMState) -> DMState:
 def continuity_guard_node(state: DMState) -> DMState:
     if state.get("shortcut_result", {}).get("task") == "rules_help":
         return {}
+    if not _needs_continuity_guard(state):
+        return {}
     draft = state.get("narrative") or state.get("response") or ""
     if not draft.strip():
         return {}
@@ -307,6 +441,8 @@ def continuity_guard_node(state: DMState) -> DMState:
 
 
 def resource_keeper_node(state: DMState) -> DMState:
+    if not _needs_resource_keeper(state):
+        return {}
     shortcut = state.get("shortcut_result") or {}
     task = shortcut.get("task")
     if task in ("rules_help", "long_rest", "short_rest", "cast_spell"):
@@ -391,6 +527,8 @@ def chronicler_node(state: DMState) -> DMState:
 
 
 def journal_keeper_node(state: DMState) -> DMState:
+    if not _needs_journal_keeper(state):
+        return {}
     adventure = state.get("adventure") or {}
     campaign_id = adventure.get("campaign_id")
     adventure_id = adventure.get("id")
@@ -410,24 +548,32 @@ def build_dm_graph():
     graph.add_node("router", wrap_node("router", router_node))
     graph.add_node("combat", wrap_node("combat_mechanics", combat_mechanics_node))
     graph.add_node("rules", wrap_node("rules_referee", rules_referee_node))
+    graph.add_node(
+        "story_director_brief", wrap_node("story_director_brief", story_director_brief_node)
+    )
     graph.add_node("narrator", wrap_node("narrator", narrator_node))
     graph.add_node("continuity_guard", wrap_node("continuity_guard", continuity_guard_node))
     graph.add_node("resource_keeper", wrap_node("resource_keeper", resource_keeper_node))
     graph.add_node("keeper", wrap_node("character_keeper", character_keeper_node))
     graph.add_node("scribe", wrap_node("scribe", scribe_node))
     graph.add_node("chronicler", wrap_node("chronicler", chronicler_node))
+    graph.add_node(
+        "story_director_update", wrap_node("story_director_update", story_director_update_node)
+    )
     graph.add_node("journal_keeper", wrap_node("journal_keeper", journal_keeper_node))
 
     graph.set_entry_point("router")
     graph.add_edge("router", "combat")
     graph.add_edge("combat", "rules")
-    graph.add_edge("rules", "narrator")
+    graph.add_edge("rules", "story_director_brief")
+    graph.add_edge("story_director_brief", "narrator")
     graph.add_edge("narrator", "continuity_guard")
     graph.add_edge("continuity_guard", "resource_keeper")
     graph.add_edge("resource_keeper", "keeper")
     graph.add_edge("keeper", "scribe")
     graph.add_edge("scribe", "chronicler")
-    graph.add_edge("chronicler", "journal_keeper")
+    graph.add_edge("chronicler", "story_director_update")
+    graph.add_edge("story_director_update", "journal_keeper")
     graph.add_edge("journal_keeper", END)
     return graph.compile()
 
@@ -588,7 +734,8 @@ def run_dm_turn(
         "user_message": user_message,
         "character": char,
         "adventure": adventure,
-        "include_faerun": session.get("include_faerun", False) or prefs.get("include_faerun", False),
+        "include_faerun": session.get("include_faerun", False)
+        or prefs.get("include_faerun", False),
         "messages": messages[:-1],
     }
     with dm_turn_trace(session_id, user_message):
@@ -607,6 +754,9 @@ def run_dm_turn(
         "sources": sources,
         "character": updated_char,
         "lonelog_lines": result.get("lonelog_lines") or [],
+        "adventure_complete": bool(result.get("adventure_complete")),
+        "next_adventure": result.get("next_adventure"),
+        "player_progress": result.get("player_progress") or {},
     }
 
 
@@ -618,7 +768,9 @@ def level_up_character(
     char = get_character(char_id)
     if not char:
         raise ValueError("Character not found")
-    obj = level_up(rebuild_character(character_from_dict(char)), hp_roll=hp_roll, class_name=class_name)
+    obj = level_up(
+        rebuild_character(character_from_dict(char)), hp_roll=hp_roll, class_name=class_name
+    )
     saved = character_to_dict(obj)
     save_character(char_id, saved)
     return {"character": saved, "summary": character_creation_summary(obj)}

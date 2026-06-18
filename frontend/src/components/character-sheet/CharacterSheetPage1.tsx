@@ -13,14 +13,7 @@ import {
   spellAbility,
   spellSaveDc,
 } from './sheetUtils';
-import {
-  AbilityTile,
-  CombatStat,
-  DeathSaves,
-  HpBar,
-  SheetField,
-  SheetSection,
-} from './characterSheetViewParts';
+import { AbilityTile, CombatStat, DeathSaves, HpBar, SheetField, SheetSection } from './characterSheetViewParts';
 
 interface Page1Props {
   character: Character;
@@ -174,7 +167,7 @@ export default function CharacterSheetPage1({ character: c, editable, onChange }
             <div className="space-y-3">
               <div>
                 <div className="sheet-label mb-1.5">Cantrips</div>
-                <GlossaryTagList items={c.cantrips || []} />
+                <GlossaryTagList items={c.cantrips || []} classId={c.class_name} />
               </div>
               <div>
                 <div className="sheet-label mb-1.5">Feats</div>

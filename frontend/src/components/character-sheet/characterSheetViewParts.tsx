@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { displayLabel, EMPTY_FIELD } from '../../lib/displayText';
 import { GlossaryTagList } from '../ui/GlossaryTip';
+import MarkdownContent from '../ui/MarkdownContent';
 import { formatAbilityMod } from './sheetUtils';
 
 export function SheetSection({
@@ -46,8 +47,10 @@ export function SheetField({
   const wrapperClass = plain
     ? `flex flex-col min-h-0 ${fill ? 'flex-1' : ''} ${className}`.trim()
     : `sheet-field ${fill ? 'flex flex-col flex-1 min-h-0' : ''} ${className}`.trim();
-  const textareaClass = `sheet-value-textarea ${fill ? 'sheet-value-textarea-tall' : ''} ${mono ? 'font-mono' : ''}`.trim();
-  const multilineClass = `sheet-value-multiline ${fill ? 'sheet-value-multiline-tall' : ''} ${mono ? 'font-mono' : ''}`.trim();
+  const textareaClass =
+    `sheet-value-textarea ${fill ? 'sheet-value-textarea-tall' : ''} ${mono ? 'font-mono' : ''}`.trim();
+  const multilineClass =
+    `sheet-value-multiline ${fill ? 'sheet-value-multiline-tall' : ''} ${mono ? 'font-mono' : ''}`.trim();
 
   return (
     <div className={wrapperClass}>
@@ -70,7 +73,13 @@ export function SheetField({
           />
         )
       ) : multiline ? (
-        <div className={multilineClass}>{value || EMPTY_FIELD}</div>
+        value ? (
+          <div className={multilineClass}>
+            <MarkdownContent content={value} />
+          </div>
+        ) : (
+          <div className={multilineClass}>{EMPTY_FIELD}</div>
+        )
       ) : (
         <div className={`sheet-value ${mono ? 'font-mono' : ''}`}>{value ? displayLabel(value) : EMPTY_FIELD}</div>
       )}
@@ -156,8 +165,8 @@ export function ResourcePips({ label, remaining, max }: { label: string; remaini
   );
 }
 
-export function TagList({ items }: { items: string[] }) {
-  return <GlossaryTagList items={items} />;
+export function TagList({ items, classId }: { items: string[]; classId?: string }) {
+  return <GlossaryTagList items={items} classId={classId} />;
 }
 
 export function DeathSaves({ successes, failures }: { successes: number; failures: number }) {

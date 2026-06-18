@@ -12,11 +12,10 @@ export default function PlayPage() {
   const navigate = useNavigate();
   const campaignIdRef = useRef('');
   const bottomRef = useRef<HTMLDivElement>(null);
+  const loadSeqRef = useRef(0);
 
-  const [state, dispatch] = useReducer(
-    playReducer,
-    undefined,
-    () => createInitialPlayState(paramId || '', searchParams.get('new') === '1' ? 'new' : 'continue'),
+  const [state, dispatch] = useReducer(playReducer, undefined, () =>
+    createInitialPlayState(paramId || '', searchParams.get('new') === '1' ? 'new' : 'continue'),
   );
 
   const loadMeta = useCallback(async () => {
@@ -42,42 +41,86 @@ export default function PlayPage() {
   }, []);
 
   const loadSession = useCallback(async (id: string) => {
-    dispatch({ type: 'set', patch: { sessionLoaded: false } });
-    const { session } = await api.getSession(id);
-    const adventurePromise = session.adventure_id
-      ? api.getAdventure(session.adventure_id).catch(() => null)
-      : Promise.resolve(null);
-    const [{ character: ch }, { summary }, log, adventureResult] = await Promise.all([
-      api.getCharacter(session.character_id),
-      api.getCharacterSummary(session.character_id),
-      api.getLonelog(id),
-      adventurePromise,
-    ]);
-    let journalEntities: typeof state.journalEntities = [];
-    if (adventureResult?.adventure.campaign_id) {
-      campaignIdRef.current = adventureResult.adventure.campaign_id;
-      try {
-        const { entities } = await api.getCampaignEntities(adventureResult.adventure.campaign_id);
-        journalEntities = entities;
-      } catch {
-        journalEntities = [];
+    const seq = ++loadSeqRef.current;
+    dispatch({ type: 'set', patch: { sessionLoaded: false, loadError: '' } });
+    try {
+      const { session } = await api.getSession(id);
+      if (seq !== loadSeqRef.current) return;
+
+      const [{ character: ch }, { summary }, log] = await Promise.all([
+        api.getCharacter(session.character_id),
+        api.getCharacterSummary(session.character_id),
+        api.getLonelog(id),
+      ]);
+      if (seq !== loadSeqRef.current) return;
+
+      dispatch({
+        type: 'set',
+        patch: {
+          messages: session.messages || [],
+          includeFaerun: !!session.include_faerun,
+          characterId: session.character_id,
+          character: ch as Character,
+          characterSummary: summary,
+          lonelog: log.lines,
+          adventureId: session.adventure_id || '',
+          sessionLoaded: true,
+        },
+      });
+
+      if (!session.adventure_id) {
+        campaignIdRef.current = '';
+        dispatch({
+          type: 'set',
+          patch: {
+            campaignId: '',
+            playerProgress: null,
+            adventureComplete: false,
+            nextAdventure: null,
+            journalEntities: [],
+          },
+        });
+        return;
       }
-    } else {
-      campaignIdRef.current = '';
+
+      const adventureResult = await api.getAdventure(session.adventure_id).catch(() => null);
+      if (seq !== loadSeqRef.current) return;
+
+      const adventure = adventureResult?.adventure;
+      let journalEntities: typeof state.journalEntities = [];
+      if (adventure?.campaign_id) {
+        campaignIdRef.current = adventure.campaign_id;
+        try {
+          const { entities } = await api.getCampaignEntities(adventure.campaign_id);
+          journalEntities = entities;
+        } catch {
+          journalEntities = [];
+        }
+      } else {
+        campaignIdRef.current = '';
+      }
+
+      if (seq !== loadSeqRef.current) return;
+      dispatch({
+        type: 'set',
+        patch: {
+          journalEntities,
+          campaignId: adventure?.campaign_id || '',
+          playerProgress: adventure?.player_progress ?? null,
+          adventureComplete: !!adventure?.player_progress?.adventure_complete,
+          nextAdventure: null,
+        },
+      });
+    } catch (e) {
+      if (seq !== loadSeqRef.current) return;
+      dispatch({
+        type: 'set',
+        patch: {
+          sessionLoaded: true,
+          loadError: e instanceof Error ? e.message : 'Failed to load session',
+        },
+      });
     }
-    dispatch({
-      type: 'set',
-      patch: {
-        messages: session.messages || [],
-        includeFaerun: !!session.include_faerun,
-        characterId: session.character_id,
-        character: ch as Character,
-        characterSummary: summary,
-        lonelog: log.lines,
-        journalEntities,
-        sessionLoaded: true,
-      },
-    });
   }, []);
 
   useEffect(() => {
@@ -132,6 +175,32 @@ export default function PlayPage() {
     }
   };
 
+  const beginSession = async () => {
+    const { sessionId, loading, beginning } = state;
+    if (!sessionId || loading || beginning) return;
+    dispatch({ type: 'set', patch: { beginning: true, beginError: '' } });
+    try {
+      const result = await api.beginSession(sessionId);
+      dispatch({
+        type: 'set',
+        patch: {
+          messages: [result.message],
+          beginning: false,
+        },
+      });
+      const log = await api.getLonelog(sessionId);
+      dispatch({ type: 'set', patch: { lonelog: log.lines } });
+    } catch (e) {
+      dispatch({
+        type: 'set',
+        patch: {
+          beginError: e instanceof Error ? e.message : 'Failed to begin adventure',
+          beginning: false,
+        },
+      });
+    }
+  };
+
   const sendMessage = async (msg: string) => {
     const { sessionId, loading } = state;
     if (!sessionId || !msg.trim() || loading) return;
@@ -151,6 +220,9 @@ export default function PlayPage() {
           character: result.character as Character,
           sources: result.sources || [],
           spellConfirm: result.spell_confirmation ?? null,
+          ...(result.player_progress ? { playerProgress: result.player_progress } : {}),
+          adventureComplete: !!result.adventure_complete,
+          nextAdventure: result.next_adventure ?? null,
         },
       });
       const log = await api.getLonelog(sessionId);
@@ -190,22 +262,30 @@ export default function PlayPage() {
     }
   };
 
-  const runShortcut = async (id: string) => {
-    if (!state.sessionId) return;
-    dispatch({ type: 'set', patch: { loading: true } });
+  const runShortcut = (id: string) => {
+    sendMessage(`/${id}`);
+  };
+
+  const startNextAdventure = async () => {
+    const nextId = state.nextAdventure?.id;
+    if (!nextId || state.startingNext) return;
+    dispatch({ type: 'set', patch: { startingNext: true } });
     try {
-      const result = await api.runShortcut(state.sessionId, id);
-      const text = String(result.user_message || result.summary || 'Shortcut executed.');
+      const result = await api.startAdventureSession(nextId);
+      navigate(`/play/${result.session_id}`);
+      await loadSession(result.session_id);
+      await loadMeta();
+    } catch (e) {
       dispatch({
-        type: 'appendMessages',
-        messages: [
-          { role: 'user', content: `[${id}]` },
-          { role: 'assistant', content: text },
-        ],
+        type: 'set',
+        patch: {
+          chatError: e instanceof Error ? e.message : 'Failed to start next adventure.',
+          startingNext: false,
+        },
       });
-    } finally {
-      dispatch({ type: 'set', patch: { loading: false } });
+      return;
     }
+    dispatch({ type: 'set', patch: { startingNext: false, adventureComplete: false, nextAdventure: null } });
   };
 
   if (!state.sessionId) {
@@ -227,12 +307,14 @@ export default function PlayPage() {
     <PlaySessionView
       state={state}
       bottomRef={bottomRef}
+      onBegin={beginSession}
       onInputChange={(input) => dispatch({ type: 'set', patch: { input } })}
       onSend={() => sendMessage(state.input)}
       onConfirmSpellCast={() => state.spellConfirm && sendMessage('yes')}
       onCancelSpellCast={() => sendMessage('cancel spell')}
       onRunOracle={runOracle}
       onRunShortcut={runShortcut}
+      onStartNextAdventure={startNextAdventure}
     />
   );
 }

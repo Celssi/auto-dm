@@ -21,19 +21,13 @@ export default function Layout() {
   const isPlaySession = /^\/play\/[^/]+/.test(loc.pathname);
 
   return (
-    <div
-      className={`flex flex-col ${isPlaySession ? 'min-h-screen lg:h-screen lg:overflow-hidden' : 'min-h-screen'}`}
-    >
+    <div className={`flex flex-col ${isPlaySession ? 'min-h-screen lg:h-screen lg:overflow-hidden' : 'min-h-screen'}`}>
       <nav className="border-b border-border/80 bg-panel/70 backdrop-blur-md shrink-0 z-20">
         <div
           className={`mx-auto px-4 py-3 flex items-center gap-4 md:gap-6 ${isPlaySession ? 'max-w-[1600px]' : 'max-w-7xl'}`}
         >
           <Link to="/" className="flex items-center gap-2 group shrink-0">
-            <m.span
-              whileHover={{ rotate: 12 }}
-              transition={{ type: 'spring', stiffness: 300 }}
-              className="text-accent"
-            >
+            <m.span whileHover={{ rotate: 12 }} transition={{ type: 'spring', stiffness: 300 }} className="text-accent">
               <Dices size={22} />
             </m.span>
             <span className="font-display font-semibold text-accent group-hover:text-yellow-300 transition-colors">

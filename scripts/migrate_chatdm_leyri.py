@@ -14,11 +14,22 @@ sys.path.insert(0, str(ROOT))
 
 from backend.characters.character_builder import rebuild_character
 from backend.characters.entity import character_from_dict, character_to_dict
-from backend.journal_storage import save_campaign, save_campaign_location, save_campaign_npc, slugify
 from backend.config import ANTHROPIC_API_KEY
 from backend.dm.lonelog import adventure_log_to_lonelog
 from backend.dm.story_memory import build_offline_summary, generate_full_summary
-from backend.storage import save_adventure, save_character, save_session_messages, write_session_lonelog, write_adventure_summary
+from backend.journal_storage import (
+    save_campaign,
+    save_campaign_location,
+    save_campaign_npc,
+    slugify,
+)
+from backend.storage import (
+    save_adventure,
+    save_character,
+    save_session_messages,
+    write_adventure_summary,
+    write_session_lonelog,
+)
 
 CHAR_ID = "leyri"
 CAMPAIGN_ID = "leyri-campaign"
@@ -198,7 +209,9 @@ def _build_character() -> dict:
             "wild_shape_uses": 2,
             "armor": "leather",
             "shield": True,
-            "weapons": [{"name": "Scimitar", "damage": "1d6", "damage_type": "slashing", "ability": "dex"}],
+            "weapons": [
+                {"name": "Scimitar", "damage": "1d6", "damage_type": "slashing", "ability": "dex"}
+            ],
             "inventory": [
                 "Druidic focus (mountain oak staff)",
                 "Explorer's Pack",
@@ -257,7 +270,11 @@ def _write_session(log: str) -> None:
     save_session_messages(SESSION_ID, [])
 
     index_path = SAVES_DIR / "sessions" / "index.json"
-    index = __import__("json").loads(index_path.read_text(encoding="utf-8")) if index_path.is_file() else []
+    index = (
+        __import__("json").loads(index_path.read_text(encoding="utf-8"))
+        if index_path.is_file()
+        else []
+    )
     if not any(s.get("id") == SESSION_ID for s in index):
         index.insert(
             0,
@@ -321,7 +338,9 @@ def main() -> int:
         for path in sorted((CHATDM_RESOURCES / "npcs").glob("leyri_s_first_campaign_*"))
     )
     if ANTHROPIC_API_KEY:
-        summary = generate_full_summary(log=log, outline=outline, story_arc=story_arc, npc_hints=npc_hints)
+        summary = generate_full_summary(
+            log=log, outline=outline, story_arc=story_arc, npc_hints=npc_hints
+        )
     else:
         summary = build_offline_summary(log=log, outline=outline, story_arc=story_arc)
     write_adventure_summary(ADV_ID, summary)

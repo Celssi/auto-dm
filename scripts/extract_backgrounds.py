@@ -63,8 +63,14 @@ def main() -> int:
         help="Which PDF/curated set to process",
     )
     parser.add_argument("--apply", action="store_true", help="Write results into curated YAML")
-    parser.add_argument("--dry-run", action="store_true", help="Write preview YAML only (default without --apply)")
-    parser.add_argument("--audit-only", action="store_true", help="Compare PDF extraction to curated without writing")
+    parser.add_argument(
+        "--dry-run", action="store_true", help="Write preview YAML only (default without --apply)"
+    )
+    parser.add_argument(
+        "--audit-only",
+        action="store_true",
+        help="Compare PDF extraction to curated without writing",
+    )
     parser.add_argument("--force-ocr", action="store_true", help="Re-run OCR instead of cache")
     parser.add_argument("--no-rag", action="store_true", help="Skip RAG retrieval")
     parser.add_argument("--no-ocr", action="store_true", help="Skip OCR page search")
@@ -87,7 +93,9 @@ def main() -> int:
 
     indexed = get_collection() is not None and get_collection().count() > 0
     print(f"Source: {args.source} ({len(specs)} backgrounds)")
-    print(f"RAG index: {'ready' if indexed else 'not indexed — run: python -m scripts.ingest --include-faerun'}")
+    print(
+        f"RAG index: {'ready' if indexed else 'not indexed — run: python -m scripts.ingest --include-faerun'}"
+    )
 
     pages = None
     if not args.no_ocr:
@@ -131,7 +139,9 @@ def main() -> int:
     _print_report(f"Background audit: {args.source}", report)
 
     if args.json_out:
-        Path(args.json_out).write_text(json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8")
+        Path(args.json_out).write_text(
+            json.dumps(report, indent=2, ensure_ascii=False), encoding="utf-8"
+        )
         print(f"\nReport written to {args.json_out}")
 
     if args.audit_only:

@@ -18,7 +18,9 @@ from backend.storage import ADVENTURES_DIR, get_adventure, list_adventures, writ
 def main() -> int:
     use_llm = "--local" not in sys.argv and bool(ANTHROPIC_API_KEY)
     if not use_llm:
-        print("Using offline summary builder (pass --local explicitly or set ANTHROPIC_API_KEY for LLM).")
+        print(
+            "Using offline summary builder (pass --local explicitly or set ANTHROPIC_API_KEY for LLM)."
+        )
 
     adventures = list_adventures()
     if not adventures:

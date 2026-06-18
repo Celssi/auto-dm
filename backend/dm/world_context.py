@@ -29,10 +29,13 @@ def prior_adventures_context(
     campaign_id: str | None,
     *,
     exclude_adventure_id: str | None = None,
+    completed_only: bool = False,
 ) -> str:
     if not campaign_id:
         return ""
     adventures = list_adventures_for_campaign(campaign_id)
+    if completed_only:
+        adventures = [a for a in adventures if a.get("status") == "completed"]
     parts: list[str] = []
     for adv in adventures:
         adv_id = adv.get("id", "")
@@ -55,6 +58,7 @@ def world_context_for_campaign(
     *,
     has_adventure_summary: bool = False,
     exclude_adventure_id: str | None = None,
+    for_narrator: bool = False,
 ) -> str:
     if not campaign_id:
         return ""
@@ -64,12 +68,17 @@ def world_context_for_campaign(
         return ""
 
     parts: list[str] = [f"## Campaign: {campaign.get('name', campaign_id)}"]
-    arc = (campaign.get("story_arc") or "").strip()
-    if arc:
-        arc_limit = 800 if has_adventure_summary else 2000
-        parts.append(_clip(arc, arc_limit))
+    if not for_narrator:
+        arc = (campaign.get("story_arc") or "").strip()
+        if arc:
+            arc_limit = 800 if has_adventure_summary else 2000
+            parts.append(_clip(arc, arc_limit))
 
-    prior = prior_adventures_context(campaign_id, exclude_adventure_id=exclude_adventure_id)
+    prior = prior_adventures_context(
+        campaign_id,
+        exclude_adventure_id=exclude_adventure_id,
+        completed_only=for_narrator,
+    )
     if prior:
         parts.append(prior)
 

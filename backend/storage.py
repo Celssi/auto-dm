@@ -74,22 +74,70 @@ def save_character(char_id: str | None, data: dict) -> str:
             found = True
             break
     if not found:
-        roster.append({"id": char_id, "name": name, "created_at": _now_iso(), "updated_at": _now_iso()})
+        roster.append(
+            {"id": char_id, "name": name, "created_at": _now_iso(), "updated_at": _now_iso()}
+        )
     _write_json(CHARACTERS_INDEX, roster)
     return char_id
 
 
+def _remove_dir(path: Path) -> None:
+    if not path.is_dir():
+        return
+    for child in sorted(path.rglob("*"), reverse=True):
+        if child.is_file():
+            child.unlink()
+        elif child.is_dir():
+            child.rmdir()
+    path.rmdir()
+
+
+def list_adventure_ids_for_character(char_id: str) -> list[str]:
+    index = _read_json(ADVENTURES_INDEX, [])
+    adv_ids: list[str] = []
+    for entry in index:
+        adv_id = entry.get("id")
+        if not adv_id:
+            continue
+        meta = _read_json(ADVENTURES_DIR / adv_id / "adventure.json", {})
+        if meta.get("character_id") == char_id:
+            adv_ids.append(adv_id)
+    return adv_ids
+
+
+def delete_sessions_for_adventure(adv_id: str) -> list[str]:
+    deleted: list[str] = []
+    for session in list_sessions():
+        if session.get("adventure_id") == adv_id and session.get("id"):
+            if delete_session(session["id"]):
+                deleted.append(session["id"])
+    return deleted
+
+
+def delete_sessions_for_character(char_id: str) -> list[str]:
+    deleted: list[str] = []
+    for session in list_sessions():
+        if session.get("character_id") == char_id and session.get("id"):
+            if delete_session(session["id"]):
+                deleted.append(session["id"])
+    return deleted
+
+
 def delete_character(char_id: str) -> bool:
     roster = _read_json(CHARACTERS_INDEX, [])
-    new_roster = [r for r in roster if r.get("id") != char_id]
-    if len(new_roster) == len(roster):
+    if not any(r.get("id") == char_id for r in roster):
         return False
+
+    from backend.journal_storage import remove_character_from_campaigns
+
+    remove_character_from_campaigns(char_id)
+    for adv_id in list_adventure_ids_for_character(char_id):
+        delete_adventure(adv_id)
+    delete_sessions_for_character(char_id)
+
+    new_roster = [r for r in roster if r.get("id") != char_id]
     _write_json(CHARACTERS_INDEX, new_roster)
-    char_dir = CHARACTERS_DIR / char_id
-    if char_dir.exists():
-        for f in char_dir.iterdir():
-            f.unlink()
-        char_dir.rmdir()
+    _remove_dir(CHARACTERS_DIR / char_id)
     return True
 
 
@@ -108,6 +156,8 @@ def list_adventures(campaign_id: str | None = None) -> list[dict[str, str]]:
             "mode": a.get("mode", "freeform"),
             "status": a.get("status", "draft"),
             "campaign_id": a.get("campaign_id", ""),
+            "sequence": a.get("sequence"),
+            "source_module": a.get("source_module"),
         }
         for a in index
         if a.get("id")
@@ -155,7 +205,10 @@ def save_adventure(adv_id: str | None, meta: dict, outline: str = "", log: str =
     if "created_at" not in meta:
         meta["created_at"] = _now_iso()
     adv_dir = ADVENTURES_DIR / adv_id
-    _write_json(adv_dir / "adventure.json", {k: v for k, v in meta.items() if k not in ("outline", "log", "summary")})
+    _write_json(
+        adv_dir / "adventure.json",
+        {k: v for k, v in meta.items() if k not in ("outline", "log", "summary")},
+    )
     if outline:
         _write_text(adv_dir / "outline.md", outline)
     if log:
@@ -164,12 +217,16 @@ def save_adventure(adv_id: str | None, meta: dict, outline: str = "", log: str =
     found = False
     for entry in index:
         if entry.get("id") == adv_id:
-            entry.update({
-                "name": name,
-                "mode": meta.get("mode"),
-                "status": meta.get("status"),
-                "campaign_id": meta.get("campaign_id", ""),
-            })
+            entry.update(
+                {
+                    "name": name,
+                    "mode": meta.get("mode"),
+                    "status": meta.get("status"),
+                    "campaign_id": meta.get("campaign_id", ""),
+                    "sequence": meta.get("sequence"),
+                    "source_module": meta.get("source_module"),
+                }
+            )
             found = True
             break
     if not found:
@@ -180,6 +237,8 @@ def save_adventure(adv_id: str | None, meta: dict, outline: str = "", log: str =
                 "mode": meta.get("mode", "freeform"),
                 "status": meta.get("status", "active"),
                 "campaign_id": meta.get("campaign_id", ""),
+                "sequence": meta.get("sequence"),
+                "source_module": meta.get("source_module"),
             }
         )
     _write_json(ADVENTURES_INDEX, index)
@@ -197,12 +256,9 @@ def delete_adventure(adv_id: str) -> bool:
     new_index = [a for a in index if a.get("id") != adv_id]
     if len(new_index) == len(index):
         return False
+    delete_sessions_for_adventure(adv_id)
     _write_json(ADVENTURES_INDEX, new_index)
-    adv_dir = ADVENTURES_DIR / adv_id
-    if adv_dir.exists():
-        for f in adv_dir.iterdir():
-            f.unlink()
-        adv_dir.rmdir()
+    _remove_dir(ADVENTURES_DIR / adv_id)
     return True
 
 
@@ -255,13 +311,16 @@ def create_session(
     _write_text(sess_dir / "lonelog.md", "# Lonelog session log\n\n_Lonelog session log_\n")
     _write_json(sess_dir / "messages.json", [])
     index = _read_json(SESSIONS_INDEX, [])
-    index.insert(0, {
-        "id": session_id,
-        "name": meta["name"],
-        "character_id": character_id,
-        "adventure_id": adventure_id,
-        "created_at": meta["created_at"],
-    })
+    index.insert(
+        0,
+        {
+            "id": session_id,
+            "name": meta["name"],
+            "character_id": character_id,
+            "adventure_id": adventure_id,
+            "created_at": meta["created_at"],
+        },
+    )
     _write_json(SESSIONS_INDEX, index)
     return session_id
 
@@ -296,9 +355,5 @@ def delete_session(session_id: str) -> bool:
     if len(new_index) == len(index):
         return False
     _write_json(SESSIONS_INDEX, new_index)
-    sess_dir = SESSIONS_DIR / session_id
-    if sess_dir.exists():
-        for f in sess_dir.iterdir():
-            f.unlink()
-        sess_dir.rmdir()
+    _remove_dir(SESSIONS_DIR / session_id)
     return True

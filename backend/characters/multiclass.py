@@ -7,9 +7,9 @@ from typing import Any
 
 import yaml
 
-from backend.config import CURATED_DIR
 from backend.characters.character_data import full_caster_slots, get_class
 from backend.characters.entity import ABILITY_KEYS, Dnd5eCharacter
+from backend.config import CURATED_DIR
 
 _MULTICLASS_PATH = CURATED_DIR / "dnd5e_multiclass.yaml"
 

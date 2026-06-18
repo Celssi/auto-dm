@@ -34,7 +34,7 @@ def _read_json(path: Path, default: Any = None) -> Any:
 def slugify(name: str) -> str:
     s = re.sub(r"[^\w\s-]", "", (name or "").strip().lower())
     s = re.sub(r"[\s_]+", "-", s).strip("-")
-    return (s[:48] or uuid.uuid4().hex[:8])
+    return s[:48] or uuid.uuid4().hex[:8]
 
 
 def _unique_id(base: str, existing: set[str]) -> str:
@@ -87,7 +87,9 @@ def get_campaign(campaign_id: str) -> dict | None:
 
 def save_campaign(campaign_id: str | None, data: dict) -> str:
     if not campaign_id:
-        campaign_id = _unique_id(str(data.get("name") or "campaign"), {r["id"] for r in _read_json(CAMPAIGNS_INDEX, [])})
+        campaign_id = _unique_id(
+            str(data.get("name") or "campaign"), {r["id"] for r in _read_json(CAMPAIGNS_INDEX, [])}
+        )
     else:
         existing_ids = {r["id"] for r in _read_json(CAMPAIGNS_INDEX, [])}
         if campaign_id not in existing_ids:
@@ -101,6 +103,9 @@ def save_campaign(campaign_id: str | None, data: dict) -> str:
         "character_ids": list(data.get("character_ids") or []),
         "updated_at": _now_iso(),
     }
+    for key in ("generation_mode", "source_module", "theme", "adventure_count"):
+        if key in data and data[key] not in (None, "", {}):
+            payload[key] = data[key]
     if "created_at" not in data:
         payload["created_at"] = _now_iso()
     else:
@@ -119,11 +124,39 @@ def save_campaign(campaign_id: str | None, data: dict) -> str:
     return campaign_id
 
 
+def remove_character_from_campaigns(char_id: str) -> int:
+    updated = 0
+    for row in _read_json(CAMPAIGNS_INDEX, []):
+        campaign_id = row.get("id")
+        if not campaign_id:
+            continue
+        path = _campaign_dir(campaign_id) / "campaign.json"
+        data = _read_json(path)
+        if not data:
+            continue
+        ids = list(data.get("character_ids") or [])
+        if char_id not in ids:
+            continue
+        data["character_ids"] = [cid for cid in ids if cid != char_id]
+        data["updated_at"] = _now_iso()
+        _write_json(path, data)
+        updated += 1
+    return updated
+
+
 def delete_campaign(campaign_id: str) -> bool:
     index = _read_json(CAMPAIGNS_INDEX, [])
     new_index = [r for r in index if r.get("id") != campaign_id]
     if len(new_index) == len(index):
         return False
+
+    from backend.storage import delete_adventure, list_adventures_for_campaign
+
+    for adv in list_adventures_for_campaign(campaign_id):
+        adv_id = adv.get("id")
+        if adv_id:
+            delete_adventure(adv_id)
+
     _write_json(CAMPAIGNS_INDEX, new_index)
     camp_dir = _campaign_dir(campaign_id)
     if camp_dir.is_dir():
@@ -189,7 +222,11 @@ def get_campaign_npc(campaign_id: str, npc_id: str) -> dict | None:
 
 
 def save_campaign_npc(campaign_id: str, npc_id: str | None, data: dict) -> str:
-    existing = {p.stem for p in _npcs_dir(campaign_id).glob("*.json")} if _npcs_dir(campaign_id).is_dir() else set()
+    existing = (
+        {p.stem for p in _npcs_dir(campaign_id).glob("*.json")}
+        if _npcs_dir(campaign_id).is_dir()
+        else set()
+    )
     if not npc_id:
         npc_id = _unique_id(str(data.get("name") or "npc"), existing)
     name = str(data.get("name") or npc_id).strip() or npc_id

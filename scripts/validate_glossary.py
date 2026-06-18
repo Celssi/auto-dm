@@ -12,7 +12,6 @@ Examples:
 from __future__ import annotations
 
 import argparse
-import re
 import sys
 from pathlib import Path
 
@@ -124,14 +123,40 @@ def _ambiguous_feature_titles(data: dict) -> list[str]:
     return sorted(flagged)
 
 
+def _feature_class_ids(name: str) -> list[str]:
+    """Classes that list this feature in curated data."""
+    label = name.strip()
+    if not label:
+        return []
+    classes: set[str] = set()
+    for cid, levels in (class_features_data().get("classes") or {}).items():
+        if not isinstance(levels, dict):
+            continue
+        for feature_list in levels.values():
+            if not isinstance(feature_list, list):
+                continue
+            if label in (str(n).strip() for n in feature_list):
+                classes.add(str(cid))
+    for row in (subclass_features_data().get("subclasses") or {}).values():
+        if not isinstance(row, dict):
+            continue
+        for feature_list in (row.get("features") or {}).values():
+            if not isinstance(feature_list, list):
+                continue
+            if label in (str(n).strip() for n in feature_list):
+                sc = str(row.get("class_id") or row.get("class") or "")
+                if sc:
+                    classes.add(sc)
+    return sorted(classes)
+
+
 def _looks_like_ocr_garbage(text: str) -> bool:
     if len(text) < 40:
         return False
     markers = (
         "Subclass feature Ability Score",
         "Ability Score Improvement 4d6",
-        "Changing Your Prepared Spells",
-        "LEVEL 1:",
+        "Proficiency Level Bonus Class Features",
     )
     return any(m in text for m in markers)
 
@@ -211,7 +236,18 @@ def validate_glossary(*, strict: bool = False) -> tuple[list[str], list[str]]:
 
     missing_features: list[str] = []
     for name in sorted(_curated_feature_names()):
-        if not lookup_entry(name, use_rag=False).get("summary"):
+        class_ids = _feature_class_ids(name)
+        if len(class_ids) == 1:
+            has_summary = bool(
+                lookup_entry(name, use_rag=False, class_id=class_ids[0]).get("summary")
+            )
+        elif class_ids:
+            has_summary = any(
+                lookup_entry(name, use_rag=False, class_id=cid).get("summary") for cid in class_ids
+            )
+        else:
+            has_summary = bool(lookup_entry(name, use_rag=False).get("summary"))
+        if not has_summary:
             missing_features.append(name)
     if missing_features:
         sample = ", ".join(missing_features[:8])
@@ -221,7 +257,9 @@ def validate_glossary(*, strict: bool = False) -> tuple[list[str], list[str]]:
 
     ambiguous = _ambiguous_feature_titles(data)
     for title in ambiguous:
-        warnings.append(f"Ambiguous shared feature title in glossary (one entry, many classes): {title}")
+        warnings.append(
+            f"Ambiguous shared feature title in glossary (one entry, many classes): {title}"
+        )
 
     garbage_features = [
         str(row.get("title") or key)
@@ -230,7 +268,9 @@ def validate_glossary(*, strict: bool = False) -> tuple[list[str], list[str]]:
     ]
     if garbage_features:
         sample = ", ".join(garbage_features[:5])
-        warnings.append(f"{len(garbage_features)} feature tooltip(s) look like OCR table bleed (e.g. {sample})")
+        warnings.append(
+            f"{len(garbage_features)} feature tooltip(s) look like OCR table bleed (e.g. {sample})"
+        )
 
     if OCR_PLAYER.is_file() and GLOSSARY_PATH.is_file():
         if OCR_PLAYER.stat().st_mtime > GLOSSARY_PATH.stat().st_mtime:

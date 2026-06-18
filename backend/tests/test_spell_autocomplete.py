@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
+from backend.characters.entity import character_from_dict
 from backend.dm.spell_autocomplete import (
     confirmation_message,
     extract_cast_query,
     resolve_spell_query,
 )
-from backend.characters.entity import character_from_dict
 
 
 def _druid(**overrides):

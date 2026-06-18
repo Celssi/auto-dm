@@ -8,8 +8,10 @@ export function displayLabel(text: string | null | undefined): string {
 }
 
 export function displayLabels(items: string[], separator = ', '): string {
-  return items.reduce<string[]>((acc, item) => {
-    if (item) acc.push(displayLabel(item));
-    return acc;
-  }, []).join(separator);
+  return items
+    .reduce<string[]>((acc, item) => {
+      if (item) acc.push(displayLabel(item));
+      return acc;
+    }, [])
+    .join(separator);
 }

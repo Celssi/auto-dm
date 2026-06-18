@@ -11,7 +11,6 @@ from backend.characters.character_builder import (
     add_multiclass_level,
     character_creation_summary,
     finalize_new_character,
-    level_up,
     rebuild_character,
 )
 from backend.characters.character_data import character_options_payload, multiclass_prerequisites
@@ -73,9 +72,7 @@ def get_one(char_id: str):
 @router.post("")
 def create(body: CharacterBody):
     data = body.character if body.character else {}
-    char = finalize_new_character(
-        character_from_dict(data) if data else default_character()
-    )
+    char = finalize_new_character(character_from_dict(data) if data else default_character())
     char_id = save_character(None, character_to_dict(char))
     return {"id": char_id, "character": get_character(char_id)}
 

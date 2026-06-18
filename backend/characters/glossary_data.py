@@ -8,8 +8,8 @@ from typing import Any
 
 import yaml
 
-from backend.config import CURATED_DIR
 from backend.characters.spell_resources import normalize_spell_name
+from backend.config import CURATED_DIR
 
 _GLOSSARY_PATH = CURATED_DIR / "dnd5e_glossary.yaml"
 
@@ -60,9 +60,25 @@ def _feat_summary(entry: dict[str, Any]) -> str:
 def _feature_summary(entry: dict[str, Any]) -> str:
     text = str(entry.get("text") or "").strip()
     level = entry.get("level")
+    class_id = str(entry.get("class_id") or "").strip()
+    prefix = f"{class_id.title()} " if class_id else ""
     if level is not None and text:
-        return f"Level {level} class feature. {text}"
+        return f"Level {level} {prefix}class feature. {text}"
+    if class_id and text:
+        return f"{prefix}class feature. {text}"
     return text
+
+
+def _index_feature(index: dict[str, dict[str, Any]], key: str, row: dict[str, Any]) -> None:
+    nk = normalize_spell_name(str(key))
+    if not nk:
+        return
+    index[nk] = {
+        "kind": "feature",
+        "title": row.get("title") or key,
+        "summary": _feature_summary(row),
+        "level": row.get("level"),
+    }
 
 
 def glossary_db_index() -> dict[str, dict[str, Any]]:
@@ -104,12 +120,6 @@ def glossary_db_index() -> dict[str, dict[str, Any]]:
     for key, row in (data.get("features") or {}).items():
         if not isinstance(row, dict):
             continue
-        nk = normalize_spell_name(str(key))
-        index[nk] = {
-            "kind": "feature",
-            "title": row.get("title") or key,
-            "summary": _feature_summary(row),
-            "level": row.get("level"),
-        }
+        _index_feature(index, str(key), row)
 
     return index

@@ -1,11 +1,6 @@
 import type { Character } from '../../types';
 import type { PdfModule } from './characterSheetPdfTypes';
-import {
-  abilityMod,
-  formatMod,
-  saveBonus,
-  skillBonus,
-} from './sheetUtils';
+import { abilityMod, formatMod, saveBonus, skillBonus } from './sheetUtils';
 import { ABILITY_NAMES, SKILLS_BY_ABILITY, pdfStyles as s } from './characterSheetPdfStyles';
 
 export function createAbilityBlock(pdf: PdfModule) {

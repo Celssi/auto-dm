@@ -8,7 +8,7 @@ from backend.characters.entity import Dnd5eCharacter, format_for_prompt
 def dnd5e_system_prompt(
     *,
     character: Dnd5eCharacter | None = None,
-    adventure_outline: str = "",
+    story_brief: str = "",
     canon_summary: str = "",
     recent_scenes: str = "",
     world_context: str = "",
@@ -24,6 +24,8 @@ def dnd5e_system_prompt(
 - When rules are unclear, state your ruling and cite PHB/DMG when possible.
 - Respect **Established facts** in Adventure canon. Continue from **Current situation**.
 - Do not contradict canon unless the player explicitly retcons.
+- Follow the **Story guide** for structure, but let player choices shape how beats unfold.
+- Never reveal or foreshadow story beats the player has not reached yet.
 - Do not use em dashes (—) or en dashes (–) in narration. Use commas, periods, or a plain hyphen for ranges.
 """
     if character:
@@ -42,8 +44,8 @@ def dnd5e_system_prompt(
         extra += f"\n## Recent scenes\n{recent_scenes.strip()[:3000]}\n"
     if world_context.strip():
         extra += f"\n{world_context.strip()[:6000]}\n"
-    if adventure_outline.strip():
-        extra += f"\n## Adventure outline\n{adventure_outline.strip()[:4000]}\n"
+    if story_brief.strip():
+        extra += f"\n{story_brief.strip()[:5000]}\n"
 
     return f"""{extra}
 

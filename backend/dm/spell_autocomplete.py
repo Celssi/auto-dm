@@ -10,7 +10,6 @@ from typing import Literal
 from backend.characters.entity import Dnd5eCharacter, character_from_dict, character_to_dict
 from backend.characters.spell_resources import (
     _subclass_always_prepared,
-    is_spell_available,
     normalize_spell_name,
 )
 from backend.dm.lonelog import format_mechanical
@@ -27,7 +26,18 @@ _CONFIRM_WORDS = frozenset(
     {"yes", "y", "yeah", "yep", "confirm", "confirmed", "do it", "cast it", "jep", "kyllä", "kylla"}
 )
 _CANCEL_WORDS = frozenset(
-    {"no", "n", "nope", "cancel", "nevermind", "never mind", "ei", "peru", "peruuta", "cancel spell"}
+    {
+        "no",
+        "n",
+        "nope",
+        "cancel",
+        "nevermind",
+        "never mind",
+        "ei",
+        "peru",
+        "peruuta",
+        "cancel spell",
+    }
 )
 
 
@@ -96,9 +106,13 @@ def resolve_spell_query(char: Dnd5eCharacter, query: str) -> SpellQueryResolutio
 
     for name in available:
         if normalize_spell_name(name) == normalized:
-            return SpellQueryResolution(status="exact", spell_name=name, requested=requested, score=1.0)
+            return SpellQueryResolution(
+                status="exact", spell_name=name, requested=requested, score=1.0
+            )
 
-    ranked = sorted(((name, _similarity(requested, name)) for name in available), key=lambda x: -x[1])
+    ranked = sorted(
+        ((name, _similarity(requested, name)) for name in available), key=lambda x: -x[1]
+    )
     best_name, best_score = ranked[0]
     runner_up = ranked[1][1] if len(ranked) > 1 else 0.0
     if best_score >= 0.62 and best_score - runner_up >= 0.05:
