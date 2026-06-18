@@ -4,7 +4,8 @@
 #
 #   ./scripts/ingest-full.sh              # everything (default)
 #   ./scripts/ingest-full.sh --skip-audit   # ingest only
-#   ./scripts/ingest-full.sh --no-ocr       # faster re-run, reuse OCR cache
+#   ./scripts/ingest-full.sh --no-ocr       # skip OCR fallback on ingest (native text only)
+#   ./scripts/ingest-full.sh --ocr          # force re-OCR on ingest (audit always reuses cache)
 
 set -euo pipefail
 
@@ -35,7 +36,8 @@ if ! command -v tesseract >/dev/null 2>&1; then
   echo "  brew install tesseract"
 fi
 
-FORCE_OCR=1
+FORCE_INGEST_OCR=0
+SKIP_INGEST_OCR=0
 SKIP_AUDIT=0
 EXTRA_INGEST_ARGS=()
 
@@ -45,10 +47,10 @@ for arg in "$@"; do
       SKIP_AUDIT=1
       ;;
     --no-ocr)
-      FORCE_OCR=0
+      SKIP_INGEST_OCR=1
       ;;
     --ocr)
-      # Legacy alias; OCR is already on by default.
+      FORCE_INGEST_OCR=1
       ;;
     *)
       EXTRA_INGEST_ARGS+=("$arg")
@@ -58,9 +60,11 @@ done
 
 INGEST_ARGS=(--include-faerun)
 AUDIT_ARGS=(--include-faerun)
-if [[ "$FORCE_OCR" == "1" ]]; then
+if [[ "$FORCE_INGEST_OCR" == "1" ]]; then
   INGEST_ARGS+=(--ocr)
-  AUDIT_ARGS+=(--force-ocr)
+fi
+if [[ "$SKIP_INGEST_OCR" == "1" ]]; then
+  INGEST_ARGS+=(--no-ocr)
 fi
 if ((${#EXTRA_INGEST_ARGS[@]})); then
   INGEST_ARGS+=("${EXTRA_INGEST_ARGS[@]}")
@@ -69,7 +73,7 @@ fi
 echo "=== Auto-DM full ingest ==="
 echo "Project: $ROOT"
 echo "PDFs:    PHB + DMG + MM + Faerûn"
-echo "OCR:     $([[ "$FORCE_OCR" == "1" ]] && echo 'force refresh' || echo 'use cache')"
+echo "OCR:     ingest=$([[ "$FORCE_INGEST_OCR" == "1" ]] && echo 'force refresh' || ([[ "$SKIP_INGEST_OCR" == "1" ]] && echo 'disabled' || echo 'use cache')); audit=use cache"
 echo "Audit:   $([[ "$SKIP_AUDIT" == "1" ]] && echo 'skipped' || echo 'structural + PDF backgrounds')"
 echo ""
 

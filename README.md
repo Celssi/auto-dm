@@ -119,8 +119,8 @@ flowchart TD
 **Ingest** (first run can take hours for OCR):
 
 ```bash
-./scripts/ingest-full.sh              # PHB + DMG + MM + Faerûn, with progress output
-./scripts/ingest-full.sh --no-ocr      # reuse OCR cache
+./scripts/ingest-full.sh              # PHB + DMG + MM + Faerûn (OCR cache shared ingest → audit)
+./scripts/ingest-full.sh --ocr         # force re-OCR on ingest only; audit still uses cache
 ./scripts/ingest-full.sh --skip-audit   # ingest only, no YAML audit
 ```
 

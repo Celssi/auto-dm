@@ -95,7 +95,12 @@ def pdf_background_audit(source: str, *, limit: int = 0, force_ocr: bool = False
         specs = specs[:limit]
 
     pages = load_pdf_pages(source, force_ocr=force_ocr)
-    for spec in specs:
+    total = len(specs)
+    for i, spec in enumerate(specs, 1):
+        if spec.verified_from_pdf:
+            print(f"  [{i}/{total}] {spec.label} — skip (verified_from_pdf)", flush=True)
+            continue
+        print(f"  [{i}/{total}] {spec.label}...", flush=True)
         extracted = extract_background(
             spec,
             pdf_key=source,
@@ -107,6 +112,11 @@ def pdf_background_audit(source: str, *, limit: int = 0, force_ocr: bool = False
         diffs = diff_background(spec, extracted)
         if extracted.get("error"):
             issues.append(f"[{source}] {spec.label}: extract error — {extracted['error']}")
+            print(f"       error: {extracted['error']}", flush=True)
+        elif diffs:
+            print(f"       {len(diffs)} mismatch(es)", flush=True)
+        else:
+            print("       OK", flush=True)
         for d in diffs:
             issues.append(f"[{source}] {spec.label}: {d}")
     return issues
@@ -117,7 +127,11 @@ def main() -> int:
     parser.add_argument("--skip-pdf", action="store_true", help="Structural checks only (no LLM/OCR)")
     parser.add_argument("--include-faerun", action="store_true", help="Also audit Heroes of Faerûn backgrounds")
     parser.add_argument("--limit", type=int, default=0, help="Limit PDF backgrounds checked per source")
-    parser.add_argument("--force-ocr", action="store_true")
+    parser.add_argument(
+        "--force-ocr",
+        action="store_true",
+        help="Re-run OCR instead of data/ocr_cache/ (normally shared with ingest)",
+    )
     args = parser.parse_args()
 
     print("=== Structural audit ===")

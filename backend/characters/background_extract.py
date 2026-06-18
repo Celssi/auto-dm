@@ -48,6 +48,7 @@ class BackgroundSpec:
     feat: str = ""
     skills: list[str] = field(default_factory=list)
     tool: str = ""
+    verified_from_pdf: bool = False
 
     def to_yaml_dict(self) -> dict[str, Any]:
         out: dict[str, Any] = {
@@ -87,6 +88,7 @@ def load_curated_backgrounds(source: str) -> list[BackgroundSpec]:
                 feat=str(row.get("feat") or ""),
                 skills=[str(s).lower() for s in (row.get("skills") or [])],
                 tool=str(row.get("tool") or ""),
+                verified_from_pdf=bool(row.get("verified_from_pdf")),
             )
         )
     return specs
@@ -270,6 +272,20 @@ def extract_background(
         return {"error": str(e), "label": spec.label}
 
 
+def _normalize_tool_label(value: str) -> str:
+    v = (value or "").strip().lower().replace("’", "'")
+    for prefix in ("choose one kind of ", "choose a ", "choose one "):
+        if v.startswith(prefix):
+            v = v[len(prefix) :]
+    return v.strip()
+
+
+def _normalize_feat_label(value: str) -> str:
+    v = (value or "").strip()
+    v = re.sub(r"\s*\(see\b.*?\)\s*", "", v, flags=re.IGNORECASE).strip()
+    return v.lower()
+
+
 def diff_background(curated: BackgroundSpec, extracted: dict[str, Any]) -> list[str]:
     if extracted.get("error"):
         return [f"extract failed: {extracted['error']}"]
@@ -277,7 +293,10 @@ def diff_background(curated: BackgroundSpec, extracted: dict[str, Any]) -> list[
     for field in ("feat", "tool"):
         c = (getattr(curated, field) or "").strip()
         e = (extracted.get(field) or "").strip()
-        if c and e and c.lower() != e.lower():
+        if field == "feat":
+            if c and e and _normalize_feat_label(c) != _normalize_feat_label(e):
+                diffs.append(f"{field}: curated={c!r} pdf={e!r}")
+        elif c and e and _normalize_tool_label(c) != _normalize_tool_label(e):
             diffs.append(f"{field}: curated={c!r} pdf={e!r}")
     if curated.skills and extracted.get("skills"):
         if sorted(curated.skills) != sorted(extracted["skills"]):
