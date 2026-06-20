@@ -49,9 +49,20 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ character }),
     }),
+  getLevelUpPreview: (id: string, className?: string) =>
+    request<{ preview: Record<string, unknown> }>(
+      `/characters/${id}/level-up-preview${className ? `?class_name=${encodeURIComponent(className)}` : ''}`,
+    ),
   levelUpCharacter: (
     id: string,
-    body?: { hp_roll?: number; asi_choices?: Record<string, unknown>[]; class_name?: string },
+    body?: {
+      hp_roll?: number;
+      asi_choices?: Record<string, unknown>[];
+      class_name?: string;
+      cantrips?: string[];
+      prepared_spells?: string[];
+      known_spells?: string[];
+    },
   ) =>
     request<{ character: Record<string, unknown>; summary: Record<string, unknown> }>(`/characters/${id}/level-up`, {
       method: 'POST',

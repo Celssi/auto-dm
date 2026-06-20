@@ -15,8 +15,9 @@ from backend.characters.character_data import (
     half_caster_slots,
     shield_ac_bonus,
     skills_data,
+    spell_list_for,
 )
-from backend.characters.entity import ABILITY_KEYS, Dnd5eCharacter
+from backend.characters.entity import ABILITY_KEYS, Dnd5eCharacter, character_from_dict, character_to_dict
 from backend.characters.features import unlocked_features
 from backend.characters.multiclass import (
     asi_feat_slots_multiclass,
@@ -39,6 +40,14 @@ from backend.characters.spell_resources import (
 _SPELLCASTING_FULL = {"bard", "cleric", "druid", "sorcerer", "wizard"}
 _SPELLCASTING_HALF = {"paladin", "ranger"}
 _SPELLCASTING_PACT = {"warlock"}
+_PREPARED_BY_ABILITY = frozenset({"cleric", "druid", "wizard", "paladin", "ranger"})
+_SPELLCASTING_ABILITY = {
+    "cleric": "wis",
+    "druid": "wis",
+    "wizard": "int",
+    "paladin": "cha",
+    "ranger": "wis",
+}
 
 
 def _level_index(level: int) -> int:
@@ -175,20 +184,242 @@ def merge_proficiencies(char: Dnd5eCharacter) -> tuple[list[str], list[str], lis
     return skills, sorted(saves), tools
 
 
+def _prepared_spell_cap(class_id: str, class_level: int, ability_mod: int) -> int:
+    """PHB 2024: ability mod + class level (half level, rounded up, for half casters)."""
+    if class_id in _SPELLCASTING_HALF:
+        half = (class_level + 1) // 2
+        return max(1, ability_mod + half)
+    return max(1, ability_mod + class_level)
+
+
+def spell_limits_for_class(
+    char: Dnd5eCharacter,
+    class_id: str,
+    *,
+    class_level: int | None = None,
+) -> dict[str, int]:
+    cls = get_class(class_id)
+    if not cls or not cls.get("spellcasting"):
+        return {"cantrips": 0, "prepared": 0, "known": 0}
+    level = int(
+        class_level if class_level is not None else class_levels_dict(char).get(class_id, 0)
+    )
+    if level <= 0:
+        return {"cantrips": 0, "prepared": 0, "known": 0}
+    cantrips = _by_level(cls.get("cantrips_by_level"), level, 0)
+    mode = cls.get("spellcasting")
+    if mode in ("known", "pact"):
+        known = _by_level(cls.get("spells_known_by_level"), level, 0)
+        return {"cantrips": cantrips, "prepared": 0, "known": known}
+    if class_id in _PREPARED_BY_ABILITY:
+        ab = _SPELLCASTING_ABILITY.get(class_id, str(cls.get("primary_ability", "wis")).lower())
+        prepared = _prepared_spell_cap(class_id, level, char.ability_modifier(ab))
+        return {"cantrips": cantrips, "prepared": prepared, "known": 0}
+    prepared = _by_level(cls.get("prepared_by_level"), level, 0)
+    return {"cantrips": cantrips, "prepared": prepared, "known": 0}
+
+
 def spell_limits(char: Dnd5eCharacter) -> dict[str, int]:
     totals = {"cantrips": 0, "prepared": 0, "known": 0}
     entries = normalize_class_entries(char)
     if not entries:
         entries = [{"class_name": char.class_name, "level": char.level}]
     for entry in entries:
-        cls = get_class(entry["class_name"])
-        if not cls or not cls.get("spellcasting"):
+        cid = str(entry.get("class_name") or "")
+        if not cid:
             continue
-        level = int(entry["level"])
-        totals["cantrips"] += _by_level(cls.get("cantrips_by_level"), level, 0)
-        totals["prepared"] += _by_level(cls.get("prepared_by_level"), level, 0)
-        totals["known"] += _by_level(cls.get("spells_known_by_level"), level, 0)
+        row = spell_limits_for_class(char, cid, class_level=int(entry.get("level", 0)))
+        totals["cantrips"] += row["cantrips"]
+        totals["prepared"] += row["prepared"]
+        totals["known"] += row["known"]
     return totals
+
+
+def _spell_pick_field(class_id: str) -> str:
+    cls = get_class(class_id) or {}
+    mode = cls.get("spellcasting")
+    return "known_spells" if mode in ("known", "pact") else "prepared_spells"
+
+
+def _spell_pick_label(class_id: str) -> str:
+    cls = get_class(class_id) or {}
+    mode = cls.get("spellcasting")
+    if mode == "pact":
+        return "Spells known (pact magic)"
+    if mode == "known":
+        return "Spells known"
+    ab = _SPELLCASTING_ABILITY.get(class_id, str(cls.get("primary_ability", "wis")).upper())
+    if class_id in _PREPARED_BY_ABILITY:
+        if class_id in _SPELLCASTING_HALF:
+            return f"Prepared spells ({ab} mod + half level)"
+        return f"Prepared spells ({ab} mod + class level)"
+    return "Prepared spells"
+
+
+def _pick_budget(current: int, limit_before: int, limit_after: int) -> dict[str, int | bool]:
+    return {
+        "limit_before": limit_before,
+        "limit_after": limit_after,
+        "current": current,
+        "limit_increased": limit_after > limit_before,
+        "additional_picks": max(0, limit_after - current),
+    }
+
+
+# Levels that grant an Ability Score Improvement / feat. Most classes use the
+# default; Fighter and Rogue get extras (PHB 2024).
+_ASI_LEVELS_DEFAULT = (4, 8, 12, 16, 19)
+_ASI_LEVELS_BY_CLASS = {
+    "fighter": (4, 6, 8, 12, 14, 16, 19),
+    "rogue": (4, 8, 10, 12, 16, 19),
+}
+
+
+def _simulate_class_level(char: Dnd5eCharacter, class_name: str) -> tuple[Dnd5eCharacter, int, int]:
+    """Return character after gaining one level in class_name, plus old/new class levels."""
+    target = class_name.strip().lower()
+    char_after = character_from_dict(character_to_dict(char))
+    entries = normalize_class_entries(char_after)
+    old_level = 0
+    new_level = 1
+    found = False
+    for entry in entries:
+        if entry["class_name"] == target:
+            old_level = int(entry["level"])
+            entry["level"] = old_level + 1
+            new_level = old_level + 1
+            found = True
+            break
+    if not found:
+        entries.append(
+            {"class_name": target, "level": 1, "subclass": "", "class_skill_choices": []}
+        )
+    char_after.classes = entries
+    sync_legacy_class_fields(char_after)
+    return rebuild_character(char_after, recompute_hp=False), old_level, new_level
+
+
+def level_up_preview(char: Dnd5eCharacter, *, class_name: str | None = None) -> dict[str, Any]:
+    """Preview mechanical changes when gaining one level (does not mutate char)."""
+    if total_class_level(char) >= 20:
+        return {"can_level": False, "reason": "Already level 20"}
+    target = (
+        (class_name or (primary_class_entry(char) or {}).get("class_name") or char.class_name or "")
+        .strip()
+        .lower()
+    )
+    if not target:
+        return {"can_level": False, "reason": "No class selected"}
+
+    char_after, old_class_level, new_class_level = _simulate_class_level(char, target)
+    limits_before = spell_limits(char)
+    limits_after = spell_limits(char_after)
+    cls = get_class(target) or {}
+    cls_limits_before = spell_limits_for_class(char, target, class_level=old_class_level or 0)
+    cls_limits_after = spell_limits_for_class(char_after, target, class_level=new_class_level)
+
+    slots_before = compute_spell_slots(char)
+    slots_after = compute_spell_slots(char_after)
+    slot_changes: list[dict[str, Any]] = []
+    for lvl in sorted({*slots_before.keys(), *slots_after.keys()}, key=int):
+        before = int(slots_before.get(lvl, 0) or 0)
+        after = int(slots_after.get(lvl, 0) or 0)
+        if after > before:
+            slot_changes.append({"level": int(lvl), "before": before, "after": after})
+
+    pb_before = char.proficiency_bonus()
+    pb_after = char_after.proficiency_bonus()
+    asi_levels = _ASI_LEVELS_BY_CLASS.get(target, _ASI_LEVELS_DEFAULT)
+    asi_this_level = new_class_level in asi_levels and old_class_level < new_class_level
+    subclass_level = int(cls.get("subclass_level", 3) or 3)
+    entry_after = next((e for e in normalize_class_entries(char_after) if e["class_name"] == target), {})
+    needs_subclass = (
+        new_class_level >= subclass_level and not str(entry_after.get("subclass") or "").strip()
+    )
+
+    ws_before = compute_wild_shape_max(char)
+    ws_after = compute_wild_shape_max(char_after)
+
+    spell_field = _spell_pick_field(target)
+    spell_count = len(getattr(char, spell_field, []) or [])
+    pick_key = "known" if spell_field == "known_spells" else "prepared"
+    limit_before = limits_before[pick_key]
+    limit_after = limits_after[pick_key]
+
+    spell_list_raw = spell_list_for(target)
+    spell_options: list[str] = []
+    for key, names in spell_list_raw.items():
+        if key != "cantrips":
+            spell_options.extend(str(n) for n in names or [])
+
+    notices: list[str] = []
+    if pb_after > pb_before:
+        notices.append(f"Proficiency bonus increases to +{pb_after}.")
+    if cls_limits_after["cantrips"] > cls_limits_before["cantrips"]:
+        cap = cls_limits_after["cantrips"]
+        extra = max(0, cap - len(char.cantrips or []))
+        if extra:
+            notices.append(f"Learn {extra} more cantrip{'s' if extra != 1 else ''} (max {cap}).")
+        else:
+            notices.append(f"Cantrip limit increases to {cap} (you already know {len(char.cantrips or [])}).")
+    if limit_after > limit_before:
+        extra = max(0, limit_after - spell_count)
+        label = _spell_pick_label(target)
+        if extra:
+            notices.append(f"Prepare or learn {extra} more spell{'s' if extra != 1 else ''} ({label}; max {limit_after}).")
+        else:
+            notices.append(f"Spell limit increases to {limit_after} (you already have {spell_count}).")
+    for row in slot_changes:
+        if row["before"] == 0:
+            notices.append(f"Gain level {row['level']} spell slots (×{row['after']}).")
+        else:
+            notices.append(f"Level {row['level']} spell slots increase to ×{row['after']}.")
+    if asi_this_level:
+        notices.append("Ability Score Improvement or feat available this level.")
+    if needs_subclass:
+        notices.append(f"Choose a {str(cls.get('label') or target.title())} subclass.")
+    if ws_after > ws_before:
+        notices.append(f"Wild Shape uses increase to {ws_after} per long rest.")
+
+    hit_die = int(cls.get("hit_die", 8) or 8)
+    return {
+        "can_level": True,
+        "target_class": target,
+        "target_class_label": str(cls.get("label") or target.title()),
+        "class_level_before": old_class_level,
+        "class_level_after": new_class_level,
+        "total_level_before": char.level,
+        "total_level_after": char_after.level,
+        "hit_die": hit_die,
+        "proficiency_bonus_before": pb_before,
+        "proficiency_bonus_after": pb_after,
+        "proficiency_bonus_increases": pb_after > pb_before,
+        "cantrips": _pick_budget(len(char.cantrips or []), limits_before["cantrips"], limits_after["cantrips"]),
+        "class_cantrips": _pick_budget(
+            len(char.cantrips or []),
+            cls_limits_before["cantrips"],
+            cls_limits_after["cantrips"],
+        ),
+        "spells": {
+            **_pick_budget(spell_count, limit_before, limit_after),
+            "field": spell_field,
+            "label": _spell_pick_label(target),
+        },
+        "spell_slots": {"before": slots_before, "after": slots_after, "changes": slot_changes},
+        "asi_this_level": asi_this_level,
+        "needs_subclass": needs_subclass,
+        "subclass_level": subclass_level,
+        "wild_shape": {
+            "max_before": ws_before,
+            "max_after": ws_after,
+            "limit_increased": ws_after > ws_before,
+        },
+        "spell_list": {
+            "cantrips": list(spell_list_raw.get("cantrips") or []),
+            "options": spell_options,
+        },
+        "notices": notices,
+    }
 
 
 def apply_starting_equipment(char: Dnd5eCharacter) -> Dnd5eCharacter:
@@ -415,15 +646,6 @@ def add_multiclass_level(char: Dnd5eCharacter, class_id: str) -> tuple[Dnd5eChar
     entries.append({"class_name": class_id, "level": 1, "subclass": "", "class_skill_choices": []})
     char.classes = entries
     return rebuild_character(char, recompute_hp=True), ""
-
-
-# Levels that grant an Ability Score Improvement / feat. Most classes use the
-# default; Fighter and Rogue get extras (PHB 2024).
-_ASI_LEVELS_DEFAULT = (4, 8, 12, 16, 19)
-_ASI_LEVELS_BY_CLASS = {
-    "fighter": (4, 6, 8, 12, 14, 16, 19),
-    "rogue": (4, 8, 10, 12, 16, 19),
-}
 
 
 def asi_feat_slots(class_id: str, level: int) -> int:

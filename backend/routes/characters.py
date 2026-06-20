@@ -11,6 +11,7 @@ from backend.characters.character_builder import (
     add_multiclass_level,
     character_creation_summary,
     finalize_new_character,
+    level_up_preview,
     rebuild_character,
 )
 from backend.characters.character_data import character_options_payload, multiclass_prerequisites
@@ -30,6 +31,9 @@ class LevelUpBody(BaseModel):
     hp_roll: int | None = None
     asi_choices: list[dict[str, Any]] | None = None
     class_name: str | None = None
+    cantrips: list[str] | None = None
+    prepared_spells: list[str] | None = None
+    known_spells: list[str] | None = None
 
 
 class MulticlassBody(BaseModel):
@@ -84,14 +88,35 @@ def update(char_id: str, body: CharacterBody):
     return {"character": get_character(char_id)}
 
 
+@router.get("/{char_id}/level-up-preview")
+def level_up_preview_route(char_id: str, class_name: str | None = None):
+    char = get_character(char_id)
+    if not char:
+        raise HTTPException(404, "Character not found")
+    obj = rebuild_character(character_from_dict(char))
+    return {"preview": level_up_preview(obj, class_name=class_name)}
+
+
 @router.post("/{char_id}/level-up")
 def level_up_route(char_id: str, body: LevelUpBody):
     char = get_character(char_id)
     if not char:
         raise HTTPException(404, "Character not found")
+    pending: dict[str, Any] = {}
     if body.asi_choices is not None:
-        char["asi_choices"] = body.asi_choices
-        save_character(char_id, character_to_dict(rebuild_character(character_from_dict(char))))
+        pending["asi_choices"] = body.asi_choices
+    if body.cantrips is not None:
+        pending["cantrips"] = body.cantrips
+    if body.prepared_spells is not None:
+        pending["prepared_spells"] = body.prepared_spells
+    if body.known_spells is not None:
+        pending["known_spells"] = body.known_spells
+    if pending:
+        char.update(pending)
+        save_character(
+            char_id,
+            character_to_dict(rebuild_character(character_from_dict(char))),
+        )
     try:
         return level_up_character(char_id, hp_roll=body.hp_roll, class_name=body.class_name)
     except ValueError as e:

@@ -63,12 +63,18 @@ export default function CharactersPage() {
     }
   };
 
-  const levelUp = async (hpRoll: number | undefined, asiChoices: Record<string, unknown>[], className?: string) => {
+  const levelUp = async (
+    hpRoll: number | undefined,
+    asiChoices: Record<string, unknown>[],
+    className?: string,
+    spells?: { cantrips?: string[]; prepared_spells?: string[]; known_spells?: string[] },
+  ) => {
     if (!state.activeId) return;
     const res = await api.levelUpCharacter(state.activeId, {
       hp_roll: hpRoll,
       asi_choices: asiChoices,
       class_name: className,
+      ...spells,
     });
     dispatch({
       type: 'set',
@@ -255,8 +261,9 @@ export default function CharactersPage() {
         </m.div>
       )}
 
-      {state.levelUpOpen && character && (
+      {state.levelUpOpen && character && state.activeId && (
         <LevelUpDialog
+          characterId={state.activeId}
           character={character}
           summary={summary}
           onConfirm={levelUp}
