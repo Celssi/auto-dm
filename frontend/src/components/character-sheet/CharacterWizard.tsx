@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useReducer, useState } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { api } from '../../api/client';
 import type { Character } from '../../types';
 import { spellLimitsFromClass, spellListField } from '../../lib/dnd5eCharacterCreation';
@@ -29,11 +29,6 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
     initial || (defaultWizardCharacter as Character),
   );
 
-  useEffect(() => {
-    const includeFaerun = char.campaign_setting === 'faerun';
-    api.getCharacterOptions(includeFaerun).then(setOptions);
-  }, [char.campaign_setting]);
-
   const patch = (p: Partial<Character>) => setChar(p);
 
   const classes = (options.classes || []) as WizardClassOption[];
@@ -62,20 +57,50 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
     return result;
   }, [spellList]);
 
+  const includeFaerun = (char.campaign_setting || defaultWizardCharacter.campaign_setting) === 'faerun';
+
   useEffect(() => {
-    if (!selectedClass || !spellList.cantrips) return;
-    const cantrips = normalizeChoiceList(char.cantrips || [], spellList.cantrips || []);
-    const prepared = normalizeChoiceList(char.prepared_spells || [], spellOptions);
-    const classSkillOpts = (selectedClass.skill_choices || []) as string[];
-    const classSkills = normalizeChoiceList(char.class_skill_choices || [], classSkillOpts);
-    const patchFields: Partial<Character> = {};
-    if (JSON.stringify(cantrips) !== JSON.stringify(char.cantrips)) patchFields.cantrips = cantrips;
-    if (JSON.stringify(prepared) !== JSON.stringify(char.prepared_spells)) patchFields.prepared_spells = prepared;
-    if (JSON.stringify(classSkills) !== JSON.stringify(char.class_skill_choices)) {
-      patchFields.class_skill_choices = classSkills;
+    let cancelled = false;
+    api.getCharacterOptions(includeFaerun).then((data) => {
+      if (!cancelled) setOptions(data);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [includeFaerun]);
+
+  const normalizeSpellFields = useCallback(
+    (draft: Character, cls: WizardClassOption | undefined, sl: Record<string, string[]>) => {
+      if (!cls || !sl.cantrips) return {};
+      const cantrips = normalizeChoiceList(draft.cantrips || [], sl.cantrips || []);
+      const prepared = normalizeChoiceList(draft.prepared_spells || [], spellOptions);
+      const classSkillOpts = (cls.skill_choices || []) as string[];
+      const classSkills = normalizeChoiceList(draft.class_skill_choices || [], classSkillOpts);
+      const patchFields: Partial<Character> = {};
+      if (JSON.stringify(cantrips) !== JSON.stringify(draft.cantrips)) patchFields.cantrips = cantrips;
+      if (JSON.stringify(prepared) !== JSON.stringify(draft.prepared_spells)) patchFields.prepared_spells = prepared;
+      if (JSON.stringify(classSkills) !== JSON.stringify(draft.class_skill_choices)) {
+        patchFields.class_skill_choices = classSkills;
+      }
+      return patchFields;
+    },
+    [spellOptions],
+  );
+
+  const patchClassName = (className: string) => {
+    const cls = classes.find((c) => c.id === className);
+    const sl = spellLists[cls?.spell_list || className] || {};
+    const draft = { ...char, class_name: className };
+    patch({ class_name: className, ...normalizeSpellFields(draft, cls, sl) });
+  };
+
+  const goToStep = (next: number) => {
+    if (next === 3 && selectedClass && spellList.cantrips) {
+      const extras = normalizeSpellFields(char, selectedClass, spellList);
+      if (Object.keys(extras).length) patch(extras);
     }
-    if (Object.keys(patchFields).length) patch(patchFields);
-  }, [selectedClass?.id, spellList, spellOptions]);
+    setStep(next);
+  };
 
   const applyStandardArray = () => {
     const table = (options.standard_array_by_class || {}) as Record<string, Record<string, number>>;
@@ -130,6 +155,10 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
         <WizardBasicsStep
           char={char}
           patch={patch}
+          onClassChange={patchClassName}
+          onCampaignSettingChange={(_setting, patchFields) => {
+            patch(patchFields);
+          }}
           classes={classes}
           species={species}
           backgroundGroups={backgroundGroups}
@@ -162,12 +191,12 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
         </div>
         <div className="flex gap-2">
           {step > 0 && (
-            <button type="button" className="btn-ghost" onClick={() => setStep((s) => s - 1)}>
+            <button type="button" className="btn-ghost" onClick={() => goToStep(step - 1)}>
               Back
             </button>
           )}
           {step < WIZARD_STEPS.length - 1 ? (
-            <button type="button" className="btn-primary" onClick={() => setStep((s) => s + 1)}>
+            <button type="button" className="btn-primary" onClick={() => goToStep(step + 1)}>
               Next
             </button>
           ) : (

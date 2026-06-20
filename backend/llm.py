@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import os
+from functools import lru_cache
 from typing import Any, Literal
 
 from backend.config import (
@@ -66,27 +67,29 @@ def invoke_chat_llm(
     return response
 
 
-def get_langchain_chat_llm(provider: ChatProvider = "claude"):
+@lru_cache(maxsize=4)
+def _cached_langchain_chat_llm(provider: str, model: str, api_key: str):
     if provider == "claude":
         from langchain_anthropic import ChatAnthropic
 
-        key = resolve_anthropic_api_key()
-        if not key:
-            raise RuntimeError("ANTHROPIC_API_KEY not set")
-        return ChatAnthropic(
-            model=resolve_claude_model(),
-            api_key=key,
-            max_tokens=8192,
-        )
+        return ChatAnthropic(model=model, api_key=api_key, max_tokens=8192)
     from langchain_ollama import ChatOllama
-
-    from backend.config import OLLAMA_BASE_URL
 
     return ChatOllama(
         base_url=OLLAMA_BASE_URL,
-        model=os.environ.get("OLLAMA_CHAT_MODEL", "gemma3:12b"),
+        model=model,
         timeout=OLLAMA_REQUEST_TIMEOUT,
     )
+
+
+def get_langchain_chat_llm(provider: ChatProvider = "claude"):
+    if provider == "claude":
+        key = resolve_anthropic_api_key()
+        if not key:
+            raise RuntimeError("ANTHROPIC_API_KEY not set")
+        return _cached_langchain_chat_llm(provider, resolve_claude_model(), key)
+    model = os.environ.get("OLLAMA_CHAT_MODEL", "gemma3:12b")
+    return _cached_langchain_chat_llm(provider, model, "")
 
 
 def get_llamaindex_chat_llm(provider: ChatProvider = "claude"):

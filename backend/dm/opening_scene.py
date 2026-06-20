@@ -164,7 +164,11 @@ def begin_session(session_id: str) -> dict[str, Any]:
         except Exception:
             campaign = get_campaign(campaign_id)
             story_arc = (campaign.get("story_arc") or "").strip() if campaign else ""
-            fallback_outline = f"# {adv.get('name', adventure_id)}\n\n## Premise\n{theme}\n\n## Campaign context\n{story_arc[:4000]}"
+            fallback_outline = (
+                f"# {adv.get('name', adventure_id)}\n\n"
+                f"## Premise\n{theme}\n\n"
+                f"## Campaign context\n{story_arc[:4000]}"
+            )
             opening = _generate_opening_from_outline(
                 adventure_name=adv.get("name", adventure_id),
                 theme=theme,

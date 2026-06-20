@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from backend.characters.character_builder import level_up_preview, rebuild_character, spell_limits_for_class
+from backend.characters.character_builder import (
+    level_up_preview,
+    rebuild_character,
+    spell_limits_for_class,
+)
 from backend.characters.entity import Dnd5eCharacter
 
 
@@ -14,8 +18,22 @@ def _druid(**kwargs) -> Dnd5eCharacter:
         ability_scores={"str": 8, "dex": 16, "con": 15, "int": 12, "wis": 17, "cha": 10},
         ability_scores_set=True,
         cantrips=["Druidcraft", "Produce Flame"],
-        prepared_spells=["Entangle", "Goodberry", "Faerie Fire", "Detect Magic", "Healing Word", "Speak with Animals"],
-        classes=[{"class_name": "druid", "level": 3, "subclass": "Circle of the Moon", "class_skill_choices": []}],
+        prepared_spells=[
+            "Entangle",
+            "Goodberry",
+            "Faerie Fire",
+            "Detect Magic",
+            "Healing Word",
+            "Speak with Animals",
+        ],
+        classes=[
+            {
+                "class_name": "druid",
+                "level": 3,
+                "subclass": "Circle of the Moon",
+                "class_skill_choices": [],
+            }
+        ],
     )
     base.update(kwargs)
     return rebuild_character(Dnd5eCharacter(**base))
@@ -56,7 +74,9 @@ def test_subclass_reminder_at_level_3():
             name="X",
             class_name="druid",
             level=2,
-            classes=[{"class_name": "druid", "level": 2, "subclass": "", "class_skill_choices": []}],
+            classes=[
+                {"class_name": "druid", "level": 2, "subclass": "", "class_skill_choices": []}
+            ],
         )
     )
     preview = level_up_preview(char, class_name="druid")

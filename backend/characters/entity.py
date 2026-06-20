@@ -455,7 +455,10 @@ def format_for_prompt(
         armor_line += " + shield"
     weapons = (
         "; ".join(
-            f"{w.get('name')} ({w.get('damage', '')} {w.get('damage_type', '')}, {str(w.get('ability', 'str')).upper()})".strip()
+            f"{w.get('name')} "
+            f"({w.get('damage', '')} "
+            f"{w.get('damage_type', '')}, "
+            f"{str(w.get('ability', 'str')).upper()})".strip()
             for w in char.weapons
         )
         or "(none)"
@@ -490,11 +493,15 @@ def format_for_prompt(
         "Current D&D 5e character:",
         f"- Name: {char.name or 'unnamed'}",
         f"- Species: {char.species or '(not set)'} ({char.size})",
-        f"- Class: {char.class_name or '(not set)'} / {char.subclass or '(no subclass)'} (total level {char.level})",
+        f"- Class: {char.class_name or '(not set)'} / "
+        f"{char.subclass or '(no subclass)'} "
+        f"(total level {char.level})",
         f"- Multiclass: {mc_line}",
         f"- Background: {char.background or '(not set)'}",
         f"- Alignment: {char.alignment or '(not set)'}",
-        f"- HP: {char.hp}/{char.max_hp} (Hit Die d{char.hit_die}, {char.hit_dice_max - char.hit_dice_spent} left)",
+        f"- HP: {char.hp}/{char.max_hp} "
+        f"(Hit Die d{char.hit_die}, "
+        f"{char.hit_dice_max - char.hit_dice_spent} left)",
         f"- AC: {char.ac} ({armor_line}) | Speed: {char.speed} ft.",
         f"- Ability scores: {scores}",
         f"- Skill proficiencies: {skills}",
@@ -517,7 +524,8 @@ def format_for_prompt(
         lines.append(f"- Wild Shape uses: {char.wild_shape_uses}/{ws_max}")
     lines.extend(
         [
-            f"- Death saves: {char.death_save_successes} success / {char.death_save_failures} failure"
+            f"- Death saves: {char.death_save_successes} success"
+            f" / {char.death_save_failures} failure"
             if char.max_hp and char.hp == 0
             else "- Death saves: (not dying)",
             f"- Currency: {coins or '(none)'}",

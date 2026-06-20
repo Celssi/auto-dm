@@ -42,6 +42,7 @@ class Combatant(BaseModel):
     ac: int = 10
     attack_bonus: int = 0
     damage: str = ""
+    multiattack_count: int = 1
     conditions: list[str] = Field(default_factory=list)
 
 

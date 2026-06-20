@@ -23,6 +23,12 @@ class MonsterStats(BaseModel):
     hp: int = 10
     speed: str = "30 ft."
     attacks: list[MonsterAttack] = Field(default_factory=list)
+    multiattack_count: int = Field(
+        default=1,
+        ge=1,
+        le=5,
+        description="Number of attacks per Multiattack action (1 = no multiattack)",
+    )
 
 
 def _fallback_stats(monster_name: str) -> MonsterStats:
@@ -67,6 +73,9 @@ Rules:
 - ac: Armor Class integer
 - hp: Hit Points (use average if a range is given)
 - attacks: primary melee/ranged attacks with to_hit bonus and damage dice
+- multiattack_count: how many attacks the creature makes per Multiattack action
+  (e.g. "makes two Claw attacks" → 2, "makes three attacks" → 3).
+  Set to 1 if the creature has no Multiattack.
 - If excerpts do not contain this creature, set ac=12, hp=22, one generic attack +4, 1d6+2
 
 Excerpts:

@@ -38,6 +38,8 @@ class ChatBody(BaseModel):
 class ShortcutBody(BaseModel):
     shortcut_id: str
     params: dict = {}
+    pre_rolled: list[int] | None = None
+    narrate: bool = False
 
 
 class OracleBody(BaseModel):
@@ -104,8 +106,28 @@ def shortcut(session_id: str, body: ShortcutBody):
         raise HTTPException(404, "Session not found")
     char = get_character(sess["character_id"]) or {}
     params = {**char, **body.params}
-    result = run_shortcut(body.shortcut_id, **params)
-    return result
+    if body.pre_rolled is not None:
+        if not body.pre_rolled:
+            raise HTTPException(400, "pre_rolled must not be empty")
+        if not all(1 <= v <= 20 for v in body.pre_rolled):
+            raise HTTPException(400, "pre_rolled values must be between 1 and 20")
+        params["pre_rolled"] = body.pre_rolled
+    try:
+        result = run_shortcut(body.shortcut_id, **params)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    if not body.narrate:
+        return result
+    try:
+        dm_result = run_dm_turn(
+            session_id,
+            result.get("user_message", ""),
+            precomputed_shortcut=result,
+        )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    dm_result["shortcut"] = result
+    return dm_result
 
 
 @router.post("/{session_id}/oracle")

@@ -90,6 +90,54 @@ def _split_long_paragraph(paragraph: str, chunk_size: int) -> list[str]:
     return out
 
 
+_SECTION_HEADING_RE = re.compile(
+    r"^(?:"
+    r"[A-Z][A-Za-z'']+(?:\s+[A-Za-z'']+){0,6}"
+    r"(?:\s*\([^)]+\))?"
+    r")$",
+    re.MULTILINE,
+)
+
+
+def _detect_section_title(text: str) -> str:
+    for line in text.split("\n")[:3]:
+        line = line.strip()
+        if not line or len(line) > 80:
+            continue
+        if _SECTION_HEADING_RE.match(line):
+            return line
+    return ""
+
+
+def _split_into_sections(text: str) -> list[tuple[str, str]]:
+    lines = text.split("\n")
+    sections: list[tuple[str, str]] = []
+    current_title = ""
+    current_lines: list[str] = []
+
+    for line in lines:
+        stripped = line.strip()
+        if (
+            stripped
+            and len(stripped) <= 80
+            and _SECTION_HEADING_RE.match(stripped)
+            and current_lines
+            and len("\n".join(current_lines).strip()) > 20
+        ):
+            sections.append((current_title, "\n".join(current_lines).strip()))
+            current_title = stripped
+            current_lines = [line]
+        else:
+            current_lines.append(line)
+
+    if current_lines:
+        body = "\n".join(current_lines).strip()
+        if body:
+            sections.append((current_title, body))
+
+    return sections if len(sections) > 1 else [("", text)]
+
+
 def _chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
     if len(text) <= chunk_size:
         return [text] if _keep_chunk(text) else []
@@ -123,6 +171,18 @@ def _chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
     for chunk in chunks:
         capped.extend(_hard_split(chunk, chunk_size))
     return [c for c in capped if _keep_chunk(c)]
+
+
+def _chunk_page_with_sections(
+    page_text: str, chunk_size: int, overlap: int
+) -> list[tuple[str, str]]:
+    sections = _split_into_sections(page_text)
+    results: list[tuple[str, str]] = []
+    for title, body in sections:
+        for chunk in _chunk_text(body, chunk_size, overlap):
+            chunk_title = title or _detect_section_title(chunk)
+            results.append((chunk_title, chunk))
+    return results
 
 
 def extract_pages_pypdf(pdf_path: Path) -> list[tuple[int, str]]:
@@ -233,7 +293,7 @@ def build_documents(
     docs: list[Document] = []
     source_file = _pdf_key(path)
     for page_num, page_text, page_extraction in pages:
-        for chunk in _chunk_text(page_text, CHUNK_SIZE, CHUNK_OVERLAP):
+        for section_title, chunk in _chunk_page_with_sections(page_text, CHUNK_SIZE, CHUNK_OVERLAP):
             chunk_meta = {
                 "source_file": source_file,
                 "source_label": meta["label"],
@@ -241,6 +301,7 @@ def build_documents(
                 "faction": meta["faction"],
                 "extraction": extraction,
                 "page_extraction": page_extraction,
+                "section_title": section_title,
             }
             docs.append(Document(text=chunk, metadata=chunk_meta))
     return docs

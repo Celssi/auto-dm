@@ -80,3 +80,31 @@ export interface Source {
   page?: string;
   text?: string;
 }
+
+export interface PickBudget {
+  limit_before: number;
+  limit_after: number;
+  current: number;
+  limit_increased: boolean;
+  additional_picks: number;
+}
+
+export interface LevelUpPreview {
+  can_level: boolean;
+  reason?: string;
+  target_class?: string;
+  target_class_label?: string;
+  class_level_before?: number;
+  class_level_after?: number;
+  total_level_after?: number;
+  hit_die?: number;
+  proficiency_bonus_increases?: boolean;
+  proficiency_bonus_after?: number;
+  cantrips?: PickBudget;
+  class_cantrips?: PickBudget;
+  spells?: PickBudget & { field: string; label: string };
+  spell_list?: { cantrips: string[]; options: string[] };
+  asi_this_level?: boolean;
+  needs_subclass?: boolean;
+  notices?: string[];
+}

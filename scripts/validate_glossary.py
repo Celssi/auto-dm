@@ -28,7 +28,7 @@ from backend.characters.features import class_features_data, subclass_features_d
 from backend.characters.glossary_data import glossary_data  # noqa: E402
 from backend.characters.spell_resources import normalize_spell_name  # noqa: E402
 from backend.config import CURATED_DIR, DATA_DIR  # noqa: E402
-from backend.glossary import build_glossary_index, lookup_entry  # noqa: E402
+from backend.glossary import lookup_entry  # noqa: E402
 
 GLOSSARY_PATH = CURATED_DIR / "dnd5e_glossary.yaml"
 OCR_PLAYER = DATA_DIR / "ocr_cache" / "player.json"
@@ -196,7 +196,8 @@ def validate_glossary(*, strict: bool = False) -> tuple[list[str], list[str]]:
     if missing_spell_rows:
         sample = ", ".join(missing_spell_rows[:8])
         errors.append(
-            f"{len(missing_spell_rows)} class-list spell(s) missing from glossary YAML (e.g. {sample})"
+            f"{len(missing_spell_rows)} class-list spell(s) missing"
+            f" from glossary YAML (e.g. {sample})"
         )
 
     empty_spell_text = sorted(
@@ -207,7 +208,6 @@ def validate_glossary(*, strict: bool = False) -> tuple[list[str], list[str]]:
     if empty_spell_text:
         warnings.append(f"{len(empty_spell_text)} glossary spell(s) have very short text")
 
-    index = build_glossary_index()
     missing_tooltip: list[str] = []
     for nk in sorted(spell_names):
         display = next(
@@ -252,7 +252,8 @@ def validate_glossary(*, strict: bool = False) -> tuple[list[str], list[str]]:
     if missing_features:
         sample = ", ".join(missing_features[:8])
         warnings.append(
-            f"{len(missing_features)} class/subclass feature(s) have no tooltip summary (e.g. {sample})"
+            f"{len(missing_features)} class/subclass feature(s)"
+            f" have no tooltip summary (e.g. {sample})"
         )
 
     ambiguous = _ambiguous_feature_titles(data)
@@ -275,7 +276,8 @@ def validate_glossary(*, strict: bool = False) -> tuple[list[str], list[str]]:
     if OCR_PLAYER.is_file() and GLOSSARY_PATH.is_file():
         if OCR_PLAYER.stat().st_mtime > GLOSSARY_PATH.stat().st_mtime:
             warnings.append(
-                "OCR cache is newer than dnd5e_glossary.yaml — run: python -m scripts.build_glossary_db"
+                "OCR cache is newer than dnd5e_glossary.yaml"
+                " — run: python -m scripts.build_glossary_db"
             )
 
     if strict:

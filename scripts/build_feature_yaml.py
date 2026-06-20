@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Generate dnd5e_class_features.yaml and dnd5e_subclass_features.yaml from embedded PHB 2024 data."""
+"""Generate dnd5e_class_features.yaml and dnd5e_subclass_features.yaml
+from embedded PHB 2024 data."""
 
 from __future__ import annotations
 

@@ -115,6 +115,7 @@ def run_shortcut(
     hit_dice_to_spend: int = 1,
     death_save_successes: int = 0,
     death_save_failures: int = 0,
+    pre_rolled: list[int] | None = None,
     **_kwargs,
 ) -> dict:
     _ = game_id, ac
@@ -126,7 +127,7 @@ def run_shortcut(
     if shortcut_id == "ability_check":
         mod = _resolve_modifier(ability, ability_scores, modifier, proficient, level)
         adv = advantage if advantage in ("normal", "advantage", "disadvantage") else "normal"
-        result = roll_advantage_d20(mod, advantage=adv)  # type: ignore[arg-type]
+        result = roll_advantage_d20(mod, advantage=adv, pre_rolled=pre_rolled)  # type: ignore[arg-type]
         prof = " (proficient)" if proficient else ""
         user = f"**Ability check** ({ability.upper()}{prof})\n\n{result['summary']}"
         prompt = (
@@ -138,7 +139,7 @@ def run_shortcut(
     if shortcut_id == "saving_throw":
         mod = _resolve_modifier(ability, ability_scores, modifier, proficient, level)
         adv = advantage if advantage in ("normal", "advantage", "disadvantage") else "normal"
-        result = roll_advantage_d20(mod, advantage=adv)  # type: ignore[arg-type]
+        result = roll_advantage_d20(mod, advantage=adv, pre_rolled=pre_rolled)  # type: ignore[arg-type]
         user = f"**Saving throw** ({ability.upper()})\n\n{result['summary']}"
         prompt = (
             f"D&D 5e saving throw for {build}, {ability.upper()} save {mod:+d}. "
@@ -149,7 +150,7 @@ def run_shortcut(
     if shortcut_id == "attack_roll":
         mod = _resolve_modifier(ability, ability_scores, modifier, proficient, level)
         adv = advantage if advantage in ("normal", "advantage", "disadvantage") else "normal"
-        result = roll_advantage_d20(mod, advantage=adv)  # type: ignore[arg-type]
+        result = roll_advantage_d20(mod, advantage=adv, pre_rolled=pre_rolled)  # type: ignore[arg-type]
         if target_ac is not None:
             ac_note = f"\n\nvs target AC **{int(target_ac)}**"
             ac_prompt = f" vs AC {int(target_ac)}"
@@ -165,13 +166,18 @@ def run_shortcut(
 
     if shortcut_id == "initiative":
         mod = _resolve_modifier("dex", ability_scores, modifier, False, level)
-        result = roll_dice(f"1d20{mod:+d}" if mod else "1d20")
+        if pre_rolled is not None:
+            from backend.dm.dice import _build_d20_result
+
+            result = _build_d20_result(pre_rolled, mod, "normal")
+        else:
+            result = roll_dice(f"1d20{mod:+d}" if mod else "1d20")
         total = int(result.get("total", 0))
         user = f"**Initiative**\n\n{result.get('summary', f'd20+{mod} = {total}')}"
         return {"user_message": user, "prompt": user, "static": True, "dice": result}
 
     if shortcut_id == "death_save":
-        result = roll_death_saves()
+        result = roll_death_saves(pre_rolled=pre_rolled[0] if pre_rolled else None)
         roll = int(result.get("roll", 0))
         succ = max(0, min(3, int(death_save_successes)))
         fail = max(0, min(3, int(death_save_failures)))
@@ -340,7 +346,8 @@ def run_shortcut(
         prompt = (
             "Explain how to run D&D 5e solo as player and DM: ability checks, saves, combat, "
             "rests, death saves, and using oracle tables for unknown outcomes. "
-            "Reference Player's Handbook and DMG; use Faerûn supplements only when the campaign is set in Faerûn."
+            "Reference Player's Handbook and DMG; use Faerûn "
+            "supplements only when the campaign is set in Faerûn."
         )
         return {"user_message": "**D&D 5e rules**", "prompt": prompt, "rag_only": True}
 

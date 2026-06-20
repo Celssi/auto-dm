@@ -11,7 +11,6 @@ from backend.characters.entity import character_from_dict, format_for_prompt
 from backend.dm.campaign_repair import (
     extract_encounters_from_outline,
     extract_journal_from_text,
-    save_journal_entries,
 )
 from backend.dm.encounters import load_adventure_encounters, save_adventure_encounters
 from backend.dm.session_opening import attach_opening_to_session
@@ -75,7 +74,9 @@ def rag_context_for_theme(
         rules_query, factions=factions, top_k=8, use_rerank=True, generate_answer=False
     )
     context = "\n\n".join(
-        f"{s.get('source_label', s.get('label', '?'))} p.{s.get('page', '?')}: {s.get('text', '')[:600]}"
+        f"{s.get('source_label', s.get('label', '?'))} "
+        f"p.{s.get('page', '?')}: "
+        f"{s.get('text', '')[:600]}"
         for s in rag.sources[:6]
     )
     return context, factions
@@ -173,7 +174,11 @@ def bootstrap_campaign(
             "status": "active",
         },
         outline=spec.adventure_outline,
-        log=f"# Adventure log\n\n_Bootstrap opening scene logged._\n\n{spec.opening_scene.strip()}\n",
+        log=(
+            "# Adventure log\n\n"
+            "_Bootstrap opening scene logged._\n\n"
+            f"{spec.opening_scene.strip()}\n"
+        ),
     )
 
     npc_hints = "\n".join(f"- {n.name}: {n.body[:200]}" for n in spec.npcs[:8])
@@ -248,7 +253,8 @@ def generate_adventure_spec_for_campaign(
 
     prompt = f"""Design the NEXT adventure in an ongoing D&D 5e (2024) SOLO campaign.
 
-This is NOT a new campaign — continue from established canon. Do not reset or contradict prior events.
+This is NOT a new campaign — continue from established canon. Do not reset or contradict prior
+events.
 
 Campaign ID: {campaign_id}
 Prior adventures: {prior_names}
@@ -270,7 +276,8 @@ Rulebook reference:
 
 Requirements:
 - adventure_outline: markdown with Premise, Act 1, Key conflicts, Possible endings
-- opening_scene: drop the player INTO the new arc; reference prior events naturally; end with a clear choice
+- opening_scene: drop the player INTO the new arc; reference prior events naturally;
+  end with a clear choice
 - new_npcs / new_locations: only entries that are NEW or materially changed; leave empty if none
 - Names must be consistent with the campaign journal
 """
@@ -375,7 +382,9 @@ def generate_campaign_plan(
         generate_answer=False,
     )
     context = "\n\n".join(
-        f"{s.get('source_label', s.get('label', '?'))} p.{s.get('page', '?')}: {s.get('text', '')[:700]}"
+        f"{s.get('source_label', s.get('label', '?'))} "
+        f"p.{s.get('page', '?')}: "
+        f"{s.get('text', '')[:700]}"
         for s in rag.sources[:8]
     )
 
@@ -385,7 +394,8 @@ def generate_campaign_plan(
     if mode == "module":
         module_hint = f"""
 Mode is MODULE: base the campaign on published material matching "{theme}".
-- Set source_module on the campaign and on each adventure with title, source_label, chapter, pages when known from references.
+- Set source_module on the campaign and on each adventure with title,
+  source_label, chapter, pages when known from references.
 - Adapt book content for solo play; do not assume a full party.
 - Split the book into exactly {count} playable adventures in sequence.
 """
@@ -395,7 +405,8 @@ Mode is FREEFORM: invent an original campaign arc and exactly {count} linked adv
 - Leave source_module null on all entries.
 """
 
-    prompt = f"""Design a complete D&D 5e (2024) SOLO campaign PLAN (story arc + multiple adventures).
+    prompt = f"""Design a complete D&D 5e (2024) SOLO campaign PLAN \
+(story arc + multiple adventures).
 
 Theme/hook: {theme}
 Setting: {setting}
@@ -411,7 +422,8 @@ Rulebook reference (use for tone and facts when relevant):
 
 Requirements:
 - story_arc: main plot, mysteries, factions, long-term hooks (400-900 words)
-- adventures: exactly {count} entries, sequence 1..{count}, each with name, theme, and markdown outline
+- adventures: exactly {count} entries, sequence 1..{count}, each with name,
+  theme, and markdown outline
 - Each outline: Premise, Act 1, Key conflicts, Possible endings (150-400 words each)
 - Adventures must connect: later ones pay off threads from earlier ones
 - npcs: 4-8 recurring entries with rich bodies (appearance, personality, motivations, role)
@@ -667,7 +679,8 @@ Summaries of prior adventures:
 Story arc:
 {(campaign.get("story_arc") or "")[:4000]}
 
-Propose what happens next. Do not repeat finished plots. Advance unresolved threads or introduce a natural escalation.
+Propose what happens next. Do not repeat finished plots. Advance unresolved threads
+or introduce a natural escalation.
 """
     llm = get_langchain_chat_llm("claude").with_structured_output(NextAdventureHookSpec)
     return llm.invoke([HumanMessage(content=prompt)])
@@ -738,7 +751,11 @@ def bootstrap_adventure_for_campaign(
             "sequence": prior_count + 1,
         },
         outline=spec.adventure_outline,
-        log=f"# Adventure log\n\n_New adventure in {campaign.get('name', campaign_id)}._\n\n{spec.opening_scene.strip()}\n",
+        log=(
+            "# Adventure log\n\n"
+            f"_New adventure in {campaign.get('name', campaign_id)}._"
+            f"\n\n{spec.opening_scene.strip()}\n"
+        ),
     )
 
     summary = generate_opening_summary(

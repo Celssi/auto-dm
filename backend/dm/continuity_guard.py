@@ -39,7 +39,8 @@ Review the DM draft response against established canon. Check:
 - Tone and facts must match Recent scenes unless the player explicitly retcons
 
 If the draft is consistent, set has_issues=false and leave revised_response empty.
-If there are contradictions, set has_issues=true, list issues briefly, and provide a FULL revised DM response that:
+If there are contradictions, set has_issues=true, list issues briefly,
+and provide a FULL revised DM response that:
 - Fixes all contradictions
 - Keeps the same narrative quality and length
 - Preserves the player's intended action outcome

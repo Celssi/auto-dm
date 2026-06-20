@@ -300,21 +300,23 @@ def diff_background(curated: BackgroundSpec, extracted: dict[str, Any]) -> list[
     if extracted.get("error"):
         return [f"extract failed: {extracted['error']}"]
     diffs: list[str] = []
-    for field in ("feat", "tool"):
-        c = (getattr(curated, field) or "").strip()
-        e = (extracted.get(field) or "").strip()
-        if field == "feat":
+    for key in ("feat", "tool"):
+        c = (getattr(curated, key) or "").strip()
+        e = (extracted.get(key) or "").strip()
+        if key == "feat":
             if c and e and _normalize_feat_label(c) != _normalize_feat_label(e):
-                diffs.append(f"{field}: curated={c!r} pdf={e!r}")
+                diffs.append(f"{key}: curated={c!r} pdf={e!r}")
         elif c and e and _normalize_tool_label(c) != _normalize_tool_label(e):
-            diffs.append(f"{field}: curated={c!r} pdf={e!r}")
+            diffs.append(f"{key}: curated={c!r} pdf={e!r}")
     if curated.skills and extracted.get("skills"):
         if sorted(curated.skills) != sorted(extracted["skills"]):
             diffs.append(f"skills: curated={curated.skills} pdf={extracted['skills']}")
     if curated.ability_scores and extracted.get("ability_scores"):
         if sorted(curated.ability_scores) != sorted(extracted["ability_scores"]):
             diffs.append(
-                f"ability_scores: curated={curated.ability_scores} pdf={extracted['ability_scores']}"
+                "ability_scores: "
+                f"curated={curated.ability_scores} "
+                f"pdf={extracted['ability_scores']}"
             )
     return diffs
 

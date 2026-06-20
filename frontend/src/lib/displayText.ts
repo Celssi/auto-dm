@@ -3,10 +3,13 @@ export const EMPTY_FIELD = '-';
 
 /** Case- and punctuation-insensitive id for spells, skills, etc. */
 export function normalizeChoiceId(text: string | null | undefined): string {
-  return (text ?? '').trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+  return (text ?? '')
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
 }
 
-export function resolveCanonicalChoice(stored: string, options: string[]): string | null {
+function resolveCanonicalChoice(stored: string, options: string[]): string | null {
   const key = normalizeChoiceId(stored);
   if (!key) return null;
   return options.find((o) => normalizeChoiceId(o) === key) ?? null;
@@ -38,4 +41,36 @@ export function displayLabels(items: string[], separator = ', '): string {
       return acc;
     }, [])
     .join(separator);
+}
+
+/** Collect character ids from a campaign and its adventures. */
+export function resolvedCampaignCharacterIds(
+  characterIds: string[] | undefined,
+  adventures: { character_id?: string }[] = [],
+): string[] {
+  const ids = [...(characterIds ?? [])];
+  const seen = new Set(ids);
+  for (const adv of adventures) {
+    const id = adv.character_id?.trim();
+    if (id && !seen.has(id)) {
+      seen.add(id);
+      ids.push(id);
+    }
+  }
+  return ids;
+}
+
+function characterNamesForIds(characterIds: string[] | undefined, characters: { id: string; name: string }[]): string {
+  if (!characterIds?.length) return 'No character linked';
+  const names = characterIds.map((id) => characters.find((c) => c.id === id)?.name ?? displayLabel(id));
+  return names.join(', ');
+}
+
+/** Resolve character label from campaign ids and/or loaded adventures. */
+export function campaignCharacterLabel(
+  characterIds: string[] | undefined,
+  characters: { id: string; name: string }[],
+  adventures: { character_id?: string }[] = [],
+): string {
+  return characterNamesForIds(resolvedCampaignCharacterIds(characterIds, adventures), characters);
 }

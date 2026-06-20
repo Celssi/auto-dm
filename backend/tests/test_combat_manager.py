@@ -5,17 +5,20 @@ from pathlib import Path
 from unittest.mock import patch
 
 import backend.config as cfg
+from backend.characters.entity import character_from_dict
 from backend.dm.combat_manager import (
     advance_turn,
     apply_damage_to_player,
+    check_concentration_save,
     current_combatant,
     pick_encounter_to_start,
     resolve_enemy_attack,
+    resolve_enemy_turn,
     start_encounter,
 )
 from backend.dm.encounters import (
-    CombatState,
     Combatant,
+    CombatState,
     EncounterEnemySpec,
     EncounterSpec,
     save_adventure_encounters,
@@ -23,14 +26,16 @@ from backend.dm.encounters import (
 from backend.dm.monster_resolver import MonsterAttack, MonsterStats
 
 
-def _char_dict(hp: int = 30, ac: int = 15) -> dict:
-    return {
+def _char_dict(hp: int = 30, ac: int = 15, **extras) -> dict:
+    base = {
         "name": "Test Hero",
         "hp": hp,
         "max_hp": hp,
         "ac": ac,
-        "ability_scores": {"dex": 14},
+        "ability_scores": {"dex": 14, "con": 12},
     }
+    base.update(extras)
+    return base
 
 
 def test_advance_turn_wraps_round():
@@ -197,3 +202,128 @@ def test_completed_encounter_not_restarted():
         )
         is None
     )
+
+
+def test_concentration_save_success_on_low_damage():
+    char = character_from_dict(_char_dict(concentration="Bless", class_name="fighter"))
+    with patch("backend.dm.combat_manager.roll_dice") as roll:
+        roll.return_value = {"rolls": [15], "total": 15}
+        maintained, summary = check_concentration_save(char, 8)
+    assert maintained is True
+    assert "MAINTAINED" in summary
+    assert "Bless" in summary
+
+
+def test_concentration_save_failure():
+    char = character_from_dict(_char_dict(concentration="Bless", class_name="wizard"))
+    with patch("backend.dm.combat_manager.roll_dice") as roll:
+        roll.return_value = {"rolls": [3], "total": 3}
+        maintained, summary = check_concentration_save(char, 30)
+    assert maintained is False
+    assert "LOST" in summary
+    assert "DC 15" in summary
+
+
+def test_concentration_save_not_triggered_without_spell():
+    char = character_from_dict(_char_dict())
+    maintained, summary = check_concentration_save(char, 20)
+    assert maintained is True
+    assert summary == ""
+
+
+def test_concentration_dc_minimum_is_10():
+    char = character_from_dict(_char_dict(concentration="Shield of Faith"))
+    with patch("backend.dm.combat_manager.roll_dice") as roll:
+        roll.return_value = {"rolls": [9], "total": 9}
+        maintained, summary = check_concentration_save(char, 4)
+    assert "DC 10" in summary
+
+
+def test_multiattack_enemy_makes_multiple_attacks():
+    state = CombatState(
+        encounter_id="e1",
+        encounter_name="Dragon Fight",
+        order=["enemy1", "player"],
+        turn_index=0,
+        round=1,
+        combatants=[
+            Combatant(
+                id="enemy1",
+                name="Dragon",
+                kind="enemy",
+                initiative=20,
+                hp=100,
+                max_hp=100,
+                ac=18,
+                attack_bonus=8,
+                damage="2d6+4",
+                multiattack_count=3,
+            ),
+            Combatant(
+                id="player",
+                name="Hero",
+                kind="player",
+                initiative=10,
+                hp=40,
+                max_hp=40,
+                ac=15,
+            ),
+        ],
+    )
+    attack_rolls = [
+        {"rolls": [15], "total": 15},
+        {"total": 10},
+        {"rolls": [18], "total": 18},
+        {"total": 12},
+        {"rolls": [5], "total": 5},
+    ]
+    with patch("backend.dm.combat_manager.roll_dice", side_effect=attack_rolls):
+        state, char_dict, events = resolve_enemy_turn(state, _char_dict(hp=40))
+    multiattack_events = [e for e in events if "Multiattack" in e]
+    attack_events = [e for e in events if "attacks" in e.lower() and "Multiattack" not in e]
+    assert len(multiattack_events) == 1
+    assert len(attack_events) == 3
+
+
+def test_enemy_attack_breaks_concentration():
+    state = CombatState(
+        encounter_id="e1",
+        encounter_name="Test",
+        order=["enemy1", "player"],
+        turn_index=0,
+        round=1,
+        combatants=[
+            Combatant(
+                id="enemy1",
+                name="Orc",
+                kind="enemy",
+                initiative=15,
+                hp=15,
+                max_hp=15,
+                ac=13,
+                attack_bonus=5,
+                damage="1d12+3",
+            ),
+            Combatant(
+                id="player",
+                name="Hero",
+                kind="player",
+                initiative=10,
+                hp=30,
+                max_hp=30,
+                ac=15,
+            ),
+        ],
+    )
+    char = _char_dict(hp=30, concentration="Bless", class_name="wizard")
+    roll_sequence = [
+        {"rolls": [18], "total": 18},
+        {"total": 10},
+        {"rolls": [2], "total": 2},
+    ]
+    with patch("backend.dm.combat_manager.roll_dice", side_effect=roll_sequence):
+        state, updated_char, events = resolve_enemy_turn(state, char)
+    conc_events = [e for e in events if "Concentration" in e]
+    assert len(conc_events) == 1
+    assert "LOST" in conc_events[0]
+    assert updated_char["concentration"] == ""

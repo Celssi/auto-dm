@@ -5,10 +5,10 @@ from pathlib import Path
 
 import backend.config as cfg
 from backend.dm.campaign_repair import (
-    JournalExtractSpec,
-    JournalEntryExtract,
     WAKING_DEEP_ENCOUNTERS,
     WAKING_DEEP_NPCS,
+    JournalEntryExtract,
+    JournalExtractSpec,
     repair_campaign,
     save_journal_entries,
 )

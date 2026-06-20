@@ -51,14 +51,17 @@ def extract_journal_updates(
     dm_response: str,
 ) -> JournalTurnUpdates:
     npc_names, loc_names = _name_list(campaign_id)
-    prompt = f"""Analyze this D&D solo play turn and extract journal updates ONLY when clearly warranted.
+    prompt = f"""Analyze this D&D solo play turn and extract journal \
+updates ONLY when clearly warranted.
 
 Existing NPCs: {", ".join(npc_names) or "(none)"}
 Existing locations: {", ".join(loc_names) or "(none)"}
 
 Rules:
-- new_npcs/new_locations: ONLY for newly introduced NAMED characters or places not in existing lists
-- updated_npcs/updated_locations: ONLY when status, location, or relationship clearly changed for an existing name
+- new_npcs/new_locations: ONLY for newly introduced NAMED characters
+  or places not in existing lists
+- updated_npcs/updated_locations: ONLY when status, location,
+  or relationship clearly changed for an existing name
 - campaign_note: ONLY for major plot revelations (1-3 sentences), else empty string
 - adventure_log: ONLY if a critical fact was established and should be recorded, else empty string
 - Do NOT duplicate entries. Do NOT invent names that were not in the turn.

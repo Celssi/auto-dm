@@ -2,15 +2,29 @@
 
 from __future__ import annotations
 
+import logging
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.routes import adventures, campaigns, characters, play, sessions, system
 
+logger = logging.getLogger(__name__)
+
 app = FastAPI(title="auto-dm", version="0.1.0")
+
+
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error"},
+    )
+
 
 app.add_middleware(
     CORSMiddleware,

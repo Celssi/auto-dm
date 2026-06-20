@@ -66,36 +66,44 @@ When you send a message during play, the backend runs a **fixed pipeline** of sp
 
 ## DM turn pipeline
 
-Each player message flows through a LangGraph graph. Nodes run in order; later steps can use output from earlier ones.
+Each player message flows through a LangGraph graph. Post-narrator bookkeeping nodes run in parallel where possible.
 
 ```mermaid
 flowchart LR
-    R[Router]
-    C[Combat mechanics]
-    RF[Rules referee]
-    N[Narrator]
-    CG[Continuity guard]
-    RK[Resource keeper]
-    K[Character keeper]
-    S[Scribe]
-    CH[Chronicler]
-    J[Journal keeper]
-
-    R --> C --> RF --> N --> CG --> RK --> K --> S --> CH --> J
+    R[Router] --> CP[Combat mgr pre]
+    CP --> C[Combat mechanics]
+    C --> RF[Rules referee]
+    RF --> SB[Story director brief]
+    SB --> N[Narrator]
+    N --> CG[Continuity guard]
+    CG --> RK[Resource keeper]
+    RK --> K[Character keeper]
+    RK --> S[Scribe]
+    S --> CH[Chronicler]
+    S --> SD[Story director update]
+    S --> J[Journal keeper]
+    K --> CM[Combat mgr post]
+    CH --> CM
+    SD --> CM
+    J --> CM
 ```
 
 | Node | Role |
 |------|------|
 | **Router** | Detects shortcuts (`/attack_roll`, `/cast`, oracles), combat mode, rules questions |
+| **Combat mgr pre** | Sets up combat state and planned encounters |
 | **Combat mechanics** | Resolves dice shortcuts and mechanical summaries |
 | **Rules referee** | Queries RAG when rules context is needed |
+| **Story director brief** | Loads story outline and progress for the narrator |
 | **Narrator** | Claude writes the in-character response |
 | **Continuity guard** | Flags contradictions with adventure/character state |
 | **Resource keeper** | Tracks spell slots, HP changes, rests |
 | **Character keeper** | Applies sheet updates from the turn |
 | **Scribe** | Writes structured lonelog lines |
-| **Chronicler** | Updates adventure summary |
+| **Chronicler** | Updates adventure summary (skipped for short responses) |
+| **Story director update** | Updates story progress checkpoints (skipped for short responses) |
 | **Journal keeper** | Syncs NPCs, locations, and log entries to disk |
+| **Combat mgr post** | Finalizes combat turn, applies end-of-turn effects |
 
 ---
 
@@ -106,13 +114,19 @@ Rulebooks are **not** sent to the model whole. They are chunked, embedded, and s
 ```mermaid
 flowchart TD
     PDF[PDF on disk] --> Extract[Text extract + OCR fallback]
-    Extract --> Chunk[Chunk ~1200 chars]
+    Extract --> Section[Section-aware splitting]
+    Section --> Chunk[Chunk ~1200 chars with overlap]
     Chunk --> Embed[Ollama nomic-embed-text]
     Embed --> Index[(ChromaDB)]
 
-    Q[Player question] --> Hybrid[Hybrid retrieval]
-    Index --> Hybrid
-    Hybrid --> Rerank[Optional cross-encoder rerank]
+    Q[Player question] --> Expand[Query expansion D&D synonyms]
+    Expand --> Dense[Dense retrieval]
+    Expand --> BM25[BM25 lexical search]
+    Index --> Dense
+    Index --> BM25
+    Dense --> RRF[RRF fusion]
+    BM25 --> RRF
+    RRF --> Rerank[Optional cross-encoder rerank]
     Rerank --> LLM[Claude answers with citations]
 ```
 
@@ -305,7 +319,7 @@ sequenceDiagram
 
 **Why YAML + RAG?** Structured character options (class features, spell lists) are faster and more reliable from curated data. Open-ended questions (“how does grappling work on a mount?”) need semantic search over the books.
 
-**Why LangGraph?** A linear pipeline keeps each concern testable: you can inspect combat output before narration, or skip RAG when the player just rolls dice.
+**Why LangGraph?** A structured pipeline keeps each concern testable: you can inspect combat output before narration, or skip RAG when the player just rolls dice. Post-narrator bookkeeping nodes fan out in parallel to reduce latency.
 
 **First ingest is slow** because PHB/MM pages are often scanned; Tesseract OCR at 300 DPI is CPU-heavy. Re-runs use `data/ocr_cache/`.
 

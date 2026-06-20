@@ -34,6 +34,7 @@ from backend.characters.background_extract import (  # noqa: E402
     load_curated_backgrounds,
     load_pdf_pages,
 )
+from backend.rag.ocr import OcrNotAvailableError  # noqa: E402
 from backend.rag.retrieval_core import get_collection
 
 
@@ -94,7 +95,8 @@ def main() -> int:
     indexed = get_collection() is not None and get_collection().count() > 0
     print(f"Source: {args.source} ({len(specs)} backgrounds)")
     print(
-        f"RAG index: {'ready' if indexed else 'not indexed — run: python -m scripts.ingest --include-faerun'}"
+        "RAG index: "
+        f"{'ready' if indexed else 'not indexed — run: python -m scripts.ingest --include-faerun'}"
     )
 
     pages = None

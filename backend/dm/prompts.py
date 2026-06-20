@@ -26,13 +26,17 @@ def dnd5e_system_prompt(
 - Do not contradict canon unless the player explicitly retcons.
 - Follow the **Story guide** for structure, but let player choices shape how beats unfold.
 - Never reveal or foreshadow story beats the player has not reached yet.
-- Do not use em dashes (—) or en dashes (–) in narration. Use commas, periods, or a plain hyphen for ranges.
+- Do not use em dashes or en dashes in narration. Use commas,
+  periods, or a plain hyphen for ranges.
 """
     if character:
         setting = (character.campaign_setting or "freeform").strip().lower()
         notes = (character.campaign_notes or "").strip()
         if setting == "faerun" or include_faerun:
-            extra += "- Setting: Faerûn (Forgotten Realms). Use Heroes of Faerûn and Adventures in Faerûn.\n"
+            extra += (
+                "- Setting: Faerûn (Forgotten Realms). "
+                "Use Heroes of Faerûn and Adventures in Faerûn.\n"
+            )
         elif notes:
             extra += f"- Setting: {notes}\n"
         else:

@@ -1,5 +1,7 @@
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { m, AnimatePresence } from '../../lib/framer';
-import { Map, Users, Compass, Play, Sparkles } from 'lucide-react';
+import { Map, Users, Compass, Play, Sparkles, Copy } from 'lucide-react';
 import type { AdventureMeta, CampaignFull, JournalEntry, ModuleSource } from '../../api/client';
 import TabBar from '../../components/ui/TabBar';
 import EmptyState from '../../components/ui/EmptyState';
@@ -11,6 +13,7 @@ import ChoiceGroup from '../../components/ui/forms/ChoiceGroup';
 import SegmentedControl from '../../components/ui/forms/SegmentedControl';
 import Toggle from '../../components/ui/forms/Toggle';
 import MarkdownContent from '../../components/ui/MarkdownContent';
+import { campaignCharacterLabel, resolvedCampaignCharacterIds } from '../../lib/displayText';
 import type { CampaignTab, CampaignsState } from './campaignsState';
 
 interface Props {
@@ -24,6 +27,10 @@ interface Props {
     | 'characters'
     | 'newAdventureOpen'
     | 'bootstrapping'
+    | 'linkingCharacter'
+    | 'copyOpen'
+    | 'copyingCampaign'
+    | 'copyForm'
     | 'adventureForm'
   >;
   onTabChange: (tab: CampaignTab) => void;
@@ -31,9 +38,13 @@ interface Props {
   onSaveEntry: () => void;
   onSetEntry: (entry: JournalEntry | null) => void;
   onToggleNewAdventure: () => void;
+  onToggleCopy: () => void;
+  onPatchCopyForm: (patch: Partial<CampaignsState['copyForm']>) => void;
   onPatchAdventureForm: (patch: Partial<CampaignsState['adventureForm']>) => void;
   onStartNewAdventure: () => void;
   onPlayAdventure: (id: string) => void;
+  onLinkCharacter: (characterId: string) => void;
+  onCopyCampaign: () => void;
   onDelete: () => void;
   onDeleteAdventure: (id: string) => void;
 }
@@ -46,12 +57,22 @@ export default function CampaignDetailPanel({
   onSaveEntry,
   onSetEntry,
   onToggleNewAdventure,
+  onToggleCopy,
+  onPatchCopyForm,
   onPatchAdventureForm,
   onStartNewAdventure,
   onPlayAdventure,
+  onLinkCharacter,
+  onCopyCampaign,
   onDelete,
   onDeleteAdventure,
 }: Props) {
+  const linkedIds = resolvedCampaignCharacterIds(campaign.character_ids, state.campaignAdventures);
+  const needsCharacterLink = linkedIds.length === 0;
+  const defaultLinkCharacterId = state.characters[0]?.id ?? '';
+  const [linkCharacterId, setLinkCharacterId] = useState(defaultLinkCharacterId);
+  const effectiveLinkCharacterId = linkCharacterId || defaultLinkCharacterId;
+
   const list = state.tab === 'npcs' ? campaign.npcs : state.tab === 'locations' ? campaign.locations : [];
   const tabs = [
     { id: 'story', label: 'Story arc' },
@@ -67,10 +88,118 @@ export default function CampaignDetailPanel({
       className="lg:col-span-2 panel-glow p-5 space-y-5"
     >
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <h2 className="font-display text-xl text-gray-100">{campaign.name}</h2>
+        <div className="space-y-3 min-w-0 flex-1">
+          <div>
+            <h2 className="font-display text-xl text-gray-100">{campaign.name}</h2>
+            {!needsCharacterLink && (
+              <p className="text-sm text-muted mt-1">
+                {campaignCharacterLabel(campaign.character_ids, state.characters, state.campaignAdventures)}
+              </p>
+            )}
+          </div>
+
+          {needsCharacterLink && (
+            <div className="rounded-lg border border-border bg-bg/40 p-4 space-y-3 max-w-md">
+              <p className="text-sm text-muted">No character linked to this campaign yet.</p>
+              {state.characters.length === 0 ? (
+                <p className="text-sm">
+                  <Link to="/characters" className="text-accent hover:underline">
+                    Create a character
+                  </Link>{' '}
+                  first, then link them here.
+                </p>
+              ) : (
+                <>
+                  <Field label="Link character">
+                    <ChoiceGroup
+                      value={effectiveLinkCharacterId}
+                      onChange={setLinkCharacterId}
+                      options={state.characters.map((c) => ({ value: c.id, label: c.name }))}
+                      columns={2}
+                    />
+                  </Field>
+                  <button
+                    type="button"
+                    className="btn-primary text-sm"
+                    disabled={!effectiveLinkCharacterId || state.linkingCharacter}
+                    onClick={() => onLinkCharacter(effectiveLinkCharacterId)}
+                  >
+                    {state.linkingCharacter ? 'Linking…' : 'Link character'}
+                  </button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
         <button type="button" className="btn-danger text-sm" onClick={onDelete}>
           Delete campaign
         </button>
+      </div>
+
+      <div className="rounded-lg border border-border bg-bg/40 p-4 space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-sm font-medium text-gray-100">Replay with another character</p>
+            <p className="text-xs text-muted mt-1 max-w-xl">
+              Copy this campaign with fresh adventure logs and story progress. Outlines, NPCs, and locations stay the
+              same; plot updates from your first run are removed.
+            </p>
+          </div>
+          <button
+            type="button"
+            className="btn-ghost text-sm inline-flex items-center gap-1.5 shrink-0"
+            onClick={onToggleCopy}
+          >
+            <Copy size={14} />
+            {state.copyOpen ? 'Cancel' : 'Copy campaign'}
+          </button>
+        </div>
+
+        <AnimatePresence>
+          {state.copyOpen && (
+            <m.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="space-y-3 overflow-hidden"
+            >
+              {state.characters.length === 0 ? (
+                <p className="text-sm">
+                  <Link to="/characters" className="text-accent hover:underline">
+                    Create a character
+                  </Link>{' '}
+                  first to start a replay copy.
+                </p>
+              ) : (
+                <>
+                  <Field label="Character for the copy">
+                    <ChoiceGroup
+                      value={state.copyForm.character_id}
+                      onChange={(character_id) => onPatchCopyForm({ character_id })}
+                      options={state.characters.map((c) => ({ value: c.id, label: c.name }))}
+                      columns={2}
+                    />
+                  </Field>
+                  <Field label="Copy name (optional)">
+                    <TextInput
+                      placeholder={`${campaign.name} (${state.characters.find((c) => c.id === state.copyForm.character_id)?.name ?? 'Character'})`}
+                      value={state.copyForm.name}
+                      onChange={(e) => onPatchCopyForm({ name: e.target.value })}
+                    />
+                  </Field>
+                  <button
+                    type="button"
+                    className="btn-primary text-sm"
+                    disabled={!state.copyForm.character_id || state.copyingCampaign}
+                    onClick={onCopyCampaign}
+                  >
+                    {state.copyingCampaign ? 'Copying…' : 'Copy & reset'}
+                  </button>
+                </>
+              )}
+            </m.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <TabBar tabs={tabs} active={state.tab} onChange={(id) => onTabChange(id as CampaignTab)} />

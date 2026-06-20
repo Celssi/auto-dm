@@ -93,13 +93,17 @@ Rules:
 - short_rest: true ONLY if the player or DM clearly completes a short rest (about 1 hour) this turn
   - spend_hit_dice: number of Hit Dice clearly spent for healing during that rest (0 if none stated)
   - If short_rest is true, leave casts empty and other fields false/default
-- casts: ONLY when the player or DM clearly casts a leveled spell or cantrip this turn (not during a rest)
+- casts: ONLY when the player or DM clearly casts a leveled spell
+  or cantrip this turn (not during a rest)
   - ritual=true only if explicitly a ritual cast (10+ min, no slot)
-  - slot_level: set only for upcasting (e.g. Healing Word at 2nd level → slot_level=2)
+  - slot_level: set only for upcasting
+    (e.g. Healing Word at 2nd level -> slot_level=2)
   - Cantrips: include in casts but they never spend slots
 - new_concentration: spell name if a concentration spell begins; empty otherwise
-- end_concentration: true only if concentration clearly ended (new conc spell, dropped, incapacitated)
-- wild_shape_used: true only if Wild Shape was activated this turn{f" (max {ws_max} uses/long rest)" if ws_max else ""}
+- end_concentration: true only if concentration clearly ended
+  (new conc spell, dropped, incapacitated)
+- wild_shape_used: true only if Wild Shape was activated this turn\
+{f" (max {ws_max} uses/long rest)" if ws_max else ""}
 - Do NOT guess. Prefer empty lists/false over speculation.
 - Long rest is handled elsewhere — do not set short_rest for a long rest.
 

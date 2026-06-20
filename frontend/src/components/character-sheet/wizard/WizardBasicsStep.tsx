@@ -9,6 +9,8 @@ import type { WizardClassOption, WizardOption } from './wizardConstants';
 interface Props {
   char: Character;
   patch: (p: Partial<Character>) => void;
+  onClassChange: (className: string) => void;
+  onCampaignSettingChange: (setting: string, patchFields: Partial<Character>) => void;
   classes: WizardClassOption[];
   species: WizardOption[];
   backgroundGroups: { label: string; options: { value: string; label: string }[] }[];
@@ -18,6 +20,8 @@ interface Props {
 export default function WizardBasicsStep({
   char,
   patch,
+  onClassChange,
+  onCampaignSettingChange,
   classes,
   species,
   backgroundGroups,
@@ -30,7 +34,7 @@ export default function WizardBasicsStep({
           value={char.campaign_setting || 'freeform'}
           onChange={(setting) => {
             const isFaerunBg = faerunBackgroundIds.includes(char.background);
-            patch({
+            onCampaignSettingChange(setting, {
               campaign_setting: setting,
               ...(setting !== 'faerun' && isFaerunBg ? { background: '' } : {}),
             });
@@ -53,7 +57,7 @@ export default function WizardBasicsStep({
         <Field label="Class">
           <ChoiceGroup
             value={char.class_name}
-            onChange={(v) => patch({ class_name: v })}
+            onChange={onClassChange}
             options={classes.map((c) => ({
               value: c.id,
               label: c.label || displayLabel(c.id),

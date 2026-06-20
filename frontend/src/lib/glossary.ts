@@ -35,7 +35,7 @@ export function lookupGlossary(
   return fuzzyGlossaryLookup(name, entries);
 }
 
-export function fuzzyGlossaryLookup(name: string, entries: Record<string, GlossaryEntry>): GlossaryEntry | null {
+function fuzzyGlossaryLookup(name: string, entries: Record<string, GlossaryEntry>): GlossaryEntry | null {
   const key = glossaryKey(name);
   const exact = entries[key];
   if (exact?.summary) return exact;

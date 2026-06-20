@@ -7,9 +7,9 @@ from typing import Any
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 
+from backend.dm.campaign_bootstrap import flesh_out_planned_adventure, generate_adventure_outline
 from backend.dm.campaign_repair import extract_encounters_from_outline
 from backend.dm.encounters import save_adventure_encounters
-from backend.dm.campaign_bootstrap import flesh_out_planned_adventure, generate_adventure_outline
 from backend.dm.story_director import (
     ensure_story_progress,
     find_next_planned_adventure,
@@ -72,13 +72,16 @@ def get_one(adv_id: str):
 def create(body: AdventureCreateBody):
     outline = body.outline
     if not outline and body.theme:
-        outline = generate_adventure_outline(
-            mode=body.mode,
-            theme=body.theme,
-            character_id=body.character_id,
-            include_faerun=body.include_faerun,
-            campaign_id=body.campaign_id,
-        )
+        try:
+            outline = generate_adventure_outline(
+                mode=body.mode,
+                theme=body.theme,
+                character_id=body.character_id,
+                include_faerun=body.include_faerun,
+                campaign_id=body.campaign_id,
+            )
+        except (ValueError, RuntimeError) as e:
+            raise HTTPException(502, f"Outline generation failed: {e}") from e
     meta = {
         "name": body.name,
         "mode": body.mode,
@@ -114,12 +117,15 @@ def regen_outline(adv_id: str, body: AdventureCreateBody):
     adv = get_adventure(adv_id)
     if not adv:
         raise HTTPException(404, "Adventure not found")
-    outline = generate_adventure_outline(
-        mode=body.mode or adv.get("mode", "freeform"),
-        theme=body.theme or adv.get("theme", adv.get("name", "")),
-        character_id=body.character_id or adv.get("character_id", ""),
-        include_faerun=body.include_faerun or adv.get("include_faerun", False),
-    )
+    try:
+        outline = generate_adventure_outline(
+            mode=body.mode or adv.get("mode", "freeform"),
+            theme=body.theme or adv.get("theme", adv.get("name", "")),
+            character_id=body.character_id or adv.get("character_id", ""),
+            include_faerun=body.include_faerun or adv.get("include_faerun", False),
+        )
+    except (ValueError, RuntimeError) as e:
+        raise HTTPException(502, f"Outline generation failed: {e}") from e
     meta = {**adv, "outline": outline}
     save_adventure(adv_id, meta, outline=outline)
     reset_story_progress(adv_id)

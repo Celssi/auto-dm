@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
+import math
 import re
+from functools import lru_cache
 
 import chromadb
 from llama_index.core import Settings, VectorStoreIndex
@@ -25,16 +27,21 @@ from backend.config import (
 )
 
 _LEXICAL_CACHE: dict[str, tuple[list[str], list[dict]]] = {}
+_settings_initialized = False
+
+
+@lru_cache(maxsize=1)
+def _get_chroma_client():
+    return chromadb.PersistentClient(path=str(CHROMA_DIR))
 
 
 def get_collection(game_id: str = "dnd5e"):
     _ = game_id
     if not CHROMA_DIR.exists():
         return None
-    client = chromadb.PersistentClient(path=str(CHROMA_DIR))
-    collection_name = COLLECTION_NAME
+    client = _get_chroma_client()
     try:
-        collection = client.get_collection(collection_name)
+        collection = client.get_collection(COLLECTION_NAME)
     except Exception:
         return None
     if collection.count() == 0:
@@ -42,21 +49,26 @@ def get_collection(game_id: str = "dnd5e"):
     return collection
 
 
-def build_index(collection) -> VectorStoreIndex:
-    embed_model = OllamaEmbedding(
+def _ensure_settings():
+    global _settings_initialized
+    if _settings_initialized:
+        return
+    Settings.embed_model = OllamaEmbedding(
         model_name=EMBED_MODEL,
         base_url=OLLAMA_BASE_URL,
         text_instruction=EMBED_DOCUMENT_PREFIX,
         query_instruction=EMBED_QUERY_PREFIX,
     )
-    llm = Ollama(
+    Settings.llm = Ollama(
         model=CHAT_MODEL,
         base_url=OLLAMA_BASE_URL,
         request_timeout=OLLAMA_REQUEST_TIMEOUT,
     )
-    Settings.embed_model = embed_model
-    Settings.llm = llm
+    _settings_initialized = True
 
+
+def build_index(collection) -> VectorStoreIndex:
+    _ensure_settings()
     vector_store = ChromaVectorStore(chroma_collection=collection)
     return VectorStoreIndex.from_vector_store(vector_store)
 
@@ -81,6 +93,7 @@ def nodes_to_sources(nodes: list[NodeWithScore]) -> list[dict]:
                 "source_label": meta.get("source_label", ""),
                 "page": meta.get("page", ""),
                 "faction": meta.get("faction", ""),
+                "section_title": meta.get("section_title", ""),
                 "score": round(n.score, 4) if n.score is not None else None,
             }
         )
@@ -134,73 +147,83 @@ def _doc_matches_factions(meta: dict | None, factions: list[str] | None) -> bool
     return str(meta.get("faction", "")) in factions
 
 
-# Short but meaningful game tokens that the length filter would otherwise drop.
-_KEEP_SHORT = {
-    "ac",
-    "hp",
-    "dc",
-    "xp",
-    "gp",
-    "sp",
-    "cp",
-    "pp",
-    "ep",
-    "ki",
-    "pb",
-    "str",
-    "dex",
-    "con",
-    "int",
-    "wis",
-    "cha",
-    "cr",
-    "rp",
+_SYNONYM_MAP: dict[str, list[str]] = {
+    "hp": ["hit points", "health"],
+    "ac": ["armor class", "armour class"],
+    "dc": ["difficulty class"],
+    "xp": ["experience points"],
+    "pb": ["proficiency bonus"],
+    "str": ["strength"],
+    "dex": ["dexterity"],
+    "con": ["constitution"],
+    "int": ["intelligence"],
+    "wis": ["wisdom"],
+    "cha": ["charisma"],
+    "cr": ["challenge rating"],
+    "gp": ["gold pieces", "gold"],
+    "sp": ["silver pieces"],
+    "cp": ["copper pieces"],
+    "aoo": ["opportunity attack", "attack of opportunity"],
+    "conc": ["concentration"],
 }
-_DICE_RE = re.compile(r"^\d*d\d+$")  # d20, 2d6, d8 ...
 
 
-def query_terms(question: str) -> set[str]:
-    words = re.findall(r"[a-zA-Z0-9][a-zA-Z0-9_-]*", question.lower())
-    stop = {
-        "what",
-        "which",
-        "with",
-        "does",
-        "have",
-        "that",
-        "this",
-        "from",
-        "unit",
-        "for",
-        "and",
-        "the",
-        "are",
-        "was",
-        "has",
-    }
-    terms: set[str] = set()
-    for w in words:
-        if w in stop:
-            continue
-        if len(w) >= 4 or w in _KEEP_SHORT or _DICE_RE.match(w):
-            terms.add(w)
-    return terms
+def expand_query(question: str) -> str:
+    lower = question.lower()
+    extras: list[str] = []
+    for abbr, expansions in _SYNONYM_MAP.items():
+        pattern = rf"\b{re.escape(abbr)}\b"
+        if re.search(pattern, lower):
+            extras.extend(expansions)
+    if extras:
+        return f"{question} {' '.join(extras)}"
+    return question
 
 
-def _lexical_score(text: str, terms: set[str], phrase: str) -> float:
-    lower = text.lower()
-    if not terms:
-        return 0.0
-    overlap = 0
-    freq_score = 0.0
-    for t in terms:
-        count = lower.count(t)
-        if count > 0:
-            overlap += 1
-            freq_score += min(3, count)
-    phrase_bonus = 10.0 if phrase and phrase in lower else 0.0
-    coverage = overlap / max(1, len(terms))
-    return overlap * 4.0 + freq_score + coverage * 6.0 + phrase_bonus
+class _BM25Corpus:
+    """Precomputed BM25 statistics for a document corpus."""
+
+    def __init__(self, docs: list[str], metas: list[dict], k1: float = 1.5, b: float = 0.75):
+        self.docs = docs
+        self.metas = metas
+        self.k1 = k1
+        self.b = b
+        self.doc_tokens: list[list[str]] = []
+        self.doc_freqs: dict[str, int] = {}
+        total_len = 0
+        for text in docs:
+            tokens = re.findall(r"[a-z0-9][a-z0-9_-]*", (text or "").lower())
+            self.doc_tokens.append(tokens)
+            total_len += len(tokens)
+            seen: set[str] = set()
+            for t in tokens:
+                if t not in seen:
+                    self.doc_freqs[t] = self.doc_freqs.get(t, 0) + 1
+                    seen.add(t)
+        self.n = len(docs)
+        self.avgdl = total_len / max(1, self.n)
+
+    def score(self, query_tokens: list[str], doc_idx: int) -> float:
+        tokens = self.doc_tokens[doc_idx]
+        dl = len(tokens)
+        freq_map: dict[str, int] = {}
+        for t in tokens:
+            freq_map[t] = freq_map.get(t, 0) + 1
+        s = 0.0
+        for qt in query_tokens:
+            tf = freq_map.get(qt, 0)
+            if tf == 0:
+                continue
+            df = self.doc_freqs.get(qt, 0)
+            idf = math.log((self.n - df + 0.5) / (df + 0.5) + 1.0)
+            tf_norm = (tf * (self.k1 + 1)) / (
+                tf + self.k1 * (1 - self.b + self.b * dl / self.avgdl)
+            )
+            s += idf * tf_norm
+        return s
+
+
+_BM25_CACHE: dict[str, _BM25Corpus] = {}
 
 
 def get_lexical_corpus(game_id: str, collection) -> tuple[list[str], list[dict]]:
@@ -214,6 +237,15 @@ def get_lexical_corpus(game_id: str, collection) -> tuple[list[str], list[dict]]
     return docs, metas
 
 
+def _get_bm25(game_id: str, collection) -> _BM25Corpus:
+    if game_id in _BM25_CACHE:
+        return _BM25_CACHE[game_id]
+    docs, metas = get_lexical_corpus(game_id, collection)
+    corpus = _BM25Corpus(docs, metas)
+    _BM25_CACHE[game_id] = corpus
+    return corpus
+
+
 def _lexical_retrieve(
     game_id: str,
     collection,
@@ -221,24 +253,28 @@ def _lexical_retrieve(
     limit: int,
     factions: list[str] | None,
 ) -> list[NodeWithScore]:
-    docs, metas = get_lexical_corpus(game_id, collection)
-
-    terms = query_terms(query_text)
+    corpus = _get_bm25(game_id, collection)
+    expanded = expand_query(query_text)
+    q_tokens = re.findall(r"[a-z0-9][a-z0-9_-]*", expanded.lower())
     phrase = query_text.strip().lower()
-    scored: list[tuple[float, str, dict]] = []
-    for text, meta in zip(docs, metas):
-        if not text or not _doc_matches_factions(meta, factions):
+
+    scored: list[tuple[float, int]] = []
+    for i in range(corpus.n):
+        if not corpus.docs[i]:
             continue
-        score = _lexical_score(str(text), terms, phrase)
-        if score <= 0:
+        if not _doc_matches_factions(corpus.metas[i], factions):
             continue
-        scored.append((score, str(text), meta or {}))
+        s = corpus.score(q_tokens, i)
+        if phrase and phrase in corpus.docs[i].lower():
+            s += 10.0
+        if s > 0:
+            scored.append((s, i))
 
     scored.sort(key=lambda x: x[0], reverse=True)
     nodes: list[NodeWithScore] = []
-    for score, text, meta in scored[:limit]:
-        node = TextNode(text=text, metadata=meta)
-        nodes.append(NodeWithScore(node=node, score=float(score)))
+    for s, i in scored[:limit]:
+        node = TextNode(text=corpus.docs[i], metadata=corpus.metas[i] or {})
+        nodes.append(NodeWithScore(node=node, score=float(s)))
     return nodes
 
 
@@ -272,15 +308,6 @@ def _fuse_nodes_rrf(
         node.score = round(score, 6)
         fused.append(node)
     return fused
-
-
-def best_overlap(nodes: list[NodeWithScore], terms: set[str]) -> int:
-    best = 0
-    for node in nodes:
-        text = node.get_content().lower()
-        overlap = sum(1 for term in terms if term in text)
-        best = max(best, overlap)
-    return best
 
 
 def retrieve_hybrid(

@@ -12,6 +12,25 @@ import type {
 import type { Character } from '../../types';
 
 export type PlayMode = 'freeform' | 'module';
+export type Advantage = 'normal' | 'advantage' | 'disadvantage';
+
+export interface DiceModalState {
+  shortcutId: string;
+  label: string;
+  ability: string;
+  advantage: Advantage;
+  proficient: boolean;
+  modifier: number;
+  diceCount: number;
+  hasModifier: boolean;
+  showAbilityPicker: boolean;
+  showProficiency: boolean;
+  mode: 'manual' | 'auto';
+  manualValues: (number | null)[];
+  autoResult: number[] | null;
+  rolling: boolean;
+  submitting: boolean;
+}
 
 export interface PlayState {
   sessions: { id: string; name: string }[];
@@ -55,6 +74,7 @@ export interface PlayState {
   nextAdventure: NextAdventure | null;
   startingNext: boolean;
   combatState: CombatStateSnapshot | null;
+  diceModal: DiceModalState | null;
 }
 
 export type PlayAction =
@@ -106,6 +126,7 @@ export function createInitialPlayState(sessionId = '', wizardTab: 'continue' | '
     nextAdventure: null,
     startingNext: false,
     combatState: null,
+    diceModal: null,
   };
 }
 

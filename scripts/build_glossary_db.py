@@ -89,7 +89,8 @@ _INLINE_FEAT_RE = re.compile(
 )
 
 _LEVEL_FEATURE_RE = re.compile(
-    r"LEVEL\s+(?:(\d+)|[|:\[\]I\]]+)\s*:?\s*([^\n]+)\n+(.*?)(?=LEVEL\s+(?:\d+|[|:\[\]I\]]+)\s*:?\s|\Z)",
+    r"LEVEL\s+(?:(\d+)|[|:\[\]I\]]+)\s*:?\s*([^\n]+)\n+(.*?)"
+    r"(?=LEVEL\s+(?:\d+|[|:\[\]I\]]+)\s*:?\s|\Z)",
     re.DOTALL | re.IGNORECASE,
 )
 
@@ -115,8 +116,10 @@ _FULL_CASTERS = frozenset(
 _KNOWN_FEATURE_STUBS: dict[str, str] = {
     "Arcane Recovery": (
         "You have learned to regain some of your magical energy by studying your spellbook. "
-        "Once per day when you finish a Short Rest, you can choose expended wizard spell slots to recover. "
-        "The slots must have a combined level equal to or less than half your wizard level (rounded up), "
+        "Once per day when you finish a Short Rest, you can choose "
+        "expended wizard spell slots to recover. "
+        "The slots must have a combined level equal to or less than "
+        "half your wizard level (rounded up), "
         "and none of the slots can be 6th level or higher."
     ),
 }
@@ -250,7 +253,9 @@ def _feature_title_patterns(display_name: str) -> list[str]:
 def _extract_standalone_feature(section: str, display_name: str) -> dict[str, Any] | None:
     for title_pat in _feature_title_patterns(display_name):
         block_re = re.compile(
-            rf"\n{title_pat}\n\n(.+?)(?=\n[\(\[]?[A-Z][A-Z0-9'/,\-\(\) \[\]]{{2,}}\n\n|\nLEVEL\s+\d+:\s|\Z)",
+            rf"\n{title_pat}\n\n(.+?)"
+            rf"(?=\n[\(\[]?[A-Z][A-Z0-9'/,\-\(\) \[\]]{{2,}}\n\n"
+            rf"|\nLEVEL\s+\d+:\s|\Z)",
             re.DOTALL | re.IGNORECASE,
         )
         m = block_re.search(section)
@@ -333,7 +338,8 @@ def _parse_level(school_line: str) -> int | None:
 
 def _parse_school(school_line: str) -> str:
     m = re.search(
-        r"(?:Level \d+ |(?:\d+(?:st|nd|rd|th)-level )?)?([A-Za-z]+(?:\s+[A-Za-z]+)?)\s*(?:Cantrip|\(|$)",
+        r"(?:Level \d+ |(?:\d+(?:st|nd|rd|th)-level )?)?"
+        r"([A-Za-z]+(?:\s+[A-Za-z]+)?)\s*(?:Cantrip|\(|$)",
         school_line,
     )
     return m.group(1).strip() if m else ""
@@ -439,11 +445,14 @@ def _title_search_patterns(display_name: str) -> list[str]:
         patterns.append(fuzzy)
         if len(words) == 2:
             patterns.append(
-                rf"{re.escape(words[0][:3].upper())}\w*[\s.']+{re.escape(words[1][:3].upper())}\w*\.?"
+                rf"{re.escape(words[0][:3].upper())}\w*[\s.']+"
+                rf"{re.escape(words[1][:3].upper())}\w*\.?"
             )
         if len(words) == 3:
             patterns.append(
-                rf"{re.escape(words[0][:3].upper())}\w*[\s.']+{re.escape(words[1][:3].upper())}\w*[\s.']+{re.escape(words[2][:3].upper())}\w*"
+                rf"{re.escape(words[0][:3].upper())}\w*[\s.']+"
+                rf"{re.escape(words[1][:3].upper())}\w*[\s.']+"
+                rf"{re.escape(words[2][:3].upper())}\w*"
             )
     seen: set[str] = set()
     out: list[str] = []
@@ -465,7 +474,8 @@ def _stub_spell(display_name: str) -> dict[str, Any]:
         "level": level,
         "text": (
             f"{display_name} ({level_label}). "
-            "Description not available in OCR extract; use rules search or the PHB spell list during play."
+            "Description not available in OCR extract; "
+            "use rules search or the PHB spell list during play."
         ),
     }
 
@@ -473,7 +483,9 @@ def _stub_spell(display_name: str) -> dict[str, Any]:
 def _extract_single_spell(section: str, display_name: str) -> dict[str, Any] | None:
     for title_pat in _title_search_patterns(display_name):
         block_re = re.compile(
-            rf"\n{title_pat}\n+({_SPELL_SCHOOL_LINE})\n+Casting Time:(.*?)(?=\n[\(\[]?[A-Z][A-Z0-9'/,\-\(\) ]{{2,}}\n|\Z)",
+            rf"\n{title_pat}\n+({_SPELL_SCHOOL_LINE})\n+"
+            rf"Casting Time:(.*?)(?=\n[\(\[]?[A-Z]"
+            rf"[A-Z0-9'/,\-\(\) ]{{2,}}\n|\Z)",
             re.DOTALL | re.IGNORECASE,
         )
         m = block_re.search(section)

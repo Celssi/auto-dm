@@ -221,7 +221,8 @@ Review this play turn and update checkpoint status.
 
 Rules:
 - Mark a checkpoint completed only when its beat is clearly resolved in play
-- activate_checkpoint_id: set the next pending checkpoint when moving forward (leave empty if staying on current beat)
+- activate_checkpoint_id: set the next pending checkpoint when moving
+  forward (leave empty if staying on current beat)
 - guidance: brief DM-only note for the NEXT scene (no future spoilers)
 - stage_label: update only if the story clearly entered a new act
 

@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
+import tempfile
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from backend.config import SAVES_DIR
+
+logger = logging.getLogger(__name__)
 
 
 def _now_iso() -> str:
@@ -17,13 +22,29 @@ def _now_iso() -> str:
 
 def _write_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def _read_json(path: Path, default: Any = None) -> Any:
     if not path.is_file():
         return default
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        logger.warning("Corrupt JSON file, returning default: %s", path)
+        return default
 
 
 def _append_text(path: Path, line: str) -> None:
@@ -149,19 +170,26 @@ ADVENTURES_INDEX = ADVENTURES_DIR / "index.json"
 
 def list_adventures(campaign_id: str | None = None) -> list[dict[str, str]]:
     index = _read_json(ADVENTURES_INDEX, [])
-    rows = [
-        {
-            "id": a["id"],
-            "name": a.get("name", "Adventure"),
-            "mode": a.get("mode", "freeform"),
-            "status": a.get("status", "draft"),
-            "campaign_id": a.get("campaign_id", ""),
-            "sequence": a.get("sequence"),
-            "source_module": a.get("source_module"),
-        }
-        for a in index
-        if a.get("id")
-    ]
+    rows = []
+    for a in index:
+        if not a.get("id"):
+            continue
+        char_id = a.get("character_id")
+        if char_id is None:
+            meta = _read_json(ADVENTURES_DIR / a["id"] / "adventure.json", {})
+            char_id = str(meta.get("character_id") or "").strip()
+        rows.append(
+            {
+                "id": a["id"],
+                "name": a.get("name", "Adventure"),
+                "mode": a.get("mode", "freeform"),
+                "status": a.get("status", "draft"),
+                "campaign_id": a.get("campaign_id", ""),
+                "sequence": a.get("sequence"),
+                "source_module": a.get("source_module"),
+                "character_id": char_id or "",
+            }
+        )
     if campaign_id:
         rows = [a for a in rows if a.get("campaign_id") == campaign_id]
     return rows
@@ -225,6 +253,7 @@ def save_adventure(adv_id: str | None, meta: dict, outline: str = "", log: str =
                     "campaign_id": meta.get("campaign_id", ""),
                     "sequence": meta.get("sequence"),
                     "source_module": meta.get("source_module"),
+                    "character_id": meta.get("character_id", ""),
                 }
             )
             found = True
@@ -239,9 +268,16 @@ def save_adventure(adv_id: str | None, meta: dict, outline: str = "", log: str =
                 "campaign_id": meta.get("campaign_id", ""),
                 "sequence": meta.get("sequence"),
                 "source_module": meta.get("source_module"),
+                "character_id": meta.get("character_id", ""),
             }
         )
     _write_json(ADVENTURES_INDEX, index)
+    campaign_id = str(meta.get("campaign_id") or "").strip()
+    character_id = str(meta.get("character_id") or "").strip()
+    if campaign_id and character_id:
+        from backend.journal_storage import link_character_to_campaign
+
+        link_character_to_campaign(campaign_id, character_id)
     return adv_id
 
 

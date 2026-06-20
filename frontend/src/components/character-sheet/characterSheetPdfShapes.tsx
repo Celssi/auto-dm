@@ -1,57 +1,14 @@
 import type { PdfModule } from './characterSheetPdfTypes';
+import { createCirclePip } from './characterSheetPdfCirclePip';
+import { createDiamondPip } from './characterSheetPdfDiamondPip';
+import { createPipRow } from './characterSheetPdfPipRow';
 
 export function createPdfShapes(pdf: PdfModule) {
-  const { View } = pdf;
-
-  function CirclePip({ filled, size = 5 }: { filled: boolean; size?: number }) {
-    return (
-      <View
-        style={{
-          width: size,
-          height: size,
-          borderRadius: size / 2,
-          border: '0.75pt solid #000',
-          backgroundColor: filled ? '#000' : '#fff',
-        }}
-      />
-    );
-  }
-
-  function DiamondPip({ filled, size = 6 }: { filled: boolean; size?: number }) {
-    return (
-      <View
-        style={{
-          width: size,
-          height: size,
-          border: '0.75pt solid #000',
-          backgroundColor: filled ? '#000' : '#fff',
-        }}
-      />
-    );
-  }
-
-  function PipRow({
-    count,
-    filled,
-    shape = 'circle',
-    gap = 3,
-  }: {
-    count: number;
-    filled: number;
-    shape?: 'circle' | 'diamond';
-    gap?: number;
-  }) {
-    const Pip = shape === 'diamond' ? DiamondPip : CirclePip;
-    return (
-      <View style={{ flexDirection: 'row', gap, marginTop: 2, alignItems: 'center' }}>
-        {Array.from({ length: count }).map((_, i) => (
-          <Pip key={i} filled={i < filled} />
-        ))}
-      </View>
-    );
-  }
-
-  return { CirclePip, DiamondPip, PipRow };
+  return {
+    CirclePip: createCirclePip(pdf),
+    DiamondPip: createDiamondPip(pdf),
+    PipRow: createPipRow(pdf),
+  };
 }
 
 /** Stack long header labels on two lines to avoid awkward hyphenation. */

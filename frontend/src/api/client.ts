@@ -1,3 +1,5 @@
+import type { LevelUpPreview } from '../types';
+
 const BASE = '/api';
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -50,7 +52,7 @@ export const api = {
       body: JSON.stringify({ character }),
     }),
   getLevelUpPreview: (id: string, className?: string) =>
-    request<{ preview: Record<string, unknown> }>(
+    request<{ preview: LevelUpPreview }>(
       `/characters/${id}/level-up-preview${className ? `?class_name=${encodeURIComponent(className)}` : ''}`,
     ),
   levelUpCharacter: (
@@ -128,6 +130,19 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ shortcut_id, params: params || {} }),
     }),
+  rollShortcut: (sessionId: string, shortcutId: string, params: Record<string, unknown>, preRolled?: number[]) =>
+    request<ChatResult & { shortcut?: { dice?: { rolls?: number[]; total?: number }; user_message?: string } }>(
+      `/sessions/${sessionId}/shortcut`,
+      {
+        method: 'POST',
+        body: JSON.stringify({
+          shortcut_id: shortcutId,
+          params,
+          pre_rolled: preRolled ?? null,
+          narrate: true,
+        }),
+      },
+    ),
   getLonelog: (sessionId: string) => request<{ lines: string[] }>(`/sessions/${sessionId}/lonelog`),
   beginSession: (sessionId: string) => request<BeginSessionResult>(`/sessions/${sessionId}/begin`, { method: 'POST' }),
   searchRules: (question: string, include_faerun = false) =>
@@ -154,6 +169,19 @@ export const api = {
     request<{ entities: JournalEntity[] }>(`/campaigns/${campaignId}/entities`),
   createCampaign: (body: { name: string; story_arc?: string; character_ids?: string[] }) =>
     request<{ id: string; campaign: CampaignFull }>('/campaigns', {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
+  updateCampaign: (
+    id: string,
+    body: { name?: string; story_arc?: string; status?: string; character_ids?: string[] },
+  ) =>
+    request<{ campaign: CampaignFull }>(`/campaigns/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  copyCampaign: (id: string, body: { character_id: string; name?: string }) =>
+    request<{ campaign_id: string; campaign: CampaignFull }>(`/campaigns/${id}/copy`, {
       method: 'POST',
       body: JSON.stringify(body),
     }),
@@ -196,6 +224,7 @@ export interface AdventureMeta {
   mode: string;
   status?: string;
   campaign_id?: string;
+  character_id?: string;
   sequence?: number;
   source_module?: ModuleSource;
 }
@@ -249,6 +278,7 @@ export interface CampaignMeta {
   id: string;
   name: string;
   status?: string;
+  character_ids?: string[];
 }
 
 export interface JournalEntry {

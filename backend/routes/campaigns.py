@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from backend.dm.campaign_copy import copy_campaign
 from backend.dm.campaign_repair import repair_campaign
 from backend.dm.world_context import world_context_for_campaign
 from backend.journal_storage import (
@@ -37,6 +38,11 @@ class CampaignUpdateBody(BaseModel):
     story_arc: str | None = None
     status: str | None = None
     character_ids: list[str] | None = None
+
+
+class CampaignCopyBody(BaseModel):
+    character_id: str
+    name: str = ""
 
 
 class JournalEntryBody(BaseModel):
@@ -72,6 +78,14 @@ def update(campaign_id: str, body: CampaignUpdateBody):
     camp.update(updates)
     save_campaign(campaign_id, camp)
     return {"campaign": get_campaign(campaign_id)}
+
+
+@router.post("/{campaign_id}/copy")
+def copy(campaign_id: str, body: CampaignCopyBody):
+    try:
+        return copy_campaign(campaign_id, character_id=body.character_id, name=body.name)
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
 
 
 @router.delete("/{campaign_id}")

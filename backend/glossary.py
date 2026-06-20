@@ -214,7 +214,9 @@ def build_glossary_index() -> dict[str, dict[str, Any]]:
         ),
         "druidicfocus": (
             "Druidic Focus",
-            "Spellcasting focus for druid spells (may replace material components without a listed cost).",
+            "Spellcasting focus for druid spells "
+            "(may replace material components "
+            "without a listed cost).",
         ),
         "holy symbol": ("Holy Symbol", "Spellcasting focus for cleric/paladin spells."),
         "spellbook": (
@@ -224,7 +226,9 @@ def build_glossary_index() -> dict[str, dict[str, Any]]:
         "thieves tools": ("Thieves' Tools", "Tool used for picking locks and disarming traps."),
         "herbalism kit": (
             "Herbalism Kit",
-            "Tools for identifying and applying herbs; used for crafting antitoxins and potions of healing.",
+            "Tools for identifying and applying herbs; "
+            "used for crafting antitoxins and "
+            "potions of healing.",
         ),
     }
     for key, (title, summary) in common_items.items():

@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { createContext, use, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { api } from '../api/client';
 import { lookupGlossary, glossaryKey, type GlossaryEntry } from '../lib/glossary';
 
@@ -28,7 +28,10 @@ export function GlossaryProvider({ children }: { children: ReactNode }) {
         setEntries(res.entries as Record<string, GlossaryEntry>);
         setReady(true);
       })
-      .catch(() => setReady(true));
+      .catch((err: unknown) => {
+        console.warn('Failed to load glossary', err);
+        setReady(true);
+      });
   }, []);
 
   const getEntry = useCallback(
@@ -79,7 +82,7 @@ export function GlossaryProvider({ children }: { children: ReactNode }) {
 }
 
 export function useGlossary() {
-  const ctx = useContext(GlossaryContext);
+  const ctx = use(GlossaryContext);
   if (!ctx) {
     return {
       ready: true,

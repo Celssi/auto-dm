@@ -42,14 +42,56 @@ def main() -> int:
     assert get_background("acolyte")["feat"] == "Magic Initiate (Cleric)"
 
     caster_expectations = {
-        "bard": {"mode": "prepared", "cantrips": 2, "picks": 4, "slots": {"1": 2}, "ability": "cha"},
-        "cleric": {"mode": "prepared", "cantrips": 3, "picks": 4, "slots": {"1": 2}, "ability": "wis"},
-        "druid": {"mode": "prepared", "cantrips": 2, "picks": 4, "slots": {"1": 2}, "ability": "wis"},
-        "wizard": {"mode": "prepared", "cantrips": 3, "picks": 4, "slots": {"1": 2}, "ability": "int"},
-        "sorcerer": {"mode": "prepared", "cantrips": 4, "picks": 2, "slots": {"1": 2}, "ability": "cha"},
+        "bard": {
+            "mode": "prepared",
+            "cantrips": 2,
+            "picks": 4,
+            "slots": {"1": 2},
+            "ability": "cha",
+        },
+        "cleric": {
+            "mode": "prepared",
+            "cantrips": 3,
+            "picks": 4,
+            "slots": {"1": 2},
+            "ability": "wis",
+        },
+        "druid": {
+            "mode": "prepared",
+            "cantrips": 2,
+            "picks": 4,
+            "slots": {"1": 2},
+            "ability": "wis",
+        },
+        "wizard": {
+            "mode": "prepared",
+            "cantrips": 3,
+            "picks": 4,
+            "slots": {"1": 2},
+            "ability": "int",
+        },
+        "sorcerer": {
+            "mode": "prepared",
+            "cantrips": 4,
+            "picks": 2,
+            "slots": {"1": 2},
+            "ability": "cha",
+        },
         "warlock": {"mode": "pact", "cantrips": 2, "picks": 2, "slots": {"1": 1}, "ability": "cha"},
-        "paladin": {"mode": "prepared", "cantrips": 0, "picks": 4, "slots": {"1": 2}, "ability": "cha"},
-        "ranger": {"mode": "prepared", "cantrips": 0, "picks": 4, "slots": {"1": 2}, "ability": "wis"},
+        "paladin": {
+            "mode": "prepared",
+            "cantrips": 0,
+            "picks": 4,
+            "slots": {"1": 2},
+            "ability": "cha",
+        },
+        "ranger": {
+            "mode": "prepared",
+            "cantrips": 0,
+            "picks": 4,
+            "slots": {"1": 2},
+            "ability": "wis",
+        },
     }
     for cid, exp in caster_expectations.items():
         cls = get_class(cid)

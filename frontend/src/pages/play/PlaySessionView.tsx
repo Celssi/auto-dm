@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { m, AnimatePresence } from '../../lib/framer';
 import { Swords } from 'lucide-react';
@@ -10,8 +11,9 @@ import { displayLabel } from '../../lib/displayText';
 import AnimatedPage from '../../components/ui/AnimatedPage';
 import ChatMarkdown from '../../components/play/ChatMarkdown';
 import MarkdownContent from '../../components/ui/MarkdownContent';
-import type { PlayState } from './playState';
+import type { PlayState, DiceModalState } from './playState';
 import type { JournalEntity } from '../../api/client';
+import DiceRollModal from '../../components/play/DiceRollModal';
 
 interface Props {
   state: PlayState;
@@ -24,6 +26,9 @@ interface Props {
   onRunOracle: (id: string) => void;
   onRunShortcut: (id: string) => void;
   onStartNextAdventure: () => void;
+  onDiceModalUpdate: (patch: Partial<DiceModalState>) => void;
+  onDiceModalSubmit: (preRolled?: number[]) => void;
+  onDiceModalClose: () => void;
 }
 
 export default function PlaySessionView({
@@ -37,6 +42,9 @@ export default function PlaySessionView({
   onRunOracle,
   onRunShortcut,
   onStartNextAdventure,
+  onDiceModalUpdate,
+  onDiceModalSubmit,
+  onDiceModalClose,
 }: Props) {
   const {
     sessionLoaded,
@@ -62,6 +70,7 @@ export default function PlaySessionView({
     startingNext,
     campaignId,
     combatState,
+    diceModal,
   } = state;
 
   return (
@@ -113,6 +122,20 @@ export default function PlaySessionView({
         onRunOracle={onRunOracle}
         onRunShortcut={onRunShortcut}
       />
+
+      <AnimatePresence>
+        {diceModal && character && (
+          <DiceRollModal
+            modal={diceModal}
+            abilityScores={character.ability_scores ?? {}}
+            saveProficiencies={character.save_proficiencies ?? []}
+            level={character.level}
+            onUpdate={onDiceModalUpdate}
+            onSubmit={onDiceModalSubmit}
+            onClose={onDiceModalClose}
+          />
+        )}
+      </AnimatePresence>
     </AnimatedPage>
   );
 }
@@ -300,11 +323,7 @@ function PlayChatArea({
                   {msg.role === 'assistant' && (
                     <div className="text-[10px] uppercase tracking-wider text-accent/70 mb-1.5 font-medium">DM</div>
                   )}
-                  {msg.role === 'assistant' ? (
-                    <ChatMarkdown content={msg.content} entities={journalEntities} />
-                  ) : (
-                    <div className="chat-markdown whitespace-pre-wrap">{msg.content}</div>
-                  )}
+                  <ChatMarkdown content={msg.content} entities={journalEntities} />
                 </div>
               </m.div>
             ))}
@@ -386,6 +405,18 @@ function PlayChatInput({
   );
 }
 
+function visibleLonelogLines(lonelog: string[]): string[] {
+  const lines: string[] = [];
+  for (const line of lonelog.slice(-24)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    if (/^#+\s/.test(trimmed)) continue;
+    if (/^_.*_$/.test(trimmed)) continue;
+    lines.push(line);
+  }
+  return lines;
+}
+
 function PlayToolsPanel({
   oracles,
   shortcuts,
@@ -405,6 +436,8 @@ function PlayToolsPanel({
   onRunOracle: (id: string) => void;
   onRunShortcut: (id: string) => void;
 }) {
+  const visibleLog = useMemo(() => visibleLonelogLines(lonelog), [lonelog]);
+
   return (
     <aside className="lg:col-span-3 panel-glow overflow-hidden p-3 min-h-0 flex flex-col gap-2">
       {combatState && combatState.status === 'active' && <CombatPanel state={combatState} />}
@@ -443,27 +476,18 @@ function PlayToolsPanel({
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted mb-1.5 shrink-0">Lonelog</h2>
         <div className="flex-1 min-h-0 rounded-md border border-border bg-bg/40 p-2 overflow-y-auto">
-          {lonelog.length === 0 ? (
+          {visibleLog.length === 0 ? (
             <p className="text-xs text-muted italic">Session events will appear here.</p>
           ) : (
             <div className="space-y-2">
-              {lonelog
-                .slice(-24)
-                .filter((line) => {
-                  const trimmed = line.trim();
-                  if (!trimmed) return false;
-                  if (/^#+\s/.test(trimmed)) return false;
-                  if (/^_.*_$/.test(trimmed)) return false;
-                  return true;
-                })
-                .map((line) => (
-                  <div
-                    key={`log-${line.slice(0, 40)}-${line.length}`}
-                    className="text-xs leading-relaxed text-gray-400 border-b border-border/40 pb-2 last:border-0 last:pb-0"
-                  >
-                    <MarkdownContent content={line} className="text-xs" />
-                  </div>
-                ))}
+              {visibleLog.map((line) => (
+                <div
+                  key={`log-${line.slice(0, 40)}-${line.length}`}
+                  className="text-xs leading-relaxed text-gray-400 border-b border-border/40 pb-2 last:border-0 last:pb-0"
+                >
+                  <MarkdownContent content={line} className="text-xs" />
+                </div>
+              ))}
             </div>
           )}
         </div>

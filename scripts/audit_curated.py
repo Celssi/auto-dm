@@ -198,7 +198,8 @@ def main() -> int:
         for issue in pdf_issues:
             print(f"  - {issue}")
         print(
-            "\nFix with: python -m scripts.extract_backgrounds --source <player|heroes_faerun> --apply"
+            "\nFix with: python -m scripts.extract_backgrounds"
+            " --source <player|heroes_faerun> --apply"
         )
         return 1
 

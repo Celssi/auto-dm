@@ -3,12 +3,17 @@
 from __future__ import annotations
 
 import json
+import logging
+import os
 import re
+import tempfile
 import uuid
 from pathlib import Path
 from typing import Any
 
 from backend.config import SAVES_DIR
+
+logger = logging.getLogger(__name__)
 
 CAMPAIGNS_DIR = SAVES_DIR / "campaigns"
 CAMPAIGNS_INDEX = CAMPAIGNS_DIR / "index.json"
@@ -22,13 +27,29 @@ def _now_iso() -> str:
 
 def _write_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2, ensure_ascii=False), encoding="utf-8")
+    fd, tmp = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        os.replace(tmp, path)
+    except BaseException:
+        try:
+            os.unlink(tmp)
+        except OSError:
+            pass
+        raise
 
 
 def _read_json(path: Path, default: Any = None) -> Any:
     if not path.is_file():
         return default
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        logger.warning("Corrupt JSON file, returning default: %s", path)
+        return default
 
 
 def slugify(name: str) -> str:
@@ -63,23 +84,86 @@ def _locations_dir(campaign_id: str) -> Path:
 # --- Campaigns ---
 
 
-def list_campaigns() -> list[dict[str, str]]:
+def _character_ids_from_adventures(campaign_id: str) -> list[str]:
+    from backend.storage import ADVENTURES_DIR, list_adventures_for_campaign
+
+    ids: list[str] = []
+    seen: set[str] = set()
+    for adv in list_adventures_for_campaign(campaign_id):
+        meta = _read_json(ADVENTURES_DIR / adv["id"] / "adventure.json", {})
+        char_id = str(meta.get("character_id") or "").strip()
+        if char_id and char_id not in seen:
+            seen.add(char_id)
+            ids.append(char_id)
+    return ids
+
+
+def resolve_campaign_character_ids(
+    campaign_id: str,
+    stored: list[str] | None = None,
+    *,
+    persist: bool = False,
+) -> list[str]:
+    """Return linked character ids, inferring from adventures when the campaign has none."""
+    if stored is None:
+        data = _read_json(_campaign_dir(campaign_id) / "campaign.json")
+        stored = list(data.get("character_ids") or []) if data else []
+    merged = list(stored)
+    for char_id in _character_ids_from_adventures(campaign_id):
+        if char_id not in merged:
+            merged.append(char_id)
+    if persist and merged != stored:
+        data = _read_json(_campaign_dir(campaign_id) / "campaign.json")
+        if data:
+            save_campaign(campaign_id, {**data, "character_ids": merged})
+    return merged
+
+
+def link_character_to_campaign(campaign_id: str, character_id: str) -> None:
+    char_id = (character_id or "").strip()
+    if not campaign_id or not char_id:
+        return
+    data = _read_json(_campaign_dir(campaign_id) / "campaign.json")
+    if not data:
+        return
+    ids = list(data.get("character_ids") or [])
+    if char_id in ids:
+        return
+    save_campaign(campaign_id, {**data, "character_ids": ids + [char_id]})
+
+
+def list_campaigns() -> list[dict[str, Any]]:
     index = _read_json(CAMPAIGNS_INDEX, [])
-    return [
-        {
-            "id": row["id"],
-            "name": row.get("name", "Campaign"),
-            "status": row.get("status", "active"),
-        }
-        for row in index
-        if row.get("id")
-    ]
+    result: list[dict[str, Any]] = []
+    for row in index:
+        cid = row.get("id")
+        if not cid:
+            continue
+        char_ids = row.get("character_ids")
+        if char_ids is None:
+            data = _read_json(_campaign_dir(cid) / "campaign.json")
+            char_ids = list(data.get("character_ids") or []) if data else []
+        char_ids = resolve_campaign_character_ids(cid, char_ids, persist=True)
+        result.append(
+            {
+                "id": cid,
+                "name": row.get("name", "Campaign"),
+                "status": row.get("status", "active"),
+                "character_ids": char_ids,
+            }
+        )
+    return result
 
 
 def get_campaign(campaign_id: str) -> dict | None:
     data = _read_json(_campaign_dir(campaign_id) / "campaign.json")
     if not data:
         return None
+    data["character_ids"] = resolve_campaign_character_ids(
+        campaign_id,
+        list(data.get("character_ids") or []),
+        persist=True,
+    )
     data["npcs"] = list_campaign_npcs(campaign_id)
     data["locations"] = list_campaign_locations(campaign_id)
     return data
@@ -103,7 +187,7 @@ def save_campaign(campaign_id: str | None, data: dict) -> str:
         "character_ids": list(data.get("character_ids") or []),
         "updated_at": _now_iso(),
     }
-    for key in ("generation_mode", "source_module", "theme", "adventure_count"):
+    for key in ("generation_mode", "source_module", "theme", "adventure_count", "copied_from"):
         if key in data and data[key] not in (None, "", {}):
             payload[key] = data[key]
     if "created_at" not in data:
@@ -115,11 +199,24 @@ def save_campaign(campaign_id: str | None, data: dict) -> str:
     found = False
     for row in index:
         if row.get("id") == campaign_id:
-            row.update({"name": name, "status": payload["status"]})
+            row.update(
+                {
+                    "name": name,
+                    "status": payload["status"],
+                    "character_ids": payload["character_ids"],
+                }
+            )
             found = True
             break
     if not found:
-        index.append({"id": campaign_id, "name": name, "status": payload["status"]})
+        index.append(
+            {
+                "id": campaign_id,
+                "name": name,
+                "status": payload["status"],
+                "character_ids": payload["character_ids"],
+            }
+        )
     _write_json(CAMPAIGNS_INDEX, index)
     return campaign_id
 

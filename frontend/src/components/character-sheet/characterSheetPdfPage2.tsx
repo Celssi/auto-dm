@@ -47,7 +47,9 @@ export function buildSheetPage2(pdf: PdfModule, c: Character) {
             </Text>
           </View>
           {spellAb ? (
-            <Text style={{ fontSize: 6, marginTop: 3, color: '#555' }}>{stackLabel('Spellcasting Ability')}: {spellAb.toUpperCase()}</Text>
+            <Text style={{ fontSize: 6, marginTop: 3, color: '#555' }}>
+              {stackLabel('Spellcasting Ability')}: {spellAb.toUpperCase()}
+            </Text>
           ) : null}
         </View>
 

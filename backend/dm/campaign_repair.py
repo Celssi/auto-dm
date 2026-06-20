@@ -130,15 +130,24 @@ WAKING_DEEP_ENCOUNTERS: dict[str, list[EncounterSpec]] = {
 WAKING_DEEP_NPCS: list[JournalEntryExtract] = [
     JournalEntryExtract(
         name="Captain Marceska Venn",
-        body="Half-orc pirate captain of the Gilded Eel. Pragmatic leader of the Tide Moot in Salthollow.",
+        body=(
+            "Half-orc pirate captain of the Gilded Eel. "
+            "Pragmatic leader of the Tide Moot in Salthollow."
+        ),
     ),
     JournalEntryExtract(
         name="Old Thessan",
-        body="Weathered tortle druid, last remnant of the Circle of Salt and Storm. Hides in Salthollow slums.",
+        body=(
+            "Weathered tortle druid, last remnant of the "
+            "Circle of Salt and Storm. Hides in Salthollow slums."
+        ),
     ),
     JournalEntryExtract(
         name="Speaker Ulvorith",
-        body="Sea elf warlock and cult leader of the Drowned Disciples. Wields a corrupted Crown fragment.",
+        body=(
+            "Sea elf warlock and cult leader of the Drowned "
+            "Disciples. Wields a corrupted Crown fragment."
+        ),
     ),
     JournalEntryExtract(
         name="Admiral Harlan Greave",
@@ -201,7 +210,8 @@ Adventures:
 Rules:
 - npcs: 4-10 key named characters (not the solo player hero unless listed as NPC ally)
 - locations: 3-8 key places
-- encounters_by_adventure: for EACH adventure name, 2-4 combat encounters using canonical Monster Manual creature names
+- encounters_by_adventure: for EACH adventure name, 2-4 combat encounters
+  using canonical Monster Manual creature names
 - trigger_beat: short story beat title when encounter starts
 - enemies: use real MM names (Merrow, Sahuagin, Dragon Turtle, etc.)
 """

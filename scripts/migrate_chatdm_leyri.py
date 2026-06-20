@@ -224,11 +224,16 @@ def _build_character() -> dict:
             "equipment_notes": (
                 "Wood Elf traits: 35 ft speed, Fey Ancestry, Keen Senses (Insight), Trance.\n"
                 "Primal Order: Magician.\n"
-                "Wild Shape uses: 2/2. Known forms include Brown Bear, Dire Wolf, Tiger, Wolf, Riding Horse, Rat, Spider.\n\n"
+                "Wild Shape uses: 2/2. Known forms include "
+                "Brown Bear, Dire Wolf, Tiger, Wolf, "
+                "Riding Horse, Rat, Spider.\n\n"
                 f"Appearance: {appearance}\n\nPersonality: {personality}\n\nStatus: {status}"
             ),
             "campaign_setting": "freeform",
-            "campaign_notes": "Pinehaven mountain village campaign — The Sealed Evil Beneath Thornwatch Tower",
+            "campaign_notes": (
+                "Pinehaven mountain village campaign"
+                " — The Sealed Evil Beneath Thornwatch Tower"
+            ),
             "classes": [{"class_name": "druid", "level": 3, "subclass": "Circle of the Moon"}],
         }
     )

@@ -17,13 +17,13 @@ from backend.characters.entity import character_from_dict, character_to_dict
 from backend.characters.spell_resources import is_spell_available
 from backend.dm.actions import SHORTCUTS, run_shortcut
 from backend.dm.combat_manager import (
-    format_combat_context,
     finish_player_turn,
+    format_combat_context,
     run_enemy_turns_until_player,
     try_start_planned_encounter,
 )
-from backend.dm.encounters import combat_state_view, load_combat_state
 from backend.dm.continuity_guard import apply_continuity_guard
+from backend.dm.encounters import combat_state_view, load_combat_state
 from backend.dm.journal_keeper import run_journal_keeper
 from backend.dm.lonelog import format_mechanical, format_narrative
 from backend.dm.narrator import synthesize_lonelog_summary
@@ -124,6 +124,7 @@ class DMState(TypedDict, total=False):
     player_progress: dict
     combat_state: dict
     combat_events: list[str]
+    precomputed_shortcut: dict
 
 
 def _factions(include_faerun: bool) -> list[str]:
@@ -211,7 +212,9 @@ def _needs_resource_keeper(state: DMState) -> bool:
         "cast_spell",
     ):
         return False
-    combined = f"{state.get('user_message', '')}\n{state.get('response') or state.get('narrative') or ''}".lower()
+    combined = (
+        f"{state.get('user_message', '')}\n{state.get('response') or state.get('narrative') or ''}"
+    ).lower()
     return any(sig in combined for sig in _RESOURCE_SIGNALS)
 
 
@@ -251,12 +254,28 @@ def combat_manager_pre_node(state: DMState) -> DMState:
 
 def router_node(state: DMState) -> DMState:
     msg = state.get("user_message", "")
-    shortcut = _detect_shortcut(msg)
+    precomputed = state.get("precomputed_shortcut")
+    shortcut = _detect_shortcut(msg) if not precomputed else None
     updates: DMState = {
         "needs_rules": _needs_rules_check(msg),
         "in_combat": _in_combat_check(msg, shortcut),
     }
-    if shortcut:
+    if precomputed:
+        result = precomputed
+        updates["shortcut_result"] = result
+        updates["mechanics_summary"] = (
+            result.get("summary")
+            or result.get("user_message")
+            or (result.get("dice") or {}).get("summary", "")
+        )
+        if result.get("entity_updates"):
+            updates["character_updates"] = result["entity_updates"]
+        task = result.get("task", "")
+        if task == "rules_help":
+            updates["needs_rules"] = True
+        if task in ("ability_check", "saving_throw", "attack_roll", "initiative", "death_save"):
+            updates["in_combat"] = _in_combat_check(msg, task)
+    elif shortcut:
         char = state.get("character") or {}
         extra: dict = {}
         if shortcut == "cast_spell":
@@ -309,7 +328,9 @@ def combat_mechanics_node(state: DMState) -> DMState:
             lines.append("Combat rules excerpt:")
             for s in rag.sources[:2]:
                 lines.append(
-                    f"- {s.get('source_label', '?')} p.{s.get('page', '?')}: {s.get('text', '')[:200]}"
+                    f"- {s.get('source_label', '?')} "
+                    f"p.{s.get('page', '?')}: "
+                    f"{s.get('text', '')[:200]}"
                 )
     return {"combat_context": "\n".join(lines)}
 
@@ -385,7 +406,7 @@ def story_director_update_node(state: DMState) -> DMState:
     if not adv_id:
         return {}
     dm_response = state.get("response") or state.get("narrative") or ""
-    if not dm_response.strip():
+    if len(dm_response.strip()) < _MIN_RESPONSE_FOR_BOOKKEEPING:
         return {}
     raw = state.get("story_progress")
     if raw:
@@ -544,6 +565,9 @@ def scribe_node(state: DMState) -> DMState:
     return {"lonelog_lines": lines, "scribe_log_entry": log_entry}
 
 
+_MIN_RESPONSE_FOR_BOOKKEEPING = 120
+
+
 def chronicler_node(state: DMState) -> DMState:
     if state.get("shortcut_result", {}).get("task") == "rules_help":
         return {}
@@ -552,7 +576,7 @@ def chronicler_node(state: DMState) -> DMState:
     if not adv_id:
         return {}
     dm_response = state.get("response") or state.get("narrative") or ""
-    if not dm_response.strip():
+    if len(dm_response.strip()) < _MIN_RESPONSE_FOR_BOOKKEEPING:
         return {}
     existing = adventure.get("summary") or ""
     updated = increment_summary(
@@ -630,6 +654,7 @@ def build_dm_graph():
         "combat_manager_post", wrap_node("combat_manager_post", combat_manager_post_node)
     )
 
+    # Sequential pre-narrator pipeline
     graph.set_entry_point("router")
     graph.add_edge("router", "combat_manager_pre")
     graph.add_edge("combat_manager_pre", "combat")
@@ -637,13 +662,24 @@ def build_dm_graph():
     graph.add_edge("rules", "story_director_brief")
     graph.add_edge("story_director_brief", "narrator")
     graph.add_edge("narrator", "continuity_guard")
+
+    # resource_keeper → fan-out: keeper and scribe in parallel
     graph.add_edge("continuity_guard", "resource_keeper")
     graph.add_edge("resource_keeper", "keeper")
-    graph.add_edge("keeper", "scribe")
+    graph.add_edge("resource_keeper", "scribe")
+
+    # Fan-out: chronicler, story_director_update, journal_keeper
+    # run in parallel after scribe (they read scribe_log_entry)
     graph.add_edge("scribe", "chronicler")
-    graph.add_edge("chronicler", "story_director_update")
-    graph.add_edge("story_director_update", "journal_keeper")
+    graph.add_edge("scribe", "story_director_update")
+    graph.add_edge("scribe", "journal_keeper")
+
+    # Fan-in: all parallel branches converge on combat_manager_post
+    graph.add_edge("keeper", "combat_manager_post")
+    graph.add_edge("chronicler", "combat_manager_post")
+    graph.add_edge("story_director_update", "combat_manager_post")
     graph.add_edge("journal_keeper", "combat_manager_post")
+
     graph.add_edge("combat_manager_post", END)
     return graph.compile()
 
@@ -706,7 +742,9 @@ def _handle_spell_autocomplete(
             return _finish_early_turn(
                 session_id,
                 messages,
-                response=f"Okay, not casting **{spell_name or 'that spell'}**. What do you do instead?",
+                response=(
+                    f"Okay, not casting **{spell_name or 'that spell'}**. What do you do instead?"
+                ),
                 character=char,
                 character_id=character_id,
                 clear_pending=True,
@@ -784,6 +822,7 @@ def run_dm_turn(
     user_message: str,
     *,
     chat_provider: ChatProvider = "claude",
+    precomputed_shortcut: dict | None = None,
 ) -> dict[str, Any]:
     _ = chat_provider
     session = get_session(session_id)
@@ -827,6 +866,8 @@ def run_dm_turn(
         "messages": messages[:-1],
         "combat_events": pre_combat_events,
     }
+    if precomputed_shortcut:
+        state["precomputed_shortcut"] = precomputed_shortcut
     with dm_turn_trace(session_id, user_message):
         result = get_dm_graph().invoke(state)
     response = result.get("response", "")

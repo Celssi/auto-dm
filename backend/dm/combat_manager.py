@@ -9,8 +9,8 @@ from typing import Any
 
 from backend.characters.entity import Dnd5eCharacter, character_from_dict, character_to_dict
 from backend.dm.encounters import (
-    CombatState,
     Combatant,
+    CombatState,
     EncounterSpec,
     clear_combat_state,
     load_adventure_encounters,
@@ -26,6 +26,52 @@ from backend.play_tools import roll_dice
 
 def _dex_mod(char: Dnd5eCharacter) -> int:
     return (char.ability_scores.get("dex", 10) - 10) // 2
+
+
+def _con_mod(char: Dnd5eCharacter) -> int:
+    return (char.ability_scores.get("con", 10) - 10) // 2
+
+
+def _proficiency_bonus(char: Dnd5eCharacter) -> int:
+    return 2 + (max(1, char.level) - 1) // 4
+
+
+def _con_save_proficient(char: Dnd5eCharacter) -> bool:
+    profs = [p.lower() for p in (char.save_proficiencies or [])]
+    if "con" in profs:
+        return True
+    cls = (char.class_name or "").lower()
+    return cls in ("barbarian", "fighter", "sorcerer")
+
+
+def check_concentration_save(char: Dnd5eCharacter, damage: int) -> tuple[bool, str]:
+    """Roll a CON save to maintain concentration after taking damage.
+
+    DC = max(10, damage // 2) per PHB 2024.
+    Returns (maintained, summary_line).
+    """
+    if not char.concentration:
+        return True, ""
+    dc = max(10, damage // 2)
+    mod = _con_mod(char)
+    if _con_save_proficient(char):
+        mod += _proficiency_bonus(char)
+    result = roll_dice("1d20")
+    roll_val = int(result["rolls"][0])
+    total = roll_val + mod
+    maintained = roll_val == 20 or (roll_val != 1 and total >= dc)
+    spell = char.concentration
+    if maintained:
+        summary = (
+            f"**Concentration save** (d20 {roll_val} + {mod} = {total} vs DC {dc}): "
+            f"**MAINTAINED** {spell}"
+        )
+    else:
+        summary = (
+            f"**Concentration save** (d20 {roll_val} + {mod} = {total} vs DC {dc}): "
+            f"**LOST** {spell}"
+        )
+    return maintained, summary
 
 
 def _roll_initiative(mod: int = 0) -> int:
@@ -59,6 +105,7 @@ def spawn_enemy_combatants(spec_enemies: list, encounter_id: str) -> list[Combat
                     ac=stats.ac,
                     attack_bonus=to_hit,
                     damage=damage,
+                    multiattack_count=max(1, stats.multiattack_count),
                 )
             )
     return combatants
@@ -79,7 +126,6 @@ def build_player_combatant(char: Dnd5eCharacter) -> Combatant:
 def roll_initiative_for_state(state: CombatState) -> CombatState:
     for c in state.combatants:
         if c.kind == "player":
-            char = None
             for pc in state.combatants:
                 if pc.kind == "player":
                     c.initiative = _roll_initiative(0)
@@ -179,9 +225,9 @@ def resolve_enemy_attack(enemy: Combatant, target_ac: int) -> dict[str, Any]:
         "crit": crit,
         "damage": damage,
         "summary": (
-            f"**{enemy.name}** attacks (d20 {roll} + {enemy.attack_bonus} = {total} vs AC {target_ac}): "
-            + ("**HIT**" if hit else "miss")
-            + damage_summary
+            f"**{enemy.name}** attacks "
+            f"(d20 {roll} + {enemy.attack_bonus} = {total} "
+            f"vs AC {target_ac}): " + ("**HIT**" if hit else "miss") + damage_summary
         ),
     }
 
@@ -201,13 +247,22 @@ def resolve_enemy_turn(state: CombatState, char_dict: dict) -> tuple[CombatState
 
     player = _combatant_by_id(state, "player")
     target_ac = player.ac if player else character_from_dict(char_dict).ac
-    result = resolve_enemy_attack(actor, target_ac)
-    events.append(result["summary"])
-    if result["hit"] and result["damage"] > 0:
-        char_dict = apply_damage_to_player(char_dict, result["damage"])
-        player = _combatant_by_id(state, "player")
-        if player:
-            player.hp = character_from_dict(char_dict).hp
+    num_attacks = max(1, actor.multiattack_count)
+    if num_attacks > 1:
+        events.append(f"**{actor.name}** uses Multiattack ({num_attacks} attacks)")
+    for _ in range(num_attacks):
+        result = resolve_enemy_attack(actor, target_ac)
+        events.append(result["summary"])
+        if result["hit"] and result["damage"] > 0:
+            char_dict = apply_damage_to_player(char_dict, result["damage"])
+            if player:
+                player.hp = character_from_dict(char_dict).hp
+            char = character_from_dict(char_dict)
+            maintained, conc_summary = check_concentration_save(char, result["damage"])
+            if conc_summary:
+                events.append(conc_summary)
+                if not maintained:
+                    char_dict["concentration"] = ""
 
     state = advance_turn(state)
     if _all_enemies_defeated(state):
@@ -286,8 +341,11 @@ def format_combat_context(state: CombatState | None) -> str:
     for c in state.combatants:
         status = "down" if c.hp <= 0 else f"HP {c.hp}/{c.max_hp}, AC {c.ac}"
         init = f", init {c.initiative}" if c.initiative else ""
+        multi = f", multiattack ×{c.multiattack_count}" if c.multiattack_count > 1 else ""
         atk = (
-            f", attack +{c.attack_bonus} {c.damage}" if c.kind == "enemy" and c.attack_bonus else ""
+            f", attack +{c.attack_bonus} {c.damage}{multi}"
+            if c.kind == "enemy" and c.attack_bonus
+            else ""
         )
         lines.append(f"- {c.name} [{c.kind}]: {status}{init}{atk}")
     if actor and actor.kind == "player":
@@ -427,7 +485,6 @@ def _score_encounter_match(
     beat_title = _normalize_text(active_beat)
     beat_notes = _normalize_text(active_beat_notes)
     beat_ctx = _normalize_text(f"{active_beat} {active_beat_notes}")
-    scene_ctx = _normalize_text(f"{beat_ctx} {user_message} {recent_dm_text}")
     trigger = _normalize_text(enc.trigger_beat)
     enc_name = _normalize_text(enc.name)
     enc_desc = _normalize_text(enc.description)

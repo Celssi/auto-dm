@@ -178,7 +178,8 @@ Use exactly these markdown sections:
 
 Rules:
 - Major beats: chronological bullet list of key plot events
-- Established facts: concrete truths the DM must not contradict (NPC status, locations, items, seals, deaths)
+- Established facts: concrete truths the DM must not contradict
+  (NPC status, locations, items, seals, deaths)
 - Current situation: where play should resume NOW (time, place, mood, immediate tensions)
 - Open mysteries: unresolved questions and hooks
 - Be factual; no speculation. Include character level if known from the log.

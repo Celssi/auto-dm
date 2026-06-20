@@ -54,18 +54,13 @@ function computePlacement(
   const vh = window.innerHeight;
   const width = Math.min(TIP_WIDTH, vw - VIEWPORT_PAD * 2);
 
-  let left =
-    align === 'start' ? trigger.left : trigger.left + trigger.width / 2 - width / 2;
+  let left = align === 'start' ? trigger.left : trigger.left + trigger.width / 2 - width / 2;
   left = Math.max(VIEWPORT_PAD, Math.min(left, vw - width - VIEWPORT_PAD));
 
   const spaceAbove = trigger.top - VIEWPORT_PAD;
   const spaceBelow = vh - trigger.bottom - VIEWPORT_PAD;
   const above =
-    placement === 'above'
-      ? true
-      : placement === 'below'
-        ? false
-        : spaceAbove >= 140 && spaceAbove >= spaceBelow;
+    placement === 'above' ? true : placement === 'below' ? false : spaceAbove >= 140 && spaceAbove >= spaceBelow;
 
   if (above) {
     const maxHeight = Math.max(120, Math.min(360, spaceAbove - GAP));
@@ -78,13 +73,11 @@ function computePlacement(
 function GlossaryEntryBody({
   entry,
   loading,
-  name,
   maxHeight,
   compact = false,
 }: {
   entry: GlossaryEntry | null;
   loading: boolean;
-  name: string;
   maxHeight?: number;
   compact?: boolean;
 }) {
@@ -110,62 +103,48 @@ function GlossaryEntryBody({
   );
 }
 
-export function useGlossaryEntry(name: string, classId?: string) {
+type GlossaryFetchState = {
+  key: string;
+  entry: GlossaryEntry | null;
+  loading: boolean;
+};
+
+function useGlossaryEntry(name: string, classId?: string) {
   const { getEntry, fetchEntry } = useGlossary();
-  const [entry, setEntry] = useState<GlossaryEntry | null>(null);
-  const [loading, setLoading] = useState(false);
+  const staticEntry = name ? getEntry(name, classId) : null;
+  const hasStatic = Boolean(staticEntry?.summary);
+  const requestKey = `${name}:${classId ?? ''}`;
+
+  const [fetchState, setFetchState] = useState<GlossaryFetchState>({
+    key: requestKey,
+    entry: null,
+    loading: false,
+  });
+
+  if (requestKey !== fetchState.key) {
+    setFetchState({
+      key: requestKey,
+      entry: null,
+      loading: Boolean(name && !hasStatic),
+    });
+  }
 
   useEffect(() => {
-    if (!name) {
-      setEntry(null);
-      setLoading(false);
-      return;
-    }
-    const staticEntry = getEntry(name, classId);
-    if (staticEntry?.summary) {
-      setEntry(staticEntry);
-      setLoading(false);
-      return;
-    }
+    if (!name || hasStatic || !fetchState.loading || fetchState.key !== requestKey) return;
     let cancelled = false;
-    setLoading(true);
-    fetchEntry(name, classId).then((fetched) => {
+    fetchEntry(name, classId).then((result) => {
       if (!cancelled) {
-        setEntry(fetched);
-        setLoading(false);
+        setFetchState({ key: requestKey, entry: result, loading: false });
       }
     });
     return () => {
       cancelled = true;
     };
-  }, [name, classId, getEntry, fetchEntry]);
+  }, [name, classId, hasStatic, fetchEntry, requestKey, fetchState.key, fetchState.loading]);
 
-  return { entry, loading };
-}
-
-/** Fixed preview panel for choice grids (does not overlay options). */
-export function GlossaryInlinePreview({
-  name,
-  classId,
-  className = '',
-}: {
-  name: string;
-  classId?: string;
-  className?: string;
-}) {
-  const { entry, loading } = useGlossaryEntry(name, classId);
-  if (!name) return null;
-  if (!loading && !entry?.summary) return null;
-
-  return (
-    <div
-      className={`rounded-lg border border-border/80 bg-bg/50 p-3 ${className}`}
-      aria-live="polite"
-    >
-      <p className="font-medium text-accent text-sm mb-1.5">{displayLabel(entry?.title || name)}</p>
-      <GlossaryEntryBody entry={entry} loading={loading} name={name} compact />
-    </div>
-  );
+  if (!name) return { entry: null, loading: false };
+  if (hasStatic) return { entry: staticEntry, loading: false };
+  return { entry: fetchState.entry, loading: fetchState.loading };
 }
 
 export default function GlossaryTip({
@@ -279,7 +258,7 @@ export default function GlossaryTip({
               className="flex flex-col p-3 panel-glow shadow-glow pointer-events-none"
             >
               <p className="font-medium text-accent text-sm mb-1.5 shrink-0">{displayLabel(entry?.title || name)}</p>
-              <GlossaryEntryBody entry={entry} loading={loading} name={name} maxHeight={placement.maxHeight} />
+              <GlossaryEntryBody entry={entry} loading={loading} maxHeight={placement.maxHeight} />
             </m.div>
           </AnimatePresence>,
           document.body,

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useReducer } from 'react';
 import { m } from '../../lib/framer';
 import { api } from '../../api/client';
-import type { Character, ClassLevel } from '../../types';
+import type { Character, ClassLevel, LevelUpPreview } from '../../types';
 import { Field } from '../ui/forms/Field';
 import TextInput from '../ui/forms/TextInput';
 import NumberInput from '../ui/forms/NumberInput';
@@ -20,34 +20,6 @@ interface Summary {
   multiclass?: boolean;
 }
 
-interface PickBudget {
-  limit_before: number;
-  limit_after: number;
-  current: number;
-  limit_increased: boolean;
-  additional_picks: number;
-}
-
-interface LevelUpPreview {
-  can_level: boolean;
-  reason?: string;
-  target_class?: string;
-  target_class_label?: string;
-  class_level_before?: number;
-  class_level_after?: number;
-  total_level_after?: number;
-  hit_die?: number;
-  proficiency_bonus_increases?: boolean;
-  proficiency_bonus_after?: number;
-  cantrips?: PickBudget;
-  class_cantrips?: PickBudget;
-  spells?: PickBudget & { field: string; label: string };
-  spell_list?: { cantrips: string[]; options: string[] };
-  asi_this_level?: boolean;
-  needs_subclass?: boolean;
-  notices?: string[];
-}
-
 interface Props {
   characterId: string;
   character: Character;
@@ -63,69 +35,160 @@ interface Props {
 
 const ABILITIES = ['str', 'dex', 'con', 'int', 'wis', 'cha'] as const;
 
+type PreviewState = {
+  key: string;
+  preview: LevelUpPreview | null;
+  loading: boolean;
+};
+
+type PreviewAction = { type: 'start'; key: string } | { type: 'finish'; key: string; preview: LevelUpPreview | null };
+
+function previewReducer(_state: PreviewState, action: PreviewAction): PreviewState {
+  switch (action.type) {
+    case 'start':
+      return { key: action.key, preview: null, loading: true };
+    case 'finish':
+      return { key: action.key, preview: action.preview, loading: false };
+    default:
+      return _state;
+  }
+}
+
+type FormState = {
+  key: string;
+  targetClass: string;
+  hpMode: 'roll' | 'average';
+  hpRoll: number | '';
+  localAsi: Record<string, unknown>[];
+  localCantrips: string[];
+  localSpells: string[];
+};
+
+type FormAction =
+  | { type: 'reset'; key: string; character: Character; spellField: 'prepared_spells' | 'known_spells' }
+  | { type: 'setTargetClass'; className: string; character: Character; spellField: 'prepared_spells' | 'known_spells' }
+  | { type: 'setHpMode'; mode: 'roll' | 'average' }
+  | { type: 'setHpRoll'; value: number | '' }
+  | { type: 'setLocalAsi'; value: Record<string, unknown>[] }
+  | { type: 'setLocalCantrips'; value: string[] }
+  | { type: 'setLocalSpells'; value: string[] };
+
+function createFormState(
+  key: string,
+  character: Character,
+  targetClass: string,
+  spellField: 'prepared_spells' | 'known_spells',
+): FormState {
+  return {
+    key,
+    targetClass,
+    hpMode: 'roll',
+    hpRoll: '',
+    localAsi: (character.asi_choices || []) as Record<string, unknown>[],
+    localCantrips: character.cantrips || [],
+    localSpells: spellValuesForField(character, spellField),
+  };
+}
+
+function formReducer(state: FormState, action: FormAction): FormState {
+  switch (action.type) {
+    case 'reset':
+      return createFormState(action.key, action.character, state.targetClass, action.spellField);
+    case 'setTargetClass':
+      return {
+        ...createFormState(state.key, action.character, action.className, action.spellField),
+        targetClass: action.className,
+      };
+    case 'setHpMode':
+      return { ...state, hpMode: action.mode };
+    case 'setHpRoll':
+      return { ...state, hpRoll: action.value };
+    case 'setLocalAsi':
+      return { ...state, localAsi: action.value };
+    case 'setLocalCantrips':
+      return { ...state, localCantrips: action.value };
+    case 'setLocalSpells':
+      return { ...state, localSpells: action.value };
+    default:
+      return state;
+  }
+}
+
+function spellValuesForField(character: Character, field: 'prepared_spells' | 'known_spells') {
+  return (character[field] as string[]) || [];
+}
+
 export default function LevelUpDialog({ characterId, character, summary, onConfirm, onCancel }: Props) {
   const classEntries = (
     summary.classes?.length ? summary.classes : [{ class_name: character.class_name, level: character.level }]
   ) as ClassLevel[];
-  const [targetClass, setTargetClass] = useState(classEntries[0]?.class_name || character.class_name);
-  const [preview, setPreview] = useState<LevelUpPreview | null>(null);
-  const [loadingPreview, setLoadingPreview] = useState(true);
+  const initialTargetClass = classEntries[0]?.class_name || character.class_name;
+  const initialSpellField = 'prepared_spells' as const;
+  const [form, dispatchForm] = useReducer(formReducer, undefined, () =>
+    createFormState(`${characterId}:${initialTargetClass}`, character, initialTargetClass, initialSpellField),
+  );
+  const [previewState, dispatchPreview] = useReducer(previewReducer, {
+    key: '',
+    preview: null,
+    loading: true,
+  });
+
+  const { targetClass, hpMode, hpRoll, localAsi, localCantrips, localSpells } = form;
 
   const selected = classEntries.find((c) => c.class_name === targetClass) || classEntries[0];
+  const preview = previewState.preview;
+  const loadingPreview = previewState.loading;
   const hitDie = preview?.hit_die || summary.hit_die || character.hit_die || 8;
-  const [hpMode, setHpMode] = useState<'roll' | 'average'>('roll');
-  const [hpRoll, setHpRoll] = useState<number | ''>('');
-  const asiChoices = (character.asi_choices || []) as Record<string, unknown>[];
-  const [localAsi, setLocalAsi] = useState<Record<string, unknown>[]>(asiChoices);
-  const [localCantrips, setLocalCantrips] = useState<string[]>(character.cantrips || []);
   const spellField = (preview?.spells?.field || 'prepared_spells') as 'prepared_spells' | 'known_spells';
-  const initialSpells = (character[spellField] as string[]) || [];
-  const [localSpells, setLocalSpells] = useState<string[]>(initialSpells);
+  const formKey = `${characterId}:${targetClass}:${spellField}`;
+
+  if (formKey !== form.key) {
+    dispatchForm({ type: 'reset', key: formKey, character, spellField });
+  }
 
   const showAsi = Boolean(summary.needs_asi || preview?.asi_this_level);
   const cantripBudget = preview?.cantrips;
   const spellBudget = preview?.spells;
   const showCantripPicker = Boolean(
     preview?.spell_list?.cantrips?.length &&
-      cantripBudget &&
-      (cantripBudget.additional_picks > 0 || cantripBudget.limit_increased),
+    cantripBudget &&
+    (cantripBudget.additional_picks > 0 || cantripBudget.limit_increased),
   );
   const showSpellPicker = Boolean(
     preview?.spell_list?.options?.length &&
-      spellBudget &&
-      (spellBudget.additional_picks > 0 || spellBudget.limit_increased),
+    spellBudget &&
+    (spellBudget.additional_picks > 0 || spellBudget.limit_increased),
   );
 
   useEffect(() => {
-    setLocalCantrips(character.cantrips || []);
-  }, [character.cantrips]);
-
-  useEffect(() => {
-    const spells = (character[spellField] as string[]) || [];
-    setLocalSpells(spells);
-  }, [character, spellField]);
-
-  useEffect(() => {
+    const key = `${characterId}:${targetClass}`;
     let cancelled = false;
-    setLoadingPreview(true);
+    dispatchPreview({ type: 'start', key });
     api
       .getLevelUpPreview(characterId, targetClass)
       .then((res) => {
-        if (!cancelled) setPreview(res.preview as unknown as LevelUpPreview);
+        if (!cancelled) dispatchPreview({ type: 'finish', key, preview: res.preview });
       })
-      .catch(() => {
-        if (!cancelled) setPreview(null);
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingPreview(false);
+      .catch((err: unknown) => {
+        console.warn('Failed to load level-up preview', err);
+        if (!cancelled) dispatchPreview({ type: 'finish', key, preview: null });
       });
     return () => {
       cancelled = true;
     };
   }, [characterId, targetClass]);
 
-  const addAsi = () => setLocalAsi([...localAsi, { type: 'asi', plus: { str: 2 } }]);
-  const addFeat = () => setLocalAsi([...localAsi, { type: 'feat', feat: '' }]);
+  const handleTargetClassChange = (className: string) => {
+    dispatchForm({
+      type: 'setTargetClass',
+      className,
+      character,
+      spellField: (preview?.spells?.field || 'prepared_spells') as 'prepared_spells' | 'known_spells',
+    });
+  };
+
+  const addAsi = () => dispatchForm({ type: 'setLocalAsi', value: [...localAsi, { type: 'asi', plus: { str: 2 } }] });
+  const addFeat = () => dispatchForm({ type: 'setLocalAsi', value: [...localAsi, { type: 'feat', feat: '' }] });
 
   const confirm = () => {
     const roll = hpMode === 'average' ? Math.floor(hitDie / 2) + 1 : hpRoll === '' ? undefined : Number(hpRoll);
@@ -159,7 +222,7 @@ export default function LevelUpDialog({ characterId, character, summary, onConfi
 
         {classEntries.length > 1 && (
           <Field label="Which class gains a level?">
-            <ChoiceGroup value={targetClass} onChange={setTargetClass} options={classOptions} columns={2} />
+            <ChoiceGroup value={targetClass} onChange={handleTargetClassChange} options={classOptions} columns={2} />
           </Field>
         )}
 
@@ -185,7 +248,7 @@ export default function LevelUpDialog({ characterId, character, summary, onConfi
         <Field label={`Hit Points (d${hitDie} + CON), ${displayLabel(selected?.class_name || character.class_name)}`}>
           <SegmentedControl
             value={hpMode}
-            onChange={(v) => setHpMode(v as 'roll' | 'average')}
+            onChange={(v) => dispatchForm({ type: 'setHpMode', mode: v as 'roll' | 'average' })}
             options={[
               { value: 'roll', label: 'Roll' },
               { value: 'average', label: `Average (${Math.floor(hitDie / 2) + 1})` },
@@ -198,7 +261,9 @@ export default function LevelUpDialog({ characterId, character, summary, onConfi
               max={hitDie}
               placeholder={`1-${hitDie}`}
               value={hpRoll}
-              onChange={(e) => setHpRoll(e.target.value === '' ? '' : parseInt(e.target.value))}
+              onChange={(e) =>
+                dispatchForm({ type: 'setHpRoll', value: e.target.value === '' ? '' : parseInt(e.target.value) })
+              }
             />
           )}
         </Field>
@@ -215,7 +280,7 @@ export default function LevelUpDialog({ characterId, character, summary, onConfi
             )}
             <MultiChoice
               value={localCantrips}
-              onChange={setLocalCantrips}
+              onChange={(value) => dispatchForm({ type: 'setLocalCantrips', value })}
               options={preview?.spell_list?.cantrips || []}
               max={cantripBudget.limit_after}
             />
@@ -233,7 +298,7 @@ export default function LevelUpDialog({ characterId, character, summary, onConfi
             )}
             <MultiChoice
               value={localSpells}
-              onChange={setLocalSpells}
+              onChange={(value) => dispatchForm({ type: 'setLocalSpells', value })}
               options={preview?.spell_list?.options || []}
               max={spellBudget.limit_after}
             />
@@ -259,7 +324,7 @@ export default function LevelUpDialog({ characterId, character, summary, onConfi
                       onChange={(e) => {
                         const next = [...localAsi];
                         next[i] = { ...choice, feat: e.target.value };
-                        setLocalAsi(next);
+                        dispatchForm({ type: 'setLocalAsi', value: next });
                       }}
                     />
                   ) : (
@@ -278,7 +343,7 @@ export default function LevelUpDialog({ characterId, character, summary, onConfi
                               const plus = { ...(choice.plus as Record<string, number>) };
                               plus[ab] = n;
                               next[i] = { ...choice, plus };
-                              setLocalAsi(next);
+                              dispatchForm({ type: 'setLocalAsi', value: next });
                             }}
                           />
                         ))}
@@ -303,7 +368,12 @@ export default function LevelUpDialog({ characterId, character, summary, onConfi
           <button type="button" className="btn-ghost" onClick={onCancel}>
             Cancel
           </button>
-          <button type="button" className="btn-primary" onClick={confirm} disabled={loadingPreview || preview?.can_level === false}>
+          <button
+            type="button"
+            className="btn-primary"
+            onClick={confirm}
+            disabled={loadingPreview || preview?.can_level === false}
+          >
             Level up
           </button>
         </div>

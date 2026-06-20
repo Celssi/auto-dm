@@ -32,7 +32,11 @@ def _format_context(nodes: list[NodeWithScore]) -> str:
         meta = nws.node.metadata or {}
         label = meta.get("source_label", meta.get("source_file", "Unknown"))
         page = meta.get("page", "?")
-        parts.append(f"[{i}] {label} p.{page}\n{nws.node.get_content()}")
+        section = meta.get("section_title", "")
+        header = f"[{i}] {label} p.{page}"
+        if section:
+            header += f" — {section}"
+        parts.append(f"{header}\n{nws.node.get_content()}")
     return "\n\n---\n\n".join(parts)
 
 
@@ -94,10 +98,6 @@ def _retrieve_nodes_cached(
     return tuple(nodes[:top_k])
 
 
-def _nodes_from_cache(cached: tuple[NodeWithScore, ...]) -> list[NodeWithScore]:
-    return list(cached)
-
-
 def query_rules(
     question: str,
     *,
@@ -107,13 +107,11 @@ def query_rules(
     chat_provider: ChatProvider = "claude",
     generate_answer: bool = True,
 ) -> RagResult:
-    nodes = _nodes_from_cache(
-        retrieve_nodes(
-            question,
-            top_k=top_k,
-            factions=factions,
-            use_rerank=use_rerank,
-        )
+    nodes = retrieve_nodes(
+        question,
+        top_k=top_k,
+        factions=factions,
+        use_rerank=use_rerank,
     )
     sources = nodes_to_sources(nodes)
     if not generate_answer or not nodes:

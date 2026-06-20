@@ -17,7 +17,12 @@ from backend.characters.character_data import (
     skills_data,
     spell_list_for,
 )
-from backend.characters.entity import ABILITY_KEYS, Dnd5eCharacter, character_from_dict, character_to_dict
+from backend.characters.entity import (
+    ABILITY_KEYS,
+    Dnd5eCharacter,
+    character_from_dict,
+    character_to_dict,
+)
 from backend.characters.features import unlocked_features
 from backend.characters.multiclass import (
     asi_feat_slots_multiclass,
@@ -332,7 +337,9 @@ def level_up_preview(char: Dnd5eCharacter, *, class_name: str | None = None) -> 
     asi_levels = _ASI_LEVELS_BY_CLASS.get(target, _ASI_LEVELS_DEFAULT)
     asi_this_level = new_class_level in asi_levels and old_class_level < new_class_level
     subclass_level = int(cls.get("subclass_level", 3) or 3)
-    entry_after = next((e for e in normalize_class_entries(char_after) if e["class_name"] == target), {})
+    entry_after = next(
+        (e for e in normalize_class_entries(char_after) if e["class_name"] == target), {}
+    )
     needs_subclass = (
         new_class_level >= subclass_level and not str(entry_after.get("subclass") or "").strip()
     )
@@ -361,14 +368,22 @@ def level_up_preview(char: Dnd5eCharacter, *, class_name: str | None = None) -> 
         if extra:
             notices.append(f"Learn {extra} more cantrip{'s' if extra != 1 else ''} (max {cap}).")
         else:
-            notices.append(f"Cantrip limit increases to {cap} (you already know {len(char.cantrips or [])}).")
+            notices.append(
+                f"Cantrip limit increases to {cap} (you already know {len(char.cantrips or [])})."
+            )
     if limit_after > limit_before:
         extra = max(0, limit_after - spell_count)
         label = _spell_pick_label(target)
         if extra:
-            notices.append(f"Prepare or learn {extra} more spell{'s' if extra != 1 else ''} ({label}; max {limit_after}).")
+            notices.append(
+                f"Prepare or learn {extra} more "
+                f"spell{'s' if extra != 1 else ''} "
+                f"({label}; max {limit_after})."
+            )
         else:
-            notices.append(f"Spell limit increases to {limit_after} (you already have {spell_count}).")
+            notices.append(
+                f"Spell limit increases to {limit_after} (you already have {spell_count})."
+            )
     for row in slot_changes:
         if row["before"] == 0:
             notices.append(f"Gain level {row['level']} spell slots (×{row['after']}).")
@@ -394,7 +409,9 @@ def level_up_preview(char: Dnd5eCharacter, *, class_name: str | None = None) -> 
         "proficiency_bonus_before": pb_before,
         "proficiency_bonus_after": pb_after,
         "proficiency_bonus_increases": pb_after > pb_before,
-        "cantrips": _pick_budget(len(char.cantrips or []), limits_before["cantrips"], limits_after["cantrips"]),
+        "cantrips": _pick_budget(
+            len(char.cantrips or []), limits_before["cantrips"], limits_after["cantrips"]
+        ),
         "class_cantrips": _pick_budget(
             len(char.cantrips or []),
             cls_limits_before["cantrips"],
