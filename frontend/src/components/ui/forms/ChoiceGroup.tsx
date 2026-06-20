@@ -60,11 +60,18 @@ function ChoiceOptionGrid({
         </button>
       )}
       {opts.map((opt) => (
-        <GlossaryTip key={opt.value} name={opt.value} variant="custom" wrapperClassName="block w-full">
+        <GlossaryTip
+          key={opt.value}
+          name={opt.value}
+          variant="custom"
+          wrapperClassName="block w-full"
+          placementMode="below"
+          align="start"
+        >
           <button
             type="button"
             onClick={() => onChange(opt.value)}
-            className={`w-full text-left text-sm px-3 py-2 rounded-lg border transition-colors cursor-help ${chipClass(value === opt.value)}`}
+            className={`w-full text-left text-sm px-3 py-2 rounded-lg border transition-colors cursor-pointer ${chipClass(value === opt.value)}`}
           >
             {optionLabel(opt)}
           </button>

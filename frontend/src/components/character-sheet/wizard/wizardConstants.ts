@@ -49,5 +49,6 @@ export const defaultWizardCharacter = {
   origin_feat: '',
   campaign_setting: 'freeform',
   campaign_notes: '',
+  appearance: '',
   human_skill: '',
 };

@@ -2,6 +2,7 @@ import type { Character } from '../../../types';
 import { Field } from '../../ui/forms/Field';
 import TextInput from '../../ui/forms/TextInput';
 import ChoiceGroup from '../../ui/forms/ChoiceGroup';
+import SegmentedControl from '../../ui/forms/SegmentedControl';
 import { displayLabel } from '../../../lib/displayText';
 import type { WizardClassOption, WizardOption } from './wizardConstants';
 
@@ -11,11 +12,40 @@ interface Props {
   classes: WizardClassOption[];
   species: WizardOption[];
   backgroundGroups: { label: string; options: { value: string; label: string }[] }[];
+  faerunBackgroundIds: string[];
 }
 
-export default function WizardBasicsStep({ char, patch, classes, species, backgroundGroups }: Props) {
+export default function WizardBasicsStep({
+  char,
+  patch,
+  classes,
+  species,
+  backgroundGroups,
+  faerunBackgroundIds,
+}: Props) {
   return (
     <div className="space-y-5">
+      <Field label="Campaign setting">
+        <SegmentedControl
+          value={char.campaign_setting || 'freeform'}
+          onChange={(setting) => {
+            const isFaerunBg = faerunBackgroundIds.includes(char.background);
+            patch({
+              campaign_setting: setting,
+              ...(setting !== 'faerun' && isFaerunBg ? { background: '' } : {}),
+            });
+          }}
+          options={[
+            { value: 'freeform', label: 'Freeform' },
+            { value: 'faerun', label: 'Faerûn' },
+          ]}
+        />
+      </Field>
+      {char.campaign_setting === 'faerun' && (
+        <p className="text-xs text-muted leading-relaxed -mt-2">
+          Faerûn backgrounds and subclasses from Heroes of Faerûn are available below.
+        </p>
+      )}
       <Field label="Name">
         <TextInput value={char.name} onChange={(e) => patch({ name: e.target.value })} placeholder="Character name" />
       </Field>

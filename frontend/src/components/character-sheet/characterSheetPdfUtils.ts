@@ -18,7 +18,7 @@ export function splitNotes(text: string): { appearance: string; backstory: strin
   const appMatch = text.match(/Appearance:\s*([\s\S]*?)(?=Personality:|Status:|$)/i);
   const persMatch = text.match(/Personality:\s*([\s\S]*?)(?=Status:|$)/i);
   const appearance = appMatch?.[1]?.trim() || '';
-  const backstory = persMatch?.[1]?.trim() || text.trim();
+  const backstory = persMatch?.[1]?.trim() || (appearance ? '' : text.trim());
   return { appearance, backstory };
 }
 

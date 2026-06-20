@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
-import { displayLabel } from '../../../lib/displayText';
+import { displayLabel, normalizeChoiceId } from '../../../lib/displayText';
 import GlossaryTip from '../GlossaryTip';
 import TextInput from './TextInput';
 
@@ -37,8 +37,10 @@ export default function MultiChoice({
   }, [options, query]);
 
   const toggle = (item: string) => {
-    if (value.includes(item)) {
-      onChange(value.filter((v) => v !== item));
+    const key = normalizeChoiceId(item);
+    const existing = value.find((v) => normalizeChoiceId(v) === key);
+    if (existing) {
+      onChange(value.filter((v) => normalizeChoiceId(v) !== key));
       return;
     }
     if (max != null && value.length >= max) return;
@@ -74,15 +76,15 @@ export default function MultiChoice({
       <div className="flex flex-wrap gap-1.5 max-h-48 overflow-y-auto rounded-lg border border-border bg-bg/30 p-2">
         {filtered.length === 0 && <p className="text-xs text-muted px-1 py-2">No matches.</p>}
         {filtered.map((item) => {
-          const active = value.includes(item);
+          const active = value.some((v) => normalizeChoiceId(v) === normalizeChoiceId(item));
           const atMax = max != null && !active && value.length >= max;
           return (
-            <GlossaryTip key={item} name={item} variant="custom">
+            <GlossaryTip key={item} name={item} variant="custom" placementMode="below" align="start">
               <button
                 type="button"
                 disabled={atMax}
                 onClick={() => toggle(item)}
-                className={`text-xs px-2.5 py-1.5 rounded-full border transition-colors ${chipClass(active, !!atMax)}`}
+                className={`text-xs px-2.5 py-1.5 rounded-full border transition-colors cursor-pointer ${chipClass(active, !!atMax)}`}
               >
                 {displayLabel(item)}
               </button>

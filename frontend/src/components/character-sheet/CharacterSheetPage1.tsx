@@ -101,7 +101,7 @@ export default function CharacterSheetPage1({ character: c, editable, onChange }
                     {profs.has(sk.id) ? '●' : '○'}
                   </span>
                   <GlossaryTip name={sk.id} variant="custom">
-                    <span className="truncate cursor-help">{sk.label}</span>
+                    <span className="truncate cursor-pointer">{sk.label}</span>
                   </GlossaryTip>
                 </span>
                 <span

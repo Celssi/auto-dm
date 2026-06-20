@@ -1,39 +1,18 @@
 import type { Character } from '../../../types';
 import { Field } from '../../ui/forms/Field';
 import TextInput from '../../ui/forms/TextInput';
-import SegmentedControl from '../../ui/forms/SegmentedControl';
+import TextArea from '../../ui/forms/TextArea';
 
 interface Props {
   char: Character;
   patch: (p: Partial<Character>) => void;
-  faerunBackgroundIds: string[];
 }
 
-export default function WizardOriginStep({ char, patch, faerunBackgroundIds }: Props) {
+export default function WizardOriginStep({ char, patch }: Props) {
+  const appearance = String(char.appearance || char.equipment_notes || '');
+
   return (
     <div className="space-y-5">
-      <Field label="Campaign setting">
-        <SegmentedControl
-          value={char.campaign_setting || 'freeform'}
-          onChange={(setting) => {
-            const isFaerunBg = faerunBackgroundIds.includes(char.background);
-            patch({
-              campaign_setting: setting,
-              ...(setting !== 'faerun' && isFaerunBg ? { background: '' } : {}),
-            });
-          }}
-          options={[
-            { value: 'freeform', label: 'Freeform' },
-            { value: 'faerun', label: 'Faerûn' },
-          ]}
-        />
-      </Field>
-      {char.campaign_setting === 'faerun' && (
-        <p className="text-xs text-muted leading-relaxed">
-          Faerûn backgrounds and subclasses from Heroes of Faerûn are available. Spell and feat details can also be
-          looked up via rules search.
-        </p>
-      )}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Field label="Alignment">
           <TextInput
@@ -50,6 +29,14 @@ export default function WizardOriginStep({ char, patch, faerunBackgroundIds }: P
           />
         </Field>
       </div>
+      <Field label="Appearance & Notes">
+        <TextArea
+          value={appearance}
+          onChange={(e) => patch({ appearance: e.target.value })}
+          placeholder="Appearance, personality, backstory, or other notes for the DM"
+          className="min-h-[10rem]"
+        />
+      </Field>
     </div>
   );
 }

@@ -160,7 +160,7 @@ export default function PlayCharacterSidebar({ character: c, summary }: Props) {
               };
               return (
                 <GlossaryTip key={id} name={id} variant="custom">
-                  <span className="text-gray-300 cursor-help">
+                  <span className="text-gray-300 cursor-pointer">
                     {labels[id]} {skillBonus(c, id, abMap[id])}
                   </span>
                 </GlossaryTip>

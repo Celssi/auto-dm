@@ -1,5 +1,6 @@
 import type { PdfModule } from './characterSheetPdfTypes';
 import { pdfStyles as s } from './characterSheetPdfStyles';
+import { stackLabel } from './characterSheetPdfShapes';
 
 type ViewStyle = NonNullable<React.ComponentProps<PdfModule['View']>['style']>;
 
@@ -12,7 +13,7 @@ export function createBox(pdf: PdfModule) {
       <View style={boxStyle}>
         {title ? (
           <View style={{ borderBottom: '0.5pt solid #000', paddingHorizontal: 4, paddingVertical: 2 }}>
-            <Text style={s.label}>{title}</Text>
+            <Text style={s.label}>{stackLabel(title)}</Text>
           </View>
         ) : null}
         {children}

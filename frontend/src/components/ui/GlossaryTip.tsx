@@ -13,6 +13,10 @@ interface Props {
   wrapperClassName?: string;
   variant?: 'chip' | 'inline' | 'custom';
   classId?: string;
+  /** Force tooltip below or above the trigger; default picks by available space. */
+  placementMode?: 'auto' | 'below' | 'above';
+  /** Align tooltip with the start (left) edge of the trigger instead of centering. */
+  align?: 'center' | 'start';
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -41,17 +45,27 @@ interface Placement {
   above: boolean;
 }
 
-function computePlacement(trigger: DOMRect): Placement {
+function computePlacement(
+  trigger: DOMRect,
+  placement: 'auto' | 'below' | 'above' = 'auto',
+  align: 'center' | 'start' = 'center',
+): Placement {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const width = Math.min(TIP_WIDTH, vw - VIEWPORT_PAD * 2);
 
-  let left = trigger.left + trigger.width / 2 - width / 2;
+  let left =
+    align === 'start' ? trigger.left : trigger.left + trigger.width / 2 - width / 2;
   left = Math.max(VIEWPORT_PAD, Math.min(left, vw - width - VIEWPORT_PAD));
 
   const spaceAbove = trigger.top - VIEWPORT_PAD;
   const spaceBelow = vh - trigger.bottom - VIEWPORT_PAD;
-  const above = spaceAbove >= 140 || spaceAbove >= spaceBelow;
+  const above =
+    placement === 'above'
+      ? true
+      : placement === 'below'
+        ? false
+        : spaceAbove >= 140 && spaceAbove >= spaceBelow;
 
   if (above) {
     const maxHeight = Math.max(120, Math.min(360, spaceAbove - GAP));
@@ -61,14 +75,18 @@ function computePlacement(trigger: DOMRect): Placement {
   return { left, top: trigger.bottom + GAP, maxHeight, above: false };
 }
 
-function TooltipPanel({
+function GlossaryEntryBody({
   entry,
   loading,
+  name,
   maxHeight,
+  compact = false,
 }: {
   entry: GlossaryEntry | null;
   loading: boolean;
-  maxHeight: number;
+  name: string;
+  maxHeight?: number;
+  compact?: boolean;
 }) {
   if (loading) {
     return <p className="text-muted italic text-xs">Looking up…</p>;
@@ -82,10 +100,71 @@ function TooltipPanel({
         {KIND_LABEL[entry.kind] || entry.kind}
         {entry.level != null && entry.level > 0 ? ` · L${entry.level}` : entry.level === 0 ? ' · Cantrip' : ''}
       </p>
-      <div className="overflow-y-auto overflow-x-hidden pr-1" style={{ maxHeight: Math.max(80, maxHeight - 72) }}>
+      <div
+        className={`overflow-y-auto overflow-x-hidden pr-1 ${compact ? 'max-h-32' : ''}`}
+        style={maxHeight ? { maxHeight: Math.max(80, maxHeight - 72) } : undefined}
+      >
         <MarkdownContent content={entry.summary} className="text-xs" />
       </div>
     </>
+  );
+}
+
+export function useGlossaryEntry(name: string, classId?: string) {
+  const { getEntry, fetchEntry } = useGlossary();
+  const [entry, setEntry] = useState<GlossaryEntry | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (!name) {
+      setEntry(null);
+      setLoading(false);
+      return;
+    }
+    const staticEntry = getEntry(name, classId);
+    if (staticEntry?.summary) {
+      setEntry(staticEntry);
+      setLoading(false);
+      return;
+    }
+    let cancelled = false;
+    setLoading(true);
+    fetchEntry(name, classId).then((fetched) => {
+      if (!cancelled) {
+        setEntry(fetched);
+        setLoading(false);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [name, classId, getEntry, fetchEntry]);
+
+  return { entry, loading };
+}
+
+/** Fixed preview panel for choice grids (does not overlay options). */
+export function GlossaryInlinePreview({
+  name,
+  classId,
+  className = '',
+}: {
+  name: string;
+  classId?: string;
+  className?: string;
+}) {
+  const { entry, loading } = useGlossaryEntry(name, classId);
+  if (!name) return null;
+  if (!loading && !entry?.summary) return null;
+
+  return (
+    <div
+      className={`rounded-lg border border-border/80 bg-bg/50 p-3 ${className}`}
+      aria-live="polite"
+    >
+      <p className="font-medium text-accent text-sm mb-1.5">{displayLabel(entry?.title || name)}</p>
+      <GlossaryEntryBody entry={entry} loading={loading} name={name} compact />
+    </div>
   );
 }
 
@@ -96,6 +175,8 @@ export default function GlossaryTip({
   wrapperClassName = '',
   variant = 'chip',
   classId,
+  placementMode = 'auto',
+  align = 'center',
 }: Props) {
   const { getEntry, fetchEntry } = useGlossary();
   const [open, setOpen] = useState(false);
@@ -110,8 +191,8 @@ export default function GlossaryTip({
   const updatePlacement = useCallback(() => {
     const el = triggerRef.current;
     if (!el) return;
-    setPlacement(computePlacement(el.getBoundingClientRect()));
-  }, []);
+    setPlacement(computePlacement(el.getBoundingClientRect(), placementMode, align));
+  }, [placementMode, align]);
 
   const show = useCallback(async () => {
     const staticEntry = getEntry(name, classId);
@@ -133,6 +214,13 @@ export default function GlossaryTip({
     showTimerRef.current = window.setTimeout(() => {
       show();
     }, 200);
+  };
+
+  const dismiss = () => {
+    if (showTimerRef.current) window.clearTimeout(showTimerRef.current);
+    if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
+    setOpen(false);
+    setLoading(false);
   };
 
   const scheduleHide = () => {
@@ -164,9 +252,9 @@ export default function GlossaryTip({
   const trigger =
     children ??
     (variant === 'inline' ? (
-      <span className={`underline decoration-dotted decoration-muted/50 cursor-help ${className}`}>{label}</span>
+      <span className={`underline decoration-dotted decoration-muted/50 cursor-pointer ${className}`}>{label}</span>
     ) : (
-      <span className={`sheet-tag cursor-help ${className}`}>{label}</span>
+      <span className={`sheet-tag cursor-pointer ${className}`}>{label}</span>
     ));
 
   const tip =
@@ -188,12 +276,10 @@ export default function GlossaryTip({
                 transform: placement.above ? 'translateY(-100%)' : undefined,
                 zIndex: 9999,
               }}
-              className="flex flex-col p-3 panel-glow shadow-glow pointer-events-auto"
-              onMouseEnter={cancelHide}
-              onMouseLeave={scheduleHide}
+              className="flex flex-col p-3 panel-glow shadow-glow pointer-events-none"
             >
               <p className="font-medium text-accent text-sm mb-1.5 shrink-0">{displayLabel(entry?.title || name)}</p>
-              <TooltipPanel entry={entry} loading={loading} maxHeight={placement.maxHeight} />
+              <GlossaryEntryBody entry={entry} loading={loading} name={name} maxHeight={placement.maxHeight} />
             </m.div>
           </AnimatePresence>,
           document.body,
@@ -206,6 +292,7 @@ export default function GlossaryTip({
       scheduleShow();
     },
     onMouseLeave: scheduleHide,
+    onMouseDown: dismiss,
     onFocus: () => {
       cancelHide();
       show();

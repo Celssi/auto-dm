@@ -3,7 +3,7 @@ import { api } from '../../api/client';
 import type { Character } from '../../types';
 import { spellLimitsFromClass, spellListField } from '../../lib/dnd5eCharacterCreation';
 import CharacterSheetView from './CharacterSheetView';
-import { displayLabel } from '../../lib/displayText';
+import { displayLabel, normalizeChoiceList } from '../../lib/displayText';
 import {
   defaultWizardCharacter,
   WIZARD_STEPS,
@@ -62,14 +62,20 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
     return result;
   }, [spellList]);
 
-  const toggleSkill = (id: string) => {
-    const max = selectedClass?.skill_choices || 0;
-    const current = [...((char.class_skill_choices || []) as string[])];
-    const idx = current.indexOf(id);
-    if (idx >= 0) current.splice(idx, 1);
-    else if (current.length < max) current.push(id);
-    patch({ class_skill_choices: current });
-  };
+  useEffect(() => {
+    if (!selectedClass || !spellList.cantrips) return;
+    const cantrips = normalizeChoiceList(char.cantrips || [], spellList.cantrips || []);
+    const prepared = normalizeChoiceList(char.prepared_spells || [], spellOptions);
+    const classSkillOpts = (selectedClass.skill_choices || []) as string[];
+    const classSkills = normalizeChoiceList(char.class_skill_choices || [], classSkillOpts);
+    const patchFields: Partial<Character> = {};
+    if (JSON.stringify(cantrips) !== JSON.stringify(char.cantrips)) patchFields.cantrips = cantrips;
+    if (JSON.stringify(prepared) !== JSON.stringify(char.prepared_spells)) patchFields.prepared_spells = prepared;
+    if (JSON.stringify(classSkills) !== JSON.stringify(char.class_skill_choices)) {
+      patchFields.class_skill_choices = classSkills;
+    }
+    if (Object.keys(patchFields).length) patch(patchFields);
+  }, [selectedClass?.id, spellList, spellOptions]);
 
   const applyStandardArray = () => {
     const table = (options.standard_array_by_class || {}) as Record<string, Record<string, number>>;
@@ -127,11 +133,10 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
           classes={classes}
           species={species}
           backgroundGroups={backgroundGroups}
+          faerunBackgroundIds={faerunBackgrounds.map((b) => b.id)}
         />
       )}
-      {step === 1 && (
-        <WizardOriginStep char={char} patch={patch} faerunBackgroundIds={faerunBackgrounds.map((b) => b.id)} />
-      )}
+      {step === 1 && <WizardOriginStep char={char} patch={patch} />}
       {step === 2 && <WizardAbilitiesStep char={char} patch={patch} onApplyStandardArray={applyStandardArray} />}
       {step === 3 && (
         <WizardSkillsSpellsStep
@@ -143,7 +148,6 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
           spellField={spellField}
           spellList={spellList}
           spellOptions={spellOptions}
-          onToggleSkill={toggleSkill}
         />
       )}
       {step === 4 && <CharacterSheetView character={char} />}

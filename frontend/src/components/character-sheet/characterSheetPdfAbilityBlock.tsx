@@ -2,9 +2,11 @@ import type { Character } from '../../types';
 import type { PdfModule } from './characterSheetPdfTypes';
 import { abilityMod, formatMod, saveBonus, skillBonus } from './sheetUtils';
 import { ABILITY_NAMES, SKILLS_BY_ABILITY, pdfStyles as s } from './characterSheetPdfStyles';
+import { createPdfShapes } from './characterSheetPdfShapes';
 
 export function createAbilityBlock(pdf: PdfModule) {
   const { Text, View } = pdf;
+  const { CirclePip } = createPdfShapes(pdf);
 
   return function AbilityBlock({
     ab,
@@ -22,28 +24,24 @@ export function createAbilityBlock(pdf: PdfModule) {
     const skills = SKILLS_BY_ABILITY[ab] || [];
 
     return (
-      <View style={[s.box, { marginBottom: 3, paddingHorizontal: 3, paddingBottom: 3 }]}>
-        <Text style={[s.label, { textAlign: 'center', marginTop: 2 }]}>{ABILITY_NAMES[ab]}</Text>
+      <View style={[s.box, { marginBottom: 2, paddingHorizontal: 2, paddingBottom: 2 }]}>
+        <Text style={[s.label, { textAlign: 'center', marginTop: 1 }]}>{ABILITY_NAMES[ab]}</Text>
         <View style={[s.center, s.modCircle, { alignSelf: 'center' }]}>
           <Text style={s.modText}>{formatMod(abilityMod(score))}</Text>
         </View>
         <View style={[s.scoreBox, { alignSelf: 'center' }]}>
-          <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold' }}>{score}</Text>
+          <Text style={{ fontSize: 9, fontFamily: 'Helvetica-Bold' }}>{score}</Text>
         </View>
-        <View style={[s.row, { alignItems: 'center', marginTop: 3, paddingLeft: 2 }]}>
-          <Text style={s.dot}>{saves.has(ab) ? '●' : '○'}</Text>
-          <Text style={{ fontSize: 12, flex: 1 }}>Saving Throw</Text>
-          <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', width: 16, textAlign: 'right' }}>
-            {saveBonus(c, ab)}
-          </Text>
+        <View style={s.skillRow}>
+          <CirclePip filled={saves.has(ab)} />
+          <Text style={s.skillText}>Saving Throw</Text>
+          <Text style={s.skillMod}>{saveBonus(c, ab)}</Text>
         </View>
         {skills.map((sk) => (
-          <View key={sk.id} style={[s.row, { alignItems: 'center', paddingLeft: 2, marginTop: 1 }]}>
-            <Text style={s.dot}>{profs.has(sk.id) ? '●' : '○'}</Text>
-            <Text style={{ fontSize: 12, flex: 1 }}>{sk.label}</Text>
-            <Text style={{ fontSize: 12, fontFamily: 'Helvetica-Bold', width: 16, textAlign: 'right' }}>
-              {skillBonus(c, sk.id, sk.ability)}
-            </Text>
+          <View key={sk.id} style={s.skillRow}>
+            <CirclePip filled={profs.has(sk.id)} />
+            <Text style={s.skillText}>{sk.label}</Text>
+            <Text style={s.skillMod}>{skillBonus(c, sk.id, sk.ability)}</Text>
           </View>
         ))}
       </View>

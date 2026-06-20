@@ -64,6 +64,12 @@ export default function JournalTip({ entity, text }: Props) {
     showTimerRef.current = window.setTimeout(() => setOpen(true), 200);
   };
 
+  const dismiss = () => {
+    if (showTimerRef.current) window.clearTimeout(showTimerRef.current);
+    if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
+    setOpen(false);
+  };
+
   const scheduleHide = () => {
     if (showTimerRef.current) window.clearTimeout(showTimerRef.current);
     if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);
@@ -106,9 +112,7 @@ export default function JournalTip({ entity, text }: Props) {
                 transform: placement.above ? 'translateY(-100%)' : undefined,
                 zIndex: 9999,
               }}
-              className="flex flex-col p-3 panel-glow shadow-glow pointer-events-auto"
-              onMouseEnter={cancelHide}
-              onMouseLeave={scheduleHide}
+              className="flex flex-col p-3 panel-glow shadow-glow pointer-events-none"
             >
               <p className="font-medium text-accent text-sm mb-1.5 shrink-0">{entity.name}</p>
               <p className="text-[10px] uppercase tracking-wider text-accent/80 mb-1.5 shrink-0">
@@ -135,12 +139,13 @@ export default function JournalTip({ entity, text }: Props) {
       <button
         ref={triggerRef}
         type="button"
-        className="border-0 bg-transparent p-0 font-inherit text-inherit underline decoration-dotted decoration-accent/40 cursor-help"
+        className="border-0 bg-transparent p-0 font-inherit text-inherit underline decoration-dotted decoration-accent/40 cursor-pointer"
         onMouseEnter={() => {
           cancelHide();
           scheduleShow();
         }}
         onMouseLeave={scheduleHide}
+        onMouseDown={dismiss}
         onFocus={() => {
           cancelHide();
           setOpen(true);
