@@ -75,6 +75,13 @@ def subclass_features_for(class_id: str, subclass_label: str, level: int) -> lis
 
 def unlocked_features(char: Dnd5eCharacter) -> dict[str, Any]:
     """All class and subclass features unlocked at current levels."""
+    from backend.characters.creation_choices import (
+        class_choice_lines,
+        resolved_choice_lines,
+        species_trait_lines,
+    )
+    from backend.characters.origin_feats import origin_feat_passive_lines
+
     class_feats: dict[str, list[str]] = {}
     subclass_feats: dict[str, list[str]] = {}
     for entry in normalize_class_entries(char):
@@ -92,7 +99,14 @@ def unlocked_features(char: Dnd5eCharacter) -> dict[str, Any]:
         if sub_list:
             key = f"{cid}:{entry.get('subclass')}"
             subclass_feats[key] = sub_list
-    return {"class_features": class_feats, "subclass_features": subclass_feats}
+    return {
+        "class_features": class_feats,
+        "subclass_features": subclass_feats,
+        "species_traits": species_trait_lines(char),
+        "origin_feat_effects": origin_feat_passive_lines(char),
+        "resolved_choices": class_choice_lines(char),
+        "all_creation_choices": resolved_choice_lines(char),
+    }
 
 
 def features_summary_lines(char: Dnd5eCharacter) -> list[str]:

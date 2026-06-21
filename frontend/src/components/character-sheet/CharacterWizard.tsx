@@ -14,6 +14,9 @@ import WizardBasicsStep from './wizard/WizardBasicsStep';
 import WizardOriginStep from './wizard/WizardOriginStep';
 import WizardAbilitiesStep from './wizard/WizardAbilitiesStep';
 import WizardSkillsSpellsStep from './wizard/WizardSkillsSpellsStep';
+import WizardFeaturesStep from './wizard/WizardFeaturesStep';
+import WizardStartingGearStep from './wizard/WizardStartingGearStep';
+import { validateChoices, choicesForDraft, type CreationChoiceCatalog } from '../../lib/creationChoices';
 
 interface Props {
   initial?: Character;
@@ -24,6 +27,8 @@ interface Props {
 export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
   const [step, setStep] = useState(0);
   const [options, setOptions] = useState<Record<string, unknown>>({});
+  const [previewChar, setPreviewChar] = useState<Character | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
   const [char, setChar] = useReducer(
     (state: Character, patch: Partial<Character>) => ({ ...state, ...patch }),
     initial || (defaultWizardCharacter as Character),
@@ -87,17 +92,60 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
     [spellOptions],
   );
 
+  const startingGearOptions = useMemo(() => {
+    const byClass = (options.starting_gear_options || {}) as Record<
+      string,
+      { id: string; label: string; description?: string }[]
+    >;
+    return byClass[char.class_name] || [];
+  }, [options.starting_gear_options, char.class_name]);
+
+  const backgroundGearOptions = useMemo(() => {
+    const byBg = (options.background_starting_gear_options || {}) as Record<
+      string,
+      { id: string; label: string; description?: string }[]
+    >;
+    return byBg[char.background] || [];
+  }, [options.background_starting_gear_options, char.background]);
+
+  const featureChoiceMissing = useMemo(() => {
+    const catalog = (options.creation_choice_catalog || {}) as CreationChoiceCatalog;
+    return validateChoices(char, choicesForDraft(char, options, catalog));
+  }, [char, options]);
+
   const patchClassName = (className: string) => {
     const cls = classes.find((c) => c.id === className);
     const sl = spellLists[cls?.spell_list || className] || {};
     const draft = { ...char, class_name: className };
-    patch({ class_name: className, ...normalizeSpellFields(draft, cls, sl) });
+    patch({
+      class_name: className,
+      starting_gear_choice: '',
+      ...normalizeSpellFields(draft, cls, sl),
+    });
   };
 
-  const goToStep = (next: number) => {
+  const goToStep = async (next: number) => {
     if (next === 3 && selectedClass && spellList.cantrips) {
       const extras = normalizeSpellFields(char, selectedClass, spellList);
       if (Object.keys(extras).length) patch(extras);
+    }
+    if (next === 5 && startingGearOptions.length > 0 && !char.starting_gear_choice) {
+      patch({ starting_gear_choice: startingGearOptions[0].id });
+    }
+    if (next === 5 && backgroundGearOptions.length > 0 && !char.background_gear_choice) {
+      patch({ background_gear_choice: backgroundGearOptions[0].id });
+    }
+    if (next === 6) {
+      setPreviewLoading(true);
+      setPreviewChar(null);
+      try {
+        const { character } = await api.previewCharacter(char as Record<string, unknown>, !initial);
+        setPreviewChar(character as Character);
+      } catch {
+        setPreviewChar(char);
+      } finally {
+        setPreviewLoading(false);
+      }
     }
     setStep(next);
   };
@@ -108,7 +156,6 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
     if (!scores) return;
     patch({
       base_ability_scores: scores,
-      ability_scores: scores,
       ability_scores_set: true,
     });
   };
@@ -179,7 +226,21 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
           spellOptions={spellOptions}
         />
       )}
-      {step === 4 && <CharacterSheetView character={char} />}
+      {step === 4 && <WizardFeaturesStep char={char} options={options} patch={patch} />}
+      {step === 5 && (
+        <WizardStartingGearStep
+          char={char}
+          classOptions={startingGearOptions}
+          backgroundOptions={backgroundGearOptions}
+          patch={patch}
+        />
+      )}
+      {step === 6 &&
+        (previewLoading ? (
+          <p className="text-sm text-muted py-8 text-center">Building character preview…</p>
+        ) : (
+          <CharacterSheetView character={previewChar || char} />
+        ))}
 
       <div className="flex gap-2 justify-between pt-2">
         <div>
@@ -196,11 +257,23 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
             </button>
           )}
           {step < WIZARD_STEPS.length - 1 ? (
-            <button type="button" className="btn-primary" onClick={() => goToStep(step + 1)}>
+            <button
+              type="button"
+              className="btn-primary"
+              onClick={() => goToStep(step + 1)}
+              disabled={
+                (step === 4 && featureChoiceMissing.length > 0) ||
+                (step === 5 && startingGearOptions.length > 1 && !char.starting_gear_choice) ||
+                (step === 5 &&
+                  Boolean(char.background) &&
+                  backgroundGearOptions.length > 1 &&
+                  !char.background_gear_choice)
+              }
+            >
               Next
             </button>
           ) : (
-            <button type="button" className="btn-primary" onClick={() => onSave(char)}>
+            <button type="button" className="btn-primary" onClick={() => onSave((previewChar || char) as Character)}>
               Save character
             </button>
           )}

@@ -6,7 +6,6 @@ import random
 from typing import Any
 
 from backend.characters.character_data import (
-    equipment_data,
     full_caster_slots,
     get_armor,
     get_background,
@@ -37,6 +36,7 @@ from backend.characters.multiclass import (
 )
 from backend.characters.spell_resources import (
     compute_wild_shape_max,
+    normalize_spell_name,
     preserve_remaining_spell_slots,
     recover_pact_slots_on_short_rest,
     sync_wild_shape_uses,
@@ -135,25 +135,45 @@ def compute_spell_slots(char: Dnd5eCharacter) -> dict[str, int]:
 
 
 def compute_max_hp(char: Dnd5eCharacter, *, first_level: bool = False) -> int:
+    from backend.characters.origin_feats import tough_hp_bonus
+
     levels = class_levels_dict(char)
     if len(levels) <= 1:
         cls = get_class(char.class_name)
         hit_die = int((cls or {}).get("hit_die", 8) or 8)
         con_mod = char.ability_modifier("con")
         if char.level <= 1:
-            return max(1, hit_die + con_mod)
-        per_level = max(1, (hit_die // 2) + 1 + con_mod)
-        return max(1, hit_die + con_mod + per_level * (char.level - 1))
-    con_mod = char.ability_modifier("con")
-    total = 0
-    for cid, lv in levels.items():
-        cls = get_class(cid) or {}
-        hit_die = int(cls.get("hit_die", 8) or 8)
-        total += max(1, hit_die + con_mod)
-        if lv > 1:
+            base = max(1, hit_die + con_mod)
+        else:
             per_level = max(1, (hit_die // 2) + 1 + con_mod)
-            total += per_level * (lv - 1)
-    return max(1, total)
+            base = max(1, hit_die + con_mod + per_level * (char.level - 1))
+    else:
+        con_mod = char.ability_modifier("con")
+        base = 0
+        for cid, lv in levels.items():
+            cls = get_class(cid) or {}
+            hit_die = int(cls.get("hit_die", 8) or 8)
+            base += max(1, hit_die + con_mod)
+            if lv > 1:
+                per_level = max(1, (hit_die // 2) + 1 + con_mod)
+                base += per_level * (lv - 1)
+        base = max(1, base)
+    return max(1, base + tough_hp_bonus(char))
+
+
+def _normalize_tool_proficiencies(tools: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for raw in tools:
+        label = str(raw or "").strip()
+        if not label:
+            continue
+        key = normalize_spell_name(label)
+        if not key or key in seen:
+            continue
+        seen.add(key)
+        out.append(label.lower().replace(" ", "_"))
+    return out
 
 
 def merge_proficiencies(char: Dnd5eCharacter) -> tuple[list[str], list[str], list[str]]:
@@ -180,13 +200,13 @@ def merge_proficiencies(char: Dnd5eCharacter) -> tuple[list[str], list[str], lis
             if s and s not in skills:
                 skills.append(s)
         tool = str(bg.get("tool") or "").strip()
-        if tool and tool not in tools:
+        if tool:
             tools.append(tool)
     if char.species == "human" and char.human_skill:
         hs = str(char.human_skill).lower()
         if hs and hs not in skills:
             skills.append(hs)
-    return skills, sorted(saves), tools
+    return skills, sorted(saves), _normalize_tool_proficiencies(tools)
 
 
 def _prepared_spell_cap(class_id: str, class_level: int, ability_mod: int) -> int:
@@ -396,6 +416,18 @@ def level_up_preview(char: Dnd5eCharacter, *, class_name: str | None = None) -> 
     if ws_after > ws_before:
         notices.append(f"Wild Shape uses increase to {ws_after} per long rest.")
 
+    from backend.characters.creation_choices import (
+        choices_for_character,
+        validate_creation_choices_at_level,
+    )
+
+    pending_choices = choices_for_character(
+        char_after, target_class=target, target_level=new_class_level
+    )
+    missing_choices = validate_creation_choices_at_level(
+        char_after, class_name=target, level=new_class_level
+    )
+
     hit_die = int(cls.get("hit_die", 8) or 8)
     return {
         "can_level": True,
@@ -436,44 +468,93 @@ def level_up_preview(char: Dnd5eCharacter, *, class_name: str | None = None) -> 
             "options": spell_options,
         },
         "notices": notices,
+        "pending_choices": pending_choices,
+        "missing_choices": missing_choices,
     }
 
 
 def apply_starting_equipment(char: Dnd5eCharacter) -> Dnd5eCharacter:
-    """Apply PHB starting gear when inventory is empty and class is set."""
-    if char.inventory or not char.class_name:
+    """Apply PHB class + background starting gear when inventory is empty."""
+    if not char.class_name:
         return char
-    gear = equipment_data().get("class_starting_gear") or {}
-    package = gear.get(char.class_name)
-    if not isinstance(package, dict):
-        return char
+    from backend.characters.character_data import (
+        list_background_gear_options,
+        list_starting_gear_options,
+    )
+
+    if not char.inventory:
+        options = list_starting_gear_options(char.class_name)
+        if options:
+            choice = str(char.starting_gear_choice or "").strip().lower()
+            package = next((o for o in options if o.get("id") == choice), None) or options[0]
+            if not char.starting_gear_choice:
+                char.starting_gear_choice = str(package.get("id") or "standard")
+            _apply_gear_package(char, package, replace=True)
+
+    if char.background:
+        bg_options = list_background_gear_options(char.background)
+        if bg_options:
+            bg_choice = str(char.background_gear_choice or "").strip().lower()
+            bg_pkg = (
+                next((o for o in bg_options if o.get("id") == bg_choice), None) or bg_options[0]
+            )
+            if not char.background_gear_choice:
+                char.background_gear_choice = str(bg_pkg.get("id") or "kit")
+            _apply_gear_package(char, bg_pkg, replace=False)
+    return char
+
+
+def _apply_gear_package(
+    char: Dnd5eCharacter,
+    package: dict[str, Any],
+    *,
+    replace: bool,
+) -> None:
     items = list(package.get("items") or [])
     weapons = list(package.get("weapons") or [])
     if items:
-        char.inventory = [str(i) for i in items]
-    if weapons and not char.weapons:
-        char.weapons = [
-            {
-                "name": str(w.get("name", "")),
-                "damage": str(w.get("damage", "1d6")),
-                "damage_type": str(w.get("damage_type", "")),
-                "ability": str(w.get("ability", "str")),
-                "proficient": True,
-            }
-            for w in weapons
-            if isinstance(w, dict)
-        ]
+        if replace:
+            char.inventory = [str(i) for i in items]
+        else:
+            inv = list(char.inventory or [])
+            for item in items:
+                s = str(item)
+                if s and s not in inv:
+                    inv.append(s)
+            char.inventory = inv
+    if weapons:
+        if replace and not char.weapons:
+            char.weapons = _weapon_dicts(weapons)
+        elif not replace:
+            existing = {str(w.get("name", "")).lower() for w in char.weapons or []}
+            for w in weapons:
+                if isinstance(w, dict) and str(w.get("name", "")).lower() not in existing:
+                    char.weapons = list(char.weapons or []) + _weapon_dicts([w])
     armor_id = str(package.get("armor") or "")
     if armor_id and char.armor in ("", "none"):
         char.armor = armor_id
     if package.get("shield"):
         char.shield = True
     coins = package.get("currency") or {}
-    if isinstance(coins, dict) and not sum(
-        int(char.currency.get(k, 0) or 0) for k in ("cp", "sp", "ep", "gp", "pp")
-    ):
-        char.currency = {k: int(coins.get(k, 0) or 0) for k in ("cp", "sp", "ep", "gp", "pp")}
-    return char
+    if isinstance(coins, dict):
+        cur = dict(char.currency or {})
+        for k in ("cp", "sp", "ep", "gp", "pp"):
+            cur[k] = int(cur.get(k, 0) or 0) + int(coins.get(k, 0) or 0)
+        char.currency = cur
+
+
+def _weapon_dicts(weapons: list) -> list[dict[str, Any]]:
+    return [
+        {
+            "name": str(w.get("name", "")),
+            "damage": str(w.get("damage", "1d6")),
+            "damage_type": str(w.get("damage_type", "")),
+            "ability": str(w.get("ability", "str")),
+            "proficient": True,
+        }
+        for w in weapons
+        if isinstance(w, dict)
+    ]
 
 
 def rebuild_character(char: Dnd5eCharacter, *, recompute_hp: bool = False) -> Dnd5eCharacter:
@@ -520,6 +601,15 @@ def rebuild_character(char: Dnd5eCharacter, *, recompute_hp: bool = False) -> Dn
     char.feats = feat_names
     char.ability_scores = final
 
+    from backend.characters.creation_choices import (
+        apply_creation_choices,
+        collect_derived_feats,
+        sync_feature_choice_fields,
+    )
+
+    sync_feature_choice_fields(char)
+    apply_creation_choices(char)
+
     sp = get_species(char.species)
     if sp:
         char.speed = int(sp.get("speed", char.speed) or char.speed)
@@ -528,11 +618,17 @@ def rebuild_character(char: Dnd5eCharacter, *, recompute_hp: bool = False) -> Dn
             char.size = str(sizes[0])
         if char.species == "human":
             char.heroic_inspiration = True  # Resourceful: gain on long rest
+        fc = char.feature_choices if isinstance(char.feature_choices, dict) else {}
+        if char.species == "elf" and str(fc.get("elven_lineage") or "").lower() == "wood_elf":
+            char.speed = 35
 
     skills, saves, tools = merge_proficiencies(char)
     char.skill_proficiencies = skills
     char.save_proficiencies = saves
     char.tool_proficiencies = tools
+
+    style_feats = collect_derived_feats(char)
+    char.feats = feat_names + [f for f in style_feats if f not in feat_names]
 
     cls = get_class(char.class_name)
     if cls:
@@ -672,6 +768,12 @@ def asi_feat_slots(class_id: str, level: int) -> int:
 
 
 def character_creation_summary(char: Dnd5eCharacter) -> dict[str, Any]:
+    from backend.characters.creation_choices import (
+        resolved_choice_lines,
+        validate_creation_choices,
+    )
+    from backend.characters.origin_feats import luck_points_max
+
     limits = spell_limits(char)
     cls = get_class(char.class_name) or {}
     entries = normalize_class_entries(char)
@@ -707,6 +809,9 @@ def character_creation_summary(char: Dnd5eCharacter) -> dict[str, Any]:
         "spell_slots_max": compute_spell_slots(char),
         "wild_shape_max": compute_wild_shape_max(char),
         "wild_shape_uses": char.wild_shape_uses,
+        "creation_choices": resolved_choice_lines(char),
+        "missing_creation_choices": validate_creation_choices(char),
+        "luck_points_max": luck_points_max(char),
     }
 
 

@@ -24,6 +24,10 @@ from backend.dm.story_director import load_story_progress
 from backend.play_tools import roll_dice
 
 
+def _initiative_mod(char: Dnd5eCharacter) -> int:
+    return char.initiative_modifier()
+
+
 def _dex_mod(char: Dnd5eCharacter) -> int:
     return (char.ability_scores.get("dex", 10) - 10) // 2
 
@@ -148,7 +152,7 @@ def start_encounter(
 ) -> CombatState:
     char = character_from_dict(char_dict)
     player = build_player_combatant(char)
-    player.initiative = _roll_initiative(_dex_mod(char))
+    player.initiative = _roll_initiative(_initiative_mod(char))
     enemies = spawn_enemy_combatants(encounter.enemies, encounter.id)
     for e in enemies:
         e.initiative = _roll_initiative(random.randint(0, 2))

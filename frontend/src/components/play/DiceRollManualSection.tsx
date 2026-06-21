@@ -1,6 +1,5 @@
 import { m } from '../../lib/framer';
 import type { Advantage } from '../../pages/play/playState';
-import DiceFace from './DiceFace';
 
 interface Props {
   diceCount: number;

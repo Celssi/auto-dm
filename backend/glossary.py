@@ -8,9 +8,11 @@ from typing import Any
 
 from backend.characters.character_data import (
     equipment_data,
+    get_weapon,
     list_backgrounds,
     list_classes,
     list_species,
+    list_weapons,
     skills_data,
     spells_data,
 )
@@ -37,12 +39,60 @@ def _spell_summary(name: str, level: int) -> str | None:
 
 
 def _weapon_summary(w: dict[str, Any]) -> str:
+    from backend.characters.creation_choices import weapon_mastery_data
+
     props = w.get("properties") or []
     prop_text = f" Properties: {', '.join(str(p) for p in props)}." if props else ""
+    mastery_id = str(w.get("mastery") or "").strip().lower()
+    mastery_text = ""
+    if mastery_id:
+        prop_row = (weapon_mastery_data().get("properties") or {}).get(mastery_id) or {}
+        ml = prop_row.get("label") or mastery_id
+        ms = prop_row.get("summary") or ""
+        mastery_text = f" Mastery: {ml} — {ms}" if ms else f" Mastery: {ml}."
     return (
         f"{w.get('label', 'Weapon')} — {w.get('damage', '?')} {w.get('damage_type', '')} damage "
-        f"({w.get('category', 'weapon')}).{prop_text}"
+        f"({w.get('category', 'weapon')}).{prop_text}{mastery_text}"
     )
+
+
+def _normalize_lookup_name(name: str) -> str:
+    """Strip quantity suffixes and simple plurals for equipment lookup."""
+    import re
+
+    base = re.sub(r"\s*\(\s*\d+\s*\)\s*$", "", (name or "").strip())
+    nk = normalize_spell_name(base)
+    if nk.endswith("s") and len(nk) > 3:
+        singular = nk[:-1]
+        if get_weapon(singular):
+            return singular
+    return nk
+
+
+def _looks_like_gear(name: str) -> bool:
+    import re
+
+    raw = (name or "").strip()
+    if re.search(r"\(\s*\d+\s*\)", raw):
+        return True
+    nk = _normalize_lookup_name(raw)
+    if get_weapon(nk):
+        return True
+    gear_stems = (
+        "javelin",
+        "arrow",
+        "bolt",
+        "dagger",
+        "pack",
+        "clothes",
+        "pouch",
+        "quiver",
+        "kit",
+        "rope",
+        "bedroll",
+        "tent",
+    )
+    return any(stem in nk for stem in gear_stems)
 
 
 def _join_limited(items: list[Any], *, max_items: int = 5, sep: str = ", ") -> str:
@@ -155,13 +205,17 @@ def build_glossary_index() -> dict[str, dict[str, Any]]:
         if not summary:
             index[key]["summary"] = None
 
-    for w in equipment_data().get("weapons") or []:
+    for w in list_weapons():
         if not isinstance(w, dict):
             continue
         label = str(w.get("label") or w.get("id") or "")
         key = normalize_spell_name(label)
+        wid = normalize_spell_name(str(w.get("id") or ""))
         if key:
-            index[key] = {"kind": "weapon", "title": label, "summary": _weapon_summary(w)}
+            entry = {"kind": "weapon", "title": label, "summary": _weapon_summary(w)}
+            index[key] = entry
+            if wid and wid != key:
+                index[wid] = entry
 
     for a in equipment_data().get("armor") or []:
         if not isinstance(a, dict) or a.get("id") == "none":
@@ -198,11 +252,45 @@ def build_glossary_index() -> dict[str, dict[str, Any]]:
     common_items = {
         "explorerspack": (
             "Explorer's Pack",
-            "Backpack, bedroll, mess kit, tinderbox, torches, rations, waterskin, and rope.",
+            "Backpack, bedroll, mess kit, tinderbox, 10 torches, 10 days of rations, waterskin, "
+            "and 50 feet of hempen rope.",
         ),
         "explorers pack": (
             "Explorer's Pack",
-            "Backpack, bedroll, mess kit, tinderbox, torches, rations, waterskin, and rope.",
+            "Backpack, bedroll, mess kit, tinderbox, 10 torches, 10 days of rations, waterskin, "
+            "and 50 feet of hempen rope.",
+        ),
+        "dungeoneerspack": (
+            "Dungeoneer's Pack",
+            "Backpack, crowbar, hammer, 10 pitons, 10 torches, tinderbox, 10 days of rations, "
+            "waterskin, and 50 feet of hempen rope.",
+        ),
+        "dungeoneers pack": (
+            "Dungeoneer's Pack",
+            "Backpack, crowbar, hammer, 10 pitons, 10 torches, tinderbox, 10 days of rations, "
+            "waterskin, and 50 feet of hempen rope.",
+        ),
+        "entertainerspack": (
+            "Entertainer's Pack",
+            "Backpack, bedroll, 2 costumes, 5 candles, 5 days of rations, waterskin, "
+            "and disguise kit.",
+        ),
+        "priestspack": (
+            "Priest's Pack",
+            "Backpack, blanket, 10 candles, tinderbox, alms box, 2 blocks of incense, censer, "
+            "vestments, 2 days of rations, and waterskin.",
+        ),
+        "burglarspack": (
+            "Burglar's Pack",
+            "Backpack, ball bearings, string, bell, 5 candles, crowbar, hammer, 10 pitons, "
+            "hooded lantern, 2 flasks of oil, 5 days of rations, tinderbox, waterskin, "
+            "and 50 feet of hempen rope.",
+        ),
+        "scholarspack": (
+            "Scholar's Pack",
+            "Backpack, book, ink, ink pen, lamp, 10 flasks of oil, 10 sheets of paper, "
+            "parchment, bag of sand, sealing wax, small knife, shovel, iron pot, tinderbox, "
+            "and waterskin.",
         ),
         "potionofhealing": (
             "Potion of Healing",
@@ -230,11 +318,30 @@ def build_glossary_index() -> dict[str, dict[str, Any]]:
             "used for crafting antitoxins and "
             "potions of healing.",
         ),
+        "javelin": ("Javelin", "Simple melee/thrown weapon. 1d6 piercing damage. Mastery: Slow."),
+        "javelins": ("Javelins", "Simple melee/thrown weapon. 1d6 piercing damage. Mastery: Slow."),
+        "flail": ("Flail", "Martial melee weapon. 1d8 bludgeoning damage. Mastery: Sap."),
+        "travelersclothes": (
+            "Traveler's Clothes",
+            "Ordinary clothes including a shirt, pants, and sturdy boots.",
+        ),
+        "travelers clothes": (
+            "Traveler's Clothes",
+            "Ordinary clothes including a shirt, pants, and sturdy boots.",
+        ),
+        "healerskit": (
+            "Healer's Kit",
+            "10 uses. Stabilize a dying creature without a Medicine check.",
+        ),
+        "arrows": ("Arrows", "Ammunition for bows. Typically sold in bundles of 20."),
+        "quiver": ("Quiver", "Holds up to 20 arrows or bolts."),
+        "gamingset": ("Gaming Set", "Dice or playing pieces for games of chance or skill."),
     }
     for key, (title, summary) in common_items.items():
         nk = normalize_spell_name(key)
-        if nk not in index:
-            index[nk] = {"kind": "item", "title": title, "summary": summary}
+        if index.get(nk, {}).get("kind") == "weapon":
+            continue
+        index[nk] = {"kind": "item", "title": title, "summary": summary}
 
     for c in list_classes(include_faerun=True):
         if not isinstance(c, dict):
@@ -308,7 +415,12 @@ def _feature_rag_snippet(name: str) -> str | None:
                 elif name_re.search(content):
                     score += 20
                 extracted = _extract_feature_section(name, content)
+                if extracted:
+                    score = max(score, 100)
                 text = extracted or content
+                # Ignore index-page hits that only mention the name in passing.
+                if score < 100:
+                    continue
                 if score > best_score and len(text.strip()) >= 40:
                     best_score = score
                     best = re.sub(r"\s+", " ", text.strip())[:1200]
@@ -367,12 +479,26 @@ def lookup_entry(name: str, *, use_rag: bool = False, class_id: str = "") -> dic
         return {"kind": "unknown", "title": name, "summary": None}
 
     index = build_glossary_index()
-    candidates = [normalize_spell_name(name)]
+    lookup_names = [name]
+    normalized = _normalize_lookup_name(name)
+    weapon = get_weapon(normalized)
+    if weapon:
+        lookup_names.append(str(weapon.get("label") or normalized))
+    elif normalized != normalize_spell_name(name):
+        lookup_names.append(normalized)
+
+    candidates: list[str] = []
+    if weapon:
+        wid = normalize_spell_name(str(weapon.get("id") or normalized))
+        if wid:
+            candidates.append(wid)
+    for ln in lookup_names:
+        candidates.append(normalize_spell_name(ln))
+        for key in _feat_lookup_keys(ln):
+            if key not in candidates:
+                candidates.append(key)
     if class_id:
         candidates.insert(0, normalize_spell_name(f"{class_id}_{name}"))
-    for key in _feat_lookup_keys(name):
-        if key not in candidates:
-            candidates.append(key)
 
     for key in candidates:
         hit = index.get(key)
@@ -387,7 +513,7 @@ def lookup_entry(name: str, *, use_rag: bool = False, class_id: str = "") -> dic
     if hit and hit.get("summary"):
         return {**hit, "title": hit.get("title") or name}
 
-    if use_rag:
+    if use_rag and not _looks_like_gear(name):
         feat_snip = _feature_rag_snippet(name)
         if feat_snip:
             return {"kind": "feature", "title": name, "summary": feat_snip}

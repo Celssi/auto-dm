@@ -32,7 +32,7 @@ export default function WizardOriginStep({ char, patch }: Props) {
       <Field label="Appearance & Notes">
         <TextArea
           value={appearance}
-          onChange={(e) => patch({ appearance: e.target.value })}
+          onChange={(e) => patch({ appearance: e.target.value, equipment_notes: e.target.value })}
           placeholder="Appearance, personality, backstory, or other notes for the DM"
           className="min-h-[10rem]"
         />

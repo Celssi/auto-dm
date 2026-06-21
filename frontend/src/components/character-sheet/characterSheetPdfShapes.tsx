@@ -13,6 +13,7 @@ export function createPdfShapes(pdf: PdfModule) {
 
 /** Stack long header labels on two lines to avoid awkward hyphenation. */
 export function stackLabel(label: string): string {
+  if (label.length <= 14) return label;
   if (label.includes(' & ')) {
     return label.replace(' & ', '\n& ');
   }
@@ -23,4 +24,9 @@ export function stackLabel(label: string): string {
     return `${words.slice(0, mid).join(' ')}\n${words.slice(mid).join(' ')}`;
   }
   return label;
+}
+
+/** Format hit dice without line breaks (e.g. 3d8). */
+export function formatHitDice(count: number, die: number): string {
+  return `${count}d${die}`;
 }

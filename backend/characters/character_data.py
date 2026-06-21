@@ -55,6 +55,30 @@ def equipment_data() -> dict[str, Any]:
     return _load(_EQUIPMENT_PATH)
 
 
+def _is_gear_starting_package(package: dict[str, Any]) -> bool:
+    """Drop gold-only PHB options (e.g. fighter C: 155 GP)."""
+    if not isinstance(package, dict):
+        return False
+    has_items = bool(package.get("items") or package.get("weapons") or package.get("armor"))
+    return has_items
+
+
+def list_starting_gear_options(class_id: str) -> list[dict[str, Any]]:
+    """Gear-only starting packages for a class (never gold-only alternatives)."""
+    key = str(class_id or "").strip().lower()
+    if not key:
+        return []
+    data = equipment_data()
+    options = (data.get("class_starting_gear_options") or {}).get(key) or []
+    filtered = [o for o in options if _is_gear_starting_package(o)]
+    if filtered:
+        return filtered
+    legacy = (data.get("class_starting_gear") or {}).get(key)
+    if isinstance(legacy, dict) and _is_gear_starting_package(legacy):
+        return [{"id": "standard", "label": "Standard kit", **legacy}]
+    return []
+
+
 @lru_cache(maxsize=1)
 def faerun_data() -> dict[str, Any]:
     if not _FAERUN_PATH.exists():
@@ -101,6 +125,21 @@ def get_armor(armor_id: str) -> dict[str, Any] | None:
 
 def list_weapons() -> list[dict[str, Any]]:
     return list(equipment_data().get("weapons") or [])
+
+
+def get_weapon(weapon_id: str) -> dict[str, Any] | None:
+    wid = str(weapon_id or "").strip().lower()
+    for row in list_weapons():
+        if str(row.get("id") or "").lower() == wid:
+            return row
+    return None
+
+
+def list_background_gear_options(background_id: str) -> list[dict[str, Any]]:
+    key = str(background_id or "").strip().lower()
+    if not key:
+        return []
+    return list((equipment_data().get("background_starting_gear_options") or {}).get(key) or [])
 
 
 def list_languages() -> list[str]:
@@ -181,6 +220,8 @@ def multiclass_prerequisites(class_id: str) -> dict[str, int]:
 
 
 def character_options_payload(*, include_faerun: bool = False) -> dict[str, Any]:
+    from backend.characters.creation_choices import creation_choices_catalog, weapon_mastery_data
+
     skills = skills_data()
     faerun = faerun_data()
     backgrounds = list_backgrounds(include_faerun=include_faerun)
@@ -199,6 +240,11 @@ def character_options_payload(*, include_faerun: bool = False) -> dict[str, Any]
         "weapons": list_weapons(),
         "languages": list_languages(),
         "shield_ac": shield_ac_bonus(),
+        "starting_gear_options": equipment_data().get("class_starting_gear_options") or {},
+        "background_starting_gear_options": equipment_data().get("background_starting_gear_options")
+        or {},
+        "creation_choice_catalog": creation_choices_catalog(include_faerun=include_faerun),
+        "weapon_mastery_properties": weapon_mastery_data().get("properties") or {},
         "include_faerun": include_faerun,
         "faerun_available": bool(faerun),
         "faerun": {

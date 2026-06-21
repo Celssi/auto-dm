@@ -36,8 +36,60 @@ export function passivePerception(char: Character): number {
   return pp;
 }
 
+const ORIGIN_FEAT_LABELS: Record<string, string> = {
+  alert: 'Alert',
+  crafter: 'Crafter',
+  healer: 'Healer',
+  lucky: 'Lucky',
+  magic_initiate_cleric: 'Magic Initiate (Cleric)',
+  magic_initiate_druid: 'Magic Initiate (Druid)',
+  magic_initiate_wizard: 'Magic Initiate (Wizard)',
+  musician: 'Musician',
+  savage_attacker: 'Savage Attacker',
+  skilled: 'Skilled',
+  tavern_brawler: 'Tavern Brawler',
+  tough: 'Tough',
+};
+
+function normalizeOriginFeatId(raw: string): string {
+  const text = String(raw || '').trim();
+  if (!text) return '';
+  const key = text.toLowerCase().replace(/ /g, '_');
+  if (key in ORIGIN_FEAT_LABELS) return key;
+  const norm = text
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')
+    .replace(/^_|_$/g, '');
+  for (const [fid, label] of Object.entries(ORIGIN_FEAT_LABELS)) {
+    const labelNorm = label.toLowerCase().replace(/[^a-z0-9]+/g, '_');
+    if (labelNorm === norm || fid === key) return fid;
+  }
+  return key;
+}
+
+function originFeatIds(char: Character): Set<string> {
+  const ids = new Set<string>();
+  for (const raw of [char.origin_feat, char.versatile_origin_feat]) {
+    const fid = normalizeOriginFeatId(String(raw || ''));
+    if (fid) ids.add(fid);
+  }
+  return ids;
+}
+
+export function hasOriginFeat(char: Character, featId: string): boolean {
+  return originFeatIds(char).has(normalizeOriginFeatId(featId));
+}
+
+export function hasAlertFeat(char: Character): boolean {
+  return hasOriginFeat(char, 'alert');
+}
+
 export function initiativeMod(char: Character): number {
-  return abilityMod(char.ability_scores?.dex ?? 10);
+  let mod = abilityMod(char.ability_scores?.dex ?? 10);
+  if (hasAlertFeat(char)) {
+    mod += proficiencyBonus(char.level || 1);
+  }
+  return mod;
 }
 
 export function spellAbility(classId: string): string | null {

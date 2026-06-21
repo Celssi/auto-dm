@@ -59,6 +59,11 @@ class Dnd5eCharacter:
     class_skill_choices: list[str] = field(default_factory=list)
     human_skill: str = ""
     origin_feat: str = ""
+    feature_choices: dict[str, Any] = field(default_factory=dict)
+    fighting_style_feat: str = ""
+    weapon_mastery: list[str] = field(default_factory=list)
+    versatile_origin_feat: str = ""
+    background_gear_choice: str = ""
     languages: list[str] = field(default_factory=lambda: ["common"])
     cantrips: list[str] = field(default_factory=list)
     prepared_spells: list[str] = field(default_factory=list)
@@ -72,6 +77,7 @@ class Dnd5eCharacter:
     inventory: list[str] = field(default_factory=list)
     currency: dict[str, int] = field(default_factory=dict)
     equipment_notes: str = ""
+    starting_gear_choice: str = ""
     asi_choices: list[dict[str, Any]] = field(default_factory=list)
     feats: list[str] = field(default_factory=list)
     death_save_successes: int = 0
@@ -136,6 +142,15 @@ class Dnd5eCharacter:
         self.known_spells = _clean_list(self.known_spells, 40)
         self.human_skill = str(self.human_skill or "").strip().lower()
         self.origin_feat = str(self.origin_feat or "").strip()
+        fc = self.feature_choices if isinstance(self.feature_choices, dict) else {}
+        self.feature_choices = {str(k).strip().lower(): v for k, v in fc.items() if str(k).strip()}
+        self.fighting_style_feat = str(self.fighting_style_feat or "").strip().lower()
+        self.weapon_mastery = _clean_list(self.weapon_mastery, 6)
+        self.versatile_origin_feat = str(self.versatile_origin_feat or "").strip()
+        self.background_gear_choice = str(self.background_gear_choice or "").strip().lower()
+        from backend.characters.creation_choices import sync_feature_choice_fields
+
+        sync_feature_choice_fields(self)
         self.armor = str(self.armor or "none").strip().lower() or "none"
         self.shield = bool(self.shield)
         self.ac_manual = bool(self.ac_manual)
@@ -147,7 +162,7 @@ class Dnd5eCharacter:
             if k in CURRENCY_KEYS and str(v).lstrip("-").isdigit()
         }
         self.asi_choices = _clean_asi_choices(self.asi_choices)
-        self.feats = _clean_list(self.feats, 12)
+        self.feats = _clean_feat_list(self.feats, 12)
         self.death_save_successes = max(0, min(3, int(self.death_save_successes or 0)))
         self.death_save_failures = max(0, min(3, int(self.death_save_failures or 0)))
         self.exhaustion = max(0, min(6, int(self.exhaustion or 0)))
@@ -155,6 +170,7 @@ class Dnd5eCharacter:
         self.concentration = str(self.concentration or "").strip()[:80]
         self.wild_shape_uses = max(0, min(10, int(self.wild_shape_uses or 0)))
         self.equipment_notes = str(self.equipment_notes or "").strip()
+        self.starting_gear_choice = str(self.starting_gear_choice or "").strip().lower()
         setting = str(self.campaign_setting or "freeform").strip().lower()
         self.campaign_setting = setting if setting in {"freeform", "faerun"} else "freeform"
         self.campaign_notes = str(self.campaign_notes or "").strip()[:500]
@@ -191,6 +207,17 @@ class Dnd5eCharacter:
     def proficiency_bonus(self) -> int:
         return 2 + (self.level - 1) // 4
 
+    def has_alert_feat(self) -> bool:
+        from backend.characters.origin_feats import has_origin_feat
+
+        return has_origin_feat(self, "alert")
+
+    def initiative_modifier(self) -> int:
+        mod = self.ability_modifier("dex")
+        if self.has_alert_feat():
+            mod += self.proficiency_bonus()
+        return mod
+
     def header_fields(self) -> dict[str, Any]:
         return {
             "species": self.species,
@@ -202,6 +229,23 @@ class Dnd5eCharacter:
             "ac": self.ac,
             "proficiency_bonus": self.proficiency_bonus(),
         }
+
+
+def _clean_feat_list(raw: Any, limit: int) -> list[str]:
+    """Preserve display casing for feat names (e.g. Defense, Savage Attacker)."""
+    if not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in raw:
+        s = str(item or "").strip()
+        key = s.lower()
+        if s and key not in seen:
+            seen.add(key)
+            out.append(s)
+        if len(out) >= limit:
+            break
+    return out
 
 
 def _clean_list(raw: Any, limit: int) -> list[str]:
@@ -314,6 +358,13 @@ def character_from_dict(data: dict[str, Any] | None) -> Dnd5eCharacter:
         class_skill_choices=_clean_list(data.get("class_skill_choices"), 4),
         human_skill=str(data.get("human_skill", "") or ""),
         origin_feat=str(data.get("origin_feat", "") or ""),
+        feature_choices=dict(data.get("feature_choices") or {})
+        if isinstance(data.get("feature_choices"), dict)
+        else {},
+        fighting_style_feat=str(data.get("fighting_style_feat", "") or ""),
+        weapon_mastery=_clean_list(data.get("weapon_mastery"), 6),
+        versatile_origin_feat=str(data.get("versatile_origin_feat", "") or ""),
+        background_gear_choice=str(data.get("background_gear_choice", "") or ""),
         languages=_clean_list(data.get("languages"), 12) or ["common"],
         cantrips=_clean_list(data.get("cantrips"), 12),
         prepared_spells=_clean_list(data.get("prepared_spells"), 40),
@@ -326,7 +377,8 @@ def character_from_dict(data: dict[str, Any] | None) -> Dnd5eCharacter:
         weapons=list(data.get("weapons") or []),
         inventory=_clean_list(data.get("inventory"), 60),
         currency=dict(data.get("currency") or {}) if isinstance(data.get("currency"), dict) else {},
-        equipment_notes=str(data.get("equipment_notes", "") or ""),
+        equipment_notes=str(data.get("equipment_notes") or data.get("appearance") or "").strip(),
+        starting_gear_choice=str(data.get("starting_gear_choice", "") or ""),
         asi_choices=list(data.get("asi_choices") or []),
         feats=_clean_list(data.get("feats"), 12),
         death_save_successes=int(data.get("death_save_successes", 0) or 0),
@@ -377,6 +429,11 @@ def character_to_dict(char: Dnd5eCharacter) -> dict[str, Any]:
         "class_skill_choices": list(char.class_skill_choices),
         "human_skill": char.human_skill,
         "origin_feat": char.origin_feat,
+        "feature_choices": dict(char.feature_choices),
+        "fighting_style_feat": char.fighting_style_feat,
+        "weapon_mastery": list(char.weapon_mastery),
+        "versatile_origin_feat": char.versatile_origin_feat,
+        "background_gear_choice": char.background_gear_choice,
         "languages": list(char.languages),
         "cantrips": list(char.cantrips),
         "prepared_spells": list(char.prepared_spells),
@@ -390,6 +447,8 @@ def character_to_dict(char: Dnd5eCharacter) -> dict[str, Any]:
         "inventory": list(char.inventory),
         "currency": dict(char.currency),
         "equipment_notes": char.equipment_notes,
+        "appearance": char.equipment_notes,
+        "starting_gear_choice": char.starting_gear_choice,
         "asi_choices": list(char.asi_choices),
         "feats": list(char.feats),
         "death_save_successes": char.death_save_successes,
@@ -444,8 +503,10 @@ def format_for_prompt(
     cantrips = ", ".join(char.cantrips) or "(none)"
     spells = ", ".join(char.prepared_spells or char.known_spells) or "(none)"
     feats = (
-        ", ".join([char.origin_feat] + list(char.feats))
-        if (char.origin_feat or char.feats)
+        ", ".join(
+            [x for x in [char.origin_feat, char.versatile_origin_feat] + list(char.feats) if x]
+        )
+        if (char.origin_feat or char.versatile_origin_feat or char.feats)
         else "(none)"
     )
     armor_line = (
@@ -465,7 +526,13 @@ def format_for_prompt(
     )
     coins = ", ".join(f"{char.currency[k]}{k}" for k in CURRENCY_KEYS if char.currency.get(k))
     from backend.characters.character_builder import compute_spell_slots
+    from backend.characters.creation_choices import (
+        class_choice_lines,
+        collect_derived_feats,
+        species_trait_lines,
+    )
     from backend.characters.features import features_summary_lines
+    from backend.characters.origin_feats import origin_feat_passive_lines
     from backend.characters.spell_resources import compute_wild_shape_max
 
     max_slots = compute_spell_slots(char)
@@ -489,6 +556,13 @@ def format_for_prompt(
         mc_parts.append(part)
     mc_line = ", ".join(mc_parts) if mc_parts else "(single class)"
     feature_lines = features_summary_lines(char)
+    choice_lines = class_choice_lines(char)
+    trait_lines = species_trait_lines(char)
+    origin_lines = origin_feat_passive_lines(char)
+    style_feats = collect_derived_feats(char)
+    if style_feats:
+        feats = feats + (", " if feats != "(none)" else "") + ", ".join(style_feats)
+    origin_effects = "; ".join(f"{e['feat']}: {e['effect']}" for e in origin_lines) or "(none)"
     lines = [
         "Current D&D 5e character:",
         f"- Name: {char.name or 'unnamed'}",
@@ -509,6 +583,10 @@ def format_for_prompt(
         f"- Languages: {', '.join(char.languages) or '(none)'}",
         f"- Feats: {feats}",
         f"- Class features: {'; '.join(feature_lines) or '(none)'}",
+        f"- Species traits: {'; '.join(t['display'] for t in trait_lines) or '(none)'}",
+        f"- Origin feat effects: {origin_effects}",
+        f"- Creation choices: "
+        f"{'; '.join(c['label'] + ': ' + c['value_label'] for c in choice_lines) or '(none)'}",
         f"- Weapons: {weapons}",
         f"- Cantrips: {cantrips}",
         f"- Spells: {spells}",

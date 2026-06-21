@@ -3,6 +3,12 @@ import { Field } from '../../ui/forms/Field';
 import NumberInput from '../../ui/forms/NumberInput';
 import { WIZARD_ABILITIES } from './wizardConstants';
 
+function wizardBaseScore(char: Character, ability: (typeof WIZARD_ABILITIES)[number]): number {
+  const base = char.base_ability_scores as Record<string, number> | undefined;
+  if (base?.[ability] != null) return base[ability];
+  return char.ability_scores[ability] ?? 10;
+}
+
 interface Props {
   char: Character;
   patch: (p: Partial<Character>) => void;
@@ -21,12 +27,11 @@ export default function WizardAbilitiesStep({ char, patch, onApplyStandardArray 
             <NumberInput
               min={1}
               max={30}
-              value={char.ability_scores[ab] ?? 10}
+              value={wizardBaseScore(char, ab)}
               onChange={(e) => {
                 const n = parseInt(e.target.value) || 10;
                 const baseScores = (char.base_ability_scores as Record<string, number> | undefined) ?? {};
                 patch({
-                  ability_scores: { ...char.ability_scores, [ab]: n },
                   base_ability_scores: { ...baseScores, [ab]: n },
                   ability_scores_set: true,
                 });

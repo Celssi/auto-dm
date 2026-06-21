@@ -1,0 +1,26 @@
+# PHB 2024 weapon mastery properties (reference text for tooltips/sheets)
+properties:
+  cleave:
+    label: Cleave
+    summary: On a hit, you can make an attack roll against a second creature within 5 feet of the first.
+  graze:
+    label: Graze
+    summary: If your attack roll misses, you deal damage equal to the ability modifier used for the attack.
+  nick:
+    label: Nick
+    summary: When you make the extra attack of the Light property, you can make it as part of the Attack action instead of a Bonus Action.
+  push:
+    label: Push
+    summary: On a hit, the target must succeed on a Strength save or be pushed up to 10 feet away from you.
+  sap:
+    label: Sap
+    summary: On a hit, the target has Disadvantage on its next attack roll before the start of your next turn.
+  slow:
+    label: Slow
+    summary: On a hit, you can reduce the target's Speed by 10 feet until the start of your next turn.
+  topple:
+    label: Topple
+    summary: On a hit, the target must succeed on a Dexterity save or have the Prone condition.
+  vex:
+    label: Vex
+    summary: On a hit, you have Advantage on your next attack roll against the target before the end of your next turn.

@@ -46,6 +46,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ character }),
     }),
+  previewCharacter: (character: Record<string, unknown>, finalize = true) =>
+    request<{ character: Record<string, unknown> }>(`/characters/preview?finalize=${finalize ? 'true' : 'false'}`, {
+      method: 'POST',
+      body: JSON.stringify({ character }),
+    }),
   updateCharacter: (id: string, character: Record<string, unknown>) =>
     request<{ character: Record<string, unknown> }>(`/characters/${id}`, {
       method: 'PUT',
@@ -64,6 +69,11 @@ export const api = {
       cantrips?: string[];
       prepared_spells?: string[];
       known_spells?: string[];
+      feature_choices?: Record<string, unknown>;
+      fighting_style_feat?: string;
+      weapon_mastery?: string[];
+      human_skill?: string;
+      versatile_origin_feat?: string;
     },
   ) =>
     request<{ character: Record<string, unknown>; summary: Record<string, unknown> }>(`/characters/${id}/level-up`, {

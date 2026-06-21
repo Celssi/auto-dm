@@ -78,11 +78,11 @@ export function buildSheetPage2(pdf: PdfModule, c: Character) {
       <View style={[s.row, { gap: 3, alignItems: 'stretch' }]}>
         <Box title="Cantrips & Prepared Spells" style={{ flex: 1.55 }}>
           <View style={s.tableHeader}>
-            <Text style={[s.labelSm, { width: 18 }]}>Level</Text>
+            <Text style={[s.labelSm, { width: 18 }]}>Lvl</Text>
             <Text style={[s.labelSm, { width: '24%' }]}>Name</Text>
-            <Text style={[s.labelSm, { width: '14%' }]}>{stackLabel('Casting Time')}</Text>
+            <Text style={[s.labelSm, { width: '14%' }]}>Time</Text>
             <Text style={[s.labelSm, { width: '12%' }]}>Range</Text>
-            <Text style={[s.labelSm, { width: '16%' }]}>C / R / M</Text>
+            <Text style={[s.labelSm, { width: '16%' }]}>C/R/M</Text>
             <Text style={[s.labelSm, { flex: 1 }]}>Notes</Text>
           </View>
           {spellRows.slice(0, spellRowCount).map((sp) => (

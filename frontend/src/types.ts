@@ -21,6 +21,8 @@ export interface Character {
   speed: number;
   hit_die: number;
   ability_scores: Record<string, number>;
+  base_ability_scores?: Record<string, number>;
+  ability_scores_set?: boolean;
   skill_proficiencies: string[];
   save_proficiencies: string[];
   cantrips: string[];
@@ -48,6 +50,12 @@ export interface Character {
   size?: string;
   asi_choices?: Record<string, unknown>[];
   class_skill_choices?: string[];
+  feature_choices?: Record<string, unknown>;
+  fighting_style_feat?: string;
+  weapon_mastery?: string[];
+  versatile_origin_feat?: string;
+  background_gear_choice?: string;
+  starting_gear_choice?: string;
   classes?: ClassLevel[];
   campaign_setting: string;
   campaign_notes: string;
@@ -107,4 +115,6 @@ export interface LevelUpPreview {
   asi_this_level?: boolean;
   needs_subclass?: boolean;
   notices?: string[];
+  pending_choices?: Array<Record<string, unknown>>;
+  missing_choices?: string[];
 }

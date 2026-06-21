@@ -4,11 +4,7 @@ import { UserPlus, Users } from 'lucide-react';
 import { api } from '../api/client';
 import type { Character } from '../types';
 import CharacterWizard from '../components/character-sheet/CharacterWizard';
-import CharacterSheetView from '../components/character-sheet/CharacterSheetView';
 import LevelUpDialog from '../components/character-sheet/LevelUpDialog';
-import MulticlassPanel from '../components/character-sheet/MulticlassPanel';
-import { displayLabel } from '../lib/displayText';
-import GlossaryTip from '../components/ui/GlossaryTip';
 import PageHeader from '../components/ui/PageHeader';
 import ListCard from '../components/ui/ListCard';
 import EmptyState from '../components/ui/EmptyState';
@@ -16,12 +12,14 @@ import ListLoading from '../components/ui/ListLoading';
 import AnimatedPage from '../components/ui/AnimatedPage';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { fadeUp, staggerContainer } from '../components/ui/motion';
+import CharacterDetailPanel from './characters/CharacterDetailPanel';
 import { charactersReducer, initialCharactersState } from './characters/charactersState';
 
 export default function CharactersPage() {
   const [state, dispatch] = useReducer(charactersReducer, initialCharactersState);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [charOptions, setCharOptions] = useState<Record<string, unknown>>({});
 
   const load = useCallback(async () => {
     const { characters } = await api.listCharacters();
@@ -39,6 +37,15 @@ export default function CharactersPage() {
   useEffect(() => {
     load().catch((e) => dispatch({ type: 'set', patch: { error: String(e) } }));
   }, [load]);
+
+  useEffect(() => {
+    if (state.mode === 'view' && state.activeId) {
+      api
+        .getCharacterOptions(false)
+        .then(setCharOptions)
+        .catch(() => setCharOptions({}));
+    }
+  }, [state.mode, state.activeId]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -68,6 +75,7 @@ export default function CharactersPage() {
     asiChoices: Record<string, unknown>[],
     className?: string,
     spells?: { cantrips?: string[]; prepared_spells?: string[]; known_spells?: string[] },
+    choices?: Partial<Character>,
   ) => {
     if (!state.activeId) return;
     const res = await api.levelUpCharacter(state.activeId, {
@@ -75,6 +83,11 @@ export default function CharactersPage() {
       asi_choices: asiChoices,
       class_name: className,
       ...spells,
+      ...(choices?.feature_choices ? { feature_choices: choices.feature_choices as Record<string, unknown> } : {}),
+      ...(choices?.fighting_style_feat ? { fighting_style_feat: choices.fighting_style_feat } : {}),
+      ...(choices?.weapon_mastery ? { weapon_mastery: choices.weapon_mastery } : {}),
+      ...(typeof choices?.human_skill === 'string' && choices.human_skill ? { human_skill: choices.human_skill } : {}),
+      ...(choices?.versatile_origin_feat ? { versatile_origin_feat: choices.versatile_origin_feat } : {}),
     });
     dispatch({
       type: 'set',
@@ -99,9 +112,6 @@ export default function CharactersPage() {
   };
 
   const { character, summary, mode } = state;
-  const unlockedFeatures = summary.unlocked_features as
-    | { class_features?: Record<string, string[]>; subclass_features?: Record<string, string[]> }
-    | undefined;
 
   return (
     <AnimatedPage className="space-y-6">
@@ -170,95 +180,18 @@ export default function CharactersPage() {
       )}
 
       {mode === 'view' && character && (
-        <m.div variants={fadeUp} className="space-y-5">
-          <div className="flex flex-wrap items-center gap-2 panel-glow p-3">
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={() => dispatch({ type: 'set', patch: { mode: 'list' } })}
-            >
-              ← Back
-            </button>
-            <div className="w-px h-6 bg-border hidden sm:block" />
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={() => dispatch({ type: 'set', patch: { mode: 'wizard' } })}
-            >
-              Edit
-            </button>
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => dispatch({ type: 'set', patch: { levelUpOpen: true } })}
-            >
-              Level up
-            </button>
-            <button
-              type="button"
-              className="btn-ghost"
-              onClick={async () => {
-                const { downloadCharacterPdf } = await import('../components/character-sheet/CharacterSheetPdf');
-                downloadCharacterPdf(character);
-              }}
-            >
-              Export PDF
-            </button>
-            <button type="button" className="btn-primary ml-auto" onClick={() => saveChar(character)}>
-              Save changes
-            </button>
-            <button type="button" className="btn-danger" onClick={() => setConfirmDelete(true)}>
-              Delete
-            </button>
-          </div>
-
-          {Boolean(summary.needs_asi) && (
-            <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-200">
-              ASI or feat choice available. Level up or edit to apply.
-            </div>
-          )}
-
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <MulticlassPanel
-              character={{ ...character, id: state.activeId || undefined }}
-              onChange={(classes) => dispatch({ type: 'set', patch: { character: { ...character, classes } } })}
-            />
-            {unlockedFeatures && (
-              <div className="panel p-4">
-                <h3 className="text-xs font-semibold uppercase tracking-wider text-accent mb-3">Unlocked features</h3>
-                <div className="space-y-2 text-sm">
-                  {Object.entries(unlockedFeatures.class_features || {}).map(([cid, feats]) => (
-                    <div key={cid}>
-                      <span className="text-muted">{displayLabel(cid)}</span>
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        {(feats as string[]).map((f) => (
-                          <GlossaryTip key={f} name={f} />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                  {Object.entries(unlockedFeatures.subclass_features || {}).map(([key, feats]) => (
-                    <div key={key}>
-                      <span className="text-muted">{displayLabel(key)}</span>
-                      <div className="flex flex-wrap gap-1.5 mt-1">
-                        {(feats as string[]).map((f) => (
-                          <GlossaryTip key={f} name={f} />
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          <CharacterSheetView
-            character={character}
-            summary={summary}
-            editable
-            onChange={(c) => dispatch({ type: 'set', patch: { character: c as Character } })}
-          />
-        </m.div>
+        <CharacterDetailPanel
+          character={character}
+          activeId={state.activeId}
+          summary={summary}
+          charOptions={charOptions}
+          onBack={() => dispatch({ type: 'set', patch: { mode: 'list' } })}
+          onEdit={() => dispatch({ type: 'set', patch: { mode: 'wizard' } })}
+          onLevelUp={() => dispatch({ type: 'set', patch: { levelUpOpen: true } })}
+          onSave={saveChar}
+          onDelete={() => setConfirmDelete(true)}
+          onChange={(c) => dispatch({ type: 'set', patch: { character: c } })}
+        />
       )}
 
       {state.levelUpOpen && character && state.activeId && (

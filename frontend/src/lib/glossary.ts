@@ -3,6 +3,17 @@ export function glossaryKey(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
 
+/** Strip quantity suffix and simple plural for equipment lookup. */
+export function normalizeLookupName(name: string): string {
+  const base = name.replace(/\s*\(\s*\d+\s*\)\s*$/, '').trim();
+  let nk = glossaryKey(base);
+  if (nk.endsWith('s') && nk.length > 3) {
+    const singular = nk.slice(0, -1);
+    if (singular.length >= 3) nk = singular;
+  }
+  return nk;
+}
+
 export interface GlossaryEntry {
   kind: string;
   title: string;
@@ -28,6 +39,7 @@ export function lookupGlossary(
   if (paren !== name) {
     candidates.push(glossaryKey(paren));
   }
+  candidates.push(normalizeLookupName(name));
   for (const key of candidates) {
     const hit = entries[key];
     if (hit?.summary) return hit;

@@ -74,36 +74,49 @@ weapons:
   damage_type: bludgeoning
   category: simple
   properties: [light]
+  mastery: slow
 - id: dagger
   label: Dagger
   damage: 1d4
   damage_type: piercing
   category: simple
   properties: [finesse, light, thrown]
+  mastery: nick
 - id: handaxe
   label: Handaxe
   damage: 1d6
   damage_type: slashing
   category: simple
   properties: [light, thrown]
+  mastery: vex
 - id: mace
   label: Mace
   damage: 1d6
   damage_type: bludgeoning
   category: simple
   properties: []
+  mastery: sap
 - id: quarterstaff
   label: Quarterstaff
   damage: 1d6
   damage_type: bludgeoning
   category: simple
   properties: [versatile]
+  mastery: topple
 - id: spear
   label: Spear
   damage: 1d6
   damage_type: piercing
   category: simple
   properties: [thrown, versatile]
+  mastery: sap
+- id: javelin
+  label: Javelin
+  damage: 1d6
+  damage_type: piercing
+  category: simple
+  properties: [thrown]
+  mastery: slow
 - id: shortbow
   label: Shortbow
   damage: 1d6
@@ -116,66 +129,98 @@ weapons:
   damage_type: piercing
   category: simple
   properties: [ammunition, loading, ranged, two-handed]
+  mastery: slow
 - id: shortsword
   label: Shortsword
   damage: 1d6
   damage_type: piercing
   category: martial
   properties: [finesse, light]
+  mastery: vex
+- id: scimitar
+  label: Scimitar
+  damage: 1d6
+  damage_type: slashing
+  category: martial
+  properties: [finesse, light]
+  mastery: nick
+- id: flail
+  label: Flail
+  damage: 1d8
+  damage_type: bludgeoning
+  category: martial
+  properties: []
+  mastery: sap
+- id: sickle
+  label: Sickle
+  damage: 1d4
+  damage_type: slashing
+  category: simple
+  properties: [light]
+  mastery: nick
 - id: rapier
   label: Rapier
   damage: 1d8
   damage_type: piercing
   category: martial
   properties: [finesse]
+  mastery: vex
 - id: longsword
   label: Longsword
   damage: 1d8
   damage_type: slashing
   category: martial
   properties: [versatile]
+  mastery: sap
 - id: battleaxe
   label: Battleaxe
   damage: 1d8
   damage_type: slashing
   category: martial
   properties: [versatile]
+  mastery: topple
 - id: warhammer
   label: Warhammer
   damage: 1d8
   damage_type: bludgeoning
   category: martial
   properties: [versatile]
+  mastery: push
 - id: greatsword
   label: Greatsword
   damage: 2d6
   damage_type: slashing
   category: martial
   properties: [heavy, two-handed]
+  mastery: graze
 - id: greataxe
   label: Greataxe
   damage: 1d12
   damage_type: slashing
   category: martial
   properties: [heavy, two-handed]
+  mastery: cleave
 - id: maul
   label: Maul
   damage: 2d6
   damage_type: bludgeoning
   category: martial
   properties: [heavy, two-handed]
+  mastery: topple
 - id: longbow
   label: Longbow
   damage: 1d8
   damage_type: piercing
   category: martial
   properties: [ammunition, heavy, ranged, two-handed]
+  mastery: slow
 - id: heavy_crossbow
   label: Crossbow, Heavy
   damage: 1d10
   damage_type: piercing
   category: martial
   properties: [ammunition, heavy, loading, ranged, two-handed]
+  mastery: push
 # Standard + rare languages (PHB 2024 ch. 2).
 languages:
 - common
@@ -198,7 +243,272 @@ languages:
 - thieves' cant
 - undercommon
 
-# PHB 2024 simplified starting packages (level 1)
+# PHB 2024 starting equipment (gear packages only — no gold-only alternatives)
+class_starting_gear_options:
+  barbarian:
+    - id: standard
+      label: Primal warrior
+      description: Greataxe, 4 Javelins, Explorer's Pack, 15 GP
+      items: [Explorer's Pack, Javelins (4)]
+      weapons: [{name: Greataxe, damage: 1d12, damage_type: slashing, ability: str}]
+      armor: none
+      currency: {gp: 15}
+  bard:
+    - id: standard
+      label: Performer
+      description: Rapier, Leather armor, Lute, Entertainer's Pack, Dagger, 15 GP
+      items: [Entertainer's Pack, Lute, Leather armor, Dagger]
+      weapons: [{name: Rapier, damage: 1d8, damage_type: piercing, ability: dex}]
+      armor: leather
+      currency: {gp: 15}
+  cleric:
+    - id: armored
+      label: Armored acolyte
+      description: Chain Shirt, Shield, Mace, Holy Symbol, Priest's Pack, 7 GP
+      items: [Priest's Pack, Holy symbol]
+      weapons: [{name: Mace, damage: 1d6, damage_type: bludgeoning, ability: str}]
+      armor: chain_shirt
+      shield: true
+      currency: {gp: 7}
+  druid:
+    - id: standard
+      label: Warden of nature
+      description: Leather armor, Shield, Sickle, Druidic focus, Explorer's Pack, 15 GP
+      items: [Explorer's Pack, Druidic focus, Sickle]
+      weapons: [{name: Sickle, damage: 1d4, damage_type: slashing, ability: str}]
+      armor: leather
+      shield: true
+      currency: {gp: 15}
+  fighter:
+    - id: heavy
+      label: Heavy warrior
+      description: Chain Mail, Greatsword, Flail, 8 Javelins, Dungeoneer's Pack, 4 GP
+      items: [Dungeoneer's Pack, Flail, Javelins (8)]
+      weapons: [{name: Greatsword, damage: 1d12, damage_type: slashing, ability: str}]
+      armor: chain_mail
+      currency: {gp: 4}
+    - id: skirmisher
+      label: Skirmisher
+      description: Studded Leather Armor, Scimitar, Shortsword, Longbow, 20 Arrows, Quiver, Dungeoneer's Pack, 11 GP
+      items: [Dungeoneer's Pack, Shortsword, Longbow, Arrows (20), Quiver]
+      weapons: [{name: Scimitar, damage: 1d6, damage_type: slashing, ability: dex}]
+      armor: studded_leather
+      currency: {gp: 11}
+  monk:
+    - id: standard
+      label: Martial ascetic
+      description: Shortsword, 10 Darts, Explorer's Pack, 15 GP
+      items: [Explorer's Pack, Dart (10)]
+      weapons: [{name: Shortsword, damage: 1d6, damage_type: piercing, ability: dex}]
+      armor: none
+      currency: {gp: 15}
+  paladin:
+    - id: standard
+      label: Holy knight
+      description: Longsword, Chain Mail, Shield, Holy Symbol, Priest's Pack, 15 GP
+      items: [Priest's Pack, Holy symbol]
+      weapons: [{name: Longsword, damage: 1d8, damage_type: slashing, ability: str}]
+      armor: chain_mail
+      shield: true
+      currency: {gp: 15}
+  ranger:
+    - id: standard
+      label: Wilderness scout
+      description: Longbow, Leather armor, Quiver (20 arrows), Explorer's Pack, 15 GP
+      items: [Explorer's Pack, Quiver (20 arrows)]
+      weapons: [{name: Longbow, damage: 1d8, damage_type: piercing, ability: dex}]
+      armor: leather
+      currency: {gp: 15}
+  rogue:
+    - id: standard
+      label: Scoundrel
+      description: Shortsword, Leather armor, 2 Daggers, Thieves' tools, Burglar's Pack, 15 GP
+      items: [Burglar's Pack, Leather armor, Thieves' tools, Dagger (2)]
+      weapons: [{name: Shortsword, damage: 1d6, damage_type: piercing, ability: dex}]
+      armor: leather
+      currency: {gp: 15}
+  sorcerer:
+    - id: standard
+      label: Innate caster
+      description: Light Crossbow, Arcane focus, Dagger, Scholar's Pack, 15 GP
+      items: [Scholar's Pack, Arcane focus, Dagger]
+      weapons: [{name: Light crossbow, damage: 1d8, damage_type: piercing, ability: dex}]
+      armor: none
+      currency: {gp: 15}
+  warlock:
+    - id: standard
+      label: Pact binder
+      description: Light Crossbow, Leather armor, Arcane focus, Scholar's Pack, 15 GP
+      items: [Scholar's Pack, Arcane focus]
+      weapons: [{name: Light crossbow, damage: 1d8, damage_type: piercing, ability: dex}]
+      armor: leather
+      currency: {gp: 15}
+  wizard:
+    - id: standard
+      label: Scholar
+      description: Dagger, Arcane focus, Spellbook, Scholar's Pack, 5 GP
+      items: [Scholar's Pack, Arcane focus, Spellbook, Dagger]
+      weapons: [{name: Dagger, damage: 1d4, damage_type: piercing, ability: dex}]
+      armor: none
+      currency: {gp: 5}
+
+      currency: {gp: 5}
+
+# PHB 2024 background starting equipment (A = kit, B = 50 GP)
+background_starting_gear_options:
+  acolyte:
+    - id: kit
+      label: Acolyte's kit (A)
+      description: Holy symbol, Prayer book, 5 sticks of incense, Vestments, 8 GP
+      items: [Holy symbol, Prayer book, Incense (5), Vestments]
+      currency: {gp: 8}
+    - id: gold
+      label: 50 GP (B)
+      currency: {gp: 50}
+  artisan:
+    - id: kit
+      label: Artisan's kit (A)
+      description: Artisan's Tools, 2 Pouches, Traveler's Clothes, 32 GP
+      items: [Artisan's Tools, Pouch (2), Traveler's Clothes]
+      currency: {gp: 32}
+    - id: gold
+      label: 50 GP (B)
+      currency: {gp: 50}
+  charlatan:
+    - id: kit
+      label: Charlatan's kit (A)
+      description: Forgery Kit, Costume, Fine Clothes, 15 GP
+      items: [Forgery Kit, Costume, Fine Clothes]
+      currency: {gp: 15}
+    - id: gold
+      label: 50 GP (B)
+      currency: {gp: 50}
+  criminal:
+    - id: kit
+      label: Criminal's kit (A)
+      description: 2 Daggers, Thieves' Tools, Crowbar, 2 Pouches, Traveler's Clothes, 16 GP
+      items: [Dagger (2), Thieves' Tools, Crowbar, Pouch (2), Traveler's Clothes]
+      currency: {gp: 16}
+    - id: gold
+      label: 50 GP (B)
+      currency: {gp: 50}
+  entertainer:
+    - id: kit
+      label: Entertainer's kit (A)
+      description: Musical Instrument, 2 Costumes, Mirror, Perfume, Traveler's Clothes, 11 GP
+      items: [Musical Instrument, Costume (2), Mirror, Perfume, Traveler's Clothes]
+      currency: {gp: 11}
+    - id: gold
+      label: 50 GP (B)
+      currency: {gp: 50}
+  farmer:
+    - id: kit
+      label: Farmer's kit (A)
+      description: Sickle, Carpenter's Tools, Healer's Kit, Iron Pot, Shovel, Traveler's Clothes, 30 GP
+      items: [Sickle, Carpenter's Tools, Healer's Kit, Iron Pot, Shovel, Traveler's Clothes]
+      currency: {gp: 30}
+    - id: gold
+      label: 50 GP (B)
+      currency: {gp: 50}
+  guard:
+    - id: kit
+      label: Guard's kit (A)
+      description: Spear, Light Crossbow, 20 Bolts, Gaming Set, Hooded Lantern, Manacles, Quiver, Traveler's Clothes, 12 GP
+      items: [Spear, Light Crossbow, Bolts (20), Gaming Set, Hooded Lantern, Manacles, Quiver, Traveler's Clothes]
+      weapons: [{name: Spear, damage: 1d6, damage_type: piercing, ability: str}, {name: Light Crossbow, damage: 1d8, damage_type: piercing, ability: dex}]
+      currency: {gp: 12}
+    - id: gold
+      label: 50 GP (B)
+      currency: {gp: 50}
+  guide:
+    - id: kit
+      label: Guide's kit (A)
+      description: Shortbow, 20 Arrows, Cartographer's Tools, Bedroll, Quiver, Tent, Traveler's Clothes, 3 GP
+      items: [Shortbow, Arrows (20), Cartographer's Tools, Bedroll, Quiver, Tent, Traveler's Clothes]
+      weapons: [{name: Shortbow, damage: 1d6, damage_type: piercing, ability: dex}]
+      currency: {gp: 3}
+    - id: gold
+      label: 50 GP (B)
+      currency: {gp: 50}
+  hermit:
+    - id: kit
+      label: Hermit's kit (A)
+      description: Quarterstaff, Herbalism Kit, Bedroll, Book (prayers), Oil (5 flasks), Traveler's Clothes, 16 GP
+      items: [Quarterstaff, Herbalism Kit, Bedroll, Book (prayers), Oil (5), Traveler's Clothes]
+      weapons: [{name: Quarterstaff, damage: 1d6, damage_type: bludgeoning, ability: str}]
+      currency: {gp: 16}
+    - id: gold
+      label: 50 GP (B)
+      currency: {gp: 50}
+  merchant:
+    - id: kit
+      label: Merchant's kit (A)
+      description: Navigator's Tools, 2 Pouches, Traveler's Clothes, 22 GP
+      items: [Navigator's Tools, Pouch (2), Traveler's Clothes]
+      currency: {gp: 22}
+    - id: gold
+      label: 50 GP (B)
+      currency: {gp: 50}
+  noble:
+    - id: kit
+      label: Noble's kit (A)
+      description: Gaming Set, Fine Clothes, Perfume, 29 GP
+      items: [Gaming Set, Fine Clothes, Perfume]
+      currency: {gp: 29}
+    - id: gold
+      label: 50 GP (B)
+      currency: {gp: 50}
+  sage:
+    - id: kit
+      label: Sage's kit (A)
+      description: Quarterstaff, Calligrapher's Supplies, Book (history), Parchment (8), Robe, 8 GP
+      items: [Quarterstaff, Calligrapher's Supplies, Book (history), Parchment (8), Robe]
+      weapons: [{name: Quarterstaff, damage: 1d6, damage_type: bludgeoning, ability: str}]
+      currency: {gp: 8}
+    - id: gold
+      label: 50 GP (B)
+      currency: {gp: 50}
+  sailor:
+    - id: kit
+      label: Sailor's kit (A)
+      description: Dagger, Navigator's Tools, Rope, Traveler's Clothes, 20 GP
+      items: [Dagger, Navigator's Tools, Rope, Traveler's Clothes]
+      weapons: [{name: Dagger, damage: 1d4, damage_type: piercing, ability: dex}]
+      currency: {gp: 20}
+    - id: gold
+      label: 50 GP (B)
+      currency: {gp: 50}
+  scribe:
+    - id: kit
+      label: Scribe's kit (A)
+      description: Calligrapher's Supplies, Fine Clothes, Lamp, Oil (3), Parchment (12), 23 GP
+      items: [Calligrapher's Supplies, Fine Clothes, Lamp, Oil (3), Parchment (12)]
+      currency: {gp: 23}
+    - id: gold
+      label: 50 GP (B)
+      currency: {gp: 50}
+  soldier:
+    - id: kit
+      label: Soldier's kit (A)
+      description: Spear, Shortbow, 20 Arrows, Gaming Set, Healer's Kit, Quiver, Traveler's Clothes, 14 GP
+      items: [Spear, Shortbow, Arrows (20), Gaming Set, Healer's Kit, Quiver, Traveler's Clothes]
+      weapons: [{name: Spear, damage: 1d6, damage_type: piercing, ability: str}, {name: Shortbow, damage: 1d6, damage_type: piercing, ability: dex}]
+      currency: {gp: 14}
+    - id: gold
+      label: 50 GP (B)
+      currency: {gp: 50}
+  wayfarer:
+    - id: kit
+      label: Wayfarer's kit (A)
+      description: 2 Daggers, Thieves' Tools, Gaming Set, Bedroll, 2 Pouches, Traveler's Clothes, 16 GP
+      items: [Dagger (2), Thieves' Tools, Gaming Set, Bedroll, Pouch (2), Traveler's Clothes]
+      weapons: [{name: Dagger, damage: 1d4, damage_type: piercing, ability: dex}]
+      currency: {gp: 16}
+    - id: gold
+      label: 50 GP (B)
+      currency: {gp: 50}
+
+# Legacy single-package map (fallback only)
 class_starting_gear:
   barbarian:
     items: [Explorer's Pack, Javelins (4)]

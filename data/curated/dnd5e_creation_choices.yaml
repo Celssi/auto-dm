@@ -1,0 +1,175 @@
+# PHB 2024 character creation choices — species, class, origin-feat sub-picks
+fighting_style_feats:
+  - {id: archery, label: Archery}
+  - {id: blindfighting, label: Blind Fighting}
+  - {id: defense, label: Defense}
+  - {id: dueling, label: Dueling}
+  - {id: greatweaponfighting, label: Great Weapon Fighting}
+  - {id: interception, label: Interception}
+  - {id: protection, label: Protection}
+  - {id: thrownweaponfighting, label: Thrown Weapon Fighting}
+  - {id: unarmedfighting, label: Unarmed Fighting}
+
+origin_feats:
+  - {id: alert, label: Alert}
+  - {id: crafter, label: Crafter}
+  - {id: healer, label: Healer}
+  - {id: lucky, label: Lucky}
+  - {id: magic_initiate_cleric, label: Magic Initiate (Cleric)}
+  - {id: magic_initiate_druid, label: Magic Initiate (Druid)}
+  - {id: magic_initiate_wizard, label: Magic Initiate (Wizard)}
+  - {id: musician, label: Musician}
+  - {id: savage_attacker, label: Savage Attacker}
+  - {id: skilled, label: Skilled}
+  - {id: tavern_brawler, label: Tavern Brawler}
+  - {id: tough, label: Tough}
+
+draconic_ancestries:
+  - {id: black, label: Black (Acid)}
+  - {id: blue, label: Blue (Lightning)}
+  - {id: brass, label: Brass (Fire)}
+  - {id: bronze, label: Bronze (Lightning)}
+  - {id: copper, label: Copper (Acid)}
+  - {id: gold, label: Gold (Fire)}
+  - {id: green, label: Green (Poison)}
+  - {id: red, label: Red (Fire)}
+  - {id: silver, label: Silver (Cold)}
+  - {id: white, label: White (Cold)}
+
+elven_lineages:
+  - {id: drow, label: Drow}
+  - {id: high_elf, label: High Elf}
+  - {id: wood_elf, label: Wood Elf}
+
+gnome_lineages:
+  - {id: forest, label: Forest Gnome}
+  - {id: rock, label: Rock Gnome}
+
+giant_ancestries:
+  - {id: cloud, label: Cloud}
+  - {id: fire, label: Fire}
+  - {id: frost, label: Frost}
+  - {id: hill, label: Hill}
+  - {id: stone, label: Stone}
+  - {id: storm, label: Storm}
+
+fiendish_legacies:
+  - {id: abyssal, label: Abyssal}
+  - {id: chthonic, label: Chthonic}
+  - {id: infernal, label: Infernal}
+
+favored_enemies:
+  - {id: beasts, label: Beasts}
+  - {id: fey, label: Fey}
+  - {id: humanoids, label: Humanoids}
+  - {id: monstrosities, label: Monstrosities}
+  - {id: undead, label: Undead}
+
+divine_orders:
+  - {id: protector, label: Protector}
+  - {id: thaumaturge, label: Thaumaturge}
+
+primal_orders:
+  - {id: magician, label: Magician}
+  - {id: warden, label: Warden}
+
+eldritch_invocations:
+  - {id: agonizing_blast, label: Agonizing Blast}
+  - {id: devils_sight, label: Devil's Sight}
+  - {id: eldritch_mind, label: Eldritch Mind}
+  - {id: fiendish_vigor, label: Fiendish Vigor}
+  - {id: pact_of_the_chain, label: Pact of the Chain}
+  - {id: pact_of_the_tome, label: Pact of the Tome}
+
+species:
+  human:
+    - {id: human_skill, kind: skill, label: Skillful, help: Choose one extra skill proficiency., count: 1, options: $skills}
+    - {id: versatile_origin_feat, kind: origin_feat, label: Versatile, help: Choose an Origin feat (separate from your background feat)., count: 1, options: $origin_feats}
+    - {id: size, kind: enum, label: Size, options: [{id: medium, label: Medium}, {id: small, label: Small}]}
+  aasimar:
+    - {id: size, kind: enum, label: Size, options: [{id: medium, label: Medium}, {id: small, label: Small}]}
+  dragonborn:
+    - {id: draconic_ancestry, kind: enum, label: Draconic Ancestry, options: $draconic_ancestries}
+  elf:
+    - {id: elven_lineage, kind: enum, label: Elven Lineage, options: $elven_lineages}
+    - {id: keen_senses_skill, kind: skill, label: Keen Senses, help: Choose one skill (typically Perception)., count: 1, options: $skills}
+  gnome:
+    - {id: gnome_lineage, kind: enum, label: Gnome Lineage, options: $gnome_lineages}
+  goliath:
+    - {id: giant_ancestry, kind: enum, label: Giant Ancestry, options: $giant_ancestries}
+  tiefling:
+    - {id: fiendish_legacy, kind: enum, label: Fiendish Legacy, options: $fiendish_legacies}
+    - {id: size, kind: enum, label: Size, options: [{id: medium, label: Medium}, {id: small, label: Small}]}
+
+classes:
+  barbarian:
+    - {id: weapon_mastery, kind: weapons, label: Weapon Mastery, min_level: 1, count: 2, options: $weapons}
+  cleric:
+    - {id: divine_order, kind: enum, label: Divine Order, min_level: 1, options: $divine_orders}
+  druid:
+    - {id: primal_order, kind: enum, label: Primal Order, min_level: 1, options: $primal_orders}
+  fighter:
+    - {id: fighting_style_feat, kind: feat, label: Fighting Style, min_level: 1, count: 1, options: $fighting_style_feats}
+    - {id: weapon_mastery, kind: weapons, label: Weapon Mastery, min_level: 1, count: 3, options: $weapons}
+  paladin:
+    - {id: weapon_mastery, kind: weapons, label: Weapon Mastery, min_level: 1, count: 2, options: $weapons}
+    - {id: fighting_style_feat, kind: feat, label: Fighting Style, min_level: 2, count: 1, options: $fighting_style_feats}
+  ranger:
+    - {id: favored_enemy, kind: enum, label: Favored Enemy, min_level: 1, options: $favored_enemies}
+    - {id: weapon_mastery, kind: weapons, label: Weapon Mastery, min_level: 1, count: 2, options: $weapons}
+    - {id: fighting_style_feat, kind: feat, label: Fighting Style, min_level: 2, count: 1, options: $fighting_style_feats}
+  rogue:
+    - {id: rogue_expertise, kind: skills, label: Expertise, min_level: 1, count: 2, options: $skills}
+    - {id: thieves_cant_language, kind: language, label: Thieves' Cant language, min_level: 1, count: 1, options: $languages}
+    - {id: weapon_mastery, kind: weapons, label: Weapon Mastery, min_level: 1, count: 2, options: $weapons}
+  warlock:
+    - {id: eldritch_invocations, kind: invocations, label: Eldritch Invocations, min_level: 1, count: 2, options: $eldritch_invocations}
+
+origin_feat_subchoices:
+  skilled:
+    when_feat: [Skilled, skilled]
+    choices:
+      - {id: skilled_proficiencies, kind: skills, label: Skilled proficiencies, count: 3, options: $skills}
+  crafter:
+    when_feat: [Crafter, crafter]
+    choices:
+      - {id: crafter_tools, kind: skills, label: "Artisan's tool proficiencies", count: 3, options: [
+          {id: carpenters_tools, label: Carpenter's Tools},
+          {id: leatherworkers_tools, label: Leatherworker's Tools},
+          {id: masons_tools, label: Mason's Tools},
+          {id: potters_tools, label: Potter's Tools},
+          {id: smiths_tools, label: Smith's Tools},
+          {id: tinkers_tools, label: Tinker's Tools},
+          {id: weavers_tools, label: Weaver's Tools},
+          {id: woodcarvers_tools, label: Woodcarver's Tools},
+        ]}
+  musician:
+    when_feat: [Musician, musician]
+    choices:
+      - {id: musician_instruments, kind: skills, label: Musical instrument proficiencies, count: 3, options: [
+          {id: bagpipes, label: Bagpipes},
+          {id: drum, label: Drum},
+          {id: dulcimer, label: Dulcimer},
+          {id: flute, label: Flute},
+          {id: lute, label: Lute},
+          {id: lyre, label: Lyre},
+          {id: horn, label: Horn},
+          {id: pan_flute, label: Pan Flute},
+          {id: shawm, label: Shawm},
+          {id: viol, label: Viol},
+        ]}
+  magic_initiate_cleric:
+    when_feat: [Magic Initiate (Cleric), magic_initiate_cleric]
+    choices:
+      - {id: magic_initiate_cantrips, kind: spells, label: Magic Initiate cantrips, count: 2, spell_list: cleric, spell_level: 0}
+      - {id: magic_initiate_level1, kind: spell, label: Magic Initiate 1st-level spell, count: 1, spell_list: cleric, spell_level: 1}
+  magic_initiate_druid:
+    when_feat: [Magic Initiate (Druid), magic_initiate_druid]
+    choices:
+      - {id: magic_initiate_cantrips, kind: spells, label: Magic Initiate cantrips, count: 2, spell_list: druid, spell_level: 0}
+      - {id: magic_initiate_level1, kind: spell, label: Magic Initiate 1st-level spell, count: 1, spell_list: druid, spell_level: 1}
+  magic_initiate_wizard:
+    when_feat: [Magic Initiate (Wizard), magic_initiate_wizard]
+    choices:
+      - {id: magic_initiate_cantrips, kind: spells, label: Magic Initiate cantrips, count: 2, spell_list: wizard, spell_level: 0}
+      - {id: magic_initiate_level1, kind: spell, label: Magic Initiate 1st-level spell, count: 1, spell_list: wizard, spell_level: 1}

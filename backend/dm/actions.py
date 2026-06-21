@@ -87,6 +87,8 @@ def _char_from_kwargs(**kwargs) -> Dnd5eCharacter:
             "hit_dice_spent": kwargs.get("hit_dice_spent", 0),
             "ability_scores": kwargs.get("ability_scores") or {},
             "spell_slots": kwargs.get("spell_slots") or {},
+            "origin_feat": kwargs.get("origin_feat", ""),
+            "versatile_origin_feat": kwargs.get("versatile_origin_feat", ""),
         }
     )
 
@@ -165,7 +167,8 @@ def run_shortcut(
         return {"user_message": user, "prompt": prompt, "dice": result, "task": "attack_roll"}
 
     if shortcut_id == "initiative":
-        mod = _resolve_modifier("dex", ability_scores, modifier, False, level)
+        char = _char_from_kwargs(**_kwargs)
+        mod = int(modifier) if modifier is not None else char.initiative_modifier()
         if pre_rolled is not None:
             from backend.dm.dice import _build_d20_result
 

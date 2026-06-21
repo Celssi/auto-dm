@@ -103,50 +103,6 @@ function GlossaryEntryBody({
   );
 }
 
-type GlossaryFetchState = {
-  key: string;
-  entry: GlossaryEntry | null;
-  loading: boolean;
-};
-
-function useGlossaryEntry(name: string, classId?: string) {
-  const { getEntry, fetchEntry } = useGlossary();
-  const staticEntry = name ? getEntry(name, classId) : null;
-  const hasStatic = Boolean(staticEntry?.summary);
-  const requestKey = `${name}:${classId ?? ''}`;
-
-  const [fetchState, setFetchState] = useState<GlossaryFetchState>({
-    key: requestKey,
-    entry: null,
-    loading: false,
-  });
-
-  if (requestKey !== fetchState.key) {
-    setFetchState({
-      key: requestKey,
-      entry: null,
-      loading: Boolean(name && !hasStatic),
-    });
-  }
-
-  useEffect(() => {
-    if (!name || hasStatic || !fetchState.loading || fetchState.key !== requestKey) return;
-    let cancelled = false;
-    fetchEntry(name, classId).then((result) => {
-      if (!cancelled) {
-        setFetchState({ key: requestKey, entry: result, loading: false });
-      }
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [name, classId, hasStatic, fetchEntry, requestKey, fetchState.key, fetchState.loading]);
-
-  if (!name) return { entry: null, loading: false };
-  if (hasStatic) return { entry: staticEntry, loading: false };
-  return { entry: fetchState.entry, loading: fetchState.loading };
-}
-
 export default function GlossaryTip({
   name,
   children,

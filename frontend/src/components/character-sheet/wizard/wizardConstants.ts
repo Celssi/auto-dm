@@ -1,4 +1,12 @@
-export const WIZARD_STEPS = ['Basics', 'Origin', 'Abilities', 'Skills & spells', 'Review'] as const;
+export const WIZARD_STEPS = [
+  'Basics',
+  'Origin',
+  'Abilities',
+  'Skills & spells',
+  'Features & traits',
+  'Starting gear',
+  'Review',
+] as const;
 export const WIZARD_ABILITIES = ['str', 'dex', 'con', 'int', 'wis', 'cha'] as const;
 
 export interface WizardOption {
@@ -51,4 +59,10 @@ export const defaultWizardCharacter = {
   campaign_notes: '',
   appearance: '',
   human_skill: '',
+  feature_choices: {},
+  fighting_style_feat: '',
+  weapon_mastery: [],
+  versatile_origin_feat: '',
+  background_gear_choice: '',
+  starting_gear_choice: '',
 };

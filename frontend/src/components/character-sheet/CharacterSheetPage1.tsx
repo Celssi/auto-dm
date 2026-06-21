@@ -140,7 +140,10 @@ export default function CharacterSheetPage1({ character: c, editable, onChange }
               <SheetField label="Hit Dice" value={`${hitDiceMax - hitDiceSpent}d${c.hit_die ?? 8}`} mono />
               <div className="sheet-field flex items-center justify-between">
                 <div>
-                  <div className="sheet-label">Inspiration</div>
+                  <div className="sheet-label">Heroic Inspiration</div>
+                  {String(c.species || '').toLowerCase() === 'human' && (
+                    <div className="text-[9px] text-muted mt-0.5">Resourceful · Long Rest</div>
+                  )}
                   <div className="text-xl mt-0.5">{c.heroic_inspiration ? '★' : '☆'}</div>
                 </div>
               </div>
@@ -171,7 +174,9 @@ export default function CharacterSheetPage1({ character: c, editable, onChange }
               </div>
               <div>
                 <div className="sheet-label mb-1.5">Feats</div>
-                <GlossaryTagList items={[c.origin_feat, ...(c.feats || [])].filter(Boolean) as string[]} />
+                <GlossaryTagList
+                  items={[c.origin_feat, c.versatile_origin_feat, ...(c.feats || [])].filter(Boolean) as string[]}
+                />
               </div>
               <div>
                 <div className="sheet-label mb-1.5">Weapons</div>

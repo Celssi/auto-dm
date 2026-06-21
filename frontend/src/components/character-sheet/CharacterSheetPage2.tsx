@@ -10,22 +10,34 @@ interface Page2Props {
   onChange?: (patch: Partial<Character>) => void;
 }
 
+type SpeciesTraitRow = { id: string; label: string; detail?: string; display: string; automatic?: boolean };
+type OriginFeatEffectRow = { feat_id: string; feat: string; effect: string };
+
 export default function CharacterSheetPage2({ character: c, summary, editable, onChange }: Page2Props) {
   const attuned = (c.attuned_items as string[] | undefined) || [];
   const spellSlotsMax = (summary?.spell_slots_max as Record<string, number> | undefined) || {};
   const wildShapeMax = Number(summary?.wild_shape_max ?? 0);
+  const luckPointsMax = Number(summary?.luck_points_max ?? 0);
   const showWildShape = wildShapeMax > 0 || (c.wild_shape_uses ?? 0) > 0;
   const preparedSpells = c.prepared_spells?.length ? c.prepared_spells : c.known_spells || [];
+  const speciesTraits = ((summary?.unlocked_features as { species_traits?: SpeciesTraitRow[] } | undefined)
+    ?.species_traits || []) as SpeciesTraitRow[];
+  const originFeatEffects = ((summary?.unlocked_features as { origin_feat_effects?: OriginFeatEffectRow[] } | undefined)
+    ?.origin_feat_effects || []) as OriginFeatEffectRow[];
   const patch = (p: Partial<Character>) => onChange?.({ ...c, ...p });
 
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <SheetSection title="Resources" className="lg:col-span-4">
-          {Object.entries(c.spell_slots || {}).length === 0 && !showWildShape && !c.concentration ? (
+          {Object.entries(c.spell_slots || {}).length === 0 &&
+          !showWildShape &&
+          !c.concentration &&
+          luckPointsMax <= 0 ? (
             <p className="text-sm text-muted">No spellcasting resources.</p>
           ) : (
             <div className="space-y-3">
+              {luckPointsMax > 0 && <ResourcePips label="Luck points" remaining={luckPointsMax} max={luckPointsMax} />}
               {Object.entries(c.spell_slots || {}).map(([lvl, n]) => {
                 const max = spellSlotsMax[lvl] ?? n;
                 return <SpellSlotPips key={lvl} level={lvl} remaining={n} max={max} />;
@@ -123,6 +135,42 @@ export default function CharacterSheetPage2({ character: c, summary, editable, o
                 {c.species ? <GlossaryTip name={c.species} variant="inline" /> : EMPTY_FIELD}
               </div>
             </div>
+            {speciesTraits.length > 0 && (
+              <div className="sheet-field">
+                <div className="sheet-label mb-1.5">Species Traits</div>
+                <ul className="space-y-1.5 text-sm">
+                  {speciesTraits.map((row) => (
+                    <li key={row.id} className="leading-snug text-gray-300">
+                      <span className="text-muted">{row.label}</span>
+                      {row.detail ? (
+                        <>
+                          {': '}
+                          {row.automatic ? (
+                            <span>{row.detail}</span>
+                          ) : (
+                            <GlossaryTip name={row.detail} variant="inline" className="text-gray-200" />
+                          )}
+                        </>
+                      ) : null}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {originFeatEffects.length > 0 && (
+              <div className="sheet-field">
+                <div className="sheet-label mb-1.5">Origin Feat Effects</div>
+                <ul className="space-y-1.5 text-sm">
+                  {originFeatEffects.map((row) => (
+                    <li key={`${row.feat_id}-${row.effect}`} className="leading-snug text-gray-300">
+                      <GlossaryTip name={row.feat} variant="inline" className="text-muted" />
+                      {': '}
+                      <span>{row.effect}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             <div className="sheet-field">
               <div className="sheet-label">Background</div>
               <div className="sheet-value">
@@ -140,7 +188,7 @@ export default function CharacterSheetPage2({ character: c, summary, editable, o
             multiline
             fill
             plain
-            onChange={(v) => patch({ appearance: v })}
+            onChange={(v) => patch({ appearance: v, equipment_notes: v })}
           />
         </SheetSection>
       </div>

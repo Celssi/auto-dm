@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, type ChatResult } from '../../api/client';
 import type { Character } from '../../types';
 import { type DiceModalState, type PlayAction, type PlayState } from './playState';
+import { initiativeMod } from '../../components/character-sheet/sheetUtils';
 
 const DICE_SHORTCUTS = new Set(['ability_check', 'saving_throw', 'attack_roll', 'initiative', 'death_save']);
 
@@ -283,8 +284,10 @@ export function usePlayPageSession(
     const defaultProf = isProfSave;
     const scores = char.ability_scores ?? {};
     const score = scores[defaultAbility] ?? 10;
-    let mod = Math.floor((score - 10) / 2);
-    if (defaultProf) mod += 2 + Math.floor((Math.max(1, char.level) - 1) / 4);
+    let mod =
+      id === 'initiative'
+        ? initiativeMod(char)
+        : Math.floor((score - 10) / 2) + (defaultProf ? 2 + Math.floor((Math.max(1, char.level) - 1) / 4) : 0);
 
     const modal: DiceModalState = {
       shortcutId: id,

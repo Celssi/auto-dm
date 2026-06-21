@@ -34,6 +34,11 @@ class LevelUpBody(BaseModel):
     cantrips: list[str] | None = None
     prepared_spells: list[str] | None = None
     known_spells: list[str] | None = None
+    feature_choices: dict[str, Any] | None = None
+    fighting_style_feat: str | None = None
+    weapon_mastery: list[str] | None = None
+    human_skill: str | None = None
+    versatile_origin_feat: str | None = None
 
 
 class MulticlassBody(BaseModel):
@@ -54,6 +59,22 @@ def options(include_faerun: bool = False):
         cid: multiclass_prerequisites(cid) for cid in [c["id"] for c in payload.get("classes", [])]
     }
     return payload
+
+
+@router.post("/preview")
+def preview(body: CharacterBody, finalize: bool = True):
+    """Rebuild a draft character for wizard review without saving."""
+    from backend.characters.creation_choices import validate_creation_choices
+
+    obj = character_from_dict(body.character)
+    if finalize:
+        missing = validate_creation_choices(obj)
+        if missing:
+            raise HTTPException(400, detail={"missing_choices": missing})
+        char = finalize_new_character(obj)
+    else:
+        char = rebuild_character(obj, recompute_hp=False)
+    return {"character": character_to_dict(char)}
 
 
 @router.get("/{char_id}/summary")
@@ -111,6 +132,18 @@ def level_up_route(char_id: str, body: LevelUpBody):
         pending["prepared_spells"] = body.prepared_spells
     if body.known_spells is not None:
         pending["known_spells"] = body.known_spells
+    if body.feature_choices is not None:
+        merged_fc = dict(char.get("feature_choices") or {})
+        merged_fc.update(body.feature_choices)
+        pending["feature_choices"] = merged_fc
+    if body.fighting_style_feat is not None:
+        pending["fighting_style_feat"] = body.fighting_style_feat
+    if body.weapon_mastery is not None:
+        pending["weapon_mastery"] = body.weapon_mastery
+    if body.human_skill is not None:
+        pending["human_skill"] = body.human_skill
+    if body.versatile_origin_feat is not None:
+        pending["versatile_origin_feat"] = body.versatile_origin_feat
     if pending:
         char.update(pending)
         save_character(

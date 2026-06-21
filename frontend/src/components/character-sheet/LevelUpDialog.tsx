@@ -1,7 +1,9 @@
-import { useEffect, useReducer } from 'react';
+import { useEffect, useReducer, useState } from 'react';
 import { m } from '../../lib/framer';
 import { api } from '../../api/client';
 import type { Character, ClassLevel, LevelUpPreview } from '../../types';
+import CreationChoicesForm from './CreationChoicesForm';
+import type { CreationChoiceDef } from '../../lib/creationChoices';
 import { Field } from '../ui/forms/Field';
 import TextInput from '../ui/forms/TextInput';
 import NumberInput from '../ui/forms/NumberInput';
@@ -29,6 +31,7 @@ interface Props {
     asiChoices: Record<string, unknown>[],
     className?: string,
     spells?: { cantrips?: string[]; prepared_spells?: string[]; known_spells?: string[] },
+    choices?: Partial<Character>,
   ) => void;
   onCancel: () => void;
 }
@@ -132,6 +135,8 @@ export default function LevelUpDialog({ characterId, character, summary, onConfi
     preview: null,
     loading: true,
   });
+  const [options, setOptions] = useState<Record<string, unknown>>({});
+  const [choicePatch, setChoicePatch] = useState<Partial<Character>>({});
 
   const { targetClass, hpMode, hpRoll, localAsi, localCantrips, localSpells } = form;
 
@@ -161,6 +166,13 @@ export default function LevelUpDialog({ characterId, character, summary, onConfi
   );
 
   useEffect(() => {
+    api
+      .getCharacterOptions(false)
+      .then(setOptions)
+      .catch(() => setOptions({}));
+  }, []);
+
+  useEffect(() => {
     const key = `${characterId}:${targetClass}`;
     let cancelled = false;
     dispatchPreview({ type: 'start', key });
@@ -177,6 +189,8 @@ export default function LevelUpDialog({ characterId, character, summary, onConfi
       cancelled = true;
     };
   }, [characterId, targetClass]);
+
+  const pendingChoices = (preview?.pending_choices || []) as unknown as CreationChoiceDef[];
 
   const handleTargetClassChange = (className: string) => {
     dispatchForm({
@@ -195,7 +209,7 @@ export default function LevelUpDialog({ characterId, character, summary, onConfi
     const spellPayload: { cantrips?: string[]; prepared_spells?: string[]; known_spells?: string[] } = {};
     if (showCantripPicker) spellPayload.cantrips = localCantrips;
     if (showSpellPicker) spellPayload[spellField] = localSpells;
-    onConfirm(roll, localAsi, targetClass, spellPayload);
+    onConfirm(roll, localAsi, targetClass, spellPayload, choicePatch);
   };
 
   const classOptions = classEntries.map((c) => ({
@@ -361,6 +375,17 @@ export default function LevelUpDialog({ characterId, character, summary, onConfi
                 + Feat
               </button>
             </div>
+          </Field>
+        )}
+
+        {pendingChoices.length > 0 && (
+          <Field label="Class choices at this level">
+            <CreationChoicesForm
+              char={{ ...character, ...choicePatch }}
+              options={options}
+              patch={(p) => setChoicePatch((prev) => ({ ...prev, ...p }))}
+              choices={pendingChoices}
+            />
           </Field>
         )}
 
