@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch } from 'react';
+import { useCallback, useRef, type Dispatch } from 'react';
 import type { NavigateFunction } from 'react-router-dom';
 import { api } from '../../api/client';
 import { type CampaignsAction, type CampaignsState, type CampaignTab } from './campaignsState';
@@ -13,21 +13,10 @@ export function useCampaignsPageActions(
 ) {
   const load = useCallback(async () => {
     const [res, chars, advs] = await Promise.all([api.listCampaigns(), api.listCharacters(), api.listAdventures()]);
-    const campaigns = await Promise.all(
-      res.campaigns.map(async (meta) => {
-        if (meta.character_ids?.length) return meta;
-        try {
-          const { campaign } = await api.getCampaign(meta.id);
-          return { ...meta, character_ids: campaign.character_ids };
-        } catch {
-          return meta;
-        }
-      }),
-    );
     dispatch({
       type: 'set',
       patch: {
-        campaigns,
+        campaigns: res.campaigns,
         characters: chars.characters,
         allAdventures: advs.adventures,
         campaignsLoaded: true,
@@ -44,22 +33,42 @@ export function useCampaignsPageActions(
     [dispatch],
   );
 
+  const charactersRef = useRef(state.characters);
+  charactersRef.current = state.characters;
+  const inflightOpenRef = useRef<Map<string, Promise<void>>>(new Map());
+
   const open = useCallback(
-    async (id: string) => {
-      dispatch({ type: 'set', patch: { entry: null, newAdventureOpen: false, copyOpen: false } });
-      const { campaign } = await api.getCampaign(id);
-      const defaultChar = campaign.character_ids?.[0] || state.characters[0]?.id || '';
-      dispatch({
-        type: 'set',
-        patch: {
-          selected: campaign,
-          copyForm: { character_id: defaultChar, name: '' },
-        },
-      });
-      dispatch({ type: 'patchAdventureForm', patch: { character_id: defaultChar } });
-      await loadAdventures(id);
+    async (id: string, force = false) => {
+      if (force) inflightOpenRef.current.delete(id);
+
+      const inflight = inflightOpenRef.current.get(id);
+      if (inflight) return inflight;
+
+      const promise = (async () => {
+        dispatch({ type: 'set', patch: { entry: null, newAdventureOpen: false, copyOpen: false } });
+        const { campaign } = await api.getCampaign(id);
+        const defaultChar = campaign.character_ids?.[0] || charactersRef.current[0]?.id || '';
+        dispatch({
+          type: 'set',
+          patch: {
+            selected: campaign,
+            copyForm: { character_id: defaultChar, name: '' },
+          },
+        });
+        dispatch({ type: 'patchAdventureForm', patch: { character_id: defaultChar } });
+        await loadAdventures(id);
+      })();
+
+      inflightOpenRef.current.set(id, promise);
+      try {
+        await promise;
+      } finally {
+        if (inflightOpenRef.current.get(id) === promise) {
+          inflightOpenRef.current.delete(id);
+        }
+      }
     },
-    [dispatch, loadAdventures, state.characters],
+    [dispatch, loadAdventures],
   );
 
   const create = async (): Promise<string | null> => {
@@ -76,16 +85,19 @@ export function useCampaignsPageActions(
     }
   };
 
-  const openCreateForm = () => {
-    const defaultChar = state.generateForm.character_id || state.characters[0]?.id || '';
+  const generateFormRef = useRef(state.generateForm);
+  generateFormRef.current = state.generateForm;
+
+  const openCreateForm = useCallback(() => {
+    const defaultChar = generateFormRef.current.character_id || charactersRef.current[0]?.id || '';
     dispatch({
       type: 'set',
       patch: {
         creating: true,
-        generateForm: { ...state.generateForm, character_id: defaultChar },
+        generateForm: { ...generateFormRef.current, character_id: defaultChar },
       },
     });
-  };
+  }, [dispatch]);
 
   const generateCampaign = async () => {
     const { generateForm } = state;
@@ -196,7 +208,7 @@ export function useCampaignsPageActions(
     } else if (tab === 'locations') {
       await api.updateCampaignLocation(selected.id, entry.id, { name: entry.name, body: entry.body });
     }
-    await open(selected.id);
+    await open(selected.id, true);
     dispatch({ type: 'set', patch: { entry: null } });
   };
 

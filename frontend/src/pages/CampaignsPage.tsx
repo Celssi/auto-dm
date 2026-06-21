@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import { useMatch, useNavigate, useParams } from 'react-router-dom';
 import { m, AnimatePresence } from '../lib/framer';
 import PageHeader from '../components/ui/PageHeader';
@@ -41,24 +41,45 @@ export default function CampaignsPage() {
     confirmDelete,
   } = useCampaignsPageActions(state, dispatch, confirm, setConfirm, setDeleting, navigate);
 
+  const openRef = useRef(open);
+  openRef.current = open;
+  const openCreateFormRef = useRef(openCreateForm);
+  openCreateFormRef.current = openCreateForm;
+  const openRequestRef = useRef(0);
+  const loadedCampaignIdRef = useRef<string | null>(null);
+
   useEffect(() => {
     load().catch((e) => dispatch({ type: 'set', patch: { error: String(e) } }));
   }, [load]);
 
   useEffect(() => {
+    dispatch({ type: 'set', patch: { tab } });
+  }, [tab]);
+
+  useEffect(() => {
     if (isNew) {
-      openCreateForm();
+      loadedCampaignIdRef.current = null;
+      openCreateFormRef.current();
       return;
     }
     if (!campaignId) {
+      loadedCampaignIdRef.current = null;
       dispatch({ type: 'set', patch: { selected: null, creating: false } });
       return;
     }
-    dispatch({ type: 'set', patch: { creating: false, tab } });
-    open(campaignId).catch(() => {
+
+    dispatch({ type: 'set', patch: { creating: false } });
+
+    if (loadedCampaignIdRef.current === campaignId) return;
+
+    loadedCampaignIdRef.current = campaignId;
+    const seq = ++openRequestRef.current;
+    openRef.current(campaignId).catch(() => {
+      if (seq !== openRequestRef.current) return;
+      loadedCampaignIdRef.current = null;
       dispatch({ type: 'set', patch: { error: 'Campaign not found.', selected: null } });
     });
-  }, [campaignId, isNew, tab, open, openCreateForm]);
+  }, [campaignId, isNew]);
 
   const handleTabChange = (nextTab: CampaignTab) => {
     if (!campaignId) return;
