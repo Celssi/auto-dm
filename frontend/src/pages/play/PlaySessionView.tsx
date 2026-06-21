@@ -1,8 +1,15 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { m, AnimatePresence } from '../../lib/framer';
 import { Swords } from 'lucide-react';
-import type { ChatMessage, CombatStateSnapshot, PlayerProgress, Source, SpellConfirmation } from '../../api/client';
+import type {
+  ChatMessage,
+  AuditEvent,
+  CombatStateSnapshot,
+  PlayerProgress,
+  Source,
+  SpellConfirmation,
+} from '../../api/client';
 import type { Character } from '../../types';
 import PlayCharacterSidebar from '../../components/play/PlayCharacterSidebar';
 import ListLoading from '../../components/ui/ListLoading';
@@ -14,6 +21,7 @@ import MarkdownContent from '../../components/ui/MarkdownContent';
 import type { PlayState, DiceModalState } from './playState';
 import type { JournalEntity } from '../../api/client';
 import DiceRollModal from '../../components/play/DiceRollModal';
+import { formatAuditSummary, formatAuditTime, isInferredAudit } from './auditSummary';
 
 interface Props {
   state: PlayState;
@@ -62,6 +70,7 @@ export default function PlaySessionView({
     oracles,
     shortcuts,
     lonelog,
+    auditEvents,
     sources,
     journalEntities,
     playerProgress,
@@ -116,6 +125,7 @@ export default function PlaySessionView({
         oracles={oracles}
         shortcuts={shortcuts}
         lonelog={lonelog}
+        auditEvents={auditEvents}
         sources={sources}
         loading={loading}
         combatState={combatState}
@@ -421,6 +431,7 @@ function PlayToolsPanel({
   oracles,
   shortcuts,
   lonelog,
+  auditEvents,
   sources,
   loading,
   combatState,
@@ -430,13 +441,16 @@ function PlayToolsPanel({
   oracles: { id: string; label: string }[];
   shortcuts: { id: string; label: string }[];
   lonelog: string[];
+  auditEvents: AuditEvent[];
   sources: Source[];
   loading: boolean;
   combatState: CombatStateSnapshot | null;
   onRunOracle: (id: string) => void;
   onRunShortcut: (id: string) => void;
 }) {
+  const [logTab, setLogTab] = useState<'lonelog' | 'audit'>('lonelog');
   const visibleLog = useMemo(() => visibleLonelogLines(lonelog), [lonelog]);
+  const visibleAudit = useMemo(() => auditEvents.slice(-30).reverse(), [auditEvents]);
 
   return (
     <aside className="lg:col-span-3 panel-glow overflow-hidden p-3 min-h-0 flex flex-col gap-2">
@@ -474,18 +488,61 @@ function PlayToolsPanel({
         </div>
       </div>
       <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted mb-1.5 shrink-0">Lonelog</h2>
+        <div className="flex items-center gap-2 mb-1.5 shrink-0">
+          <button
+            type="button"
+            className={`text-xs font-semibold uppercase tracking-wider ${logTab === 'lonelog' ? 'text-gray-200' : 'text-muted hover:text-gray-300'}`}
+            onClick={() => setLogTab('lonelog')}
+          >
+            Lonelog
+          </button>
+          <span className="text-muted text-xs">|</span>
+          <button
+            type="button"
+            className={`text-xs font-semibold uppercase tracking-wider ${logTab === 'audit' ? 'text-gray-200' : 'text-muted hover:text-gray-300'}`}
+            onClick={() => setLogTab('audit')}
+          >
+            Audit
+          </button>
+        </div>
         <div className="flex-1 min-h-0 rounded-md border border-border bg-bg/40 p-2 overflow-y-auto">
-          {visibleLog.length === 0 ? (
-            <p className="text-xs text-muted italic">Session events will appear here.</p>
+          {logTab === 'lonelog' ? (
+            visibleLog.length === 0 ? (
+              <p className="text-xs text-muted italic">Session events will appear here.</p>
+            ) : (
+              <div className="space-y-2">
+                {visibleLog.map((line) => (
+                  <div
+                    key={`log-${line.slice(0, 40)}-${line.length}`}
+                    className="text-xs leading-relaxed text-gray-400 border-b border-border/40 pb-2 last:border-0 last:pb-0"
+                  >
+                    <MarkdownContent content={line} className="text-xs" />
+                  </div>
+                ))}
+              </div>
+            )
+          ) : visibleAudit.length === 0 ? (
+            <p className="text-xs text-muted italic">Mechanical audit events will appear here.</p>
           ) : (
-            <div className="space-y-2">
-              {visibleLog.map((line) => (
+            <div className="space-y-1.5">
+              {visibleAudit.map((event, idx) => (
                 <div
-                  key={`log-${line.slice(0, 40)}-${line.length}`}
-                  className="text-xs leading-relaxed text-gray-400 border-b border-border/40 pb-2 last:border-0 last:pb-0"
+                  key={`audit-${event.ts ?? idx}-${event.event}-${idx}`}
+                  className="text-xs leading-relaxed text-gray-400 border-b border-border/40 pb-1.5 last:border-0 last:pb-0"
                 >
-                  <MarkdownContent content={line} className="text-xs" />
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] text-muted tabular-nums">{formatAuditTime(event.ts)}</span>
+                    <span className="text-[10px] uppercase tracking-wide text-amber-200/80">
+                      {event.event.replace(/_/g, ' ')}
+                    </span>
+                    <span
+                      className={`text-[10px] px-1 py-0 rounded ${isInferredAudit(event) ? 'bg-purple-500/20 text-purple-200' : 'bg-emerald-500/15 text-emerald-200'}`}
+                    >
+                      {isInferredAudit(event) ? 'inferred' : 'code'}
+                    </span>
+                    {event.source && <span className="text-[10px] text-muted truncate">{event.source}</span>}
+                  </div>
+                  <p className="mt-0.5 text-gray-300">{formatAuditSummary(event)}</p>
                 </div>
               ))}
             </div>

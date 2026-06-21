@@ -171,6 +171,22 @@ def _write(event: dict[str, Any]) -> None:
         handle.write(json.dumps(event, ensure_ascii=False, default=str) + "\n")
 
 
+def get_turn_context() -> dict[str, str] | None:
+    """Return current DM turn context (session_id, turn_id) if inside dm_turn_trace."""
+    return _turn_ctx.get()
+
+
+@contextmanager
+def audit_session_context(session_id: str, *, turn_id: str | None = None):
+    """Set session audit context for API routes outside a full DM turn."""
+    tid = turn_id or uuid.uuid4().hex[:12]
+    token = _turn_ctx.set({"session_id": session_id, "turn_id": tid})
+    try:
+        yield tid
+    finally:
+        _turn_ctx.reset(token)
+
+
 @contextmanager
 def dm_turn_trace(session_id: str, user_message: str):
     turn_id = uuid.uuid4().hex[:12]

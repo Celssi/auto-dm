@@ -147,12 +147,20 @@ def apply_cast_spell_shortcut(
     *,
     slot_level: int = 0,
     ritual: bool = False,
+    audit_source: str = "shortcut",
 ) -> tuple[dict, list[str]]:
     """Deterministic spell cast without LLM (shortcut)."""
     char = character_from_dict(character)
     from backend.characters.spell_resources import apply_spell_cast
 
-    ok, msg = apply_spell_cast(char, spell_name, slot_level=slot_level, ritual=ritual)
+    ok, msg = apply_spell_cast(
+        char,
+        spell_name,
+        slot_level=slot_level,
+        ritual=ritual,
+        audit_source=audit_source,
+        inferred=False,
+    )
     entity = {
         "spell_slots": dict(char.spell_slots),
         "concentration": char.concentration,

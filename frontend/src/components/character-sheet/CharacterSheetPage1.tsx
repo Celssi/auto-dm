@@ -1,12 +1,11 @@
 import type { Character } from '../../types';
-import { displayLabel, EMPTY_FIELD } from '../../lib/displayText';
+import { EMPTY_FIELD } from '../../lib/displayText';
 import GlossaryTip, { GlossaryTagList } from '../ui/GlossaryTip';
 import { ABILITIES, SKILLS } from './sheetConstants';
 import {
   formatMod,
   initiativeMod,
   passivePerception,
-  proficiencyBonus,
   saveBonus,
   skillBonus,
   spellAttackBonus,
@@ -14,64 +13,30 @@ import {
   spellSaveDc,
 } from './sheetUtils';
 import { AbilityTile, CombatStat, DeathSaves, HpBar, SheetField, SheetSection } from './characterSheetViewParts';
+import CharacterSheetHeader from './CharacterSheetHeader';
 
 interface Page1Props {
   character: Character;
   editable?: boolean;
   onChange?: (patch: Partial<Character>) => void;
+  hideHeader?: boolean;
 }
 
-export default function CharacterSheetPage1({ character: c, editable, onChange }: Page1Props) {
+export default function CharacterSheetPage1({ character: c, editable, onChange, hideHeader }: Page1Props) {
   const scores = c.ability_scores || {};
   const profs = new Set(c.skill_proficiencies || []);
   const saves = new Set(c.save_proficiencies || []);
-  const pb = proficiencyBonus(c.level || 1);
   const spellAb = spellAbility(c.class_name || '');
   const spellDc = spellSaveDc(c);
   const spellAtk = spellAttackBonus(c);
   const hitDiceMax = Number(c.hit_dice_max ?? c.level ?? 1);
   const hitDiceSpent = Number(c.hit_dice_spent ?? 0);
 
-  const classLine =
-    (c.classes?.length ? c.classes : [{ class_name: c.class_name, level: c.level, subclass: c.subclass }])
-      .map((e) => `${displayLabel(e.class_name)} ${e.level}${e.subclass ? ` (${displayLabel(e.subclass)})` : ''}`)
-      .join(' · ') ||
-    displayLabel(c.class_name) ||
-    EMPTY_FIELD;
-
   const patch = (p: Partial<Character>) => onChange?.({ ...c, ...p });
-
-  const header = (
-    <SheetSection className="!p-5">
-      <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0 flex-1">
-          {editable ? (
-            <input
-              className="w-full bg-transparent text-2xl font-bold text-accent focus:outline-none border-b border-transparent focus:border-accent/40 pb-1"
-              value={c.name || ''}
-              onChange={(e) => patch({ name: e.target.value })}
-              placeholder="Character name"
-              aria-label="Character name"
-            />
-          ) : (
-            <h2 className="text-2xl font-bold text-accent">{c.name || 'Unnamed'}</h2>
-          )}
-          <p className="text-sm text-muted mt-1">
-            {[displayLabel(c.species), classLine, displayLabel(c.background)].filter(Boolean).join(' · ')}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2 shrink-0">
-          <CombatStat label="Level" value={String(c.level || 1)} />
-          <CombatStat label="Proficiency" value={formatMod(pb)} />
-          <CombatStat label="XP" value={String(c.xp || 0)} />
-        </div>
-      </div>
-    </SheetSection>
-  );
 
   return (
     <div className="space-y-4">
-      {header}
+      {!hideHeader && <CharacterSheetHeader character={c} editable={editable} onChange={onChange} />}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
         <SheetSection title="Abilities" className="lg:col-span-3">
           <div className="grid grid-cols-2 gap-2">

@@ -76,11 +76,11 @@ function originFeatIds(char: Character): Set<string> {
   return ids;
 }
 
-export function hasOriginFeat(char: Character, featId: string): boolean {
+function hasOriginFeat(char: Character, featId: string): boolean {
   return originFeatIds(char).has(normalizeOriginFeatId(featId));
 }
 
-export function hasAlertFeat(char: Character): boolean {
+function hasAlertFeat(char: Character): boolean {
   return hasOriginFeat(char, 'alert');
 }
 

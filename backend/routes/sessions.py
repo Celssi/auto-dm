@@ -6,10 +6,12 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from backend.dm.actions import SHORTCUTS, run_shortcut
+from backend.dm.audit import read_audit_events, record_audit
 from backend.dm.graph import run_dm_turn
 from backend.dm.lonelog import format_mechanical
 from backend.dm.opening_scene import begin_session
 from backend.dm.oracles import ORACLE_TOOLS, run_oracle
+from backend.dm.trace import audit_session_context
 from backend.settings_store import load_settings
 from backend.storage import (
     append_session_log,
@@ -113,7 +115,8 @@ def shortcut(session_id: str, body: ShortcutBody):
             raise HTTPException(400, "pre_rolled values must be between 1 and 20")
         params["pre_rolled"] = body.pre_rolled
     try:
-        result = run_shortcut(body.shortcut_id, **params)
+        with audit_session_context(session_id):
+            result = run_shortcut(body.shortcut_id, **params)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     if not body.narrate:
@@ -140,7 +143,30 @@ def run_session_oracle(session_id: str, body: OracleBody):
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     append_session_log(session_id, format_mechanical(result.get("summary", "")))
+    record_audit(
+        {
+            "event": "oracle",
+            "source": "oracle",
+            "detail": {
+                "oracle_id": body.oracle_id,
+                "likelihood_level": body.likelihood_level,
+                "summary": result.get("summary", ""),
+                "answer": result.get("answer"),
+                "inferred": False,
+            },
+        },
+        session_id=session_id,
+    )
     return result
+
+
+@router.get("/{session_id}/audit")
+def audit(session_id: str, limit: int = 200):
+    sess = get_session(session_id)
+    if not sess:
+        raise HTTPException(404, "Session not found")
+    events = read_audit_events(session_id, limit=limit)
+    return {"events": events}
 
 
 @router.get("/{session_id}/lonelog")

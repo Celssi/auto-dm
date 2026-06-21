@@ -4,7 +4,7 @@ export function glossaryKey(name: string): string {
 }
 
 /** Strip quantity suffix and simple plural for equipment lookup. */
-export function normalizeLookupName(name: string): string {
+function normalizeLookupName(name: string): string {
   const base = name.replace(/\s*\(\s*\d+\s*\)\s*$/, '').trim();
   let nk = glossaryKey(base);
   if (nk.endsWith('s') && nk.length > 3) {

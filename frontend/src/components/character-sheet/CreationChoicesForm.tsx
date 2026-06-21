@@ -7,7 +7,6 @@ import {
   choicesForDraft,
   getChoiceValue,
   patchChoice,
-  validateChoices,
   type CreationChoiceCatalog,
   type CreationChoiceDef,
 } from '../../lib/creationChoices';
@@ -104,9 +103,4 @@ export default function CreationChoicesForm({ char, options, patch, choices }: P
       })}
     </div>
   );
-}
-
-export function missingChoicesForChar(char: Character, options: Record<string, unknown>): string[] {
-  const catalog = (options.creation_choice_catalog || {}) as CreationChoiceCatalog;
-  return validateChoices(char, choicesForDraft(char, options, catalog));
 }

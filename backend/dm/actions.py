@@ -6,6 +6,7 @@ from typing import Literal
 
 from backend.characters.character_builder import apply_short_rest, long_rest_recover
 from backend.characters.entity import Dnd5eCharacter, character_from_dict, character_to_dict
+from backend.dm.audit import record_audit
 from backend.dm.curated import roll_oracle
 from backend.dm.dice import roll_advantage_d20, roll_death_saves
 from backend.dm.resource_keeper import apply_cast_spell_shortcut
@@ -174,12 +175,18 @@ def run_shortcut(
 
             result = _build_d20_result(pre_rolled, mod, "normal")
         else:
-            result = roll_dice(f"1d20{mod:+d}" if mod else "1d20")
+            result = roll_dice(f"1d20{mod:+d}" if mod else "1d20", caller="shortcut.initiative")
         total = int(result.get("total", 0))
         user = f"**Initiative**\n\n{result.get('summary', f'd20+{mod} = {total}')}"
         return {"user_message": user, "prompt": user, "static": True, "dice": result}
 
     if shortcut_id == "death_save":
+        before_char = {
+            "hp": hp,
+            "max_hp": max_hp,
+            "death_save_successes": death_save_successes,
+            "death_save_failures": death_save_failures,
+        }
         result = roll_death_saves(pre_rolled=pre_rolled[0] if pre_rolled else None)
         roll = int(result.get("roll", 0))
         succ = max(0, min(3, int(death_save_successes)))
@@ -205,6 +212,22 @@ def run_shortcut(
                 updates = {"death_save_successes": 0, "death_save_failures": 3}
             else:
                 updates = {"death_save_successes": succ, "death_save_failures": fail}
+        after_char = {**before_char, **updates}
+        record_audit(
+            {
+                "event": "death_save",
+                "source": "shortcut",
+                "before": before_char,
+                "after": after_char,
+                "detail": {
+                    "roll": roll,
+                    "successes": after_char.get("death_save_successes", succ),
+                    "failures": after_char.get("death_save_failures", fail),
+                    "outcome": result.get("outcome"),
+                    "inferred": False,
+                },
+            }
+        )
         tally = f"Successes {min(succ, 3)}/3 · Failures {min(fail, 3)}/3"
         user = f"**Death save** (HP {hp}/{max_hp})\n\n{result['summary']}\n\n{tally}"
         if status:

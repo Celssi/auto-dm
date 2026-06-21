@@ -13,6 +13,7 @@ from backend.characters.entity import Dnd5eCharacter
 from backend.characters.features import find_subclass_key
 from backend.characters.multiclass import class_levels_dict, normalize_class_entries
 from backend.config import CURATED_DIR
+from backend.dm.audit import character_audit_slice, record_audit
 
 _SUBCLASS_SPELLS_PATH = CURATED_DIR / "dnd5e_subclass_spells.yaml"
 
@@ -148,6 +149,8 @@ def spend_spell_slot(
     spell_level: int,
     *,
     slot_level: int = 0,
+    audit_source: str = "spell_resources",
+    inferred: bool = False,
 ) -> tuple[bool, str]:
     """Spend one slot at slot_level (or lowest available >= spell_level)."""
     if spell_level <= 0:
@@ -156,6 +159,7 @@ def spend_spell_slot(
     slots = dict(char.spell_slots or {})
     if not slots:
         return False, "No spell slots available."
+    before_slice = character_audit_slice(character_to_dict_for_audit(char))
     candidates = sorted(
         (int(k) for k in slots if str(k).isdigit() and int(slots[k]) > 0),
     )
@@ -163,10 +167,30 @@ def spend_spell_slot(
         if lvl >= need:
             slots[str(lvl)] = int(slots[str(lvl)]) - 1
             char.spell_slots = slots
+            after_slice = character_audit_slice(character_to_dict_for_audit(char))
+            record_audit(
+                {
+                    "event": "spell_slot",
+                    "source": audit_source,
+                    "before": before_slice,
+                    "after": after_slice,
+                    "detail": {
+                        "slot_level": lvl,
+                        "spell_level": spell_level,
+                        "inferred": inferred,
+                    },
+                }
+            )
             if slot_level and slot_level > spell_level:
                 return True, f"Cast at slot level {lvl} (upcast from level {spell_level})."
             return True, f"Spent level {lvl} spell slot."
     return False, f"No level {need}+ spell slots remaining."
+
+
+def character_to_dict_for_audit(char: Dnd5eCharacter) -> dict[str, Any]:
+    from backend.characters.entity import character_to_dict
+
+    return character_to_dict(char)
 
 
 def apply_spell_cast(
@@ -175,6 +199,8 @@ def apply_spell_cast(
     *,
     slot_level: int = 0,
     ritual: bool = False,
+    audit_source: str = "spell_resources",
+    inferred: bool = False,
 ) -> tuple[bool, str]:
     if not is_spell_available(char, spell_name):
         return False, f"Spell not on character list: {spell_name}"
@@ -182,11 +208,55 @@ def apply_spell_cast(
     if level is None:
         return False, f"Unknown spell level: {spell_name}"
     if level == 0:
+        record_audit(
+            {
+                "event": "spell_cast",
+                "source": audit_source,
+                "detail": {
+                    "spell": spell_name,
+                    "level": 0,
+                    "ritual": False,
+                    "cantrip": True,
+                    "inferred": inferred,
+                },
+            }
+        )
         return True, f"Cantrip {spell_name} (no slot spent)."
     if ritual:
+        record_audit(
+            {
+                "event": "spell_cast",
+                "source": audit_source,
+                "detail": {
+                    "spell": spell_name,
+                    "level": level,
+                    "ritual": True,
+                    "inferred": inferred,
+                },
+            }
+        )
         return True, f"Ritual cast {spell_name} (no slot spent)."
-    ok, msg = spend_spell_slot(char, level, slot_level=slot_level)
+    ok, msg = spend_spell_slot(
+        char,
+        level,
+        slot_level=slot_level,
+        audit_source=audit_source,
+        inferred=inferred,
+    )
     if ok:
+        record_audit(
+            {
+                "event": "spell_cast",
+                "source": audit_source,
+                "detail": {
+                    "spell": spell_name,
+                    "level": level,
+                    "slot_level": slot_level or level,
+                    "ritual": False,
+                    "inferred": inferred,
+                },
+            }
+        )
         return True, f"{spell_name}: {msg}"
     return False, f"{spell_name}: {msg}"
 
@@ -240,10 +310,14 @@ def recover_pact_slots_on_short_rest(char: Dnd5eCharacter) -> str | None:
 def apply_resource_updates(
     char: Dnd5eCharacter,
     updates: Any,
+    *,
+    audit_source: str = "resource_keeper",
+    inferred: bool = True,
 ) -> tuple[dict[str, Any], list[str]]:
     """Apply resource turn updates to character; return entity_updates dict and log lines."""
     logs: list[str] = []
     entity: dict[str, Any] = {}
+    before_slice = character_audit_slice(character_to_dict_for_audit(char))
 
     for cast in getattr(updates, "casts", None) or []:
         ok, msg = apply_spell_cast(
@@ -251,6 +325,8 @@ def apply_resource_updates(
             cast.spell_name,
             slot_level=getattr(cast, "slot_level", 0) or 0,
             ritual=bool(getattr(cast, "ritual", False)),
+            audit_source=audit_source,
+            inferred=inferred,
         )
         if msg:
             logs.append(msg if ok else f"⚠ {msg}")
@@ -258,9 +334,27 @@ def apply_resource_updates(
     if getattr(updates, "end_concentration", False):
         char.concentration = ""
         logs.append("Concentration ended.")
+        record_audit(
+            {
+                "event": "concentration",
+                "source": audit_source,
+                "before": before_slice,
+                "after": character_audit_slice(character_to_dict_for_audit(char)),
+                "detail": {"ended": True, "inferred": inferred},
+            }
+        )
     elif (getattr(updates, "new_concentration", "") or "").strip():
         char.concentration = updates.new_concentration.strip()[:80]
         logs.append(f"Concentrating on {char.concentration}.")
+        record_audit(
+            {
+                "event": "concentration",
+                "source": audit_source,
+                "before": before_slice,
+                "after": character_audit_slice(character_to_dict_for_audit(char)),
+                "detail": {"spell": char.concentration, "started": True, "inferred": inferred},
+            }
+        )
 
     if getattr(updates, "wild_shape_used", False):
         ws_max = compute_wild_shape_max(char)
@@ -271,6 +365,15 @@ def apply_resource_updates(
         else:
             char.wild_shape_uses -= 1
             logs.append(f"Wild Shape used ({char.wild_shape_uses}/{ws_max} remaining).")
+            record_audit(
+                {
+                    "event": "wild_shape",
+                    "source": audit_source,
+                    "before": before_slice,
+                    "after": character_audit_slice(character_to_dict_for_audit(char)),
+                    "detail": {"uses": char.wild_shape_uses, "max": ws_max, "inferred": inferred},
+                }
+            )
 
     entity["spell_slots"] = dict(char.spell_slots)
     entity["concentration"] = char.concentration

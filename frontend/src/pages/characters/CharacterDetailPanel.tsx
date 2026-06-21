@@ -3,25 +3,13 @@ import { m } from '../../lib/framer';
 import type { Character } from '../../types';
 import type { PdfUnlockedFeatures } from '../../components/character-sheet/characterSheetPdfAssembly';
 import CharacterSheetView from '../../components/character-sheet/CharacterSheetView';
+import CharacterSheetHeader from '../../components/character-sheet/CharacterSheetHeader';
 import CreationChoicesForm from '../../components/character-sheet/CreationChoicesForm';
 import MulticlassPanel from '../../components/character-sheet/MulticlassPanel';
-import { displayLabel } from '../../lib/displayText';
-import GlossaryTip from '../../components/ui/GlossaryTip';
+import UnlockedFeaturesPanel from '../../components/character-sheet/UnlockedFeaturesPanel';
 import { fadeUp } from '../../components/ui/motion';
 
-type UnlockedFeatures = {
-  class_features?: Record<string, string[]>;
-  subclass_features?: Record<string, string[]>;
-  species_traits?: Array<{
-    id: string;
-    label: string;
-    detail?: string;
-    display: string;
-    automatic?: boolean;
-  }>;
-  origin_feat_effects?: Array<{ feat_id: string; feat: string; effect: string }>;
-  resolved_choices?: Array<{ id: string; label: string; value_label: string }>;
-};
+type UnlockedFeatures = import('../../components/character-sheet/UnlockedFeaturesPanel').UnlockedFeatures;
 
 type Props = {
   character: Character;
@@ -116,71 +104,22 @@ export default function CharacterDetailPanel({
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <MulticlassPanel
-          character={{ ...character, id: activeId || undefined }}
-          onChange={(classes) => onChange({ ...character, classes })}
-        />
-        {unlockedFeatures && (
-          <div className="panel p-4">
-            <h3 className="text-xs font-semibold uppercase tracking-wider text-accent mb-3">Unlocked features</h3>
-            <div className="space-y-2 text-sm">
-              {(unlockedFeatures.species_traits || []).length > 0 && (
-                <div>
-                  <span className="text-muted">Species traits</span>
-                  <ul className="mt-1 space-y-1">
-                    {(unlockedFeatures.species_traits || []).map((row) => (
-                      <li key={row.id} className="text-gray-200">
-                        {row.display}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {(unlockedFeatures.origin_feat_effects || []).length > 0 && (
-                <div>
-                  <span className="text-muted">Origin feat effects</span>
-                  <ul className="mt-1 space-y-1">
-                    {(unlockedFeatures.origin_feat_effects || []).map((row) => (
-                      <li key={`${row.feat_id}-${row.effect}`} className="text-gray-200">
-                        <GlossaryTip name={row.feat} variant="inline" />: {row.effect}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-              {Object.entries(unlockedFeatures.class_features || {}).map(([cid, feats]) => (
-                <div key={cid}>
-                  <span className="text-muted">{displayLabel(cid)}</span>
-                  <div className="flex flex-wrap gap-1.5 mt-1">
-                    {(feats as string[]).map((f) => (
-                      <GlossaryTip key={f} name={f} />
-                    ))}
-                  </div>
-                </div>
-              ))}
-              {Object.entries(unlockedFeatures.subclass_features || {}).map(([key, feats]) => (
-                <div key={key}>
-                  <span className="text-muted">{displayLabel(key)}</span>
-                  <div className="flex flex-wrap gap-1.5 mt-1">
-                    {(feats as string[]).map((f) => (
-                      <GlossaryTip key={f} name={f} />
-                    ))}
-                  </div>
-                </div>
-              ))}
-              {(unlockedFeatures.resolved_choices || []).map((row) => (
-                <div key={row.id}>
-                  <span className="text-muted">{row.label}</span>
-                  <p className="text-sm mt-0.5">{row.value_label}</p>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-      </div>
+      <CharacterSheetHeader character={character} editable onChange={(patch) => onChange({ ...character, ...patch })} />
 
-      <CharacterSheetView character={character} summary={summary} editable onChange={(c) => onChange(c as Character)} />
+      {unlockedFeatures && <UnlockedFeaturesPanel features={unlockedFeatures} />}
+
+      <MulticlassPanel
+        character={{ ...character, id: activeId || undefined }}
+        onChange={(classes) => onChange({ ...character, classes })}
+      />
+
+      <CharacterSheetView
+        character={character}
+        summary={summary}
+        editable
+        hideHeader
+        onChange={(c) => onChange(c as Character)}
+      />
     </m.div>
   );
 }

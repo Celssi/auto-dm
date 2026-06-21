@@ -150,7 +150,9 @@ def confirmation_message(resolution: SpellQueryResolution) -> str:
 
 def execute_confirmed_cast(char: Dnd5eCharacter, spell_name: str) -> tuple[dict, str, list[str]]:
     char_dict = character_to_dict(char)
-    entity, logs = apply_cast_spell_shortcut(char_dict, spell_name)
+    entity, logs = apply_cast_spell_shortcut(
+        char_dict, spell_name, audit_source="spell_autocomplete"
+    )
     updated = dict(char_dict)
     updated.update(entity)
     char = character_from_dict(updated)

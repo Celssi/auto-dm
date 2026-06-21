@@ -16,6 +16,7 @@ from backend.characters.character_builder import (
 from backend.characters.entity import character_from_dict, character_to_dict
 from backend.characters.spell_resources import is_spell_available
 from backend.dm.actions import SHORTCUTS, run_shortcut
+from backend.dm.audit import record_audit
 from backend.dm.combat_manager import (
     finish_player_turn,
     format_combat_context,
@@ -529,13 +530,31 @@ def resource_keeper_node(state: DMState) -> DMState:
 
 
 def character_keeper_node(state: DMState) -> DMState:
+    from backend.dm.audit import character_audit_slice, diff_character_slices
+
     updates = dict(state.get("character_updates") or {})
     if not updates:
         return {}
+    before_slice = character_audit_slice(state.get("character") or {})
     char_dict = dict(state.get("character") or {})
     char_dict.update(updates)
     char = rebuild_character(character_from_dict(char_dict))
-    return {"character": character_to_dict(char)}
+    after_dict = character_to_dict(char)
+    after_slice = character_audit_slice(after_dict)
+    diff = diff_character_slices(before_slice, after_slice)
+    if diff:
+        record_audit(
+            {
+                "event": "character_patch",
+                "source": "graph",
+                "before": before_slice,
+                "after": after_slice,
+                "diff": diff,
+                "detail": {"fields": list(updates.keys()), "inferred": False},
+            },
+            session_id=state.get("session_id") or None,
+        )
+    return {"character": after_dict}
 
 
 def scribe_node(state: DMState) -> DMState:

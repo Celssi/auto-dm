@@ -231,8 +231,7 @@ def _build_character() -> dict:
             ),
             "campaign_setting": "freeform",
             "campaign_notes": (
-                "Pinehaven mountain village campaign"
-                " — The Sealed Evil Beneath Thornwatch Tower"
+                "Pinehaven mountain village campaign — The Sealed Evil Beneath Thornwatch Tower"
             ),
             "classes": [{"class_name": "druid", "level": 3, "subclass": "Circle of the Moon"}],
         }

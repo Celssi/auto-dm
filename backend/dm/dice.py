@@ -54,15 +54,16 @@ def roll_advantage_d20(
     *,
     advantage: Advantage = "normal",
     pre_rolled: list[int] | None = None,
+    caller: str = "dice.advantage_d20",
 ) -> dict[str, Any]:
     if pre_rolled is not None:
         return _build_d20_result(pre_rolled, modifier, advantage)
     if advantage in ("advantage", "disadvantage"):
-        a = roll_dice("1d20")
-        b = roll_dice("1d20")
+        a = roll_dice("1d20", caller=f"{caller}.a")
+        b = roll_dice("1d20", caller=f"{caller}.b")
         rolls = [int(a["rolls"][0]), int(b["rolls"][0])]
         return _build_d20_result(rolls, modifier, advantage)
-    result = roll_dice(f"1d20{modifier:+d}" if modifier else "1d20")
+    result = roll_dice(f"1d20{modifier:+d}" if modifier else "1d20", caller=caller)
     return {
         "ok": True,
         "rolls": list(result.get("rolls", [])),
@@ -78,7 +79,7 @@ def roll_death_saves(pre_rolled: int | None = None) -> dict[str, Any]:
     if pre_rolled is not None:
         roll = pre_rolled
     else:
-        result = roll_dice("1d20")
+        result = roll_dice("1d20", caller="dice.death_save")
         roll = int(result["rolls"][0])
     if roll == 1:
         outcome = "two failures"
@@ -92,5 +93,5 @@ def roll_death_saves(pre_rolled: int | None = None) -> dict[str, Any]:
         "ok": True,
         "roll": roll,
         "outcome": outcome,
-        "summary": f"Death save: **{roll}** — {outcome}",
+        "summary": f"Death save: **{roll}** ? {outcome}",
     }

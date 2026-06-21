@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { ChevronDown } from 'lucide-react';
 import { api } from '../../api/client';
 import type { Character, ClassLevel } from '../../types';
 import { Field } from '../ui/forms/Field';
@@ -15,6 +16,7 @@ export default function MulticlassPanel({ character, onChange }: Props) {
   const [options, setOptions] = useState<{ id: string; label: string }[]>([]);
   const [addClass, setAddClass] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [addOpen, setAddOpen] = useState(false);
 
   const entries = (
     character.classes?.length
@@ -38,6 +40,8 @@ export default function MulticlassPanel({ character, onChange }: Props) {
 
   const existing = new Set(entries.map((e) => e.class_name));
   const available = options.filter((c) => !existing.has(c.id));
+  const canAddClass = character.level < 20 && available.length > 0;
+  const sectionTitle = entries.length > 1 ? 'Classes' : 'Class';
 
   const updateEntry = (idx: number, patch: Partial<ClassLevel>) => {
     const next = entries.map((e, i) => (i === idx ? { ...e, ...patch } : e));
@@ -55,14 +59,16 @@ export default function MulticlassPanel({ character, onChange }: Props) {
         onChange([...entries, { class_name: addClass, level: 1, subclass: '', class_skill_choices: [] }]);
       }
       setAddClass('');
+      setAddOpen(false);
     } catch (e) {
       setError(String(e));
     }
   };
 
   return (
-    <div className="panel-glow p-4 space-y-4 h-full">
-      <h3 className="text-xs font-semibold uppercase tracking-wider text-accent">Multiclass</h3>
+    <div className="panel-glow p-4 space-y-3">
+      <h3 className="text-xs font-semibold uppercase tracking-wider text-accent">{sectionTitle}</h3>
+
       {entries.length === 0 && <p className="text-sm text-muted">Set a primary class first.</p>}
       {entries.map((e, i) => (
         <div
@@ -79,24 +85,45 @@ export default function MulticlassPanel({ character, onChange }: Props) {
           />
         </div>
       ))}
-      {character.level < 20 && available.length > 0 && (
-        <Field label="Add class (level 1)">
-          <ChoiceGroup
-            value={addClass}
-            onChange={setAddClass}
-            options={available.map((c) => ({ value: c.id, label: c.label }))}
-            allowEmpty
-            columns={2}
-          />
-          <button type="button" className="btn-primary text-xs mt-2" disabled={!addClass} onClick={tryAdd}>
-            Add class
+
+      {canAddClass && (
+        <>
+          <button
+            type="button"
+            className="flex w-full items-center justify-between gap-3 text-left pt-1 cursor-pointer"
+            onClick={() => setAddOpen((v) => !v)}
+            aria-expanded={addOpen}
+            aria-label={addOpen ? 'Hide add class options' : 'Show add class options'}
+          >
+            <span className="text-xs text-muted">Add another class</span>
+            <ChevronDown
+              className={`h-4 w-4 text-muted shrink-0 transition-transform duration-200 ${addOpen ? 'rotate-180' : ''}`}
+              aria-hidden
+            />
           </button>
-        </Field>
+          {addOpen && (
+            <div className="space-y-3 pt-1 border-t border-border/60">
+              <Field label="Add class (level 1)">
+                <ChoiceGroup
+                  value={addClass}
+                  onChange={setAddClass}
+                  options={available.map((c) => ({ value: c.id, label: c.label }))}
+                  allowEmpty
+                  columns={2}
+                />
+                <button type="button" className="btn-primary text-xs mt-2" disabled={!addClass} onClick={tryAdd}>
+                  Add class
+                </button>
+              </Field>
+              {error && <p className="text-xs text-danger">{error}</p>}
+              <p className="text-[10px] text-muted leading-relaxed">
+                Multiclass requires ability score prerequisites (e.g. WIZ INT 13). Level up picks which class gains a
+                level.
+              </p>
+            </div>
+          )}
+        </>
       )}
-      {error && <p className="text-xs text-danger">{error}</p>}
-      <p className="text-[10px] text-muted leading-relaxed">
-        Multiclass requires ability score prerequisites (e.g. WIZ INT 13). Level up picks which class gains a level.
-      </p>
     </div>
   );
 }

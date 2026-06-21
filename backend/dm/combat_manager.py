@@ -8,6 +8,7 @@ import uuid
 from typing import Any
 
 from backend.characters.entity import Dnd5eCharacter, character_from_dict, character_to_dict
+from backend.dm.audit import character_audit_slice, record_audit
 from backend.dm.encounters import (
     Combatant,
     CombatState,
@@ -60,7 +61,7 @@ def check_concentration_save(char: Dnd5eCharacter, damage: int) -> tuple[bool, s
     mod = _con_mod(char)
     if _con_save_proficient(char):
         mod += _proficiency_bonus(char)
-    result = roll_dice("1d20")
+    result = roll_dice("1d20", caller="combat_manager.concentration")
     roll_val = int(result["rolls"][0])
     total = roll_val + mod
     maintained = roll_val == 20 or (roll_val != 1 and total >= dc)
@@ -75,11 +76,26 @@ def check_concentration_save(char: Dnd5eCharacter, damage: int) -> tuple[bool, s
             f"**Concentration save** (d20 {roll_val} + {mod} = {total} vs DC {dc}): "
             f"**LOST** {spell}"
         )
+    record_audit(
+        {
+            "event": "concentration",
+            "source": "combat_manager",
+            "detail": {
+                "spell": spell,
+                "dc": dc,
+                "roll": roll_val,
+                "total": total,
+                "maintained": maintained,
+                "damage": damage,
+                "inferred": False,
+            },
+        }
+    )
     return maintained, summary
 
 
-def _roll_initiative(mod: int = 0) -> int:
-    result = roll_dice("1d20")
+def _roll_initiative(mod: int = 0, *, caller: str = "combat_manager.initiative") -> int:
+    result = roll_dice("1d20", caller=caller)
     return int(result["rolls"][0]) + mod
 
 
@@ -170,6 +186,21 @@ def start_encounter(
     state.turn_index = 0
     state.round = 1
     save_combat_state(session_id, state)
+    record_audit(
+        {
+            "event": "combat_start",
+            "source": "combat_manager",
+            "detail": {
+                "encounter_id": encounter.id,
+                "encounter_name": encounter.name,
+                "initiative": [
+                    {"id": c.id, "name": c.name, "initiative": c.initiative} for c in combatants
+                ],
+                "inferred": False,
+            },
+        },
+        session_id=session_id,
+    )
     return state
 
 
@@ -203,7 +234,7 @@ def _all_enemies_defeated(state: CombatState) -> bool:
 
 
 def resolve_enemy_attack(enemy: Combatant, target_ac: int) -> dict[str, Any]:
-    atk = roll_dice("1d20")
+    atk = roll_dice("1d20", caller="combat_manager.attack")
     roll = int(atk["rolls"][0])
     total = roll + enemy.attack_bonus
     hit = roll == 20 or (roll != 1 and total >= target_ac)
@@ -218,10 +249,10 @@ def resolve_enemy_attack(enemy: Combatant, target_ac: int) -> dict[str, Any]:
             if "d" in base:
                 count, rest = base.split("d", 1)
                 dmg_expr = f"{int(count) * 2}d{rest}"
-        dmg = roll_dice(dmg_expr)
+        dmg = roll_dice(dmg_expr, caller="combat_manager.damage")
         damage = int(dmg.get("total", 0))
         damage_summary = f" for **{damage}** damage"
-    return {
+    result = {
         "attacker": enemy.name,
         "roll": roll,
         "total": total,
@@ -234,12 +265,41 @@ def resolve_enemy_attack(enemy: Combatant, target_ac: int) -> dict[str, Any]:
             f"vs AC {target_ac}): " + ("**HIT**" if hit else "miss") + damage_summary
         ),
     }
+    record_audit(
+        {
+            "event": "combat_attack",
+            "source": "combat_manager",
+            "detail": {
+                "attacker": enemy.name,
+                "roll": roll,
+                "attack_bonus": enemy.attack_bonus,
+                "total": total,
+                "target_ac": target_ac,
+                "hit": hit,
+                "crit": crit,
+                "damage": damage,
+                "inferred": False,
+            },
+        }
+    )
+    return result
 
 
 def apply_damage_to_player(char_dict: dict, damage: int) -> dict:
+    before = character_audit_slice(char_dict)
     char = character_from_dict(char_dict)
     char.hp = max(0, char.hp - damage)
-    return character_to_dict(char)
+    after_dict = character_to_dict(char)
+    record_audit(
+        {
+            "event": "hp_change",
+            "source": "combat_manager",
+            "before": before,
+            "after": character_audit_slice(after_dict),
+            "detail": {"damage": damage, "inferred": False},
+        }
+    )
+    return after_dict
 
 
 def resolve_enemy_turn(state: CombatState, char_dict: dict) -> tuple[CombatState, dict, list[str]]:

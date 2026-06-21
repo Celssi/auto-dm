@@ -821,6 +821,8 @@ def short_rest_heal(
     dice_to_spend: int = 1,
 ) -> dict[str, Any]:
     """Spend Hit Dice during a short rest (PHB 2024)."""
+    from backend.dm.audit import character_audit_slice, record_audit
+
     available = max(0, char.hit_dice_max - char.hit_dice_spent)
     spend = min(max(0, int(dice_to_spend)), available)
     if spend <= 0:
@@ -831,6 +833,7 @@ def short_rest_heal(
             "summary": "",
             "entity_updates": {},
         }
+    before = character_audit_slice(character_to_dict(char))
     con_mod = char.ability_modifier("con")
     rolls: list[int] = []
     total = 0
@@ -839,9 +842,40 @@ def short_rest_heal(
         healed = max(1, roll + con_mod)
         rolls.append(roll)
         total += healed
+        record_audit(
+            {
+                "event": "dice_roll",
+                "source": "character_builder",
+                "detail": {
+                    "notation": f"1d{char.hit_die}",
+                    "rolls": [roll],
+                    "modifier": con_mod,
+                    "total": healed,
+                    "caller": "character_builder.hit_dice",
+                    "inferred": False,
+                },
+            }
+        )
+    hp_before = char.hp
     new_hp = min(char.max_hp, char.hp + total)
     char.hp = new_hp
     char.hit_dice_spent = char.hit_dice_spent + spend
+    after = character_audit_slice(character_to_dict(char))
+    record_audit(
+        {
+            "event": "hp_change",
+            "source": "character_builder",
+            "before": before,
+            "after": after,
+            "detail": {
+                "healing": total,
+                "hp_before": hp_before,
+                "hp_after": new_hp,
+                "hit_dice_spent": spend,
+                "inferred": False,
+            },
+        }
+    )
     return {
         "healing": total,
         "rolls": rolls,
@@ -863,6 +897,9 @@ def apply_short_rest(
     dice_to_spend: int = 0,
 ) -> dict[str, Any]:
     """Short rest: Pact Magic recovery + optional Hit Dice healing."""
+    from backend.dm.audit import character_audit_slice, record_audit
+
+    before = character_audit_slice(character_to_dict(char))
     parts: list[str] = ["Short rest."]
     entity: dict[str, Any] = {}
 
@@ -880,6 +917,15 @@ def apply_short_rest(
     summary = " ".join(parts)
     if summary == "Short rest.":
         summary = "Short rest (no resources spent or recovered)."
+    record_audit(
+        {
+            "event": "rest",
+            "source": "character_builder",
+            "before": before,
+            "after": character_audit_slice(character_to_dict(char)),
+            "detail": {"kind": "short_rest", "dice_to_spend": dice_to_spend, "inferred": False},
+        }
+    )
     return {"summary": summary, "entity_updates": entity}
 
 
@@ -892,6 +938,9 @@ def elf_trance_rest_note(char: Dnd5eCharacter) -> str:
 
 def long_rest_recover(char: Dnd5eCharacter) -> dict[str, Any]:
     """Apply long rest recovery (HP, Hit Dice, spell slots)."""
+    from backend.dm.audit import character_audit_slice, record_audit
+
+    before = character_audit_slice(character_to_dict(char))
     char.hp = char.max_hp
     char.hit_dice_spent = 0
     char.spell_slots = compute_spell_slots(char)
@@ -915,6 +964,15 @@ def long_rest_recover(char: Dnd5eCharacter) -> dict[str, Any]:
     if char.exhaustion:
         summary += f", exhaustion now level {char.exhaustion}"
     summary += elf_trance_rest_note(char)
+    record_audit(
+        {
+            "event": "rest",
+            "source": "character_builder",
+            "before": before,
+            "after": character_audit_slice(character_to_dict(char)),
+            "detail": {"kind": "long_rest", "inferred": False},
+        }
+    )
     return {
         "summary": summary,
         "entity_updates": {

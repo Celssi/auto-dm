@@ -385,6 +385,36 @@ def write_session_lonelog(session_id: str, content: str) -> None:
     _write_text(SESSIONS_DIR / session_id / "lonelog.md", content)
 
 
+def append_session_audit(session_id: str, event: dict) -> None:
+    import json
+
+    payload = dict(event)
+    payload.setdefault("ts", _now_iso())
+    path = SESSIONS_DIR / session_id / "audit.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a", encoding="utf-8") as f:
+        f.write(json.dumps(payload, ensure_ascii=False, default=str) + "\n")
+
+
+def get_session_audit(session_id: str, *, limit: int = 200) -> list[dict]:
+    import json
+
+    path = SESSIONS_DIR / session_id / "audit.jsonl"
+    if not path.is_file():
+        return []
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return []
+    events: list[dict] = []
+    for line in lines[-limit:]:
+        try:
+            events.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return events
+
+
 def delete_session(session_id: str) -> bool:
     index = _read_json(SESSIONS_INDEX, [])
     new_index = [s for s in index if s.get("id") != session_id]

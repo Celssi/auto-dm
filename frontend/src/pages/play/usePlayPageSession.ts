@@ -23,6 +23,14 @@ export function usePlayPageSession(
 ) {
   const navigate = useNavigate();
 
+  const refreshSessionLogs = useCallback(
+    async (sessionId: string) => {
+      const [log, audit] = await Promise.all([api.getLonelog(sessionId), api.getAudit(sessionId)]);
+      dispatch({ type: 'set', patch: { lonelog: log.lines, auditEvents: audit.events } });
+    },
+    [dispatch],
+  );
+
   const loadMeta = useCallback(async () => {
     const [s, c, a, sh, or] = await Promise.all([
       api.listSessions(),
@@ -59,11 +67,12 @@ export function usePlayPageSession(
             api.getCharacter(session.character_id),
             api.getCharacterSummary(session.character_id),
             api.getLonelog(id),
+            api.getAudit(id),
           ] as const);
 
         if (!session.adventure_id) {
           if (seq !== loadSeqRef.current) return;
-          const [{ character: ch }, { summary }, log] = await fetchCore();
+          const [{ character: ch }, { summary }, log, audit] = await fetchCore();
           campaignIdRef.current = '';
           dispatch({
             type: 'set',
@@ -74,6 +83,7 @@ export function usePlayPageSession(
               character: ch as Character,
               characterSummary: summary,
               lonelog: log.lines,
+              auditEvents: audit.events,
               adventureId: '',
               sessionLoaded: true,
               journalEntities: [],
@@ -87,7 +97,7 @@ export function usePlayPageSession(
         }
 
         if (seq !== loadSeqRef.current) return;
-        const [[{ character: ch }, { summary }, log], adventureResult] = await Promise.all([
+        const [[{ character: ch }, { summary }, log, audit], adventureResult] = await Promise.all([
           fetchCore(),
           api.getAdventure(session.adventure_id).catch(() => null),
         ]);
@@ -124,6 +134,7 @@ export function usePlayPageSession(
             character: ch as Character,
             characterSummary: summary,
             lonelog: log.lines,
+            auditEvents: audit.events,
             adventureId: session.adventure_id,
             sessionLoaded: true,
             journalEntities,
@@ -197,8 +208,7 @@ export function usePlayPageSession(
           beginning: false,
         },
       });
-      const log = await api.getLonelog(sessionId);
-      dispatch({ type: 'set', patch: { lonelog: log.lines } });
+      await refreshSessionLogs(sessionId);
     } catch (e) {
       dispatch({
         type: 'set',
@@ -235,8 +245,7 @@ export function usePlayPageSession(
           combatState: result.combat_state && result.combat_state.status === 'active' ? result.combat_state : null,
         },
       });
-      const log = await api.getLonelog(sessionId);
-      dispatch({ type: 'set', patch: { lonelog: log.lines } });
+      await refreshSessionLogs(sessionId);
       if (campaignIdRef.current) {
         api
           .getCampaignEntities(campaignIdRef.current)
@@ -265,8 +274,7 @@ export function usePlayPageSession(
           { role: 'assistant', content: String(result.summary) },
         ],
       });
-      const log = await api.getLonelog(state.sessionId);
-      dispatch({ type: 'set', patch: { lonelog: log.lines } });
+      await refreshSessionLogs(state.sessionId);
     } finally {
       dispatch({ type: 'set', patch: { loading: false } });
     }
@@ -369,8 +377,7 @@ export function usePlayPageSession(
           combatState: result.combat_state && result.combat_state.status === 'active' ? result.combat_state : null,
         },
       });
-      const log = await api.getLonelog(state.sessionId);
-      dispatch({ type: 'set', patch: { lonelog: log.lines } });
+      await refreshSessionLogs(state.sessionId);
       if (campaignIdRef.current) {
         api
           .getCampaignEntities(campaignIdRef.current)

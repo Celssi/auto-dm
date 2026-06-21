@@ -1,5 +1,5 @@
 import type { Character } from '../../../types';
-import CreationChoicesForm, { missingChoicesForChar } from '../CreationChoicesForm';
+import CreationChoicesForm from '../CreationChoicesForm';
 import { validateChoices, choicesForDraft, type CreationChoiceCatalog } from '../../../lib/creationChoices';
 
 interface Props {
@@ -23,5 +23,3 @@ export default function WizardFeaturesStep({ char, options, patch }: Props) {
     </div>
   );
 }
-
-export { missingChoicesForChar };

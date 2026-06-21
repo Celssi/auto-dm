@@ -154,6 +154,8 @@ export const api = {
       },
     ),
   getLonelog: (sessionId: string) => request<{ lines: string[] }>(`/sessions/${sessionId}/lonelog`),
+  getAudit: (sessionId: string, limit = 200) =>
+    request<{ events: AuditEvent[] }>(`/sessions/${sessionId}/audit?limit=${limit}`),
   beginSession: (sessionId: string) => request<BeginSessionResult>(`/sessions/${sessionId}/begin`, { method: 'POST' }),
   searchRules: (question: string, include_faerun = false) =>
     request<{ answer: string; sources: Source[] }>('/rules/search', {
@@ -444,4 +446,16 @@ export interface GenerateCampaignResult {
   adventure_id?: string;
   opening_scene?: string;
   counts: { adventures: number; npcs: number; locations: number };
+}
+
+export interface AuditEvent {
+  ts?: string;
+  session_id?: string;
+  turn_id?: string;
+  event: string;
+  source?: string;
+  detail?: Record<string, unknown>;
+  before?: Record<string, unknown>;
+  after?: Record<string, unknown>;
+  diff?: Record<string, unknown>;
 }

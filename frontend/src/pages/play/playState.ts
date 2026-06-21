@@ -1,4 +1,5 @@
 import type {
+  AuditEvent,
   ChatResult,
   ChatMessage,
   CombatStateSnapshot,
@@ -53,6 +54,7 @@ export interface PlayState {
   shortcuts: Shortcut[];
   oracles: { id: string; label: string }[];
   lonelog: string[];
+  auditEvents: AuditEvent[];
   sources: Source[];
   includeFaerun: boolean;
   wizardTab: 'continue' | 'new';
@@ -105,6 +107,7 @@ export function createInitialPlayState(sessionId = '', wizardTab: 'continue' | '
     shortcuts: [],
     oracles: [],
     lonelog: [],
+    auditEvents: [],
     sources: [],
     includeFaerun: false,
     wizardTab,

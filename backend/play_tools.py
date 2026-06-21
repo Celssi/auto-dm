@@ -7,7 +7,7 @@ import re
 from typing import Any
 
 
-def roll_dice(notation: str) -> dict[str, Any]:
+def roll_dice(notation: str, *, caller: str = "unknown") -> dict[str, Any]:
     """Roll dice from notation like 1d20+5, 2d6, d20."""
     notation = notation.strip().lower().replace(" ", "")
     match = re.match(r"^(\d*)d(\d+)([+-]\d+)?$", notation)
@@ -30,7 +30,37 @@ def roll_dice(notation: str) -> dict[str, Any]:
     total = sum(rolls) + modifier
     mod_str = f" {'+' if modifier >= 0 else ''}{modifier}" if modifier else ""
     summary = f"**{notation}**: {rolls}{mod_str} = **{total}**"
-    return {"ok": True, "rolls": rolls, "modifier": modifier, "total": total, "summary": summary}
+    result = {"ok": True, "rolls": rolls, "modifier": modifier, "total": total, "summary": summary}
+
+    from backend.dm.audit import audit_context, record_audit
+
+    if audit_context().get("session_id"):
+        source = caller.split(".")[0] if "." in caller else caller
+        record_audit(
+            {
+                "event": "dice_roll",
+                "source": source
+                if source
+                in (
+                    "shortcut",
+                    "combat_manager",
+                    "character_builder",
+                    "oracle",
+                    "dice",
+                )
+                else "dice",
+                "detail": {
+                    "notation": notation,
+                    "rolls": rolls,
+                    "modifier": modifier,
+                    "total": total,
+                    "caller": caller,
+                    "inferred": False,
+                },
+            }
+        )
+
+    return result
 
 
 def format_dice_result(result: dict[str, Any]) -> str:
