@@ -7,16 +7,21 @@ from typing import Any
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from backend.characters.character_builder import (
+from backend.dm.graph import level_up_character
+from backend.games.dnd5e.characters.character_builder import (
     add_multiclass_level,
     character_creation_summary,
     finalize_new_character,
     level_up_preview,
     rebuild_character,
 )
-from backend.characters.character_data import character_options_payload, multiclass_prerequisites
-from backend.characters.entity import character_from_dict, character_to_dict, default_character
-from backend.dm.graph import level_up_character
+from backend.games.dnd5e.characters.character_data import multiclass_prerequisites
+from backend.games.dnd5e.characters.entity import (
+    character_from_dict,
+    character_to_dict,
+    default_character,
+)
+from backend.games.registry import get_game
 from backend.settings_store import load_settings
 from backend.storage import delete_character, get_character, list_characters, save_character
 
@@ -51,10 +56,11 @@ def list_all():
 
 
 @router.get("/options")
-def options(include_faerun: bool = False):
+def options(include_faerun: bool = False, game_id: str | None = None):
     prefs = load_settings()
     use_faerun = include_faerun or prefs.get("include_faerun", False)
-    payload = character_options_payload(include_faerun=use_faerun)
+    plugin = get_game(game_id)
+    payload = plugin.character_options_payload(include_faerun=use_faerun)
     payload["multiclass_prerequisites"] = {
         cid: multiclass_prerequisites(cid) for cid in [c["id"] for c in payload.get("classes", [])]
     }
@@ -64,7 +70,7 @@ def options(include_faerun: bool = False):
 @router.post("/preview")
 def preview(body: CharacterBody, finalize: bool = True):
     """Rebuild a draft character for wizard review without saving."""
-    from backend.characters.creation_choices import validate_creation_choices
+    from backend.games.dnd5e.characters.creation_choices import validate_creation_choices
 
     obj = character_from_dict(body.character)
     if finalize:

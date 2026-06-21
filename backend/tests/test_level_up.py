@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from backend.characters.character_builder import (
+from backend.games.dnd5e.characters.character_builder import (
     level_up_preview,
     rebuild_character,
     spell_limits_for_class,
 )
-from backend.characters.entity import Dnd5eCharacter
+from backend.games.dnd5e.characters.entity import Dnd5eCharacter
 
 
 def _druid(**kwargs) -> Dnd5eCharacter:

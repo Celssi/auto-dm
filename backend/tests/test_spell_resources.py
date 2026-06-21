@@ -2,21 +2,21 @@
 
 from __future__ import annotations
 
-from backend.characters.character_builder import (
+from backend.dm.graph import resource_keeper_node
+from backend.games.dnd5e.characters.character_builder import (
     apply_short_rest,
     long_rest_recover,
     rebuild_character,
 )
-from backend.characters.entity import character_from_dict
-from backend.characters.spell_resources import (
+from backend.games.dnd5e.characters.entity import character_from_dict
+from backend.games.dnd5e.characters.spell_resources import (
     apply_resource_updates,
     apply_spell_cast,
     compute_pact_spell_slots,
     compute_wild_shape_max,
     recover_pact_slots_on_short_rest,
 )
-from backend.dm.graph import resource_keeper_node
-from backend.dm.resource_keeper import (
+from backend.games.dnd5e.dm.resource_keeper import (
     ResourceTurnUpdates,
     apply_cast_spell_shortcut,
     narrative_short_rest_detected,

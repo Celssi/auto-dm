@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, type ChatResult } from '../../api/client';
 import type { Character } from '../../types';
 import { type DiceModalState, type PlayAction, type PlayState } from './playState';
-import { initiativeMod } from '../../components/character-sheet/sheetUtils';
+import { initiativeMod } from '../../games/dnd5e/character-sheet/sheetUtils';
 
 const DICE_SHORTCUTS = new Set(['ability_check', 'saving_throw', 'attack_roll', 'initiative', 'death_save']);
 

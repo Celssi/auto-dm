@@ -14,14 +14,17 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from backend.characters.character_data import (  # noqa: E402
+from backend.config import CURATED_DIR, DATA_DIR  # noqa: E402
+from backend.games.dnd5e.characters.character_data import (  # noqa: E402
     get_background,
     list_backgrounds,
     spells_data,
 )
-from backend.characters.features import class_features_data, subclass_features_data  # noqa: E402
-from backend.characters.spell_resources import normalize_spell_name  # noqa: E402
-from backend.config import CURATED_DIR, DATA_DIR  # noqa: E402
+from backend.games.dnd5e.characters.features import (  # noqa: E402
+    class_features_data,
+    subclass_features_data,
+)
+from backend.games.dnd5e.characters.spell_resources import normalize_spell_name  # noqa: E402
 
 OCR_PLAYER = DATA_DIR / "ocr_cache" / "player.json"
 OUT_PATH = CURATED_DIR / "dnd5e_glossary.yaml"
@@ -464,7 +467,7 @@ def _title_search_patterns(display_name: str) -> list[str]:
 
 
 def _stub_spell(display_name: str) -> dict[str, Any]:
-    from backend.characters.spell_resources import build_spell_index
+    from backend.games.dnd5e.characters.spell_resources import build_spell_index
 
     key = normalize_spell_name(display_name)
     level = build_spell_index().get(key)

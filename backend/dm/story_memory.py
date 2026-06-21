@@ -6,9 +6,9 @@ from typing import Any
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from backend.characters.entity import Dnd5eCharacter
 from backend.dm.lonelog import extract_narrative_snippets
 from backend.dm.world_context import world_context_for_campaign
+from backend.games.dnd5e.characters.entity import Dnd5eCharacter
 from backend.llm import get_langchain_chat_llm, invoke_chat_llm
 
 CANON_MAX = 4000

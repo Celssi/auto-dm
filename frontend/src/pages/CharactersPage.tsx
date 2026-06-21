@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useReducer, useState } from 'react';
+import { useMatch, useNavigate, useParams } from 'react-router-dom';
 import { m } from '../lib/framer';
 import { UserPlus, Users } from 'lucide-react';
 import { api } from '../api/client';
 import type { Character } from '../types';
-import CharacterWizard from '../components/character-sheet/CharacterWizard';
-import LevelUpDialog from '../components/character-sheet/LevelUpDialog';
+import { DEFAULT_GAME_ID, GAMES, gameLabel } from '../games/registry';
+import CharacterWizard from '../games/dnd5e/character-sheet/CharacterWizard';
+import LevelUpDialog from '../games/dnd5e/character-sheet/LevelUpDialog';
 import PageHeader from '../components/ui/PageHeader';
 import ListCard from '../components/ui/ListCard';
 import EmptyState from '../components/ui/EmptyState';
@@ -16,6 +18,12 @@ import CharacterDetailPanel from './characters/CharacterDetailPanel';
 import { charactersReducer, initialCharactersState } from './characters/charactersState';
 
 export default function CharactersPage() {
+  const navigate = useNavigate();
+  const { characterId } = useParams();
+  const isNew = useMatch('/characters/new');
+  const isEdit = useMatch('/characters/:characterId/edit');
+  const mode = isNew || isEdit ? 'wizard' : characterId ? 'view' : 'list';
+
   const [state, dispatch] = useReducer(charactersReducer, initialCharactersState);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -26,11 +34,11 @@ export default function CharactersPage() {
     dispatch({ type: 'set', patch: { roster: characters, rosterLoaded: true } });
   }, []);
 
-  const openChar = useCallback(async (id: string) => {
+  const loadCharacter = useCallback(async (id: string) => {
     const [{ character: c }, sum] = await Promise.all([api.getCharacter(id), api.getCharacterSummary(id)]);
     dispatch({
       type: 'set',
-      patch: { character: c as Character, summary: sum.summary, activeId: id, mode: 'view' },
+      patch: { character: c as Character, summary: sum.summary, activeId: id, error: null },
     });
   }, []);
 
@@ -39,34 +47,42 @@ export default function CharactersPage() {
   }, [load]);
 
   useEffect(() => {
-    if (state.mode === 'view' && state.activeId) {
+    if (mode !== 'view' && mode !== 'wizard') {
+      dispatch({ type: 'set', patch: { character: null, activeId: null, summary: {} } });
+      return;
+    }
+    if (!characterId || isNew) return;
+    loadCharacter(characterId).catch(() => {
+      dispatch({ type: 'set', patch: { error: 'Character not found.', character: null, activeId: null } });
+    });
+  }, [characterId, isNew, mode, loadCharacter]);
+
+  useEffect(() => {
+    if ((mode === 'view' || mode === 'wizard') && characterId && !isNew) {
       api
         .getCharacterOptions(false)
         .then(setCharOptions)
         .catch(() => setCharOptions({}));
     }
-  }, [state.mode, state.activeId]);
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const id = params.get('id');
-    if (id) openChar(id).catch((e) => dispatch({ type: 'set', patch: { error: String(e) } }));
-  }, [openChar]);
+  }, [mode, characterId, isNew]);
 
   const saveChar = async (c: Character) => {
-    let id = state.activeId;
+    let id = state.activeId || characterId || null;
     if (id) {
       await api.updateCharacter(id, c as Record<string, unknown>);
     } else {
-      const res = await api.createCharacter(c as Record<string, unknown>);
+      const res = await api.createCharacter({
+        ...(c as Record<string, unknown>),
+        game_id: c.game_id || DEFAULT_GAME_ID,
+      });
       id = res.id;
       dispatch({ type: 'set', patch: { activeId: res.id, character: res.character as Character } });
     }
     await load();
-    dispatch({ type: 'set', patch: { mode: 'view' } });
     if (id) {
       const sum = await api.getCharacterSummary(id);
       dispatch({ type: 'set', patch: { summary: sum.summary, character: sum.character as Character } });
+      navigate(`/characters/${id}`);
     }
   };
 
@@ -77,8 +93,9 @@ export default function CharactersPage() {
     spells?: { cantrips?: string[]; prepared_spells?: string[]; known_spells?: string[] },
     choices?: Partial<Character>,
   ) => {
-    if (!state.activeId) return;
-    const res = await api.levelUpCharacter(state.activeId, {
+    const id = state.activeId || characterId;
+    if (!id) return;
+    const res = await api.levelUpCharacter(id, {
       hp_roll: hpRoll,
       asi_choices: asiChoices,
       class_name: className,
@@ -96,14 +113,16 @@ export default function CharactersPage() {
   };
 
   const deleteCharacter = async () => {
-    if (!state.activeId || !character) return;
+    const id = state.activeId || characterId;
+    if (!id || !character) return;
     setDeleting(true);
     dispatch({ type: 'set', patch: { error: null } });
     try {
-      await api.deleteCharacter(state.activeId);
+      await api.deleteCharacter(id);
       setConfirmDelete(false);
-      dispatch({ type: 'set', patch: { activeId: null, character: null, mode: 'list' } });
+      dispatch({ type: 'set', patch: { activeId: null, character: null } });
       await load();
+      navigate('/characters');
     } catch (e) {
       dispatch({ type: 'set', patch: { error: String(e) } });
     } finally {
@@ -111,19 +130,26 @@ export default function CharactersPage() {
     }
   };
 
-  const { character, summary, mode } = state;
+  const { character, summary } = state;
+  const activeId = state.activeId || characterId || null;
+  const gameId = character?.game_id || DEFAULT_GAME_ID;
+  const supportedGame = GAMES.some((g) => g.id === gameId);
 
   return (
     <AnimatedPage className="space-y-6">
       <PageHeader
         title="Characters"
-        subtitle={mode === 'view' && character ? character.name : 'Create and manage D&D 5e character sheets.'}
+        subtitle={
+          mode === 'view' && character
+            ? character.name
+            : `Create and manage ${gameLabel(DEFAULT_GAME_ID)} character sheets.`
+        }
         actions={
-          mode !== 'wizard' ? (
+          mode === 'list' ? (
             <button
               type="button"
               className="btn-primary shrink-0 inline-flex items-center gap-2"
-              onClick={() => dispatch({ type: 'set', patch: { activeId: null, character: null, mode: 'wizard' } })}
+              onClick={() => navigate('/characters/new')}
             >
               <UserPlus size={16} /> New character
             </button>
@@ -137,6 +163,11 @@ export default function CharactersPage() {
           className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger"
         >
           {state.error}
+          {mode === 'view' && (
+            <button type="button" className="ml-3 underline" onClick={() => navigate('/characters')}>
+              Back to list
+            </button>
+          )}
         </m.div>
       )}
 
@@ -151,20 +182,16 @@ export default function CharactersPage() {
                 title="No characters yet"
                 description="Build a PHB 2024 character with guided creation."
                 action={
-                  <button
-                    type="button"
-                    className="btn-primary"
-                    onClick={() =>
-                      dispatch({ type: 'set', patch: { activeId: null, character: null, mode: 'wizard' } })
-                    }
-                  >
+                  <button type="button" className="btn-primary" onClick={() => navigate('/characters/new')}>
                     Create your first character
                   </button>
                 }
               />
             </div>
           ) : (
-            state.roster.map((r) => <ListCard key={r.id} title={r.name} onClick={() => openChar(r.id)} />)
+            state.roster.map((r) => (
+              <ListCard key={r.id} title={r.name} onClick={() => navigate(`/characters/${r.id}`)} />
+            ))
           )}
         </m.div>
       )}
@@ -174,19 +201,32 @@ export default function CharactersPage() {
           <CharacterWizard
             initial={character || undefined}
             onSave={saveChar}
-            onCancel={() => dispatch({ type: 'set', patch: { mode: 'list' } })}
+            onCancel={() => navigate(activeId ? `/characters/${activeId}` : '/characters')}
           />
         </m.div>
       )}
 
-      {mode === 'view' && character && (
+      {mode === 'view' && character && !supportedGame && (
+        <EmptyState
+          icon={<Users size={32} />}
+          title="Game not supported yet"
+          description={`This character uses "${gameLabel(gameId)}", which is not available in the UI yet.`}
+          action={
+            <button type="button" className="btn-secondary" onClick={() => navigate('/characters')}>
+              Back to list
+            </button>
+          }
+        />
+      )}
+
+      {mode === 'view' && character && supportedGame && (
         <CharacterDetailPanel
           character={character}
-          activeId={state.activeId}
+          activeId={activeId}
           summary={summary}
           charOptions={charOptions}
-          onBack={() => dispatch({ type: 'set', patch: { mode: 'list' } })}
-          onEdit={() => dispatch({ type: 'set', patch: { mode: 'wizard' } })}
+          onBack={() => navigate('/characters')}
+          onEdit={() => navigate(`/characters/${activeId}/edit`)}
           onLevelUp={() => dispatch({ type: 'set', patch: { levelUpOpen: true } })}
           onSave={saveChar}
           onDelete={() => setConfirmDelete(true)}
@@ -194,9 +234,9 @@ export default function CharactersPage() {
         />
       )}
 
-      {state.levelUpOpen && character && state.activeId && (
+      {state.levelUpOpen && character && activeId && (
         <LevelUpDialog
-          characterId={state.activeId}
+          characterId={activeId}
           character={character}
           summary={summary}
           onConfirm={levelUp}

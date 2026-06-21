@@ -1,14 +1,14 @@
 """PHB 2024 origin feat normalization and mechanical hooks."""
 
-from backend.characters.character_builder import compute_max_hp, rebuild_character
-from backend.characters.creation_choices import (
+from backend.games.dnd5e.characters.character_builder import compute_max_hp, rebuild_character
+from backend.games.dnd5e.characters.creation_choices import (
     apply_creation_choices,
     choices_for_character,
     validate_creation_choices,
 )
-from backend.characters.entity import Dnd5eCharacter
-from backend.characters.features import unlocked_features
-from backend.characters.origin_feats import (
+from backend.games.dnd5e.characters.entity import Dnd5eCharacter
+from backend.games.dnd5e.characters.features import unlocked_features
+from backend.games.dnd5e.characters.origin_feats import (
     ORIGIN_FEAT_LABELS,
     ORIGIN_FEAT_PASSIVES,
     apply_origin_feat_proficiencies,

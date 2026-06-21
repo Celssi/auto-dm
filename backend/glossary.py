@@ -6,7 +6,7 @@ import re
 from functools import lru_cache
 from typing import Any
 
-from backend.characters.character_data import (
+from backend.games.dnd5e.characters.character_data import (
     equipment_data,
     get_weapon,
     list_backgrounds,
@@ -16,8 +16,8 @@ from backend.characters.character_data import (
     skills_data,
     spells_data,
 )
-from backend.characters.glossary_data import glossary_db_index
-from backend.characters.spell_resources import build_spell_index, normalize_spell_name
+from backend.games.dnd5e.characters.glossary_data import glossary_db_index
+from backend.games.dnd5e.characters.spell_resources import build_spell_index, normalize_spell_name
 
 _LEVEL_NAMES = {
     0: "Cantrip",
@@ -39,7 +39,7 @@ def _spell_summary(name: str, level: int) -> str | None:
 
 
 def _weapon_summary(w: dict[str, Any]) -> str:
-    from backend.characters.creation_choices import weapon_mastery_data
+    from backend.games.dnd5e.characters.creation_choices import weapon_mastery_data
 
     props = w.get("properties") or []
     prop_text = f" Properties: {', '.join(str(p) for p in props)}." if props else ""

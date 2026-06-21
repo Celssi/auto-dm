@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from backend.characters.entity import character_from_dict
-from backend.dm.spell_autocomplete import (
+from backend.games.dnd5e.characters.entity import character_from_dict
+from backend.games.dnd5e.dm.spell_autocomplete import (
     confirmation_message,
     extract_cast_query,
     resolve_spell_query,

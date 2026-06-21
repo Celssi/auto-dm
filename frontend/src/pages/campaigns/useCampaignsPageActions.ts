@@ -1,5 +1,5 @@
 import { useCallback, type Dispatch } from 'react';
-import { useNavigate } from 'react-router-dom';
+import type { NavigateFunction } from 'react-router-dom';
 import { api } from '../../api/client';
 import { type CampaignsAction, type CampaignsState, type CampaignTab } from './campaignsState';
 
@@ -9,9 +9,8 @@ export function useCampaignsPageActions(
   confirm: { kind: 'campaign'; id: string; name: string } | { kind: 'adventure'; id: string; name: string } | null,
   setConfirm: (value: typeof confirm) => void,
   setDeleting: (value: boolean) => void,
+  navigate: NavigateFunction,
 ) {
-  const navigate = useNavigate();
-
   const load = useCallback(async () => {
     const [res, chars, advs] = await Promise.all([api.listCampaigns(), api.listCharacters(), api.listAdventures()]);
     const campaigns = await Promise.all(
@@ -45,31 +44,35 @@ export function useCampaignsPageActions(
     [dispatch],
   );
 
-  const open = async (id: string) => {
-    dispatch({ type: 'set', patch: { entry: null, newAdventureOpen: false, copyOpen: false } });
-    const { campaign } = await api.getCampaign(id);
-    const defaultChar = campaign.character_ids?.[0] || state.characters[0]?.id || '';
-    dispatch({
-      type: 'set',
-      patch: {
-        selected: campaign,
-        tab: 'story',
-        adventureForm: { ...state.adventureForm, character_id: defaultChar },
-        copyForm: { character_id: defaultChar, name: '' },
-      },
-    });
-    await loadAdventures(id);
-  };
+  const open = useCallback(
+    async (id: string) => {
+      dispatch({ type: 'set', patch: { entry: null, newAdventureOpen: false, copyOpen: false } });
+      const { campaign } = await api.getCampaign(id);
+      const defaultChar = campaign.character_ids?.[0] || state.characters[0]?.id || '';
+      dispatch({
+        type: 'set',
+        patch: {
+          selected: campaign,
+          copyForm: { character_id: defaultChar, name: '' },
+        },
+      });
+      dispatch({ type: 'patchAdventureForm', patch: { character_id: defaultChar } });
+      await loadAdventures(id);
+    },
+    [dispatch, loadAdventures, state.characters],
+  );
 
-  const create = async () => {
+  const create = async (): Promise<string | null> => {
     dispatch({ type: 'set', patch: { error: null } });
     try {
       const res = await api.createCampaign(state.form);
       dispatch({ type: 'set', patch: { selected: res.campaign, creating: false, form: { name: '', story_arc: '' } } });
       await load();
       await loadAdventures(res.id);
+      return res.id;
     } catch (e) {
       dispatch({ type: 'set', patch: { error: String(e) } });
+      return null;
     }
   };
 
@@ -104,12 +107,12 @@ export function useCampaignsPageActions(
         patch: {
           selected: campaign,
           creating: false,
-          tab: 'adventures',
           generateForm: { ...generateForm, theme: '', campaign_name: '' },
         },
       });
       await load();
       await loadAdventures(result.campaign_id);
+      navigate(`/campaigns/${result.campaign_id}/adventures`);
       if (result.session_id) {
         navigate(`/play/${result.session_id}`);
       }
@@ -221,8 +224,8 @@ export function useCampaignsPageActions(
     }
   };
 
-  const copyCampaign = async () => {
-    if (!state.selected || !state.copyForm.character_id) return;
+  const copyCampaign = async (): Promise<string | null> => {
+    if (!state.selected || !state.copyForm.character_id) return null;
     dispatch({ type: 'set', patch: { error: null, copyingCampaign: true } });
     try {
       const result = await api.copyCampaign(state.selected.id, {
@@ -236,15 +239,16 @@ export function useCampaignsPageActions(
           selected: result.campaign,
           copyOpen: false,
           copyForm: { character_id: state.copyForm.character_id, name: '' },
-          tab: 'adventures',
         },
       });
       await loadAdventures(result.campaign_id);
+      return result.campaign_id;
     } catch (e) {
       dispatch({
         type: 'set',
         patch: { error: e instanceof Error ? e.message : 'Failed to copy campaign' },
       });
+      return null;
     } finally {
       dispatch({ type: 'set', patch: { copyingCampaign: false } });
     }

@@ -12,11 +12,11 @@ ROOT = Path(__file__).resolve().parent.parent
 CHATDM_RESOURCES = ROOT.parent / "ChatDM" / "celssi-chatdm-resources" / "journal"
 sys.path.insert(0, str(ROOT))
 
-from backend.characters.character_builder import rebuild_character
-from backend.characters.entity import character_from_dict, character_to_dict
 from backend.config import ANTHROPIC_API_KEY
 from backend.dm.lonelog import adventure_log_to_lonelog
 from backend.dm.story_memory import build_offline_summary, generate_full_summary
+from backend.games.dnd5e.characters.character_builder import rebuild_character
+from backend.games.dnd5e.characters.entity import character_from_dict, character_to_dict
 from backend.journal_storage import (
     save_campaign,
     save_campaign_location,

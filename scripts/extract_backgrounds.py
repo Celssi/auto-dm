@@ -25,7 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from backend.characters.background_extract import (  # noqa: E402
+from backend.games.dnd5e.characters.background_extract import (  # noqa: E402
     PDF_KEYS,
     BackgroundSpec,
     apply_backgrounds_to_yaml,

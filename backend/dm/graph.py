@@ -8,37 +8,12 @@ from typing import Any, TypedDict
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langgraph.graph import END, StateGraph
 
-from backend.characters.character_builder import (
-    character_creation_summary,
-    level_up,
-    rebuild_character,
-)
-from backend.characters.entity import character_from_dict, character_to_dict
-from backend.characters.spell_resources import is_spell_available
-from backend.dm.actions import SHORTCUTS, run_shortcut
 from backend.dm.audit import record_audit
-from backend.dm.combat_manager import (
-    finish_player_turn,
-    format_combat_context,
-    run_enemy_turns_until_player,
-    try_start_planned_encounter,
-)
 from backend.dm.continuity_guard import apply_continuity_guard
 from backend.dm.encounters import combat_state_view, load_combat_state
 from backend.dm.journal_keeper import run_journal_keeper
 from backend.dm.lonelog import format_mechanical, format_narrative
 from backend.dm.narrator import synthesize_lonelog_summary
-from backend.dm.prompts import dnd5e_system_prompt
-from backend.dm.resource_keeper import run_resource_keeper
-from backend.dm.spell_autocomplete import (
-    confirmation_message,
-    execute_confirmed_cast,
-    extract_cast_query,
-    is_spell_cancel,
-    is_spell_confirmation,
-    list_character_spells,
-    resolve_spell_query,
-)
 from backend.dm.story_director import (
     apply_completion_if_done,
     build_narrator_brief,
@@ -50,9 +25,33 @@ from backend.dm.story_director import (
 )
 from backend.dm.story_memory import build_narrative_context, increment_summary
 from backend.dm.trace import dm_turn_trace, log_agent, wrap_node
+from backend.games.dnd5e.actions import SHORTCUTS
+from backend.games.dnd5e.characters.character_builder import (
+    character_creation_summary,
+    level_up,
+    rebuild_character,
+)
+from backend.games.dnd5e.characters.entity import character_to_dict
+from backend.games.dnd5e.characters.spell_resources import is_spell_available
+from backend.games.dnd5e.dm.combat_manager import (
+    finish_player_turn,
+    format_combat_context,
+    run_enemy_turns_until_player,
+    try_start_planned_encounter,
+)
+from backend.games.dnd5e.dm.resource_keeper import run_resource_keeper
+from backend.games.dnd5e.dm.spell_autocomplete import (
+    confirmation_message,
+    execute_confirmed_cast,
+    extract_cast_query,
+    is_spell_cancel,
+    is_spell_confirmation,
+    list_character_spells,
+    resolve_spell_query,
+)
+from backend.games.registry import get_game, resolve_game_id
 from backend.llm import ChatProvider, get_langchain_chat_llm, invoke_chat_llm
 from backend.rag.engine import query_rules
-from backend.rag.plugin import get_all_factions
 from backend.settings_store import load_settings
 from backend.storage import (
     append_adventure_log,
@@ -81,6 +80,15 @@ COMBAT_KEYWORDS = (
     "enemy",
     "monster",
 )
+
+
+def game_plugin(char_dict: dict | None = None):
+    return get_game(resolve_game_id(char_dict))
+
+
+def char_from_dict(char_dict: dict):
+    return game_plugin(char_dict).character_from_dict(char_dict)
+
 
 _RESOURCE_SIGNALS = (
     "cast ",
@@ -128,9 +136,9 @@ class DMState(TypedDict, total=False):
     precomputed_shortcut: dict
 
 
-def _factions(include_faerun: bool) -> list[str]:
+def _factions(include_faerun: bool, game_id: str | None = None) -> list[str]:
     if include_faerun:
-        return get_all_factions()
+        return get_game(game_id).get_all_factions()
     return ["player", "dm", "monsters"]
 
 
@@ -281,7 +289,7 @@ def router_node(state: DMState) -> DMState:
         extra: dict = {}
         if shortcut == "cast_spell":
             extra["spell_name"] = _parse_cast_spell_name(msg)
-        result = run_shortcut(shortcut, **char, **extra)
+        result = game_plugin(char).run_shortcut(shortcut, **char, **extra)
         updates["shortcut_result"] = result
         updates["mechanics_summary"] = (
             result.get("summary")
@@ -308,7 +316,7 @@ def combat_mechanics_node(state: DMState) -> DMState:
     if not state.get("in_combat") and not state.get("shortcut_result"):
         return {"combat_context": ""}
     char_dict = state.get("character") or {}
-    char = character_from_dict(char_dict)
+    char = char_from_dict(char_dict)
     lines = [
         f"Combat state — {char.name or 'Hero'}: HP {char.hp}/{char.max_hp}, AC {char.ac}",
         f"Spell slots: {char.spell_slots or 'none'}",
@@ -317,7 +325,8 @@ def combat_mechanics_node(state: DMState) -> DMState:
     if state.get("mechanics_summary"):
         lines.append(f"Latest roll: {state['mechanics_summary']}")
     if state.get("in_combat"):
-        factions = _factions(state.get("include_faerun", False))
+        game_id = resolve_game_id(char_dict)
+        factions = _factions(state.get("include_faerun", False), game_id)
         rag = query_rules(
             f"Combat rules for: {state.get('user_message', '')}",
             factions=["player", "monsters"] + (["dm"] if "dm" not in factions else []),
@@ -348,7 +357,8 @@ def rules_referee_node(state: DMState) -> DMState:
             msg = f"{msg}\n\nMechanics: {state['mechanics_summary']}"
     prefs = load_settings()
     include_faerun = state.get("include_faerun", False) or prefs.get("include_faerun", False)
-    factions = _factions(include_faerun)
+    game_id = resolve_game_id(state.get("character"))
+    factions = _factions(include_faerun, game_id)
     result = query_rules(
         msg,
         factions=factions,
@@ -438,13 +448,13 @@ def narrator_node(state: DMState) -> DMState:
     if state.get("response") and state.get("shortcut_result", {}).get("task") == "rules_help":
         return {"narrative": state["response"], "response": state["response"]}
     char_dict = state.get("character") or {}
-    char = character_from_dict(char_dict)
+    char = char_from_dict(char_dict)
     adventure = state.get("adventure") or {}
     prefs = load_settings()
     include_faerun = state.get("include_faerun", False) or prefs.get("include_faerun", False)
     campaign_id = adventure.get("campaign_id")
     memory = build_narrative_context(adventure, campaign_id, char)
-    system = dnd5e_system_prompt(
+    system = game_plugin(char_dict).system_prompt(
         character=char,
         story_brief=state.get("story_brief") or "",
         canon_summary=memory["canon_summary"],
@@ -538,7 +548,7 @@ def character_keeper_node(state: DMState) -> DMState:
     before_slice = character_audit_slice(state.get("character") or {})
     char_dict = dict(state.get("character") or {})
     char_dict.update(updates)
-    char = rebuild_character(character_from_dict(char_dict))
+    char = rebuild_character(char_from_dict(char_dict))
     after_dict = character_to_dict(char)
     after_slice = character_audit_slice(after_dict)
     diff = diff_character_slices(before_slice, after_slice)
@@ -770,7 +780,7 @@ def _handle_spell_autocomplete(
             )
         if is_spell_confirmation(user_message) and spell_name:
             updated_char, response, lonelog = execute_confirmed_cast(
-                character_from_dict(char),
+                char_from_dict(char),
                 spell_name,
             )
             return _finish_early_turn(
@@ -788,7 +798,7 @@ def _handle_spell_autocomplete(
     if not query:
         return None
 
-    resolution = resolve_spell_query(character_from_dict(char), query)
+    resolution = resolve_spell_query(char_from_dict(char), query)
     if resolution.status == "exact":
         if pending:
             update_session(session_id, {"pending_spell_cast": None})
@@ -819,8 +829,8 @@ def _handle_spell_autocomplete(
         )
 
     if resolution.status == "unknown" and query:
-        available = list_character_spells(character_from_dict(char))
-        if available and not is_spell_available(character_from_dict(char), query):
+        available = list_character_spells(char_from_dict(char))
+        if available and not is_spell_available(char_from_dict(char), query):
             hint = ", ".join(available[:8])
             return _finish_early_turn(
                 session_id,
@@ -928,9 +938,7 @@ def level_up_character(
     char = get_character(char_id)
     if not char:
         raise ValueError("Character not found")
-    obj = level_up(
-        rebuild_character(character_from_dict(char)), hp_roll=hp_roll, class_name=class_name
-    )
+    obj = level_up(rebuild_character(char_from_dict(char)), hp_roll=hp_roll, class_name=class_name)
     saved = character_to_dict(obj)
     save_character(char_id, saved)
     return {"character": saved, "summary": character_creation_summary(obj)}

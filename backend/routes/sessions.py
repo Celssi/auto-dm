@@ -5,13 +5,13 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from backend.dm.actions import SHORTCUTS, run_shortcut
 from backend.dm.audit import read_audit_events, record_audit
 from backend.dm.graph import run_dm_turn
 from backend.dm.lonelog import format_mechanical
 from backend.dm.opening_scene import begin_session
 from backend.dm.oracles import ORACLE_TOOLS, run_oracle
 from backend.dm.trace import audit_session_context
+from backend.games.registry import get_game, resolve_game_id
 from backend.settings_store import load_settings
 from backend.storage import (
     append_session_log,
@@ -55,8 +55,9 @@ def list_all():
 
 
 @router.get("/shortcuts")
-def shortcuts():
-    return {"shortcuts": SHORTCUTS}
+def shortcuts(game_id: str | None = None):
+    plugin = get_game(game_id)
+    return {"shortcuts": plugin.shortcuts}
 
 
 @router.get("/oracles")
@@ -116,7 +117,8 @@ def shortcut(session_id: str, body: ShortcutBody):
         params["pre_rolled"] = body.pre_rolled
     try:
         with audit_session_context(session_id):
-            result = run_shortcut(body.shortcut_id, **params)
+            plugin = get_game(resolve_game_id(char))
+            result = plugin.run_shortcut(body.shortcut_id, **params)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     if not body.narrate:

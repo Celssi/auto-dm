@@ -7,7 +7,6 @@ from typing import Any
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 
-from backend.characters.entity import character_from_dict, format_for_prompt
 from backend.dm.campaign_bootstrap import (
     BootstrapMode,
     generate_adventure_spec_for_campaign,
@@ -17,6 +16,7 @@ from backend.dm.session_opening import attach_opening_to_session
 from backend.dm.story_director import ensure_story_progress
 from backend.dm.story_memory import generate_opening_summary
 from backend.dm.world_context import world_context_for_campaign
+from backend.games.dnd5e.characters.entity import character_from_dict, format_for_prompt
 from backend.journal_storage import get_campaign, save_campaign_location, save_campaign_npc, slugify
 from backend.llm import get_langchain_chat_llm
 from backend.storage import (

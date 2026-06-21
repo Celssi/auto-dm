@@ -1,15 +1,15 @@
 """Creation choice validation and application."""
 
-from backend.characters.character_builder import finalize_new_character
-from backend.characters.creation_choices import (
+from backend.games.dnd5e.characters.character_builder import finalize_new_character
+from backend.games.dnd5e.characters.creation_choices import (
     choices_for_character,
     class_choice_lines,
     species_trait_lines,
     validate_creation_choices,
     weapon_mastery_label,
 )
-from backend.characters.entity import Dnd5eCharacter
-from backend.characters.features import unlocked_features
+from backend.games.dnd5e.characters.entity import Dnd5eCharacter
+from backend.games.dnd5e.characters.features import unlocked_features
 
 
 def _complete_fighter_human(char: Dnd5eCharacter) -> Dnd5eCharacter:

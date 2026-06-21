@@ -6,10 +6,10 @@ from fastapi import APIRouter
 from pydantic import BaseModel
 
 from backend.config import ANTHROPIC_API_KEY, CLAUDE_CHAT_MODEL, COLLECTION_NAME
+from backend.games.registry import get_game, list_games
 from backend.glossary import glossary_payload, lookup_entries
 from backend.rag.engine import query_rules
 from backend.rag.ingest import run_ingest
-from backend.rag.plugin import get_all_factions
 from backend.rag.retrieval_core import get_collection
 from backend.settings_store import load_settings, save_settings
 
@@ -34,6 +34,11 @@ class IngestBody(BaseModel):
 class GlossaryLookupBody(BaseModel):
     names: list[str]
     use_rag: bool = True
+
+
+@router.get("/games")
+def games():
+    return {"games": list_games()}
 
 
 @router.get("/settings")
@@ -85,7 +90,10 @@ def glossary_lookup(body: GlossaryLookupBody):
 
 @router.post("/rules/search")
 def rules_search(body: RulesSearchBody):
-    factions = get_all_factions() if body.include_faerun else ["player", "dm", "monsters"]
+    if body.include_faerun:
+        factions = get_game().get_all_factions()
+    else:
+        factions = ["player", "dm", "monsters"]
     result = query_rules(body.question, factions=factions, use_rerank=True)
     return {"answer": result.answer, "sources": result.sources}
 

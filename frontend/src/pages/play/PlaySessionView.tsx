@@ -168,7 +168,7 @@ function PlayCharacterPanel({
         <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">Character</h2>
         {character && characterId && (
           <Link
-            to={`/characters?id=${characterId}`}
+            to={`/characters/${characterId}`}
             className="text-[10px] text-accent/80 hover:text-accent hover:underline"
           >
             Full sheet
@@ -308,7 +308,7 @@ function PlayChatArea({
                   {startingNext ? 'Starting next adventure…' : `Start: ${nextAdventure.name}`}
                 </button>
               ) : campaignId ? (
-                <Link to={`/campaigns?id=${campaignId}`} className="text-sm text-accent hover:underline">
+                <Link to={`/campaigns/${campaignId}`} className="text-sm text-accent hover:underline">
                   View campaign adventures
                 </Link>
               ) : null}

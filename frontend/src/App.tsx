@@ -55,8 +55,16 @@ export default function App() {
               <Route element={<Layout />}>
                 <Route index element={<HomeWrapper />} />
                 <Route path="characters" element={<CharactersPage />} />
+                <Route path="characters/new" element={<CharactersPage />} />
+                <Route path="characters/:characterId/edit" element={<CharactersPage />} />
+                <Route path="characters/:characterId" element={<CharactersPage />} />
                 <Route path="campaigns" element={<CampaignsPage />} />
+                <Route path="campaigns/new" element={<CampaignsPage />} />
+                <Route path="campaigns/:campaignId/:tab" element={<CampaignsPage />} />
+                <Route path="campaigns/:campaignId" element={<CampaignsPage />} />
                 <Route path="adventures" element={<AdventuresPage />} />
+                <Route path="adventures/new" element={<AdventuresPage />} />
+                <Route path="adventures/:adventureId" element={<AdventuresPage />} />
                 <Route path="play" element={<PlayPage />} />
                 <Route path="play/:sessionId" element={<PlayPage />} />
                 <Route path="settings" element={<SettingsPage />} />

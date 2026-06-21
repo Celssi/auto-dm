@@ -1,4 +1,4 @@
-from backend.characters.entity import character_from_dict, character_to_dict
+from backend.games.dnd5e.characters.entity import character_from_dict, character_to_dict
 
 
 def test_appearance_round_trips_via_equipment_notes():

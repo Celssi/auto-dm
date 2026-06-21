@@ -5,7 +5,7 @@ from __future__ import annotations
 import random
 from typing import Any
 
-from backend.dm.curated import roll_oracle
+from backend.games.dnd5e.dm.curated import roll_oracle
 
 YES_NO_ANSWERS = [
     "Yes",

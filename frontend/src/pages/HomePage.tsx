@@ -5,6 +5,7 @@ import PageHeader from '../components/ui/PageHeader';
 import StatusBadge from '../components/ui/StatusBadge';
 import AnimatedPage from '../components/ui/AnimatedPage';
 import { fadeUp, staggerContainer } from '../components/ui/motion';
+import { DEFAULT_GAME_ID, gameLabel } from '../games/registry';
 
 interface Props {
   indexed: boolean;
@@ -39,7 +40,7 @@ export default function HomePage({ indexed, claudeOk, recentSession, sessionsLoa
     <AnimatedPage className="max-w-4xl mx-auto space-y-10">
       <PageHeader
         title="Auto-DM"
-        subtitle="D&D 5e (2024) solo play with Claude as your Dungeon Master: rules lookup, oracles, and a living journal."
+        subtitle={`${gameLabel(DEFAULT_GAME_ID)} solo play with Claude as your Dungeon Master: rules lookup, oracles, and a living journal.`}
       />
 
       <m.div variants={fadeUp} className="flex flex-wrap gap-2">

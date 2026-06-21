@@ -1,15 +1,15 @@
 import { useState } from 'react';
 import { m } from '../../lib/framer';
 import type { Character } from '../../types';
-import type { PdfUnlockedFeatures } from '../../components/character-sheet/characterSheetPdfAssembly';
-import CharacterSheetView from '../../components/character-sheet/CharacterSheetView';
-import CharacterSheetHeader from '../../components/character-sheet/CharacterSheetHeader';
-import CreationChoicesForm from '../../components/character-sheet/CreationChoicesForm';
-import MulticlassPanel from '../../components/character-sheet/MulticlassPanel';
-import UnlockedFeaturesPanel from '../../components/character-sheet/UnlockedFeaturesPanel';
+import type { PdfUnlockedFeatures } from '../../games/dnd5e/character-sheet/characterSheetPdfAssembly';
+import CharacterSheetView from '../../games/dnd5e/character-sheet/CharacterSheetView';
+import CharacterSheetHeader from '../../games/dnd5e/character-sheet/CharacterSheetHeader';
+import CreationChoicesForm from '../../games/dnd5e/character-sheet/CreationChoicesForm';
+import MulticlassPanel from '../../games/dnd5e/character-sheet/MulticlassPanel';
+import UnlockedFeaturesPanel from '../../games/dnd5e/character-sheet/UnlockedFeaturesPanel';
 import { fadeUp } from '../../components/ui/motion';
 
-type UnlockedFeatures = import('../../components/character-sheet/UnlockedFeaturesPanel').UnlockedFeatures;
+type UnlockedFeatures = import('../../games/dnd5e/character-sheet/UnlockedFeaturesPanel').UnlockedFeatures;
 
 type Props = {
   character: Character;
@@ -58,7 +58,7 @@ export default function CharacterDetailPanel({
           type="button"
           className="btn-ghost"
           onClick={async () => {
-            const { downloadCharacterPdf } = await import('../../components/character-sheet/CharacterSheetPdf');
+            const { downloadCharacterPdf } = await import('../../games/dnd5e/character-sheet/CharacterSheetPdf');
             const feats = summary?.unlocked_features as PdfUnlockedFeatures | undefined;
             downloadCharacterPdf(character, undefined, feats);
           }}

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from backend.characters.background_extract import BackgroundSpec, diff_background
+from backend.games.dnd5e.characters.background_extract import BackgroundSpec, diff_background
 
 
 def test_diff_tool_ignores_choose_one_kind_prefix():

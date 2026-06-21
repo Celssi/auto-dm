@@ -9,7 +9,7 @@ import {
   saveBonus,
   skillBonus,
   spellSaveDc,
-} from '../character-sheet/sheetUtils';
+} from '../../games/dnd5e/character-sheet/sheetUtils';
 
 interface Props {
   character: Character;

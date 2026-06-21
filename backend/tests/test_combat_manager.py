@@ -5,8 +5,15 @@ from pathlib import Path
 from unittest.mock import patch
 
 import backend.config as cfg
-from backend.characters.entity import character_from_dict
-from backend.dm.combat_manager import (
+from backend.dm.encounters import (
+    Combatant,
+    CombatState,
+    EncounterEnemySpec,
+    EncounterSpec,
+    save_adventure_encounters,
+)
+from backend.games.dnd5e.characters.entity import character_from_dict
+from backend.games.dnd5e.dm.combat_manager import (
     advance_turn,
     apply_damage_to_player,
     check_concentration_save,
@@ -16,14 +23,7 @@ from backend.dm.combat_manager import (
     resolve_enemy_turn,
     start_encounter,
 )
-from backend.dm.encounters import (
-    Combatant,
-    CombatState,
-    EncounterEnemySpec,
-    EncounterSpec,
-    save_adventure_encounters,
-)
-from backend.dm.monster_resolver import MonsterAttack, MonsterStats
+from backend.games.dnd5e.dm.monster_resolver import MonsterAttack, MonsterStats
 
 
 def _char_dict(hp: int = 30, ac: int = 15, **extras) -> dict:
@@ -56,7 +56,7 @@ def test_advance_turn_wraps_round():
 
 
 def test_resolve_enemy_attack_nat_20_hits():
-    with patch("backend.dm.combat_manager.roll_dice") as roll:
+    with patch("backend.games.dnd5e.dm.combat_manager.roll_dice") as roll:
         roll.side_effect = [
             {"rolls": [20], "total": 20},
             {"total": 7},
@@ -102,8 +102,9 @@ def test_start_encounter_and_initiative_order():
         attacks=[MonsterAttack(name="Harpoon", to_hit=6, damage="2d6+3")],
     )
 
-    with patch("backend.dm.combat_manager.lookup_monster", return_value=fake_stats):
-        with patch("backend.dm.combat_manager._roll_initiative", side_effect=[15, 10, 8]):
+    patch_path = "backend.games.dnd5e.dm.combat_manager._roll_initiative"
+    with patch("backend.games.dnd5e.dm.combat_manager.lookup_monster", return_value=fake_stats):
+        with patch(patch_path, side_effect=[15, 10, 8]):
             state = start_encounter(session_id, encounter, _char_dict())
 
     assert state.encounter_name == "Merrow Raid"
@@ -206,7 +207,7 @@ def test_completed_encounter_not_restarted():
 
 def test_concentration_save_success_on_low_damage():
     char = character_from_dict(_char_dict(concentration="Bless", class_name="fighter"))
-    with patch("backend.dm.combat_manager.roll_dice") as roll:
+    with patch("backend.games.dnd5e.dm.combat_manager.roll_dice") as roll:
         roll.return_value = {"rolls": [15], "total": 15}
         maintained, summary = check_concentration_save(char, 8)
     assert maintained is True
@@ -216,7 +217,7 @@ def test_concentration_save_success_on_low_damage():
 
 def test_concentration_save_failure():
     char = character_from_dict(_char_dict(concentration="Bless", class_name="wizard"))
-    with patch("backend.dm.combat_manager.roll_dice") as roll:
+    with patch("backend.games.dnd5e.dm.combat_manager.roll_dice") as roll:
         roll.return_value = {"rolls": [3], "total": 3}
         maintained, summary = check_concentration_save(char, 30)
     assert maintained is False
@@ -233,7 +234,7 @@ def test_concentration_save_not_triggered_without_spell():
 
 def test_concentration_dc_minimum_is_10():
     char = character_from_dict(_char_dict(concentration="Shield of Faith"))
-    with patch("backend.dm.combat_manager.roll_dice") as roll:
+    with patch("backend.games.dnd5e.dm.combat_manager.roll_dice") as roll:
         roll.return_value = {"rolls": [9], "total": 9}
         maintained, summary = check_concentration_save(char, 4)
     assert "DC 10" in summary
@@ -277,7 +278,7 @@ def test_multiattack_enemy_makes_multiple_attacks():
         {"total": 12},
         {"rolls": [5], "total": 5},
     ]
-    with patch("backend.dm.combat_manager.roll_dice", side_effect=attack_rolls):
+    with patch("backend.games.dnd5e.dm.combat_manager.roll_dice", side_effect=attack_rolls):
         state, char_dict, events = resolve_enemy_turn(state, _char_dict(hp=40))
     multiattack_events = [e for e in events if "Multiattack" in e]
     attack_events = [e for e in events if "attacks" in e.lower() and "Multiattack" not in e]
@@ -321,7 +322,7 @@ def test_enemy_attack_breaks_concentration():
         {"total": 10},
         {"rolls": [2], "total": 2},
     ]
-    with patch("backend.dm.combat_manager.roll_dice", side_effect=roll_sequence):
+    with patch("backend.games.dnd5e.dm.combat_manager.roll_dice", side_effect=roll_sequence):
         state, updated_char, events = resolve_enemy_turn(state, char)
     conc_events = [e for e in events if "Concentration" in e]
     assert len(conc_events) == 1

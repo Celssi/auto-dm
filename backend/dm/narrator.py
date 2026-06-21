@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
-from backend.characters.entity import Dnd5eCharacter, campaign_setting_line
+from backend.games.dnd5e.characters.entity import Dnd5eCharacter, campaign_setting_line
 from backend.llm import ChatProvider, get_langchain_chat_llm, invoke_chat_llm
 
 

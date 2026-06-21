@@ -17,7 +17,6 @@ from llama_index.vector_stores.chroma import ChromaVectorStore
 from backend.config import (
     CHAT_MODEL,
     CHROMA_DIR,
-    COLLECTION_NAME,
     EMBED_DOCUMENT_PREFIX,
     EMBED_MODEL,
     EMBED_QUERY_PREFIX,
@@ -36,12 +35,14 @@ def _get_chroma_client():
 
 
 def get_collection(game_id: str = "dnd5e"):
-    _ = game_id
+    from backend.games.registry import get_game
+
+    collection_name = get_game(game_id).collection_name
     if not CHROMA_DIR.exists():
         return None
     client = _get_chroma_client()
     try:
-        collection = client.get_collection(COLLECTION_NAME)
+        collection = client.get_collection(collection_name)
     except Exception:
         return None
     if collection.count() == 0:

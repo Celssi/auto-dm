@@ -21,20 +21,20 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from backend.characters.background_extract import (  # noqa: E402
+from backend.config import CORE_PDFS, FAERUN_PDFS, pdf_path
+from backend.games.dnd5e.characters.background_extract import (  # noqa: E402
     diff_background,
     extract_background,
     load_curated_backgrounds,
     load_pdf_pages,
 )
-from backend.characters.character_data import (
+from backend.games.dnd5e.characters.character_data import (
     get_background,
     list_backgrounds,
     list_classes,
     list_species,
 )
-from backend.characters.features import class_features_data, subclass_features_data
-from backend.config import CORE_PDFS, FAERUN_PDFS, pdf_path
+from backend.games.dnd5e.characters.features import class_features_data, subclass_features_data
 from backend.rag.retrieval_core import get_collection
 
 

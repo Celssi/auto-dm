@@ -1,8 +1,8 @@
 """Starting equipment packages."""
 
-from backend.characters.character_builder import finalize_new_character
-from backend.characters.character_data import list_starting_gear_options
-from backend.characters.entity import Dnd5eCharacter, character_to_dict
+from backend.games.dnd5e.characters.character_builder import finalize_new_character
+from backend.games.dnd5e.characters.character_data import list_starting_gear_options
+from backend.games.dnd5e.characters.entity import Dnd5eCharacter, character_to_dict
 
 
 def test_fighter_starting_gear_has_no_gold_only_option():

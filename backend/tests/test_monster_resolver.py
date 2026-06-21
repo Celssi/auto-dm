@@ -2,7 +2,7 @@
 
 from unittest.mock import MagicMock, patch
 
-from backend.dm.monster_resolver import MonsterAttack, MonsterStats, lookup_monster
+from backend.games.dnd5e.dm.monster_resolver import MonsterAttack, MonsterStats, lookup_monster
 
 
 def test_lookup_monster_uses_llm_parsed_stats():
@@ -18,8 +18,9 @@ def test_lookup_monster_uses_llm_parsed_stats():
     mock_llm = MagicMock()
     mock_llm.with_structured_output.return_value.invoke.return_value = parsed
 
-    with patch("backend.dm.monster_resolver.query_rules", return_value=rag_result):
-        with patch("backend.dm.monster_resolver.get_langchain_chat_llm", return_value=mock_llm):
+    llm_path = "backend.games.dnd5e.dm.monster_resolver.get_langchain_chat_llm"
+    with patch("backend.games.dnd5e.dm.monster_resolver.query_rules", return_value=rag_result):
+        with patch(llm_path, return_value=mock_llm):
             stats = lookup_monster("Merrow")
 
     assert stats.name == "Merrow"
@@ -33,7 +34,7 @@ def test_lookup_monster_fallback_when_no_rag():
     rag_result = MagicMock()
     rag_result.sources = []
 
-    with patch("backend.dm.monster_resolver.query_rules", return_value=rag_result):
+    with patch("backend.games.dnd5e.dm.monster_resolver.query_rules", return_value=rag_result):
         stats = lookup_monster("Unknown Beast")
 
     assert stats.name == "Unknown Beast"

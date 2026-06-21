@@ -35,10 +35,14 @@ export const api = {
       body: JSON.stringify(settings),
     }),
 
+  getGames: () => request<{ games: { id: string; label: string }[] }>('/games'),
+
   listCharacters: () => request<{ characters: { id: string; name: string }[] }>('/characters'),
   getCharacter: (id: string) => request<{ character: Record<string, unknown> }>(`/characters/${id}`),
-  getCharacterOptions: (includeFaerun = false) =>
-    request<Record<string, unknown>>(`/characters/options?include_faerun=${includeFaerun}`),
+  getCharacterOptions: (includeFaerun = false, gameId = 'dnd5e') =>
+    request<Record<string, unknown>>(
+      `/characters/options?include_faerun=${includeFaerun}&game_id=${encodeURIComponent(gameId)}`,
+    ),
   getCharacterSummary: (id: string) =>
     request<{ summary: Record<string, unknown>; character: Record<string, unknown> }>(`/characters/${id}/summary`),
   createCharacter: (character: Record<string, unknown>) =>
@@ -128,7 +132,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ message }),
     }),
-  getShortcuts: () => request<{ shortcuts: Shortcut[] }>('/sessions/shortcuts'),
+  getShortcuts: (gameId = 'dnd5e') =>
+    request<{ shortcuts: Shortcut[] }>(`/sessions/shortcuts?game_id=${encodeURIComponent(gameId)}`),
   getOracles: () => request<{ oracles: Oracle[] }>('/sessions/oracles'),
   runOracle: (sessionId: string, oracle_id: string, likelihood_level = 'fifty_fifty') =>
     request<{ summary: string }>(`/sessions/${sessionId}/oracle`, {

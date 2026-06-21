@@ -7,6 +7,7 @@ export interface ClassLevel {
 
 export interface Character {
   id?: string;
+  game_id?: string;
   name: string;
   species: string;
   class_name: string;

@@ -9,13 +9,13 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
-from backend.characters.character_builder import (
+from backend.games.dnd5e.characters.character_builder import (
     compute_spell_slots,
     level_up,
     rebuild_character,
     spell_limits,
 )
-from backend.characters.character_data import (
+from backend.games.dnd5e.characters.character_data import (
     character_options_payload,
     get_background,
     get_class,
@@ -24,8 +24,8 @@ from backend.characters.character_data import (
     list_classes,
     list_species,
 )
-from backend.characters.entity import Dnd5eCharacter
-from backend.characters.multiclass import class_levels_dict
+from backend.games.dnd5e.characters.entity import Dnd5eCharacter
+from backend.games.dnd5e.characters.multiclass import class_levels_dict
 
 
 def main() -> int:
@@ -149,7 +149,7 @@ def main() -> int:
     assert mc.level == 3
     assert len(class_levels_dict(mc)) == 2
 
-    from backend.characters.features import subclass_features_for, unlocked_features
+    from backend.games.dnd5e.characters.features import subclass_features_for, unlocked_features
 
     feats = subclass_features_for("barbarian", "Path of the Berserker", 3)
     assert "Frenzy" in feats

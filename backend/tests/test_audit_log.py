@@ -9,16 +9,16 @@ import pytest
 
 import backend.config as cfg
 from backend import journal_storage, storage
-from backend.characters.entity import character_from_dict
-from backend.characters.spell_resources import apply_resource_updates
-from backend.dm.actions import run_shortcut
 from backend.dm.audit import read_audit_events, record_audit
-from backend.dm.combat_manager import apply_damage_to_player, start_encounter
 from backend.dm.encounters import EncounterEnemySpec, EncounterSpec
 from backend.dm.graph import character_keeper_node
-from backend.dm.monster_resolver import MonsterAttack, MonsterStats
-from backend.dm.resource_keeper import ResourceTurnUpdates, SpellCast
 from backend.dm.trace import audit_session_context
+from backend.games.dnd5e.actions import run_shortcut
+from backend.games.dnd5e.characters.entity import character_from_dict
+from backend.games.dnd5e.characters.spell_resources import apply_resource_updates
+from backend.games.dnd5e.dm.combat_manager import apply_damage_to_player, start_encounter
+from backend.games.dnd5e.dm.monster_resolver import MonsterAttack, MonsterStats
+from backend.games.dnd5e.dm.resource_keeper import ResourceTurnUpdates, SpellCast
 from backend.play_tools import roll_dice
 
 
@@ -147,8 +147,8 @@ def test_combat_start_logs_initiative(saves_dir: Path):
     )
     char = {"name": "Hero", "hp": 30, "max_hp": 30, "ac": 15, "ability_scores": {"dex": 14}}
 
-    with patch("backend.dm.combat_manager.lookup_monster", return_value=fake_stats):
-        with patch("backend.dm.combat_manager._roll_initiative", side_effect=[15, 10]):
+    with patch("backend.games.dnd5e.dm.combat_manager.lookup_monster", return_value=fake_stats):
+        with patch("backend.games.dnd5e.dm.combat_manager._roll_initiative", side_effect=[15, 10]):
             start_encounter("sess-combat", encounter, char)
 
     events = read_audit_events("sess-combat")

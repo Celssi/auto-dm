@@ -7,7 +7,6 @@ from typing import Any, Literal
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 
-from backend.characters.entity import character_from_dict, format_for_prompt
 from backend.dm.campaign_repair import (
     extract_encounters_from_outline,
     extract_journal_from_text,
@@ -17,6 +16,8 @@ from backend.dm.session_opening import attach_opening_to_session
 from backend.dm.story_director import ensure_story_progress
 from backend.dm.story_memory import generate_opening_summary
 from backend.dm.world_context import prior_adventures_context, world_context_for_campaign
+from backend.games.dnd5e.characters.entity import character_from_dict, format_for_prompt
+from backend.games.registry import get_game
 from backend.journal_storage import (
     get_campaign,
     save_campaign,
@@ -26,7 +27,6 @@ from backend.journal_storage import (
 )
 from backend.llm import get_langchain_chat_llm
 from backend.rag.engine import query_rules
-from backend.rag.plugin import get_all_factions
 from backend.settings_store import load_settings
 from backend.storage import (
     create_session,
@@ -62,7 +62,7 @@ def rag_context_for_theme(
     theme: str,
     include_faerun: bool,
 ) -> tuple[str, list[str]]:
-    factions = get_all_factions() if include_faerun else ["player", "dm", "monsters"]
+    factions = get_game().get_all_factions() if include_faerun else ["player", "dm", "monsters"]
     rules_query = theme
     if mode == "module" and include_faerun:
         rules_query = f"Adventure in Faerûn: {theme}. Locations, NPCs, plot hooks."
@@ -376,7 +376,7 @@ def generate_campaign_plan(
 
     rag = query_rules(
         theme if mode == "module" else f"D&D campaign arc: {theme}",
-        factions=get_all_factions() if include_faerun else ["player", "dm", "monsters"],
+        factions=get_game().get_all_factions() if include_faerun else ["player", "dm", "monsters"],
         top_k=10 if mode == "module" else 6,
         use_rerank=True,
         generate_answer=False,
