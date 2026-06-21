@@ -50,7 +50,7 @@ export default function App() {
     <QueryClientProvider client={queryClient}>
       <MotionProvider>
         <GlossaryProvider>
-          <BrowserRouter>
+          <BrowserRouter useTransitions={false}>
             <Routes>
               <Route element={<Layout />}>
                 <Route index element={<HomeWrapper />} />

@@ -68,7 +68,7 @@ export default function Layout() {
             : 'py-6 md:py-8 max-w-7xl'
         }`}
       >
-        <Outlet />
+        <Outlet key={loc.pathname} />
       </main>
     </div>
   );
