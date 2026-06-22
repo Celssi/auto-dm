@@ -1,6 +1,6 @@
 # Auto-DM
 
-**An educational solo-play project:** a web app that acts as an automated Dungeon Master for D&D 5e (2024), with rules lookup, character sheets, and persistent adventures.
+**An educational solo-play project:** a web app that acts as an automated Dungeon Master for D&D 5e (2024), with rules lookup, character sheets, campaign arcs, and persistent adventures.
 
 This repo is meant for learning how to combine **LLM agents**, **RAG over PDFs**, and a **small full-stack app** into one playable system. It is not an official Wizards of the Coast product, and **rulebook PDFs are not included** (see [Rulebooks](#rulebooks-you-must-provide-locally)).
 
@@ -13,12 +13,17 @@ Repository: [github.com/Celssi/auto-dm](https://github.com/Celssi/auto-dm)
 | Topic | Where it lives |
 |-------|----------------|
 | LangGraph multi-step DM pipeline | `backend/dm/graph.py` |
+| Pre-graph spell autocomplete & combat prep | `backend/games/dnd5e/dm/spell_autocomplete.py`, `combat_manager.py` |
 | RAG: chunk → embed → hybrid search → rerank | `backend/rag/` |
 | OCR for scanned rulebook pages | `backend/rag/ocr.py` |
+| Game plugin registry (extensible rulesets) | `backend/games/` |
 | Curated YAML for character creation | `data/curated/` |
-| FastAPI REST + SSE play endpoint | `backend/routes/` |
-| React character wizard & play UI | `frontend/src/` |
-| File-based campaign journal | `backend/dm/journal_keeper.py` |
+| Campaign & adventure bootstrap | `backend/dm/campaign_bootstrap.py`, `backend/routes/play.py` |
+| Story director (spoiler-free checkpoints) | `backend/dm/story_director.py` |
+| FastAPI REST API | `backend/routes/` |
+| React wizard, campaigns UI & play session | `frontend/src/` |
+| File-based campaign journal | `backend/dm/journal_keeper.py`, `backend/journal_storage.py` |
+| PHB glossary tooltips | `backend/glossary.py`, `frontend/src/context/GlossaryContext.tsx` |
 
 ---
 
@@ -29,6 +34,8 @@ flowchart TB
     subgraph UI["Frontend (React + Vite)"]
         Home[Home]
         Chars[Characters]
+        Camps[Campaigns]
+        Advs[Adventures]
         Play[Play session]
         Settings[Settings]
     end
@@ -60,16 +67,26 @@ flowchart TB
     Store --> data[(data/saves/)]
 ```
 
-When you send a message during play, the backend runs a **fixed pipeline** of specialist steps (combat math, rules lookup, narration, logging) before returning a reply.
+When you send a message during play, the backend may resolve spell confirmations or enemy turns first, then runs a **fixed LangGraph pipeline** of specialist steps (combat math, rules lookup, narration, logging) before returning a JSON reply.
 
 ---
 
 ## DM turn pipeline
 
-Each player message flows through a LangGraph graph. Post-narrator bookkeeping nodes run in parallel where possible.
+Each player message eventually flows through a LangGraph graph. Two steps run **before** the graph in `run_dm_turn`:
+
+1. **Spell autocomplete** — fuzzy `/cast` names can short-circuit the graph with a confirmation prompt.
+2. **Enemy turns** — if combat is active and it is not the player's turn, enemies act until control returns to the player.
+
+Post-narrator bookkeeping nodes run in parallel where possible.
 
 ```mermaid
-flowchart LR
+flowchart TB
+    subgraph Pre["Before LangGraph"]
+        SA[Spell autocomplete]
+        ET[Enemy turns until player]
+    end
+
     R[Router] --> CP[Combat mgr pre]
     CP --> C[Combat mechanics]
     C --> RF[Rules referee]
@@ -86,6 +103,9 @@ flowchart LR
     CH --> CM
     SD --> CM
     J --> CM
+
+    SA --> ET
+    ET --> R
 ```
 
 | Node | Role |
@@ -135,6 +155,7 @@ flowchart TD
 ```bash
 ./scripts/ingest-full.sh              # PHB + DMG + MM + Faerûn (OCR cache shared ingest → audit)
 ./scripts/ingest-full.sh --ocr         # force re-OCR on ingest only; audit still uses cache
+./scripts/ingest-full.sh --no-ocr      # native PDF text only (faster, worse on scanned pages)
 ./scripts/ingest-full.sh --skip-audit   # ingest only, no YAML audit
 ```
 
@@ -147,16 +168,16 @@ OCR progress shows page counts, elapsed time, and ETA. Cached OCR lives in `data
 ```
 auto-dm/
 ├── backend/
-│   ├── dm/              # LangGraph DM, prompts, oracles, journal
+│   ├── dm/              # LangGraph DM, story director, journal, combat hooks
+│   ├── games/           # Game plugins (dnd5e: characters, combat, shortcuts)
 │   ├── rag/             # Ingest, OCR, retrieval, query engine
-│   ├── characters/      # Builder, spells, multiclass, validation
-│   └── routes/          # FastAPI endpoints
+│   └── routes/          # FastAPI endpoints (characters, campaigns, adventures, sessions, play)
 ├── frontend/            # React UI (Vite, Tailwind)
 ├── data/
 │   ├── curated/         # YAML: classes, spells, backgrounds, …
 │   ├── chroma/          # vector index (generated)
 │   ├── ocr_cache/       # OCR JSON cache (generated)
-│   └── saves/           # characters, campaigns, sessions (local)
+│   └── saves/           # characters, campaigns, adventures, sessions (local)
 ├── dnd5e/               # place your PDFs here (not in git)
 └── scripts/             # ingest, audit, start-app, validators
 ```
@@ -239,6 +260,8 @@ cd frontend && npm run dev
 
 Open **http://localhost:5173**
 
+For a single-process setup, build the frontend (`cd frontend && npm run build`) and run only uvicorn — FastAPI serves `frontend/dist` when present.
+
 ---
 
 ## Rulebooks (you must provide locally)
@@ -259,10 +282,13 @@ These files are **gitignored** on purpose. The curated YAML in `data/curated/` c
 
 ## Features
 
-- **Solo play session** — chat UI, dice shortcuts, oracles, spell autocomplete
+- **Solo play session** — chat UI, dice shortcuts, oracles, spell autocomplete, combat sidebar
 - **Character builder** — 12 PHB 2024 classes, level-up, multiclass, PDF sheet export
-- **Campaign journal** — NPCs, locations, adventure log persisted as JSON/Markdown
-- **Rules search** — hybrid dense + lexical retrieval, optional reranking
+- **Campaigns** — multi-adventure arcs, story bible, NPC/location journal, AI campaign generation, copy/repair tools
+- **Adventures** — outlines, story-director checkpoints (player-safe progress), planned encounters
+- **Combat** — initiative, enemy turns, concentration, planned encounter triggers from outlines
+- **Rules search** — hybrid dense + lexical retrieval, optional reranking, citations in play
+- **Glossary** — PHB term tooltips in character sheet and play UI
 - **Faerûn mode** — optional supplement data and RAG factions
 - **Settings** — reindex, Faerûn toggle, rerank preference
 
@@ -293,23 +319,32 @@ sequenceDiagram
     participant P as Player
     participant UI as Frontend
     participant API as FastAPI
+    participant T as run_dm_turn
     participant G as LangGraph
     participant R as RAG
     participant L as Claude
     participant D as data/saves
 
     P->>UI: message or /shortcut
-    UI->>API: POST /api/play/...
-    API->>G: run_dm_turn
+    UI->>API: POST /api/sessions/{id}/chat
+    API->>T: run_dm_turn
+    opt spell autocomplete or enemy turns
+        T-->>API: early JSON reply
+        API-->>UI: JSON
+    end
+    T->>G: invoke graph
     G->>R: rules query (if needed)
     R-->>G: excerpts + sources
     G->>L: narrate with context
     L-->>G: response + updates
     G->>D: session, character, journal
-    G-->>API: reply + sources
-    API-->>UI: SSE / JSON
+    G-->>T: reply + sources
+    T-->>API: JSON
+    API-->>UI: JSON
     UI-->>P: narrative + citations
 ```
+
+Shortcut rolls and oracles use separate session endpoints (`/api/sessions/{id}/shortcut`, `/api/sessions/{id}/oracle`). Campaign and adventure bootstrap use `/api/play/*`.
 
 ---
 
@@ -320,6 +355,8 @@ sequenceDiagram
 **Why YAML + RAG?** Structured character options (class features, spell lists) are faster and more reliable from curated data. Open-ended questions (“how does grappling work on a mount?”) need semantic search over the books.
 
 **Why LangGraph?** A structured pipeline keeps each concern testable: you can inspect combat output before narration, or skip RAG when the player just rolls dice. Post-narrator bookkeeping nodes fan out in parallel to reduce latency.
+
+**Why campaigns + adventures?** A campaign holds long-lived world state (NPCs, locations, story arc). Adventures are playable episodes with hidden DM outlines and checkpoint progress so the narrator can advance plot without spoiling future beats.
 
 **First ingest is slow** because PHB/MM pages are often scanned; Tesseract OCR at 300 DPI is CPU-heavy. Re-runs use `data/ocr_cache/`.
 
