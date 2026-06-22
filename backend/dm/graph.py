@@ -6,7 +6,10 @@ import re
 from typing import Any, TypedDict
 
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.runnables.config import RunnableConfig
 from langgraph.graph import END, StateGraph
+
+from backend.config import LANGSMITH_ENABLED
 
 from backend.dm.audit import record_audit
 from backend.dm.continuity_guard import apply_continuity_guard
@@ -14,6 +17,7 @@ from backend.dm.encounters import combat_state_view, load_combat_state
 from backend.dm.journal_keeper import run_journal_keeper
 from backend.dm.lonelog import format_mechanical, format_narrative
 from backend.dm.narrator import synthesize_lonelog_summary
+from backend.dm.prose_style import sanitize_narration_dashes
 from backend.dm.story_director import (
     apply_completion_if_done,
     build_narrator_brief,
@@ -36,6 +40,7 @@ from backend.games.dnd5e.characters.spell_resources import is_spell_available
 from backend.games.dnd5e.dm.combat_manager import (
     finish_player_turn,
     format_combat_context,
+    player_took_combat_action,
     run_enemy_turns_until_player,
     try_start_planned_encounter,
 )
@@ -482,9 +487,10 @@ def narrator_node(state: DMState) -> DMState:
     lc_messages.append(HumanMessage(content="\n\n".join(user_parts)))
     response = invoke_chat_llm(llm, lc_messages, agent="narrator", provider="claude")
     text = response.content if isinstance(response.content, str) else str(response.content)
+    text = sanitize_narration_dashes(text.strip())
     return {
-        "narrative": text.strip(),
-        "response": text.strip(),
+        "narrative": text,
+        "response": text,
         "narrative_context": memory,
     }
 
@@ -643,6 +649,11 @@ def combat_manager_post_node(state: DMState) -> DMState:
     session_id = state.get("session_id", "")
     if not session_id or not load_combat_state(session_id):
         return {}
+    if not player_took_combat_action(
+        state.get("user_message") or "",
+        state.get("shortcut_result"),
+    ):
+        return {}
 
     char_dict = state.get("character") or {}
     combat_after, char_dict, events = finish_player_turn(session_id, char_dict)
@@ -703,11 +714,11 @@ def build_dm_graph():
     graph.add_edge("scribe", "story_director_update")
     graph.add_edge("scribe", "journal_keeper")
 
-    # Fan-in: all parallel branches converge on combat_manager_post
+    # Fan-in: only keeper ends the combat turn (avoids duplicate finish_player_turn).
     graph.add_edge("keeper", "combat_manager_post")
-    graph.add_edge("chronicler", "combat_manager_post")
-    graph.add_edge("story_director_update", "combat_manager_post")
-    graph.add_edge("journal_keeper", "combat_manager_post")
+    graph.add_edge("chronicler", END)
+    graph.add_edge("story_director_update", END)
+    graph.add_edge("journal_keeper", END)
 
     graph.add_edge("combat_manager_post", END)
     return graph.compile()
@@ -846,6 +857,17 @@ def _handle_spell_autocomplete(
     return None
 
 
+def _graph_run_config(session_id: str, user_message: str) -> RunnableConfig:
+    return RunnableConfig(
+        run_name="dm_turn",
+        tags=["auto-dm", "dm_turn"],
+        metadata={
+            "session_id": session_id,
+            "user_message": user_message[:500],
+        },
+    )
+
+
 def run_dm_turn(
     session_id: str,
     user_message: str,
@@ -871,7 +893,8 @@ def run_dm_turn(
     character_id = session["character_id"]
 
     pre_combat_events: list[str] = []
-    if adv_id and not load_combat_state(session_id):
+    combat_before = load_combat_state(session_id)
+    if adv_id and not combat_before:
         try_start_planned_encounter(
             session_id,
             adv_id,
@@ -880,7 +903,16 @@ def run_dm_turn(
             messages=messages[:-1],
         )
 
-    _, char, pre_combat_events = run_enemy_turns_until_player(session_id, char)
+    combat_after_start = load_combat_state(session_id)
+    combat_started_this_turn = bool(combat_after_start and not combat_before)
+    # Resume ongoing combat: resolve enemy turns until the player can act.
+    # Fresh encounter: leave initiative order untouched so narration can land first.
+    if combat_after_start and not combat_started_this_turn:
+        _, char, pre_combat_events = run_enemy_turns_until_player(session_id, char)
+    elif combat_started_this_turn:
+        _, char, _ = run_enemy_turns_until_player(
+            session_id, char, resolve_enemies=False
+        )
     if char != get_character(character_id):
         save_character(character_id, char)
 
@@ -897,8 +929,9 @@ def run_dm_turn(
     }
     if precomputed_shortcut:
         state["precomputed_shortcut"] = precomputed_shortcut
+    run_config = _graph_run_config(session_id, user_message) if LANGSMITH_ENABLED else None
     with dm_turn_trace(session_id, user_message):
-        result = get_dm_graph().invoke(state)
+        result = get_dm_graph().invoke(state, config=run_config or {})
     response = result.get("response", "")
     post_events = list(result.get("combat_events") or [])
     all_combat_lines = pre_combat_events + post_events
@@ -942,3 +975,9 @@ def level_up_character(
     saved = character_to_dict(obj)
     save_character(char_id, saved)
     return {"character": saved, "summary": character_creation_summary(obj)}
+
+
+if LANGSMITH_ENABLED:
+    from langsmith import traceable
+
+    run_dm_turn = traceable(name="run_dm_turn", run_type="chain")(run_dm_turn)

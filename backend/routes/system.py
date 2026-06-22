@@ -5,7 +5,7 @@ from __future__ import annotations
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from backend.config import ANTHROPIC_API_KEY, CLAUDE_CHAT_MODEL, COLLECTION_NAME
+from backend.config import ANTHROPIC_API_KEY, CLAUDE_CHAT_MODEL, COLLECTION_NAME, LANGSMITH_ENABLED, LANGSMITH_ENDPOINT, LANGSMITH_PROJECT
 from backend.games.registry import get_game, list_games
 from backend.glossary import glossary_payload, lookup_entries
 from backend.rag.engine import query_rules
@@ -62,6 +62,9 @@ def health():
         "collection": COLLECTION_NAME,
         "claude_configured": bool(ANTHROPIC_API_KEY),
         "claude_model": CLAUDE_CHAT_MODEL,
+        "langsmith_enabled": LANGSMITH_ENABLED,
+        "langsmith_project": LANGSMITH_PROJECT or None,
+        "langsmith_endpoint": LANGSMITH_ENDPOINT or None,
     }
 
 

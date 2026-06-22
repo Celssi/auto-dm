@@ -12,6 +12,7 @@ from backend.dm.campaign_repair import (
     extract_journal_from_text,
 )
 from backend.dm.encounters import load_adventure_encounters, save_adventure_encounters
+from backend.dm.prose_style import NARRATION_STYLE_RULES, sanitize_narration_dashes
 from backend.dm.session_opening import attach_opening_to_session
 from backend.dm.story_director import ensure_story_progress
 from backend.dm.story_memory import generate_opening_summary
@@ -41,6 +42,10 @@ from backend.storage import (
 BootstrapMode = Literal["freeform", "module"]
 
 
+def _clean_opening(text: str) -> str:
+    return sanitize_narration_dashes((text or "").strip())
+
+
 class JournalEntrySpec(BaseModel):
     name: str = Field(description="Display name")
     body: str = Field(description="Description: appearance, personality, role, current status")
@@ -53,7 +58,12 @@ class CampaignBootstrapSpec(BaseModel):
     adventure_outline: str = Field(description="Markdown outline with acts, encounters, endings")
     npcs: list[JournalEntrySpec] = Field(default_factory=list, description="3-8 key NPCs")
     locations: list[JournalEntrySpec] = Field(default_factory=list, description="3-6 key locations")
-    opening_scene: str = Field(description="2-4 paragraphs of in-world DM narration to start play")
+    opening_scene: str = Field(
+        description=(
+            "2-4 paragraphs of in-world DM narration to start play. "
+            "Never use em dashes or en dashes; use commas or periods."
+        )
+    )
 
 
 def rag_context_for_theme(
@@ -121,6 +131,8 @@ Requirements:
 - locations: 3-6 entries with atmosphere, features, current state
 - opening_scene: drop the player INTO the action; end with a clear choice; no meta commentary
 - Names must be consistent across outline, NPCs, locations, and opening scene
+
+{NARRATION_STYLE_RULES}
 """
     llm = get_langchain_chat_llm("claude").with_structured_output(CampaignBootstrapSpec)
     return llm.invoke([HumanMessage(content=prompt)])
@@ -162,6 +174,7 @@ def bootstrap_campaign(
         save_campaign_location(campaign_id, slugify(loc.name), {"name": loc.name, "body": loc.body})
 
     adventure_id = slugify(spec.adventure_name)
+    opening = _clean_opening(spec.opening_scene)
     save_adventure(
         adventure_id,
         {
@@ -177,14 +190,14 @@ def bootstrap_campaign(
         log=(
             "# Adventure log\n\n"
             "_Bootstrap opening scene logged._\n\n"
-            f"{spec.opening_scene.strip()}\n"
+            f"{opening}\n"
         ),
     )
 
     npc_hints = "\n".join(f"- {n.name}: {n.body[:200]}" for n in spec.npcs[:8])
     summary = generate_opening_summary(
-        log=spec.opening_scene,
-        opening_scene=spec.opening_scene,
+        log=opening,
+        opening_scene=opening,
         npc_hints=npc_hints,
     )
     write_adventure_summary(adventure_id, summary)
@@ -200,7 +213,6 @@ def bootstrap_campaign(
         name=f"{camp_name} - session 1",
         include_faerun=include_faerun,
     )
-    opening = spec.opening_scene.strip()
     attach_opening_to_session(session_id=session_id, opening=opening)
 
     return {
@@ -215,7 +227,12 @@ def bootstrap_campaign(
 class AdventureContinuationSpec(BaseModel):
     adventure_name: str
     adventure_outline: str = Field(description="Markdown outline with acts, encounters, endings")
-    opening_scene: str = Field(description="2-4 paragraphs continuing from prior adventures")
+    opening_scene: str = Field(
+        description=(
+            "2-4 paragraphs continuing from prior adventures. "
+            "Never use em dashes or en dashes; use commas or periods."
+        )
+    )
     new_npcs: list[JournalEntrySpec] = Field(
         default_factory=list, description="0-4 new or updated NPCs"
     )
@@ -280,6 +297,8 @@ Requirements:
   end with a clear choice
 - new_npcs / new_locations: only entries that are NEW or materially changed; leave empty if none
 - Names must be consistent with the campaign journal
+
+{NARRATION_STYLE_RULES}
 """
     llm = get_langchain_chat_llm("claude").with_structured_output(AdventureContinuationSpec)
     try:
@@ -302,7 +321,9 @@ Prior adventure summaries:
 {prior_summaries[:2500] or "(first adventure — use campaign story arc)"}
 
 Return adventure_name, adventure_outline, opening_scene, and only new/changed NPCs and locations.
-Keep opening_scene to 2-4 paragraphs."""
+Keep opening_scene to 2-4 paragraphs.
+
+{NARRATION_STYLE_RULES}"""
         return llm.invoke([HumanMessage(content=compact)])
 
 
@@ -575,7 +596,7 @@ def flesh_out_planned_adventure(
     for loc in spec.new_locations:
         save_campaign_location(campaign_id, slugify(loc.name), {"name": loc.name, "body": loc.body})
 
-    opening = spec.opening_scene.strip()
+    opening = _clean_opening(spec.opening_scene)
     save_adventure(
         adventure_id,
         {**adv, "status": "active"},
@@ -738,6 +759,7 @@ def bootstrap_adventure_for_campaign(
         character_ids.append(character_id)
         save_campaign(campaign_id, {**campaign, "character_ids": character_ids})
 
+    opening = _clean_opening(spec.opening_scene)
     save_adventure(
         adventure_id,
         {
@@ -754,13 +776,13 @@ def bootstrap_adventure_for_campaign(
         log=(
             "# Adventure log\n\n"
             f"_New adventure in {campaign.get('name', campaign_id)}._"
-            f"\n\n{spec.opening_scene.strip()}\n"
+            f"\n\n{opening}\n"
         ),
     )
 
     summary = generate_opening_summary(
-        log=spec.opening_scene,
-        opening_scene=spec.opening_scene,
+        log=opening,
+        opening_scene=opening,
     )
     write_adventure_summary(adventure_id, summary)
 
@@ -773,7 +795,6 @@ def bootstrap_adventure_for_campaign(
         name=f"{campaign.get('name', campaign_id)} - {adv_name} (session {session_num})",
         include_faerun=include_faerun,
     )
-    opening = spec.opening_scene.strip()
     attach_opening_to_session(session_id=session_id, opening=opening)
 
     return {

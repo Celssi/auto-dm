@@ -10,11 +10,19 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from backend.config import LANGSMITH_ENABLED, LANGSMITH_ENDPOINT, LANGSMITH_PROJECT
 from backend.routes import adventures, campaigns, characters, play, sessions, system
 
 logger = logging.getLogger(__name__)
 
 app = FastAPI(title="auto-dm", version="0.1.0")
+
+if LANGSMITH_ENABLED:
+    logger.info(
+        "LangSmith tracing enabled (project=%s, endpoint=%s)",
+        LANGSMITH_PROJECT,
+        LANGSMITH_ENDPOINT,
+    )
 
 
 @app.exception_handler(Exception)

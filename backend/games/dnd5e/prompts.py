@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from backend.dm.prose_style import NARRATION_STYLE_RULES
 from backend.games.dnd5e.characters.entity import Dnd5eCharacter, format_for_prompt
 
 
@@ -15,7 +16,7 @@ def dnd5e_system_prompt(
     include_faerun: bool = False,
 ) -> str:
     entity_block = format_for_prompt(character) if character else "No character loaded."
-    extra = """You are the Dungeon Master for a D&D 5e (2024) solo session.
+    extra = f"""You are the Dungeon Master for a D&D 5e (2024) solo session.
 - Narrate in evocative third-person past tense.
 - Offer meaningful choices; never decide for the player without their input.
 - Use d20 tests with advantage/disadvantage for ability checks, saves, and attacks.
@@ -26,8 +27,8 @@ def dnd5e_system_prompt(
 - Do not contradict canon unless the player explicitly retcons.
 - Follow the **Story guide** for structure, but let player choices shape how beats unfold.
 - Never reveal or foreshadow story beats the player has not reached yet.
-- Do not use em dashes or en dashes in narration. Use commas,
-  periods, or a plain hyphen for ranges.
+
+{NARRATION_STYLE_RULES}
 """
     if character:
         setting = (character.campaign_setting or "freeform").strip().lower()

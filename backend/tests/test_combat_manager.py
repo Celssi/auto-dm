@@ -143,6 +143,116 @@ def test_pick_encounter_auto_on_beat_match():
     assert picked.name == "Ambush"
 
 
+def test_pick_encounter_not_on_shared_harbor_word():
+    """Merrow Harbor Raid must not match The Dying Harbor via 'harbor' alone."""
+    tmpdir = Path(tempfile.mkdtemp())
+    cfg.SAVES_DIR = tmpdir
+    import backend.dm.encounters as enc
+
+    enc.SAVES_DIR = tmpdir
+    adv_id = "adv-harbor"
+    save_adventure_encounters(
+        adv_id,
+        [
+            EncounterSpec(
+                id="merrow-raid",
+                name="Merrow Harbor Raid",
+                trigger_beat="Merrow raid",
+                description="Merrow attack Salthollow docks.",
+                enemies=[EncounterEnemySpec(monster_name="Merrow", count=3)],
+            )
+        ],
+    )
+    assert (
+        pick_encounter_to_start(
+            adv_id,
+            session_id="sess-1",
+            active_beat="The Dying Harbor",
+            active_beat_notes="Explore Salthollow; fish are dying; tension at the gate.",
+            user_message="I'll ask her what's really going on down in that harbor",
+            recent_dm_text="Dalla blocks the gate. The alarm bell rings below.",
+        )
+        is None
+    )
+
+
+def test_try_start_skips_social_turn_without_combat_scene():
+    tmpdir = Path(tempfile.mkdtemp())
+    cfg.SAVES_DIR = tmpdir
+    import backend.dm.encounters as enc
+
+    enc.SAVES_DIR = tmpdir
+    adv_id = "adv-harbor"
+    session_id = "sess-social"
+    save_adventure_encounters(
+        adv_id,
+        [
+            EncounterSpec(
+                id="merrow-raid",
+                name="Merrow Harbor Raid",
+                trigger_beat="Blood on the Docks",
+                description="Merrow attack the harbor.",
+                enemies=[EncounterEnemySpec(monster_name="Merrow", count=2)],
+            )
+        ],
+    )
+    from backend.games.dnd5e.dm.combat_manager import try_start_planned_encounter
+
+    state = try_start_planned_encounter(
+        session_id,
+        adv_id,
+        _char_dict(),
+        user_message="I ask Dalla about the harbor",
+        messages=[{"role": "assistant", "content": "Dalla waits at the gate."}],
+    )
+    assert state is None
+
+
+def test_new_combat_does_not_auto_run_enemy_turns():
+    tmpdir = Path(tempfile.mkdtemp())
+    cfg.SAVES_DIR = tmpdir
+    import backend.dm.encounters as enc
+
+    enc.SAVES_DIR = tmpdir
+    session_id = "sess-new"
+    encounter = EncounterSpec(
+        id="e1",
+        name="Ambush",
+        enemies=[EncounterEnemySpec(monster_name="Merrow", count=1)],
+    )
+    fake_stats = MonsterStats(
+        name="Merrow",
+        ac=13,
+        hp=45,
+        attacks=[MonsterAttack(name="Harpoon", to_hit=6, damage="2d6+3")],
+    )
+    with patch("backend.games.dnd5e.dm.combat_manager.lookup_monster", return_value=fake_stats):
+        with patch(
+            "backend.games.dnd5e.dm.combat_manager._roll_initiative",
+            side_effect=[10, 18],
+        ):
+            start_encounter(session_id, encounter, _char_dict(hp=12))
+    from backend.games.dnd5e.dm.combat_manager import (
+        current_combatant,
+        run_enemy_turns_until_player,
+    )
+
+    _, char, events = run_enemy_turns_until_player(
+        session_id, _char_dict(hp=12), resolve_enemies=False
+    )
+    assert current_combatant(enc.load_combat_state(session_id)).kind == "enemy"
+    assert char["hp"] == 12
+    assert events == []
+
+
+def test_player_took_combat_action():
+    from backend.games.dnd5e.dm.combat_manager import player_took_combat_action
+
+    assert player_took_combat_action("I ask about the harbor") is False
+    assert player_took_combat_action("I attack the merrow") is True
+    assert player_took_combat_action("", {"task": "attack_roll"}) is True
+
+
 def test_pick_encounter_not_early_on_setup_beat():
     tmpdir = Path(tempfile.mkdtemp())
     cfg.SAVES_DIR = tmpdir

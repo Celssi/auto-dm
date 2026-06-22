@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from backend.dm.prose_style import NARRATION_STYLE_RULES, sanitize_narration_dashes
 from backend.games.dnd5e.characters.entity import Dnd5eCharacter, campaign_setting_line
 from backend.llm import ChatProvider, get_langchain_chat_llm, invoke_chat_llm
 
@@ -24,8 +25,10 @@ def synthesize_journal_entry(
     setting = campaign_setting_line(entity)
     prompt = f"""You are the Dungeon Master for a D&D 5e solo session.
 {setting}
-Write 2–4 short paragraphs in third person past tense for {who} ({role}, level {entity.level}).
+Write 2-4 short paragraphs in third person past tense for {who} ({role}, level {entity.level}).
 Use the mechanical results below; do not explain dice or rules. Plain prose only.
+
+{NARRATION_STYLE_RULES}
 
 {prior}
 Mechanics:
@@ -34,14 +37,19 @@ Mechanics:
     response = invoke_chat_llm(
         llm,
         [
-            SystemMessage(content="Write evocative fantasy GM narration for a tabletop RPG."),
+            SystemMessage(
+                content=(
+                    "Write evocative fantasy GM narration for a tabletop RPG. "
+                    "Never use em dashes or en dashes in prose."
+                )
+            ),
             HumanMessage(content=prompt),
         ],
         agent="journal_narrator",
         provider=chat_provider,
     )
     text = response.content if isinstance(response.content, str) else str(response.content)
-    return text.strip()
+    return sanitize_narration_dashes(text.strip())
 
 
 def synthesize_lonelog_summary(

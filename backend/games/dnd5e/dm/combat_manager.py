@@ -341,11 +341,15 @@ def resolve_enemy_turn(state: CombatState, char_dict: dict) -> tuple[CombatState
 def run_enemy_turns_until_player(
     session_id: str,
     char_dict: dict,
+    *,
+    resolve_enemies: bool = True,
 ) -> tuple[CombatState | None, dict, list[str]]:
     """Auto-resolve consecutive enemy turns until player's turn or combat ends."""
     state = load_combat_state(session_id)
     if not state:
         return None, char_dict, []
+    if not resolve_enemies:
+        return state, char_dict, []
 
     all_events: list[str] = []
     safety = 0
@@ -473,10 +477,10 @@ def pick_encounter_to_start(
     if best is None:
         return None
     reactive = best_total - best_beat_score
-    if best_beat_score >= 70:
+    # Explicit trigger alignment in story beat (exact, title, or notes context).
+    if best_beat_score >= 75:
         return best
-    if best_beat_score >= 50 and reactive == 0:
-        return best
+    # Reactive ambush: combat cues in the scene and player/scene action.
     if best_total >= 55 and reactive >= 15:
         return best
     return None
@@ -495,7 +499,9 @@ def _text_aligns(a: str, b: str) -> bool:
         return True
     words_a = {w for w in a_norm.split() if len(w) > 3}
     words_b = {w for w in b_norm.split() if len(w) > 3}
-    return bool(words_a & words_b)
+    overlap = words_a & words_b
+    # Require two shared meaningful words; single-word overlap (e.g. "harbor") is too loose.
+    return len(overlap) >= 2
 
 
 _COMBAT_HINTS = (
@@ -536,8 +542,36 @@ def _trigger_in_context(trigger: str, ctx: str) -> bool:
 
 def _message_has_combat_intent(msg: str) -> bool:
     lowered = msg.lower()
-    triggers = ("attack", "fight", "combat", "initiative", "charge", "strike", "/initiative")
+    triggers = (
+        "attack",
+        "fight",
+        "combat",
+        "initiative",
+        "charge",
+        "strike",
+        "shoot",
+        "swing",
+        "kill",
+        "/initiative",
+        "/attack",
+    )
     return any(t in lowered for t in triggers)
+
+
+_COMBAT_PLAYER_TASKS = frozenset(
+    {"attack_roll", "initiative", "death_save", "cast_spell", "saving_throw"}
+)
+
+
+def player_took_combat_action(
+    user_message: str,
+    shortcut_result: dict | None = None,
+) -> bool:
+    """True when the player message should advance the combat turn."""
+    task = (shortcut_result or {}).get("task", "")
+    if task in _COMBAT_PLAYER_TASKS:
+        return True
+    return _message_has_combat_intent(user_message)
 
 
 def _score_encounter_match(
@@ -641,6 +675,10 @@ def try_start_planned_encounter(
         user_message=user_message,
         recent_dm_text=_recent_dm_text(messages),
     )
-    if enc:
-        return start_encounter(session_id, enc, char_dict)
-    return None
+    if not enc:
+        return None
+    # Do not start combat on a purely social/exploration message unless the scene is hot.
+    recent = _recent_dm_text(messages)
+    if not player_took_combat_action(user_message) and not _has_active_combat_hint(recent):
+        return None
+    return start_encounter(session_id, enc, char_dict)

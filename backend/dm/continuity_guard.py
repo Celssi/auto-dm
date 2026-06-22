@@ -5,6 +5,7 @@ from __future__ import annotations
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 
+from backend.dm.prose_style import NARRATION_STYLE_RULES, sanitize_narration_dashes
 from backend.llm import get_langchain_chat_llm
 
 
@@ -46,6 +47,8 @@ and provide a FULL revised DM response that:
 - Preserves the player's intended action outcome
 - Does not add meta commentary
 
+{NARRATION_STYLE_RULES}
+
 ## Adventure canon
 {canon_summary[:4000] or "(none)"}
 
@@ -84,5 +87,5 @@ def apply_continuity_guard(
         recent_scenes=recent_scenes,
     )
     if verdict.has_issues and verdict.revised_response.strip():
-        return verdict.revised_response.strip(), verdict.issues
-    return draft_response, verdict.issues if verdict.has_issues else []
+        return sanitize_narration_dashes(verdict.revised_response.strip()), verdict.issues
+    return sanitize_narration_dashes(draft_response), verdict.issues if verdict.has_issues else []

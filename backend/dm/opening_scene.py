@@ -13,6 +13,7 @@ from backend.dm.campaign_bootstrap import (
     generate_bootstrap_spec,
 )
 from backend.dm.session_opening import attach_opening_to_session
+from backend.dm.prose_style import NARRATION_STYLE_RULES, sanitize_narration_dashes
 from backend.dm.story_director import ensure_story_progress
 from backend.dm.story_memory import generate_opening_summary
 from backend.dm.world_context import world_context_for_campaign
@@ -31,7 +32,10 @@ from backend.storage import (
 
 class OpeningScenePackage(BaseModel):
     opening_scene: str = Field(
-        description="2-4 paragraphs of in-world DM narration; end with a clear choice"
+        description=(
+            "2-4 paragraphs of in-world DM narration; end with a clear choice. "
+            "Never use em dashes or en dashes; use commas or periods instead."
+        )
     )
 
 
@@ -68,11 +72,13 @@ Outline:
 
 World context:
 {world[:3000] or "(none)"}
+
+{NARRATION_STYLE_RULES}
 """,
             ),
         ]
     )
-    return pkg.opening_scene.strip()
+    return sanitize_narration_dashes(pkg.opening_scene.strip())
 
 
 def _generate_standalone_opening(
@@ -99,9 +105,11 @@ Outline excerpt:
 
 Use this draft opening as inspiration (you may rewrite):
 {spec.opening_scene[:2000]}
+
+{NARRATION_STYLE_RULES}
 """
     pkg = llm.invoke([HumanMessage(content=prompt)])
-    return pkg.opening_scene.strip()
+    return sanitize_narration_dashes(pkg.opening_scene.strip())
 
 
 def begin_session(session_id: str) -> dict[str, Any]:
