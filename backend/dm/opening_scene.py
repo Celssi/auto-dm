@@ -12,12 +12,13 @@ from backend.dm.campaign_bootstrap import (
     generate_adventure_spec_for_campaign,
     generate_bootstrap_spec,
 )
-from backend.dm.session_opening import attach_opening_to_session
 from backend.dm.prose_style import NARRATION_STYLE_RULES, sanitize_narration_dashes
+from backend.dm.session_opening import attach_opening_to_session
 from backend.dm.story_director import ensure_story_progress
 from backend.dm.story_memory import generate_opening_summary
 from backend.dm.world_context import world_context_for_campaign
 from backend.games.dnd5e.characters.entity import character_from_dict, format_for_prompt
+from backend.games.registry import get_game, resolve_game_id
 from backend.journal_storage import get_campaign, save_campaign_location, save_campaign_npc, slugify
 from backend.llm import get_langchain_chat_llm
 from backend.storage import (
@@ -121,12 +122,32 @@ def begin_session(session_id: str) -> dict[str, Any]:
 
     character_id = session.get("character_id") or ""
     adventure_id = session.get("adventure_id") or ""
-    if not character_id or not adventure_id:
-        raise ValueError("Session is missing character or adventure")
+    if not character_id:
+        raise ValueError("Session is missing character")
 
     char = get_character(character_id)
+    if not char:
+        raise ValueError("Character not found")
+
+    if resolve_game_id(char) == "brambletrek":
+        adv = get_adventure(adventure_id) if adventure_id else None
+        opening = get_game("brambletrek").play.generate_opening(char, adv)
+        if adv and adventure_id:
+            append_adventure_log(adventure_id, opening)
+            saved_outline = (adv.get("outline") or "").strip()
+            if saved_outline:
+                ensure_story_progress(adventure_id, saved_outline)
+        result = attach_opening_to_session(session_id=session_id, opening=opening)
+        result["session_id"] = session_id
+        if adventure_id:
+            result["adventure_id"] = adventure_id
+        return result
+
+    if not adventure_id:
+        raise ValueError("Session is missing character or adventure")
+
     adv = get_adventure(adventure_id)
-    if not char or not adv:
+    if not adv:
         raise ValueError("Character or adventure not found")
 
     campaign_id = (adv.get("campaign_id") or "").strip()

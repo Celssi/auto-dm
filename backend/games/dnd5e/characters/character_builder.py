@@ -6,6 +6,7 @@ import random
 from typing import Any
 
 from backend.games.dnd5e.characters.character_data import (
+    find_third_caster,
     full_caster_slots,
     get_armor,
     get_background,
@@ -15,6 +16,9 @@ from backend.games.dnd5e.characters.character_data import (
     shield_ac_bonus,
     skills_data,
     spell_list_for,
+    third_caster_cantrips_cap,
+    third_caster_slots,
+    third_caster_spells_known_cap,
 )
 from backend.games.dnd5e.characters.entity import (
     ABILITY_KEYS,
@@ -108,10 +112,22 @@ def compute_spell_slots(char: Dnd5eCharacter) -> dict[str, int]:
     caster_classes = sum(
         1 for cid, lv in levels.items() if lv > 0 and (get_class(cid) or {}).get("spellcasting")
     )
+    third_caster_slots_found: dict[str, int] = {}
+    for entry in normalize_class_entries(char):
+        cid = str(entry.get("class_name") or "").lower()
+        sub = str(entry.get("subclass") or char.subclass or "")
+        tc = find_third_caster(cid, sub)
+        if tc:
+            class_level = int(entry.get("level") or 0)
+            slots = third_caster_slots(class_level)
+            if slots:
+                third_caster_slots_found = slots
     if len(levels) > 1 or caster_classes > 1:
         mc = compute_multiclass_spell_slots(char)
         if mc:
             return mc
+    if third_caster_slots_found:
+        return third_caster_slots_found
     cls = get_class(char.class_name)
     if not cls or not cls.get("spellcasting"):
         return {}
@@ -224,11 +240,24 @@ def spell_limits_for_class(
     class_level: int | None = None,
 ) -> dict[str, int]:
     cls = get_class(class_id)
-    if not cls or not cls.get("spellcasting"):
-        return {"cantrips": 0, "prepared": 0, "known": 0}
     level = int(
         class_level if class_level is not None else class_levels_dict(char).get(class_id, 0)
     )
+    entry_subclass = ""
+    for entry in normalize_class_entries(char):
+        if entry.get("class_name") == class_id:
+            entry_subclass = str(entry.get("subclass") or char.subclass or "")
+            break
+    tc = find_third_caster(class_id, entry_subclass)
+    if tc and level >= 3:
+        known = third_caster_spells_known_cap(level)
+        return {
+            "cantrips": third_caster_cantrips_cap(level),
+            "prepared": known,
+            "known": known,
+        }
+    if not cls or not cls.get("spellcasting"):
+        return {"cantrips": 0, "prepared": 0, "known": 0}
     if level <= 0:
         return {"cantrips": 0, "prepared": 0, "known": 0}
     cantrips = _by_level(cls.get("cantrips_by_level"), level, 0)
@@ -473,8 +502,19 @@ def level_up_preview(char: Dnd5eCharacter, *, class_name: str | None = None) -> 
     }
 
 
-def apply_starting_equipment(char: Dnd5eCharacter) -> Dnd5eCharacter:
-    """Apply PHB class + background starting gear when inventory is empty."""
+def _starting_gear_snapshot(char: Dnd5eCharacter) -> str:
+    return "|".join(
+        [
+            str(char.class_name or "").strip().lower(),
+            str(char.starting_gear_choice or "").strip().lower(),
+            str(char.background or "").strip().lower(),
+            str(char.background_gear_choice or "").strip().lower(),
+        ]
+    )
+
+
+def apply_starting_equipment(char: Dnd5eCharacter, *, force: bool = False) -> Dnd5eCharacter:
+    """Apply PHB class + background starting gear on creation or when gear choices change."""
     if not char.class_name:
         return char
     from backend.games.dnd5e.characters.character_data import (
@@ -482,14 +522,24 @@ def apply_starting_equipment(char: Dnd5eCharacter) -> Dnd5eCharacter:
         list_starting_gear_options,
     )
 
-    if not char.inventory:
-        options = list_starting_gear_options(char.class_name)
-        if options:
-            choice = str(char.starting_gear_choice or "").strip().lower()
-            package = next((o for o in options if o.get("id") == choice), None) or options[0]
-            if not char.starting_gear_choice:
-                char.starting_gear_choice = str(package.get("id") or "standard")
-            _apply_gear_package(char, package, replace=True)
+    level = total_class_level(char) or int(char.level or 1)
+    snap = _starting_gear_snapshot(char)
+    prev = str((char.feature_choices or {}).get("_applied_starting_gear") or "")
+    first_apply = not char.inventory
+    gear_changed = level <= 1 and bool(prev) and prev != snap
+    if not force and not first_apply and not gear_changed:
+        return char
+
+    if first_apply or gear_changed or force:
+        char.currency = {k: 0 for k in ("cp", "sp", "ep", "gp", "pp")}
+
+    options = list_starting_gear_options(char.class_name)
+    if options and (first_apply or gear_changed or force):
+        choice = str(char.starting_gear_choice or "").strip().lower()
+        package = next((o for o in options if o.get("id") == choice), None) or options[0]
+        if not char.starting_gear_choice:
+            char.starting_gear_choice = str(package.get("id") or "standard")
+        _apply_gear_package(char, package, replace=True)
 
     if char.background:
         bg_options = list_background_gear_options(char.background)
@@ -501,6 +551,10 @@ def apply_starting_equipment(char: Dnd5eCharacter) -> Dnd5eCharacter:
             if not char.background_gear_choice:
                 char.background_gear_choice = str(bg_pkg.get("id") or "kit")
             _apply_gear_package(char, bg_pkg, replace=False)
+
+    fc = dict(char.feature_choices or {})
+    fc["_applied_starting_gear"] = snap
+    char.feature_choices = fc
     return char
 
 
@@ -523,7 +577,7 @@ def _apply_gear_package(
                     inv.append(s)
             char.inventory = inv
     if weapons:
-        if replace and not char.weapons:
+        if replace:
             char.weapons = _weapon_dicts(weapons)
         elif not replace:
             existing = {str(w.get("name", "")).lower() for w in char.weapons or []}
@@ -531,10 +585,15 @@ def _apply_gear_package(
                 if isinstance(w, dict) and str(w.get("name", "")).lower() not in existing:
                     char.weapons = list(char.weapons or []) + _weapon_dicts([w])
     armor_id = str(package.get("armor") or "")
-    if armor_id and char.armor in ("", "none"):
-        char.armor = armor_id
-    if package.get("shield"):
-        char.shield = True
+    if replace:
+        if armor_id:
+            char.armor = armor_id
+        char.shield = bool(package.get("shield")) if "shield" in package else False
+    else:
+        if armor_id and char.armor in ("", "none"):
+            char.armor = armor_id
+        if package.get("shield"):
+            char.shield = True
     coins = package.get("currency") or {}
     if isinstance(coins, dict):
         cur = dict(char.currency or {})
@@ -543,18 +602,41 @@ def _apply_gear_package(
         char.currency = cur
 
 
+def _weapon_catalog_row(name: str) -> dict[str, Any] | None:
+    from backend.games.dnd5e.characters.character_data import get_weapon, list_weapons
+
+    raw = str(name or "").strip()
+    if not raw:
+        return None
+    slug = raw.lower().replace(" ", "_").replace("'", "")
+    row = get_weapon(slug)
+    if row:
+        return row
+    low = raw.lower()
+    for candidate in list_weapons():
+        label = str(candidate.get("label") or candidate.get("name") or "").lower()
+        if label == low or str(candidate.get("id") or "").lower() == low:
+            return candidate
+    return None
+
+
 def _weapon_dicts(weapons: list) -> list[dict[str, Any]]:
-    return [
-        {
-            "name": str(w.get("name", "")),
-            "damage": str(w.get("damage", "1d6")),
-            "damage_type": str(w.get("damage_type", "")),
-            "ability": str(w.get("ability", "str")),
-            "proficient": True,
-        }
-        for w in weapons
-        if isinstance(w, dict)
-    ]
+    out: list[dict[str, Any]] = []
+    for w in weapons:
+        if not isinstance(w, dict):
+            continue
+        name = str(w.get("name", ""))
+        catalog = _weapon_catalog_row(name)
+        out.append(
+            {
+                "name": str((catalog or {}).get("label") or name),
+                "damage": str((catalog or w).get("damage", "1d6")),
+                "damage_type": str((catalog or w).get("damage_type", "")),
+                "ability": str((catalog or w).get("ability", "str")),
+                "proficient": True,
+            }
+        )
+    return out
 
 
 def rebuild_character(char: Dnd5eCharacter, *, recompute_hp: bool = False) -> Dnd5eCharacter:
@@ -648,6 +730,9 @@ def rebuild_character(char: Dnd5eCharacter, *, recompute_hp: bool = False) -> Dn
         if bg and not char.origin_feat:
             char.origin_feat = str(bg.get("feat") or "")
 
+    if total_class_level(char) <= 1 and char.class_name:
+        char = apply_starting_equipment(char)
+
     if recompute_hp or char.max_hp <= 0:
         new_max = compute_max_hp(char)
         char.max_hp = new_max
@@ -675,7 +760,6 @@ def finalize_new_character(char: Dnd5eCharacter) -> Dnd5eCharacter:
                 "class_skill_choices": list(char.class_skill_choices or []),
             }
         ]
-    char = apply_starting_equipment(char)
     char = rebuild_character(char, recompute_hp=True)
     ws_max = compute_wild_shape_max(char)
     if ws_max > 0:
@@ -699,6 +783,12 @@ def compute_ac(char: Dnd5eCharacter) -> int:
         # heavy armor adds no DEX
     if char.shield:
         base += shield_ac_bonus()
+    if (
+        str(char.fighting_style_feat or "").strip().lower() == "defense"
+        and armor
+        and str(armor.get("category", "") or "") in ("light", "medium", "heavy")
+    ):
+        base += 1
     return max(1, min(30, base))
 
 
@@ -812,6 +902,7 @@ def character_creation_summary(char: Dnd5eCharacter) -> dict[str, Any]:
         "creation_choices": resolved_choice_lines(char),
         "missing_creation_choices": validate_creation_choices(char),
         "luck_points_max": luck_points_max(char),
+        "luck_points_remaining": char.luck_points_remaining,
     }
 
 
@@ -917,6 +1008,12 @@ def apply_short_rest(
     summary = " ".join(parts)
     if summary == "Short rest.":
         summary = "Short rest (no resources spent or recovered)."
+    from backend.games.dnd5e.characters.origin_feats import reset_healer_medic_uses
+
+    reset_healer_medic_uses(char)
+    char.savage_attacker_used_this_turn = False
+    entity["savage_attacker_used_this_turn"] = False
+    entity["feature_choices"] = dict(char.feature_choices or {})
     record_audit(
         {
             "event": "rest",
@@ -949,6 +1046,11 @@ def long_rest_recover(char: Dnd5eCharacter) -> dict[str, Any]:
     char.exhaustion = max(0, char.exhaustion - 1)  # PHB 2024: long rest removes 1 level
     char.concentration = ""
     char.wild_shape_uses = compute_wild_shape_max(char)
+    from backend.games.dnd5e.characters.origin_feats import apply_lucky_rest, reset_healer_medic_uses
+
+    apply_lucky_rest(char)
+    reset_healer_medic_uses(char)
+    char.savage_attacker_used_this_turn = False
     if char.species == "human":
         char.heroic_inspiration = True
     char.clamp()
@@ -985,5 +1087,8 @@ def long_rest_recover(char: Dnd5eCharacter) -> dict[str, Any]:
             "exhaustion": char.exhaustion,
             "concentration": "",
             "wild_shape_uses": char.wild_shape_uses,
+            "luck_points_remaining": char.luck_points_remaining,
+            "savage_attacker_used_this_turn": False,
+            "feature_choices": dict(char.feature_choices or {}),
         },
     }

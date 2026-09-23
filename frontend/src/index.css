@@ -104,6 +104,15 @@
     @apply bg-accent/30 text-white;
   }
 
+  a,
+  button {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
+  }
+
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -162,11 +171,15 @@
   }
 
   .label-text {
-    @apply text-xs uppercase tracking-wider text-muted font-medium;
+    @apply text-xs uppercase tracking-wider text-accent/90 font-semibold;
   }
 
   .section-heading {
     @apply text-xs font-semibold uppercase tracking-wider text-accent;
+  }
+
+  .display-title {
+    @apply font-display font-semibold text-accent;
   }
 }
 

@@ -1,6 +1,7 @@
-import type { Character } from '../../types';
+import type { BrambletrekCharacter, Character } from '../../types';
 import { displayLabel, EMPTY_FIELD } from '../../lib/displayText';
 import GlossaryTip, { GlossaryTagList } from '../ui/GlossaryTip';
+import { getGameCharacterConfig } from '../../games/registry';
 import {
   formatMod,
   initiativeMod,
@@ -10,10 +11,12 @@ import {
   skillBonus,
   spellSaveDc,
 } from '../../games/dnd5e/character-sheet/sheetUtils';
+import { STAT_COLORS, brambletrekSummaryLine, statPercent } from '../../games/brambletrek/sheetUtils';
 
 interface Props {
   character: Character;
   summary?: Record<string, unknown>;
+  gameId?: string;
 }
 
 function StatPill({ label, value }: { label: string; value: string }) {
@@ -25,7 +28,14 @@ function StatPill({ label, value }: { label: string; value: string }) {
   );
 }
 
-export default function PlayCharacterSidebar({ character: c, summary }: Props) {
+export default function PlayCharacterSidebar({ character: c, summary, gameId }: Props) {
+  const resolvedGameId = gameId ?? String(c.game_id || 'dnd5e');
+  const config = getGameCharacterConfig(resolvedGameId);
+
+  if (config.id === 'brambletrek') {
+    return <BrambletrekPlaySidebar character={c as unknown as BrambletrekCharacter} summary={summary} />;
+  }
+
   const scores = c.ability_scores || {};
   const profs = new Set(c.skill_proficiencies || []);
   const pb = proficiencyBonus(c.level || 1);
@@ -191,6 +201,59 @@ export default function PlayCharacterSidebar({ character: c, summary }: Props) {
           </div>
         </details>
       ) : null}
+    </div>
+  );
+}
+
+function StatBar({ label, value, color }: { label: string; value: number; color: string }) {
+  const pct = statPercent(value);
+  return (
+    <div>
+      <div className="flex justify-between items-center mb-1">
+        <span className="text-xs text-muted capitalize">{label}</span>
+        <span className="text-xs font-semibold tabular-nums">{value}</span>
+      </div>
+      <div className="h-2 rounded-full bg-bg overflow-hidden border border-border">
+        <div className="h-full transition-all" style={{ width: `${pct}%`, backgroundColor: color }} />
+      </div>
+    </div>
+  );
+}
+
+function BrambletrekPlaySidebar({
+  character: c,
+  summary,
+}: {
+  character: BrambletrekCharacter;
+  summary?: Record<string, unknown>;
+}) {
+  const legacyLabel = typeof summary?.legacy === 'string' && summary.legacy ? String(summary.legacy) : c.legacy || '';
+
+  return (
+    <div className="space-y-3 text-sm">
+      <div>
+        <h3 className="font-semibold text-accent leading-tight">{c.name || 'Unnamed Gnawborn'}</h3>
+        <p className="text-xs text-muted mt-0.5">{brambletrekSummaryLine(c, summary)}</p>
+        {legacyLabel && <p className="text-xs text-muted/80">Legacy: {legacyLabel}</p>}
+      </div>
+
+      <div className="grid gap-2">
+        {(['health', 'morale', 'supplies'] as const).map((k) => (
+          <StatBar key={k} label={k} value={Number(c[k] ?? 10)} color={STAT_COLORS[k]} />
+        ))}
+      </div>
+
+      <div className="flex flex-wrap gap-1.5 text-xs">
+        <span className="rounded-md border border-border bg-bg/60 px-2 py-1">Day {c.journey_day ?? 1}</span>
+        {c.in_aldwund && (
+          <span className="rounded-md border border-purple-500/30 bg-purple-500/10 px-2 py-1 text-purple-200">
+            In Aldwund
+          </span>
+        )}
+        {c.active_adventure && (
+          <span className="rounded-md border border-border bg-bg/60 px-2 py-1 text-muted">{c.active_adventure}</span>
+        )}
+      </div>
     </div>
   );
 }

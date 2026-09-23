@@ -10,7 +10,7 @@ import yaml
 
 from backend.config import CURATED_DIR
 from backend.dm.audit import character_audit_slice, record_audit
-from backend.games.dnd5e.characters.character_data import get_class, spells_data
+from backend.games.dnd5e.characters.character_data import find_third_caster, get_class, spells_data
 from backend.games.dnd5e.characters.entity import Dnd5eCharacter
 from backend.games.dnd5e.characters.features import find_subclass_key
 from backend.games.dnd5e.characters.multiclass import class_levels_dict, normalize_class_entries
@@ -71,6 +71,12 @@ def _subclass_always_prepared(char: Dnd5eCharacter) -> list[str]:
 
 
 def _char_spell_list_id(char: Dnd5eCharacter) -> str:
+    for entry in normalize_class_entries(char):
+        cid = str(entry.get("class_name") or "").lower()
+        sub = str(entry.get("subclass") or char.subclass or "")
+        tc = find_third_caster(cid, sub)
+        if tc:
+            return str(tc.get("spell_list") or "wizard")
     cls = get_class(char.class_name) or {}
     return str(cls.get("spell_list") or char.class_name or "")
 

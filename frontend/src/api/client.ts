@@ -132,8 +132,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ message }),
     }),
-  getShortcuts: (gameId = 'dnd5e') =>
-    request<{ shortcuts: Shortcut[] }>(`/sessions/shortcuts?game_id=${encodeURIComponent(gameId)}`),
+  getShortcuts: (gameId = 'dnd5e', characterId?: string) => {
+    const params = new URLSearchParams({ game_id: gameId });
+    if (characterId) params.set('character_id', characterId);
+    return request<{ shortcuts: Shortcut[] }>(`/sessions/shortcuts?${params}`);
+  },
   getOracles: () => request<{ oracles: Oracle[] }>('/sessions/oracles'),
   runOracle: (sessionId: string, oracle_id: string, likelihood_level = 'fifty_fifty') =>
     request<{ summary: string }>(`/sessions/${sessionId}/oracle`, {
@@ -162,6 +165,21 @@ export const api = {
   getAudit: (sessionId: string, limit = 200) =>
     request<{ events: AuditEvent[] }>(`/sessions/${sessionId}/audit?limit=${limit}`),
   beginSession: (sessionId: string) => request<BeginSessionResult>(`/sessions/${sessionId}/begin`, { method: 'POST' }),
+  getSessionCombat: (sessionId: string) =>
+    request<{ combat_state: CombatStateSnapshot }>(`/sessions/${sessionId}/combat`),
+  sessionCombatAction: (
+    sessionId: string,
+    body: { action: string; target_id?: string },
+  ) =>
+    request<{
+      combat_state?: CombatStateSnapshot;
+      events?: string[];
+      character?: import('../types').Character;
+      error?: string;
+    }>(`/sessions/${sessionId}/combat`, {
+      method: 'POST',
+      body: JSON.stringify(body),
+    }),
   searchRules: (question: string, include_faerun = false) =>
     request<{ answer: string; sources: Source[] }>('/rules/search', {
       method: 'POST',
@@ -232,6 +250,140 @@ export const api = {
     request<GenerateCampaignResult>('/play/generate-campaign', {
       method: 'POST',
       body: JSON.stringify(body),
+    }),
+
+  brambletrekGetHeader: (charId: string) =>
+    request<import('../types').BrambletrekCharacterHeader>(`/brambletrek/characters/${charId}/header`),
+  brambletrekUpdateCharacter: (charId: string, character: Record<string, unknown>) =>
+    request<{ character: Record<string, unknown>; header: import('../types').BrambletrekCharacterHeader }>(
+      `/brambletrek/characters/${charId}`,
+      { method: 'PUT', body: JSON.stringify({ character }) },
+    ),
+  brambletrekDrawTable: (charId: string, table: 'reason' | 'background' | 'trinket') =>
+    request<{ card: string; band: string; summary?: string; preview?: string; character: Record<string, unknown> }>(
+      `/brambletrek/characters/${charId}/draw-table`,
+      { method: 'POST', body: JSON.stringify({ table }) },
+    ),
+  brambletrekDrawResources: (charId: string, sessionId?: string) => {
+    const q = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : '';
+    return request<ResourceDraftResponse>(`/brambletrek/characters/${charId}/draw-resources${q}`, {
+      method: 'POST',
+    });
+  },
+  brambletrekResourceBonus: (
+    charId: string,
+    stat: 'health' | 'morale' | 'supplies',
+    sessionId?: string,
+    draft?: Record<string, unknown>,
+  ) => {
+    const q = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : '';
+    return request<ResourceDraftResponse>(`/brambletrek/characters/${charId}/resource-bonus${q}`, {
+      method: 'POST',
+      body: JSON.stringify({ stat, draft: draft ?? null }),
+    });
+  },
+  brambletrekApplyResources: (charId: string, sessionId?: string, draft?: Record<string, unknown>) => {
+    const q = sessionId ? `?session_id=${encodeURIComponent(sessionId)}` : '';
+    return request<{ character: Record<string, unknown> }>(`/brambletrek/characters/${charId}/apply-resources${q}`, {
+      method: 'POST',
+      body: JSON.stringify({ draft: draft ?? null }),
+    });
+  },
+  brambletrekRollLegacy: (charId: string) =>
+    request<{ legacy_id: string; legacy_label: string; roll_formatted?: string }>(
+      `/brambletrek/characters/${charId}/roll-legacy`,
+      { method: 'POST' },
+    ),
+  brambletrekLegacyAbilities: (charId: string) =>
+    request<{ abilities: import('../types').LegacyAbility[] }>(`/brambletrek/characters/${charId}/legacy-abilities`),
+  brambletrekReasonEnding: (reasonBand: string) =>
+    request<{ preview: string }>(`/brambletrek/reason-ending?reason_band=${encodeURIComponent(reasonBand)}`),
+  brambletrekCharacterTablePreview: (table: 'reason' | 'background' | 'trinket', band: string, card = '') => {
+    const params = new URLSearchParams({ table, band });
+    if (card) params.set('card', card);
+    return request<{ preview: string }>(`/brambletrek/character-table-preview?${params}`);
+  },
+  brambletrekDeckStatus: (charId: string) => request<{ remaining: number }>(`/brambletrek/deck/${charId}`),
+  brambletrekDeckReset: (charId: string) =>
+    request<{ remaining: number }>(`/brambletrek/deck/${charId}/reset`, { method: 'POST' }),
+  brambletrekDeckDraw: (charId: string, count = 1) =>
+    request<{ ok?: boolean; cards?: string[]; remaining?: number; summary?: string }>(
+      `/brambletrek/deck/${charId}/draw?count=${count}`,
+      { method: 'POST' },
+    ),
+  brambletrekGetJourney: (sessionId: string) =>
+    request<{ pending_journey: import('../types').PendingJourney | null }>(
+      `/brambletrek/sessions/${sessionId}/journey`,
+    ),
+  brambletrekApplyJourney: (sessionId: string, eventIndex: number) =>
+    request<{
+      summary?: string;
+      item_error?: string | null;
+      character?: Record<string, unknown>;
+      pending_journey?: import('../types').PendingJourney | null;
+    }>(`/brambletrek/sessions/${sessionId}/journey/apply`, {
+      method: 'POST',
+      body: JSON.stringify({ event_index: eventIndex }),
+    }),
+  brambletrekDrawJourneyItem: (sessionId: string, eventIndex: number) =>
+    request<{
+      item_error?: string | null;
+      character?: Record<string, unknown>;
+      pending_journey?: import('../types').PendingJourney | null;
+    }>(`/brambletrek/sessions/${sessionId}/journey/draw-item`, {
+      method: 'POST',
+      body: JSON.stringify({ event_index: eventIndex }),
+    }),
+  brambletrekStartJourneyCombat: (sessionId: string, eventIndex: number) =>
+    request<{
+      combat_preview?: string;
+      combat?: import('../types').BrambletrekCombatState | null;
+      pending_journey?: import('../types').PendingJourney | null;
+      dragonkeep?: import('../types').DragonkeepState | null;
+    }>(`/brambletrek/sessions/${sessionId}/journey/start-combat`, {
+      method: 'POST',
+      body: JSON.stringify({ event_index: eventIndex }),
+    }),
+  brambletrekGetCombat: (sessionId: string) =>
+    request<{ combat: import('../types').BrambletrekCombatState | null }>(`/brambletrek/sessions/${sessionId}/combat`),
+  brambletrekCombatAction: (sessionId: string, action: string, handIndex = -1) =>
+    request<{
+      combat?: import('../types').BrambletrekCombatState | null;
+      character?: Record<string, unknown>;
+      dragonkeep?: import('../types').DragonkeepState | null;
+      log?: string[];
+    }>(`/brambletrek/sessions/${sessionId}/combat`, {
+      method: 'POST',
+      body: JSON.stringify({ action, hand_index: handIndex }),
+    }),
+  brambletrekFinishJourney: (sessionId: string) =>
+    request<{
+      character?: Record<string, unknown>;
+      pending_journey?: null;
+      dragonkeep?: import('../types').DragonkeepState;
+    }>(`/brambletrek/sessions/${sessionId}/journey/finish-day`, { method: 'POST' }),
+  brambletrekDiscardJourney: (sessionId: string) =>
+    request<{ pending_journey?: null }>(`/brambletrek/sessions/${sessionId}/journey/discard`, { method: 'POST' }),
+  brambletrekGetDragonkeep: (sessionId: string) =>
+    request<{
+      dragonkeep: import('../types').DragonkeepState | null;
+      pending_journey?: import('../types').PendingJourney | null;
+    }>(`/brambletrek/sessions/${sessionId}/dragonkeep`),
+  brambletrekInitDragonkeep: (sessionId: string) =>
+    request<{
+      dragonkeep: import('../types').DragonkeepState;
+      pending_journey?: import('../types').PendingJourney | null;
+    }>(`/brambletrek/sessions/${sessionId}/dragonkeep/init`, { method: 'POST' }),
+  brambletrekDragonkeepAction: (sessionId: string, action: string, gem = '', eventIndex = -1) =>
+    request<{
+      dragonkeep: import('../types').DragonkeepState;
+      pending_journey?: import('../types').PendingJourney | null;
+      character?: Record<string, unknown>;
+      combat?: import('../types').BrambletrekCombatState | null;
+      summary?: string;
+    }>(`/brambletrek/sessions/${sessionId}/dragonkeep/action`, {
+      method: 'POST',
+      body: JSON.stringify({ action, gem, event_index: eventIndex }),
     }),
 };
 
@@ -464,3 +616,28 @@ export interface AuditEvent {
   after?: Record<string, unknown>;
   diff?: Record<string, unknown>;
 }
+
+export interface ResourceDraftStat {
+  stat: 'health' | 'morale' | 'supplies';
+  cards: string[];
+  pair_sum: number;
+  base: number;
+  needs_bonus: boolean;
+  card_values: number[];
+}
+
+export interface ResourceDraft {
+  cards_by_stat: Record<string, string[]>;
+  pending_bonus: string[];
+  base_stats: { health: number; morale: number; supplies: number };
+  final_stats?: { health: number; morale: number; supplies: number };
+  stats: ResourceDraftStat[];
+  remaining?: number;
+  draft?: Record<string, unknown>;
+}
+
+export type ResourceDraftResponse = ResourceDraft & {
+  draw_summary?: string;
+  bonus_card?: string;
+  draft?: Record<string, unknown>;
+};

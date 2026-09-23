@@ -1,9 +1,15 @@
+import { type ReactNode } from 'react';
 import { displayLabel } from '../../../lib/displayText';
 import GlossaryTip from '../GlossaryTip';
+import { isLikelyEntityId } from '../../../lib/glossary';
 
 interface Option {
   value: string;
   label: string;
+  /** Override glossary lookup key (defaults to value when it is a game slug). */
+  glossaryName?: string;
+  /** Force glossary on/off for this option. */
+  glossary?: boolean;
 }
 
 interface Group {
@@ -33,6 +39,38 @@ function optionLabel(opt: Option) {
   return opt.label !== opt.value ? opt.label : displayLabel(opt.label);
 }
 
+function shouldShowGlossary(opt: Option): boolean {
+  if (opt.glossary === false) return false;
+  if (opt.glossaryName) return true;
+  if (isLikelyEntityId(opt.value)) return false;
+  return true;
+}
+
+function glossaryNameFor(opt: Option): string {
+  if (opt.glossaryName) return opt.glossaryName;
+  return opt.value;
+}
+
+function ChoiceChip({
+  active,
+  onClick,
+  children,
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`w-full text-left text-sm px-3 py-2 rounded-lg border transition-colors cursor-pointer ${chipClass(active)}`}
+    >
+      {children}
+    </button>
+  );
+}
+
 function ChoiceOptionGrid({
   opts,
   value,
@@ -59,24 +97,32 @@ function ChoiceOptionGrid({
           {emptyLabel}
         </button>
       )}
-      {opts.map((opt) => (
-        <GlossaryTip
-          key={opt.value}
-          name={opt.value}
-          variant="custom"
-          wrapperClassName="block w-full"
-          placementMode="below"
-          align="start"
-        >
-          <button
-            type="button"
-            onClick={() => onChange(opt.value)}
-            className={`w-full text-left text-sm px-3 py-2 rounded-lg border transition-colors cursor-pointer ${chipClass(value === opt.value)}`}
-          >
+      {opts.map((opt) => {
+        const chip = (
+          <ChoiceChip active={value === opt.value} onClick={() => onChange(opt.value)}>
             {optionLabel(opt)}
-          </button>
-        </GlossaryTip>
-      ))}
+          </ChoiceChip>
+        );
+        if (!shouldShowGlossary(opt)) {
+          return (
+            <div key={opt.value} className="block w-full">
+              {chip}
+            </div>
+          );
+        }
+        return (
+          <GlossaryTip
+            key={opt.value}
+            name={glossaryNameFor(opt)}
+            variant="custom"
+            wrapperClassName="block w-full"
+            placementMode="below"
+            align="start"
+          >
+            {chip}
+          </GlossaryTip>
+        );
+      })}
     </div>
   );
 }
@@ -98,7 +144,7 @@ export default function ChoiceGroup({
       <div className="space-y-4">
         {groups.map((group) => (
           <div key={group.label}>
-            <p className="text-[10px] uppercase tracking-wider text-muted mb-2">{group.label}</p>
+            <p className="label-text mb-2">{group.label}</p>
             <ChoiceOptionGrid
               opts={group.options}
               value={value}

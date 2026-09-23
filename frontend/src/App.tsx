@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Layout from './components/Layout';
 import { GlossaryProvider } from './context/GlossaryContext';
+import { ToastProvider } from './components/ui/toast';
 import HomePage from './pages/HomePage';
 import CharactersPage from './pages/CharactersPage';
 import CampaignsPage from './pages/CampaignsPage';
@@ -49,8 +50,9 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <MotionProvider>
-        <GlossaryProvider>
-          <BrowserRouter useTransitions={false}>
+        <ToastProvider>
+          <GlossaryProvider>
+            <BrowserRouter useTransitions={false}>
             <Routes>
               <Route element={<Layout />}>
                 <Route index element={<HomeWrapper />} />
@@ -70,8 +72,9 @@ export default function App() {
                 <Route path="settings" element={<SettingsPage />} />
               </Route>
             </Routes>
-          </BrowserRouter>
-        </GlossaryProvider>
+            </BrowserRouter>
+          </GlossaryProvider>
+        </ToastProvider>
       </MotionProvider>
     </QueryClientProvider>
   );

@@ -1,0 +1,44 @@
+# Item table (Core Rulebook p. 28). One-time use effects — prompts for play.
+
+items:
+  "2":
+    label: "Rune-etched Pebble"
+    health: 1
+    note: "Forgotten language markings"
+  "3":
+    label: "Silk Thread Amulet"
+    morale: 2
+  "4":
+    label: "Cloak of the Wandering Leaf"
+    note: "Skip next encounter"
+  "5":
+    label: "Bottled Starlight"
+    health: 2
+  "6":
+    label: "Map of Hidden Trails"
+    note: "Redraw next Spades or Clubs encounter"
+  "7":
+    label: "Glowing Mushroom"
+    health: 1
+    morale: 1
+  "8":
+    label: "Whispering Wind Chime"
+    note: "Redraw next combat encounter"
+  "9":
+    label: "Honeyed Acorn"
+    health: 2
+  "10":
+    label: "Heartstone"
+    morale: 3
+  jack:
+    label: "Silverleaf Dagger"
+    note: "+2 attack in one combat"
+  queen:
+    label: "Orb of the Seasons"
+    note: "Restore all Morale"
+  king:
+    label: "Nature's Crown"
+    note: "+1 Morale for next three days"
+  ace:
+    label: "Hero's Sigil"
+    note: "Restore all Health and Morale to maximum"

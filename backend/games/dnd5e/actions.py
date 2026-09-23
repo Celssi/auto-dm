@@ -30,6 +30,9 @@ SHORTCUTS: list[dict[str, str]] = [
     {"id": "short_rest", "label": "Short rest", "kind": "roll_rag"},
     {"id": "long_rest", "label": "Long rest", "kind": "roll_rag"},
     {"id": "cast_spell", "label": "Cast spell", "kind": "static"},
+    {"id": "lucky", "label": "Spend Luck point", "kind": "static"},
+    {"id": "savage_attacker", "label": "Savage Attacker (reroll damage)", "kind": "roll"},
+    {"id": "healer_medic", "label": "Healer: Battle Medic", "kind": "roll"},
     {"id": "rules_help", "label": "D&D 5e rules help", "kind": "rag_only"},
 ]
 
@@ -94,8 +97,70 @@ def _char_from_kwargs(**kwargs) -> Dnd5eCharacter:
             "spell_slots": kwargs.get("spell_slots") or {},
             "origin_feat": kwargs.get("origin_feat", ""),
             "versatile_origin_feat": kwargs.get("versatile_origin_feat", ""),
+            "inventory": kwargs.get("inventory") or [],
+            "weapons": kwargs.get("weapons") or [],
+            "luck_points_remaining": kwargs.get("luck_points_remaining", -1),
+            "savage_attacker_used_this_turn": kwargs.get("savage_attacker_used_this_turn", False),
+            "feature_choices": kwargs.get("feature_choices") or {},
         }
     )
+
+
+def _shortcut_char(
+    *,
+    name: str = "",
+    species: str = "",
+    class_name: str = "",
+    level: int = 1,
+    hp: int = 0,
+    max_hp: int = 0,
+    hit_die: int = 8,
+    hit_dice_max: int = 0,
+    hit_dice_spent: int = 0,
+    ability_scores: dict | None = None,
+    spell_slots: dict | None = None,
+    extra: dict | None = None,
+) -> Dnd5eCharacter:
+    payload = {
+        "name": name,
+        "species": species,
+        "class_name": class_name,
+        "level": level,
+        "hp": hp,
+        "max_hp": max_hp,
+        "hit_die": hit_die,
+        "hit_dice_max": hit_dice_max or level,
+        "hit_dice_spent": hit_dice_spent,
+        "ability_scores": ability_scores or {},
+        "spell_slots": spell_slots or {},
+    }
+    if extra:
+        payload.update(extra)
+    return _char_from_kwargs(**payload)
+
+
+def _apply_luck_roll(
+    char: Dnd5eCharacter,
+    *,
+    advantage: str,
+    spend_luck: bool,
+    luck_effect: str,
+) -> tuple[str, dict | None]:
+    """Return adjusted advantage mode and optional entity_updates when spending Luck."""
+    if not spend_luck:
+        return advantage, None
+    from backend.games.dnd5e.characters.origin_feats import has_origin_feat, spend_luck_point
+
+    if not has_origin_feat(char, "lucky"):
+        return advantage, None
+    if not spend_luck_point(char):
+        return advantage, None
+    effect = str(luck_effect or "advantage").strip().lower()
+    mode = "disadvantage" if effect == "disadvantage" else "advantage"
+    return mode, {
+        "luck_points_remaining": char.luck_points_remaining,
+        "follow_up": "lucky_spent",
+    }
 
 
 def run_shortcut(
@@ -123,6 +188,12 @@ def run_shortcut(
     death_save_successes: int = 0,
     death_save_failures: int = 0,
     pre_rolled: list[int] | None = None,
+    spend_luck: bool = False,
+    luck_effect: str = "advantage",
+    melee_weapon: bool = True,
+    damage_dice: str = "1d8",
+    heal_target: str = "self",
+    target_level: int | None = None,
     **_kwargs,
 ) -> dict:
     _ = game_id, ac
@@ -132,44 +203,99 @@ def run_shortcut(
         build = f"{who} ({species} {class_name} {level})".strip()
 
     if shortcut_id == "ability_check":
+        char = _shortcut_char(
+            name=name,
+            species=species,
+            class_name=class_name,
+            level=level,
+            ability_scores=ability_scores,
+            extra=_kwargs,
+        )
         mod = _resolve_modifier(ability, ability_scores, modifier, proficient, level)
         adv = advantage if advantage in ("normal", "advantage", "disadvantage") else "normal"
+        adv, luck_updates = _apply_luck_roll(
+            char, advantage=adv, spend_luck=spend_luck, luck_effect=luck_effect
+        )
         result = roll_advantage_d20(mod, advantage=adv, pre_rolled=pre_rolled)  # type: ignore[arg-type]
         prof = " (proficient)" if proficient else ""
-        user = f"**Ability check** ({ability.upper()}{prof})\n\n{result['summary']}"
+        luck_note = "\n\n**Luck point spent** (advantage)." if luck_updates else ""
+        user = f"**Ability check** ({ability.upper()}{prof})\n\n{result['summary']}{luck_note}"
         prompt = (
             f"D&D 5e ability check for {build}, {ability.upper()} modifier {mod:+d}. "
             f"{result['summary']}. Explain DC, success, and any relevant 2024 PHB guidance."
         )
-        return {"user_message": user, "prompt": prompt, "dice": result, "task": "ability_check"}
+        out: dict = {"user_message": user, "prompt": prompt, "dice": result, "task": "ability_check"}
+        if luck_updates:
+            out["entity_updates"] = luck_updates
+        return out
 
     if shortcut_id == "saving_throw":
+        char = _shortcut_char(
+            name=name,
+            species=species,
+            class_name=class_name,
+            level=level,
+            ability_scores=ability_scores,
+            extra=_kwargs,
+        )
         mod = _resolve_modifier(ability, ability_scores, modifier, proficient, level)
         adv = advantage if advantage in ("normal", "advantage", "disadvantage") else "normal"
+        adv, luck_updates = _apply_luck_roll(
+            char, advantage=adv, spend_luck=spend_luck, luck_effect=luck_effect
+        )
         result = roll_advantage_d20(mod, advantage=adv, pre_rolled=pre_rolled)  # type: ignore[arg-type]
-        user = f"**Saving throw** ({ability.upper()})\n\n{result['summary']}"
+        luck_note = "\n\n**Luck point spent**." if luck_updates else ""
+        user = f"**Saving throw** ({ability.upper()})\n\n{result['summary']}{luck_note}"
         prompt = (
             f"D&D 5e saving throw for {build}, {ability.upper()} save {mod:+d}. "
             f"{result['summary']}. Explain save DC, success, and effects using PHB rules."
         )
-        return {"user_message": user, "prompt": prompt, "dice": result, "task": "saving_throw"}
+        out = {"user_message": user, "prompt": prompt, "dice": result, "task": "saving_throw"}
+        if luck_updates:
+            out["entity_updates"] = luck_updates
+        return out
 
     if shortcut_id == "attack_roll":
+        char = _shortcut_char(
+            name=name,
+            species=species,
+            class_name=class_name,
+            level=level,
+            ability_scores=ability_scores,
+            extra=_kwargs,
+        )
         mod = _resolve_modifier(ability, ability_scores, modifier, proficient, level)
         adv = advantage if advantage in ("normal", "advantage", "disadvantage") else "normal"
+        adv, luck_updates = _apply_luck_roll(
+            char, advantage=adv, spend_luck=spend_luck, luck_effect=luck_effect
+        )
         result = roll_advantage_d20(mod, advantage=adv, pre_rolled=pre_rolled)  # type: ignore[arg-type]
+        total = int(result.get("total", 0))
         if target_ac is not None:
             ac_note = f"\n\nvs target AC **{int(target_ac)}**"
             ac_prompt = f" vs AC {int(target_ac)}"
+            hit = total >= int(target_ac)
         else:
             ac_note = "\n\n(Set target AC when you know the foe's armor class.)"
             ac_prompt = " vs DM-set AC"
-        user = f"**Attack roll**\n\n{result['summary']}{ac_note}"
+            hit = False
+        luck_note = "\n\n**Luck point spent**." if luck_updates else ""
+        user = f"**Attack roll**\n\n{result['summary']}{ac_note}{luck_note}"
         prompt = (
             f"D&D 5e attack roll for {build}, attack bonus {mod:+d}{ac_prompt}. "
             f"{result['summary']}. Explain hit, critical hit, and damage next steps."
         )
-        return {"user_message": user, "prompt": prompt, "dice": result, "task": "attack_roll"}
+        out = {"user_message": user, "prompt": prompt, "dice": result, "task": "attack_roll"}
+        entity_updates = dict(luck_updates or {})
+        from backend.games.dnd5e.characters.origin_feats import savage_attacker_eligible
+
+        if savage_attacker_eligible(char, hit=hit, melee=bool(melee_weapon)):
+            user += "\n\n**Savage Attacker:** you may reroll weapon damage dice once (use Savage Attacker shortcut)."
+            out["user_message"] = user
+            out["follow_up_shortcut"] = "savage_attacker"
+        if entity_updates:
+            out["entity_updates"] = entity_updates
+        return out
 
     if shortcut_id == "initiative":
         char = _char_from_kwargs(**_kwargs)
@@ -329,6 +455,99 @@ def run_shortcut(
             "rag_only": True,
             "entity_updates": rest.get("entity_updates") or {},
             "task": "long_rest",
+        }
+
+    if shortcut_id == "lucky":
+        char = _shortcut_char(name=name, class_name=class_name, level=level, extra=_kwargs)
+        from backend.games.dnd5e.characters.origin_feats import luck_points_max, spend_luck_point
+
+        if luck_points_max(char) <= 0:
+            return {
+                "user_message": "**Lucky** — feat not active on this character.",
+                "prompt": "Lucky feat is not available.",
+                "static": True,
+            }
+        if not spend_luck_point(char):
+            return {
+                "user_message": "**Lucky** — no Luck points remaining (recharge on long rest).",
+                "prompt": "No luck points left.",
+                "static": True,
+            }
+        user = (
+            f"**Luck point spent** ({char.luck_points_remaining}/{luck_points_max(char)} remaining). "
+            "Apply advantage on your roll, or impose disadvantage on an enemy's roll."
+        )
+        return {
+            "user_message": user,
+            "prompt": user,
+            "static": True,
+            "entity_updates": {"luck_points_remaining": char.luck_points_remaining},
+        }
+
+    if shortcut_id == "savage_attacker":
+        char = _shortcut_char(name=name, class_name=class_name, level=level, extra=_kwargs)
+        from backend.games.dnd5e.characters.origin_feats import has_origin_feat
+
+        if not has_origin_feat(char, "savage_attacker"):
+            return {
+                "user_message": "**Savage Attacker** — feat not active.",
+                "prompt": "Savage Attacker not available.",
+                "static": True,
+            }
+        if char.savage_attacker_used_this_turn:
+            return {
+                "user_message": "**Savage Attacker** — already used this turn.",
+                "prompt": "Savage Attacker once per turn.",
+                "static": True,
+            }
+        dice = str(damage_dice or "1d8").strip() or "1d8"
+        result = roll_dice(f"{dice} reroll", caller="shortcut.savage_attacker")
+        char.savage_attacker_used_this_turn = True
+        user = f"**Savage Attacker** — reroll weapon damage ({dice})\n\n{result.get('summary', '')}"
+        return {
+            "user_message": user,
+            "prompt": (
+                f"Savage Attacker for {build}: rerolled {dice}. "
+                "Use the higher total of the original and reroll."
+            ),
+            "dice": result,
+            "entity_updates": {"savage_attacker_used_this_turn": True},
+            "task": "savage_attacker",
+        }
+
+    if shortcut_id == "healer_medic":
+        char = _shortcut_char(name=name, class_name=class_name, level=level, extra=_kwargs)
+        from backend.games.dnd5e.characters.origin_feats import (
+            can_healer_medic,
+            record_healer_medic_use,
+        )
+
+        target = str(heal_target or "self").strip() or "self"
+        if not can_healer_medic(char, target):
+            reason = "Healer feat, healer's kit, and once-per-target-per-short-rest required."
+            return {
+                "user_message": f"**Battle Medic** — cannot heal **{target}** ({reason})",
+                "prompt": reason,
+                "static": True,
+            }
+        lvl = int(target_level if target_level is not None else level or 1)
+        heal_roll = roll_dice("1d6", caller="shortcut.healer_medic")
+        roll_val = int((heal_roll.get("rolls") or [0])[0] or 0)
+        healing = roll_val + 4 + max(1, lvl)
+        record_healer_medic_use(char, target)
+        user = (
+            f"**Battle Medic** → **{target}**\n\n"
+            f"{heal_roll.get('summary', '1d6')} + 4 + level {lvl} = **{healing} HP**"
+        )
+        entity: dict = {"feature_choices": dict(char.feature_choices or {})}
+        if target.lower() in ("self", char.name.lower()):
+            entity["hp"] = min(max_hp or char.max_hp, (hp or char.hp) + healing)
+        return {
+            "user_message": user,
+            "prompt": f"Healer Battle Medic for {build}: restored {healing} HP to {target}.",
+            "dice": heal_roll,
+            "entity_updates": entity,
+            "task": "healer_medic",
         }
 
     if shortcut_id == "cast_spell":

@@ -4,6 +4,7 @@ import { m, AnimatePresence } from '../../lib/framer';
 import { displayLabel } from '../../lib/displayText';
 import { useGlossary } from '../../context/GlossaryContext';
 import type { GlossaryEntry } from '../../lib/glossary';
+import { isLikelyEntityId } from '../../lib/glossary';
 import MarkdownContent from './MarkdownContent';
 
 interface Props {
@@ -131,6 +132,7 @@ export default function GlossaryTip({
 
   const show = useCallback(async () => {
     const staticEntry = getEntry(name, classId);
+    if (isLikelyEntityId(name) && !staticEntry?.summary) return;
     if (staticEntry?.summary) {
       setEntry(staticEntry);
       setOpen(true);

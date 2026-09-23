@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from backend.config import LANGSMITH_ENABLED, LANGSMITH_ENDPOINT, LANGSMITH_PROJECT
-from backend.routes import adventures, campaigns, characters, play, sessions, system
+from backend.routes import adventures, brambletrek, campaigns, characters, play, sessions, system
 
 logger = logging.getLogger(__name__)
 
@@ -47,6 +47,7 @@ app.include_router(characters.router)
 app.include_router(campaigns.router)
 app.include_router(adventures.router)
 app.include_router(play.router)
+app.include_router(brambletrek.router)
 app.include_router(sessions.router)
 
 frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"

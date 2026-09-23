@@ -1,0 +1,469 @@
+id: world_tree
+label: Secrets of the World Tree
+source:
+  pdf: brambletrek/Brambletrek_-_Complete_Digital_Edition.pdf
+  printed_pages:
+    reasons: 39
+    journeys:
+    - 40
+    - 41
+    - 42
+    - 43
+    combat: 44
+play:
+  journey_cards_per_day: 3
+  use_core_depths: false
+  use_core_combat: false
+  reason_key: rank
+journey_heading: '**Heimstre (World Tree)** — three exploration events per day'
+reasons:
+  '2':
+    title: Family Legacy
+    label: Family Legacy
+    body: You stumble upon an ancient journal, worn by time. It reveals that one of your ancestors was
+      a guardian of Heimstre. The World Tree beckons you to continue their legacy.
+  '3':
+    title: Ephemeral Dreams
+    label: Ephemeral Dreams
+    body: Night after night, you dream of a glowing sapling at the heart of Heimstre. It whispers that
+      your destiny intertwines with the World Tree's very essence.
+  '4':
+    title: Lost Artefact
+    label: Lost Artefact
+    body: You've heard rumours of a sacred relic lost within the World Tree, said to have the power to
+      reshape fate. Is it mere legend, or is there truth to the tales?
+  '5':
+    title: Nature's Imbalance
+    label: Nature's Imbalance
+    body: The forests of Hyhill seem changed, wilder. Old spirits murmur that the equilibrium of Heimstre
+      has tilted. Only a Gnawborn can restore the balance.
+  '6':
+    title: Mystical Bond
+    label: Mystical Bond
+    body: An unknown force pulls you towards Heimstre. Every gust of wind, every rustle of leaves seems
+      to guide your path, as if the World Tree itself beckons.
+  '7':
+    title: Guardian's Plea
+    label: Guardian's Plea
+    body: A spectral apparition of a former guardian of Heimstre appears in your camp. They plead for
+      your help against a looming darkness within the tree.
+  '8':
+    title: Ancient Prophecy
+    label: Ancient Prophecy
+    body: In a secluded village, you come across an old seer. They recite a prophecy where a wandering
+      Gnawborn restores light to Heimstre's heart.
+  '9':
+    title: Cursed Mark
+    label: Cursed Mark
+    body: A mysterious mark appears on your paw, tingling with power. Elders speak of it as the Sigil
+      of Heimstre – a sign that the tree demands your presence.
+  '10':
+    title: Forgotten Melody
+    label: Forgotten Melody
+    body: A haunting tune, whispered by the winds, speaks of Heimstre's heart and a Gnawborn's role. The
+      song feels eerily familiar, urging you to seek its source.
+  jack:
+    title: Vanishing Kin
+    label: Vanishing Kin
+    body: Gnawborns have been disappearing, drawn towards Heimstre. Whispers speak of a grand assembly
+      within the tree's depths. Can you solve the mystery?
+  queen:
+    title: Echoes of Power
+    label: Echoes of Power
+    body: A surge of raw magical energy pulses from Heimstre, and you alone seem attuned to it. This power
+      is both a beckoning call and
+  ace:
+    title: Tree's Heart Cry
+    label: Tree's Heart Cry
+    body: A profound sorrow emanates from Heimstre, felt deeply in your soul. The World Tree mourns, and
+      it seems only you can comfort its ancient heart. Y OUR REASON TO ENTER HEIMSTRE As with character
+      creation, this table can either be drawn on or chosen. When you feel like ending your adventure,
+      you may head to the ‘True Ending’ page to determine the True ending that is based on these Reasons.
+  king:
+    title: Guardian's Fall
+    label: Guardian's Fall
+    body: Rumours spread that the current guardian of Heimstre is faltering. The World Tree requires a
+      new protector, and perhaps you are the chosen one.
+journeys:
+  hearts:
+    '2':
+      label: Whispers echo around, growing louder until they form a lullaby from your past, grounding
+        and calming your spirit.
+      body: Whispers echo around, growing louder until they form a lullaby from your past, grounding and
+        calming your spirit. Morale +1
+      morale: 1
+    '3':
+      label: Joyous sprites dance around you.
+      body: Joyous sprites dance around you. You can't help but join their gleeful prance, feeling lighter
+        than air. (LORE) Health +2
+      health: 2
+      tags:
+      - lore
+    '4':
+      label: Memories flood back of a cherished friend from your youth as a sacred grove rekindles past
+        emotions, offering a chance t
+      body: Memories flood back of a cherished friend from your youth as a sacred grove rekindles past
+        emotions, offering a chance to reconnect with what was lost. (LORE) Morale +3
+      morale: 3
+      tags:
+      - lore
+    '5':
+      label: In a radiant grove, you see spirits that bear uncanny resemblances to long-lost family members,
+        sharing tales and laught
+      body: In a radiant grove, you see spirits that bear uncanny resemblances to long-lost family members,
+        sharing tales and laughter. Morale +4
+      morale: 4
+    '6':
+      label: ''
+    ace:
+      label: Ancestral spirits of Heimstre seem to recognize and embrace, offering a moment of respite
+        from your journey.
+      body: Ancestral spirits of Heimstre seem to recognize and embrace, offering a moment of respite
+        from your journey. Morale +10 EXPLORATION You will explore the vastness that is Heimstre by drawing
+        3 daily cards. At the end of each day, the tree will provide you with a safe camp to rest for
+        the night and recoup your strength. As with the main game, you will use the 4 provided tables
+        to see what events you come across. Some will be labelled with ‘ITEM’ or ‘LORE’ , for these you
+        will head to the Item & Lore sections respectively, drawing any relevant cards to determine what
+        else you come across. If they are tied to combat, you must win to gain the item or lore. Your
+        journey can be as long or as short as you want, but it is recommended that your journey within
+        Heimstre comes to an end once you have collected 13 pieces of Lore.
+      morale: 10
+    '7':
+      label: A carved sanctuary stands ahead.
+      body: A carved sanctuary stands ahead. It's filled with stories of Gnawborn; each inscription offers
+        wisdom. (LORE) Health +6
+      health: 6
+      tags:
+      - lore
+    '8':
+      label: Nurtured roots present a nectar-filled chalice.
+      body: Nurtured roots present a nectar-filled chalice. As you drink, you feel refreshed, weariness
+        begins to fade away. Health +7
+      health: 7
+    '9':
+      label: A songbird serenades you with a familiar tune, its melody guiding your steps and lifting
+        your heart.
+      body: A songbird serenades you with a familiar tune, its melody guiding your steps and lifting your
+        heart. Morale +8
+      morale: 8
+    '10':
+      label: The branches of Heimstre sway, creating a rhythm.
+      body: The branches of Heimstre sway, creating a rhythm. It feels as though the Tree itself is acknowledging
+        your journey. Health +4, Morale +5
+      health: 4
+      morale: 5
+    jack:
+      label: A guardian, made of branches and leaves, stands firm, challenging your resolve and purpose
+        within Heimstre.
+      body: A guardian, made of branches and leaves, stands firm, challenging your resolve and purpose
+        within Heimstre. Combat
+    queen:
+      label: ''
+    king:
+      label: The Heart of Heimstre emerges, its very essence testing your physical mettle in this final
+        challenge.
+      body: The Heart of Heimstre emerges, its very essence testing your physical mettle in this final
+        challenge. (LORE) Combat
+      tags:
+      - lore
+  diamonds:
+    '2':
+      label: ''
+    ace:
+      label: Above, constellations shift and point toward a concealed trove.
+      body: Above, constellations shift and point toward a concealed trove. Starlight illuminates the
+        way, promising treasures untold. (ITEM) Supplies +10
+      supplies: 10
+      tags:
+      - item
+    '3':
+      label: Luminescent roots rise and twist before you, showcasing a dance of lights and shadows, revealing
+        hidden healing properti
+      body: Luminescent roots rise and twist before you, showcasing a dance of lights and shadows, revealing
+        hidden healing properties of the World Tree. Health +3
+      health: 3
+    '4':
+      label: Amidst the underbrush, a rune-inscribed stone pulses with ancient power, waiting to be deciphered
+        and harnessed.
+      body: Amidst the underbrush, a rune-inscribed stone pulses with ancient power, waiting to be deciphered
+        and harnessed. (LORE) Morale +3
+      morale: 3
+      tags:
+      - lore
+    '5':
+      label: ''
+    '6':
+      label: You discover a secluded pool; its surface ripples and changes, across the water you see an
+        old camp with a smouldering f
+      body: You discover a secluded pool; its surface ripples and changes, across the water you see an
+        old camp with a smouldering flame but bags left scattered. Supplies +5
+      supplies: 5
+    '7':
+      label: Towering shelves filled with age-old tomes stretch before you.
+      body: Towering shelves filled with age-old tomes stretch before you. Each book tells tales of Heimstre's
+        grandeur and the Gnawborn's place within it. Health +3, Morale +3
+      health: 3
+      morale: 3
+    '8':
+      label: ''
+    '9':
+      label: Hidden among the leaves is an artefact, ancient and powerful.
+      body: Hidden among the leaves is an artefact, ancient and powerful. It calls out, promising untold
+        power and deeper connection with the World Tree. (ITEM) Supplies +8
+      supplies: 8
+      tags:
+      - item
+    '10':
+      label: The path ahead splits, marked by a wisp that giggles and shares a riddle.
+      body: The path ahead splits, marked by a wisp that giggles and shares a riddle. Solving it might
+        reveal secrets hidden deep within Heimstre. (LORE) Morale +10
+      morale: 10
+      tags:
+      - lore
+    jack:
+      label: From the shadows emerges a guardian, its form woven from moonlight and mysteries.
+      body: From the shadows emerges a guardian, its form woven from moonlight and mysteries. It studies
+        you, measuring your worthiness to access Heimstre's deeper secrets. (ITEM) Combat
+      tags:
+      - item
+    queen:
+      label: The guardian of the astral realm stands tall, its presence a challenge to your magic and
+        might, with the promise of know
+      body: The guardian of the astral realm stands tall, its presence a challenge to your magic and might,
+        with the promise of knowledge as the reward. (LORE) Combat
+      tags:
+      - lore
+    king:
+      label: 'Heimstre''s Spirit, timeless and profound, emerges, gauging your understanding of the tree''s
+        essence and its intertwined '
+      body: Heimstre's Spirit, timeless and profound, emerges, gauging your understanding of the tree's
+        essence and its intertwined destiny with the Gnawborn. Combat
+  spades:
+    '2':
+      label: The ground trembles, and gnarled roots rise, seeking to entangle and constrict, draining
+        your vitality in their relentle
+      body: The ground trembles, and gnarled roots rise, seeking to entangle and constrict, draining your
+        vitality in their relentless grasp. Health -2
+      health: -2
+    '3':
+      label: ''
+    ace:
+      label: The canopy darkens, blotting out all light.
+      body: The canopy darkens, blotting out all light. An overwhelming sense of foreboding grows as you
+        find the den of a lost soul who now haunts you. (LORE) Morale -5, Supplies -5
+      morale: -5
+      supplies: -5
+      tags:
+      - lore
+    '4':
+      label: Noxious vapours fill the air, making breathing laborious.
+      body: Noxious vapours fill the air, making breathing laborious. Each inhale saps strength, but through
+        this you hallucinate, as if the tree is speaking to you. (LORE) Health -4
+      health: -4
+      tags:
+      - lore
+    '5':
+      label: ''
+    '6':
+      label: The path narrows, with jagged branches closing in, each scratch and scrape taking its toll
+        on your well-being.
+      body: The path narrows, with jagged branches closing in, each scratch and scrape taking its toll
+        on your well-being. Health -6
+      health: -6
+    '7':
+      label: Cries of unseen creatures echo, instilling fear and uncertainty.
+      body: Cries of unseen creatures echo, instilling fear and uncertainty. Their presence remains hidden,
+        but the threat they pose feels palpable. Morale -7
+      morale: -7
+    '8':
+      label: Pools of murky water litter the path.
+      body: Pools of murky water litter the path. Their deceptive depths hide treacherous terrain, making
+        navigation hazardous. Health -4 Supplies -4
+      health: -4
+      supplies: -4
+    '9':
+      label: An eerie fog envelops all, limiting vision and muffling sounds.
+      body: An eerie fog envelops all, limiting vision and muffling sounds. The sense of isolation grows,
+        impacting your spirit. Morale -9
+      morale: -9
+    '10':
+      label: Sinister vines, bearing toxic fruits, entice with false promises of sustenance.
+      body: Sinister vines, bearing toxic fruits, entice with false promises of sustenance. Consuming
+        them brings regret. Supplies -4, Health -6
+      supplies: -4
+      health: -6
+    jack:
+      label: The embodiment of Heimstre's wrath emerges, its form a testament to nature's fury.
+      body: 'The embodiment of Heimstre''s wrath emerges, its form a testament to nature''s fury. It confronts
+        you, its intent clear: challenge or be challenged. (LORE) (ITEM) Combat'
+      tags:
+      - item
+      - lore
+    queen:
+      label: ''
+    king:
+      label: The Spirit of Heimstre's Wrath materializes, its aura pulsating with raw power.
+      body: The Spirit of Heimstre's Wrath materializes, its aura pulsating with raw power. It evaluates
+        your worth and resilience in the face of Heimstre's harshest trials. Combat
+  clubs:
+    '2':
+      label: Illusionary walls rise, playing tricks on your eyes and mind.
+      body: Illusionary walls rise, playing tricks on your eyes and mind. Doubt seeps in as the path forward
+        becomes uncertain. Morale -2
+      morale: -2
+    '3':
+      label: Whispers grow louder, their words sowing seeds of mistrust and confusion.
+      body: Whispers grow louder, their words sowing seeds of mistrust and confusion. They question your
+        purpose and the veracity of your journey. (LORE) Morale -1, Health -2
+      morale: -1
+      health: -2
+      tags:
+      - lore
+    '4':
+      label: ''
+    ace:
+      label: labyrinthine pattern emerges on the ground, challenging your wit and resolve.
+      body: labyrinthine pattern emerges on the ground, challenging your wit and resolve. Every wrong
+        turn saps your strength, but a right one promises insights into Heimstre's core. Supplies -5,
+        Health -5
+      supplies: -5
+      health: -5
+    '5':
+      label: Shadows lengthen, obfuscating your route.
+      body: Shadows lengthen, obfuscating your route. Every step feels heavy as uncertainty grows and
+        clarity fades. Supplies -5
+      supplies: -5
+    '6':
+      label: Forgotten fears resurface as apparitions taunt you.
+      body: Forgotten fears resurface as apparitions taunt you. Their jeers test your mental fortitude
+        and challenge your place within Heimstre. Morale -6
+      morale: -6
+    '7':
+      label: The roots tremble, shifting the terrain, making progression arduous.
+      body: The roots tremble, shifting the terrain, making progression arduous. Each misstep costs dearly,
+        both in energy and supplies. Supplies -4, Health -3
+      supplies: -4
+      health: -3
+    '8':
+      label: Illusive figures present riddles.
+      body: Illusive figures present riddles. You fail to decipher them, but the figure still offers you
+        aid in the form of a prophecy. (LORE) Morale -8
+      morale: -8
+      tags:
+      - lore
+    '9':
+      label: Echoes of past failures reverberate, reminding you of the cost of mistakes and the importance
+        of perseverance.
+      body: Echoes of past failures reverberate, reminding you of the cost of mistakes and the importance
+        of perseverance. Morale -9
+      morale: -9
+    '10':
+      label: Reality distorts as memories merge with the present, disorienting and challenging your very
+        understanding of time and pl
+      body: Reality distorts as memories merge with the present, disorienting and challenging your very
+        understanding of time and place within Heimstre. (LORE) Health -5, Morale -5
+      health: -5
+      morale: -5
+      tags:
+      - lore
+    jack:
+      label: ''
+    queen:
+      label: The guardian of forgotten lore appears, its visage emanating riddles and challenges.
+      body: The guardian of forgotten lore appears, its visage emanating riddles and challenges. It beckons,
+        offering both peril and promise. (ITEM) (LORE) Combat
+      tags:
+      - item
+      - lore
+    king:
+      label: Heimstre's Mind, a construct of intellect and introspection, evaluates your knowledge and
+        resilience.
+      body: Heimstre's Mind, a construct of intellect and introspection, evaluates your knowledge and
+        resilience. It awaits your approach, poised for a final challenge. (LORE) Combat
+      tags:
+      - lore
+notes:
+- Per-card combat opponents on p. 44 — use adventure combat draw.
+- Collect 13 Lore pieces as suggested end condition.
+combat:
+  guardians:
+    hearts:
+      '2':
+        label: Squirrel Scout
+        health: 5
+      '3':
+        label: Forest Fox
+        health: 6
+      '4':
+        label: Woodland Deer
+        health: 7
+      '5':
+        label: Charging Boar
+        health: 8
+      '6':
+        label: Forest Falcon
+        health: 9
+      '7':
+        label: Thorned Badger
+        health: 10
+      '8':
+        label: Growling Bear
+        health: 12
+      '9':
+        label: Soaring Eagle
+        health: 13
+      '10':
+        label: Majestic Stag
+        health: 14
+      jack:
+        label: Alpha Wolf
+        health: 15
+      queen:
+        label: Forest Guardian
+        health: 17
+      king:
+        label: King of the Beasts
+        health: 20
+      ace:
+        label: Spirit of the Forest
+        health: 25
+    diamonds:
+      '2':
+        label: Novice Thief
+        health: 6
+      '3':
+        label: Travelling Scoundrel
+        health: 7
+      '4':
+        label: Ambush Archer
+        health: 8
+      '5':
+        label: Dagger Duellist
+        health: 9
+      '6':
+        label: Seasoned Marauder
+        health: 10
+      '7':
+        label: Battle-hardened Bandit
+        health: 11
+      '8':
+        label: Robber Baron
+        health: 13
+      '9':
+        label: Armoured Rogue Knight
+        health: 14
+      '10':
+        label: Bandit Leader
+        health: 15
+      jack:
+        label: Elite Raider
+        health: 16
+      queen:
+        label: Queen of Thieves
+        health: 18
+      king:
+        label: Bandit King
+        health: 21
+      ace:
+        label: Legendary Outlaw
+        health: 26

@@ -31,6 +31,7 @@ export default function CampaignsPage() {
     create,
     openCreateForm,
     generateCampaign,
+    bootstrapBrambletrekCampaign,
     startNewAdventure,
     playAdventure,
     openEntry,
@@ -97,6 +98,11 @@ export default function CampaignsPage() {
     if (id) navigate(`/campaigns/${id}`);
   };
 
+  const handleBootstrapBrambletrek = async () => {
+    const sessionId = await bootstrapBrambletrekCampaign();
+    if (sessionId) navigate(`/play/${sessionId}`);
+  };
+
   const handleGenerateCampaign = async () => {
     await generateCampaign();
   };
@@ -160,6 +166,7 @@ export default function CampaignsPage() {
             onPatchGenerateForm={(patch) => dispatch({ type: 'patchGenerateForm', patch })}
             onCreateManual={handleCreate}
             onGenerate={handleGenerateCampaign}
+            onBootstrapBrambletrek={handleBootstrapBrambletrek}
             onCancel={() => navigate('/campaigns')}
           />
         )}

@@ -73,6 +73,9 @@ export default function CampaignDetailPanel({
   const [linkCharacterId, setLinkCharacterId] = useState(defaultLinkCharacterId);
   const effectiveLinkCharacterId = linkCharacterId || defaultLinkCharacterId;
 
+  const linkedChar = state.characters.find((c) => linkedIds.includes(c.id));
+  const isBrambletrekCampaign = (linkedChar?.game_id || '') === 'brambletrek';
+
   const list = state.tab === 'npcs' ? campaign.npcs : state.tab === 'locations' ? campaign.locations : [];
   const tabs = [
     { id: 'story', label: 'Story arc' },
@@ -90,7 +93,7 @@ export default function CampaignDetailPanel({
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div className="space-y-3 min-w-0 flex-1">
           <div>
-            <h2 className="font-display text-xl text-gray-100">{campaign.name}</h2>
+            <h2 className="display-title text-xl">{campaign.name}</h2>
             {!needsCharacterLink && (
               <p className="text-sm text-muted mt-1">
                 {campaignCharacterLabel(campaign.character_ids, state.characters, state.campaignAdventures)}
@@ -229,6 +232,7 @@ export default function CampaignDetailPanel({
             adventures={state.campaignAdventures}
             adventuresLoaded={state.adventuresLoaded}
             characters={state.characters}
+            isBrambletrek={isBrambletrekCampaign}
             newAdventureOpen={state.newAdventureOpen}
             bootstrapping={state.bootstrapping}
             adventureForm={state.adventureForm}
@@ -254,6 +258,7 @@ function CampaignAdventuresTab({
   adventures,
   adventuresLoaded,
   characters,
+  isBrambletrek,
   newAdventureOpen,
   bootstrapping,
   adventureForm,
@@ -265,7 +270,8 @@ function CampaignAdventuresTab({
 }: {
   adventures: AdventureMeta[];
   adventuresLoaded: boolean;
-  characters: { id: string; name: string }[];
+  characters: { id: string; name: string; game_id?: string }[];
+  isBrambletrek: boolean;
   newAdventureOpen: boolean;
   bootstrapping: boolean;
   adventureForm: CampaignsState['adventureForm'];
@@ -285,20 +291,24 @@ function CampaignAdventuresTab({
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted">
-          Each adventure keeps its own log and canon. The DM remembers prior adventures when you start a new one.
+          {isBrambletrek
+            ? 'Each play session journals through book tables — draw journey cards and describe what happens.'
+            : 'Each adventure keeps its own log and canon. The DM remembers prior adventures when you start a new one.'}
         </p>
-        <button
-          type="button"
-          className="btn-primary text-sm inline-flex items-center gap-1.5 shrink-0"
-          onClick={onToggleNewAdventure}
-        >
-          <Sparkles size={14} />
-          {newAdventureOpen ? 'Cancel' : 'New adventure'}
-        </button>
+        {!isBrambletrek && (
+          <button
+            type="button"
+            className="btn-primary text-sm inline-flex items-center gap-1.5 shrink-0"
+            onClick={onToggleNewAdventure}
+          >
+            <Sparkles size={14} />
+            {newAdventureOpen ? 'Cancel' : 'New adventure'}
+          </button>
+        )}
       </div>
 
       <AnimatePresence>
-        {newAdventureOpen && (
+        {newAdventureOpen && !isBrambletrek && (
           <m.div
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}

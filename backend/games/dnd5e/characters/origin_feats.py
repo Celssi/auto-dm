@@ -127,6 +127,65 @@ def luck_points_max(char: Dnd5eCharacter) -> int:
     return char.proficiency_bonus()
 
 
+def spend_luck_point(char: Dnd5eCharacter) -> bool:
+    if char.luck_points_remaining <= 0:
+        return False
+    char.luck_points_remaining -= 1
+    return True
+
+
+def has_healers_kit(char: Dnd5eCharacter) -> bool:
+    for item in char.inventory or []:
+        low = str(item).lower()
+        if "healer" in low and "kit" in low:
+            return True
+    return False
+
+
+def healer_medic_uses(char: Dnd5eCharacter) -> dict[str, int]:
+    raw = (char.feature_choices or {}).get("healer_medic_uses") or {}
+    if not isinstance(raw, dict):
+        return {}
+    return {str(k): int(v or 0) for k, v in raw.items()}
+
+
+def record_healer_medic_use(char: Dnd5eCharacter, target: str) -> None:
+    fc = dict(char.feature_choices or {})
+    uses = dict(healer_medic_uses(char))
+    key = str(target or "self").strip().lower() or "self"
+    uses[key] = uses.get(key, 0) + 1
+    fc["healer_medic_uses"] = uses
+    char.feature_choices = fc
+
+
+def can_healer_medic(char: Dnd5eCharacter, target: str) -> bool:
+    if not has_origin_feat(char, "healer"):
+        return False
+    if not has_healers_kit(char):
+        return False
+    key = str(target or "self").strip().lower() or "self"
+    return healer_medic_uses(char).get(key, 0) < 1
+
+
+def savage_attacker_eligible(char: Dnd5eCharacter, *, hit: bool, melee: bool) -> bool:
+    return (
+        hit
+        and melee
+        and has_origin_feat(char, "savage_attacker")
+        and not char.savage_attacker_used_this_turn
+    )
+
+
+def apply_lucky_rest(char: Dnd5eCharacter) -> None:
+    char.luck_points_remaining = luck_points_max(char)
+
+
+def reset_healer_medic_uses(char: Dnd5eCharacter) -> None:
+    fc = dict(char.feature_choices or {})
+    fc["healer_medic_uses"] = {}
+    char.feature_choices = fc
+
+
 def apply_origin_feat_proficiencies(char: Dnd5eCharacter) -> None:
     """Apply automatic proficiencies from origin feats (no player pick required)."""
     tools = list(char.tool_proficiencies or [])

@@ -1,0 +1,181 @@
+# Journey & Exploration — surface world (Core Rulebook pp. 24–25).
+# Keys: card rank (2–10, jack, queen, king, ace). Stats clamp 0–20 in code.
+
+hearts:
+  "2":
+    label: "Friendly traveller"
+    morale: 2
+  "3":
+    label: "Refreshing rain lifts spirits"
+    morale: 3
+  "4":
+    label: "Serene spot to rest and recover"
+    health: 4
+  "5":
+    label: "Animal befriends you, guidance to the depths"
+    morale: 5
+    tags: [depths]
+  "6":
+    label: "Herbalist teaches medicinal plants"
+    health: 6
+  "7":
+    label: "Merry Gnawborn share fire and stories"
+    health: 2
+    supplies: 2
+    morale: 2
+    tags: [item]
+  "8":
+    label: "Save trapped creature; it aids you in return"
+    morale: 8
+  "9":
+    label: "Traveller shares insight and a secret path"
+    morale: 9
+    tags: [depths]
+  "10":
+    label: "Wandering bard's song drives you onward"
+    morale: 10
+  jack:
+    label: "Friendly bout in the forest"
+    combat: true
+  queen:
+    label: "Arrogant opponent tests your strength"
+    combat: true
+  king:
+    label: "Duel of honour"
+    combat: true
+  ace:
+    label: "Stone monument glows; symbols invite you deeper"
+    all_stats: 10
+
+diamonds:
+  "2":
+    label: "Hidden path through the brambles"
+    supplies: 2
+  "3":
+    label: "Rainbow after storm — stash of supplies"
+    supplies: 3
+    tags: [item]
+  "4":
+    label: "Ruin filled with history"
+    supplies: 4
+    tags: [item]
+  "5":
+    label: "Giant tree, backpack and footprints deeper"
+    morale: 5
+  "6":
+    label: "Clear stream — fresh water and fish"
+    health: 3
+    supplies: 3
+  "7":
+    label: "Rare healing herb; wounds heal well"
+    health: 6
+  "8":
+    label: "Cache of old-world artefacts, hidden path"
+    supplies: 8
+    tags: [item, depths]
+  "9":
+    label: "Excellent vantage point, lay of the land"
+    supplies: 9
+  "10":
+    label: "Old abandoned camp with supplies"
+    supplies: 10
+    tags: [item]
+  jack:
+    label: "Treasure glint in a creature's lair"
+    combat: true
+  queen:
+    label: "Valuable resource guarded by creatures"
+    combat: true
+  king:
+    label: "Rare relic in a nest of deadly creatures"
+    combat: true
+  ace:
+    label: "Divine site boon — extra tactic card next battle"
+    note: "Next battle: draw one extra tactic at start"
+
+clubs:
+  "2":
+    label: "Lost in dense woods"
+    supplies: -2
+  "3":
+    label: "Thorny underbrush slows progress"
+    health: -3
+  "4":
+    label: "Injury hinders travel"
+    health: -4
+  "5":
+    label: "Supplies spoil"
+    supplies: -5
+  "6":
+    label: "Chill wind dampens spirits and fire"
+    morale: -6
+  "7":
+    label: "Pack stolen — chase into its hole"
+    supplies: -6
+    tags: [depths]
+  "8":
+    label: "Stumble into cave, fall deeper"
+    morale: -8
+    tags: [depths]
+  "9":
+    label: "Steep, hard path"
+    health: -9
+  "10":
+    label: "Disturb a beehive"
+    health: -10
+  jack:
+    label: "Challenge by a strong warrior"
+    combat: true
+  queen:
+    label: "Trap — captured and challenged"
+    combat: true
+  king:
+    label: "Opponent blocks path, demands duel"
+    combat: true
+  ace:
+    label: "Debilitating curse weakens abilities"
+    all_stats: -10
+
+spades:
+  "2":
+    label: "Sudden storm — treacherous travel"
+    health: -2
+  "3":
+    label: "Wolves track your path"
+    morale: -3
+  "4":
+    label: "Rock blocks the way"
+    morale: -4
+  "5":
+    label: "Swift river blocks destination"
+    health: -5
+  "6":
+    label: "Venomous spider bite in sleep"
+    health: -6
+  "7":
+    label: "Bandits demand a toll"
+    morale: -3
+    supplies: -3
+  "8":
+    label: "Bear chase; lose footing after escape"
+    health: -8
+    tags: [depths]
+  "9":
+    label: "Stealthy predator tracks you"
+    morale: -9
+  "10":
+    label: "Cave home to a beast"
+    morale: -10
+    tags: [depths]
+  jack:
+    label: "Territorial creature blocks path"
+    combat: true
+  queen:
+    label: "Ruins guarded by formidable foe"
+    combat: true
+  king:
+    label: "Powerful opponent's attention"
+    combat: true
+  ace:
+    label: "Legendary creature's hunting grounds"
+    health: -10

@@ -1,0 +1,264 @@
+id: winter_gift
+label: Winter Gift
+source:
+  pdf: brambletrek/Brambletrek_-_Winter_Gift.pdf
+  printed_pages:
+    journeys:
+    - 3
+    - 4
+    surveyor_tactics: 2
+play:
+  journey_cards_per_day: 4
+  use_core_depths: false
+  use_core_combat: true
+  reason_key: band
+  tactic_table: surveyor_tactics
+  tactic_legacy: surveyor
+journey_heading: '**Frozen Forest (Winter Gift)** — exploration events'
+journeys:
+  hearts:
+    '2':
+      label: Fresh snowfall hushes the forest entirely. Every sound feels distant, as if the world is
+        holding its breath. In the quiet, your thoughts settle & your resolve steadies.
+      morale: 2
+    '3':
+      label: Pale winter light refracts through hanging icicles, casting rainbows across the bark and
+        snow. The beauty reminds you why this journey matters, even now.
+      morale: 3
+    '4':
+      label: You discover a hollow log insulated with moss and snow, protected from the biting wind. You
+        rest here briefly, warming your body and tending aches.
+      health: 4
+    '5':
+      label: A white-furred creature watches you from the edge of your vision throughout the day. It never
+        approaches, yet you feel guided, nudged away from danger.
+      morale: 5
+    '6':
+      label: You encounter a travelling Soother sheltering beside a rock face. They share warm tea, quiet
+        words, and knowledge of surviving the cold nights.
+      health: 6
+    '7':
+      label: A small Gnawborn winter camp welcomes you cautiously. Stories are exchanged by firelight,
+        and for a while, the cold feels far away.
+    '8':
+      label: You free a creature trapped beneath thin ice or fallen snow. It remains close for a time,
+        alerting you to hazards you would have missed.
+      morale: 8
+    '9':
+      label: A snow-blind wanderer shares a hidden route through wind-carved drifts and frozen undergrowth,
+        sparing you days of hardship.
+      morale: 9
+    '10':
+      label: An old winter song drifts through the trees, carried by the wind. Whether sung by someone
+        unseen or remembered from childhood, it fills you with stubborn resolve.
+      morale: 10
+    jack:
+      label: A territorial beast, driven desperate by the cold, attacks to defend what little ground it
+        still controls.
+      combat: true
+    queen:
+      label: A proud winter hunter steps from the snow, demanding you prove your right to pass through
+        their claimed land.
+      combat: true
+    king:
+      label: A ritual duel is fought beneath falling snow, witnessed only by the silent forest and the
+        storm above.
+      combat: true
+    ace:
+      label: You stand before a frozen shrine that radiates faint, impossible warmth. Its runes pulse
+        gently, as if recognizing you. (+10 All Stats)
+      all_stats: 10
+  diamonds:
+    '2':
+      label: Beneath a thin drift of snow, you uncover a carefully wrapped bundle left behind by another
+        traveller. The supplies are cold, but intact.
+      supplies: 2
+      tags:
+      - item
+    '3':
+      label: A trail of animal tracks leads you to a hidden winter cache tucked beneath roots and stones,
+        stocked for lean times.
+      supplies: 3
+    '4':
+      label: Clusters of frost-hardened berries cling to bare branches. They are bitter, but nourishing,
+        preserved by the cold.
+      supplies: 4
+    '5':
+      label: Half-buried beside an old trail marker, you uncover a satchel wrapped in oilcloth, clearly
+        meant to survive the winter.
+      supplies: 5
+      tags:
+      - item
+    '6':
+      label: A frozen stream fractures under careful pressure, revealing dark water below. With patience,
+        you fish and refill your stores.
+    '7':
+      label: You gather frost-herbs known to work slowly but deeply, easing pain and helping wounds knit
+        beneath bandages.
+      health: 6
+      tags:
+      - item
+    '8':
+      label: Beneath a fallen pine, you discover old-world winter gear left behind when snow came too
+        fast.
+      supplies: 8
+      tags:
+      - item
+    '9':
+      label: From a high, icy ridge, you study the frozen land ahead, committing paths, shelters, and
+        dangers to memory.
+      supplies: 9
+      tags:
+      - depths
+    '10':
+      label: You uncover an abandoned sled, its runners worn smooth, still packed with supplies meant
+        to last the season.
+      supplies: 10
+      tags:
+      - item
+    jack:
+      label: A faint glimmer beneath cracked ice draws you closer but something else wants it too.
+      combat: true
+    queen:
+      label: A fortified winter storehouse stands ahead, guarded by those unwilling to share.
+      combat: true
+    king:
+      label: A relic lies entombed in ancient ice, and the creatures guarding it have survived many winters.
+      combat: true
+    ace:
+      label: 'A winter spirit manifests briefly, marking you as protected. (Next battle: draw 1 extra
+        tactic card at the start)'
+  clubs:
+    '2':
+      label: Snowfall erases every landmark you relied on. The forest becomes unfamiliar, and progress
+        costs precious time and resources.
+      supplies: -2
+    '3':
+      label: Bitter wind gnaws at your confidence, extinguishing small comforts and leaving doubt in its
+        wake.
+      morale: -3
+    '4':
+      label: Your shelter proves insufficient, and you spend the night shivering, unable to truly rest.
+      morale: -4
+    '5':
+      label: Your supplies freeze solid or spoil despite your care, forcing you to ration more harshly.
+      supplies: -5
+    '6':
+      label: Endless white horizons blur together, and the isolation weighs heavily on your thoughts.
+      morale: -6
+    '7':
+      label: Something steals from your pack during the night, vanishing into tunnels or cracks beneath
+        the snow.
+      supplies: -6
+    '8':
+      label: A sudden whiteout disorients you completely. When it clears, you are somewhere unfamiliar
+        and lower than before.
+      morale: -8
+    '9':
+      label: The climb grows steeper and slick with ice. Every step hurts, and turning back feels impossible.
+      health: -9
+    '10':
+      label: Hypothermia sets in before you can properly rest, draining strength faster than you can recover
+        it.
+      health: -10
+    jack:
+      label: A starving predator, pushed beyond caution by hunger, launches a desperate attack.
+      combat: true
+    queen:
+      label: A winter guardian or ancient beast emerges to test whether you belong in these lands.
+      combat: true
+    king:
+      label: A brutal foe claims dominion over this territory, hardened by countless winters.
+      combat: true
+    ace:
+      label: A curse of endless cold seeps into your bones, refusing to fade with rest or fire. (-10 All
+        Stats)
+      all_stats: -10
+  spades:
+    '2':
+      label: Black ice hides beneath fresh snow, sending you crashing hard before you can react.
+      health: -2
+    '3':
+      label: Frostbite creeps in overnight, numbing your paws and slowing you the next day.
+      health: -3
+    '4':
+      label: Ice fractures suddenly beneath your weight while crossing frozen ground.
+      health: -4
+    '5':
+      label: A collapse of snow and ice traps you briefly, leaving bruises and shaken nerves.
+      health: -5
+    '6':
+      label: You stumble into a concealed snow pit or hollow, slamming painfully into frozen earth.
+      health: -6
+    '7':
+      label: Wolves or other predators circle your camp until dawn, forcing you to burn supplies and courage
+        to survive the night.
+      tags:
+      - depths
+    '8':
+      label: A frozen branch snaps under your weight, dropping you hard into ice and snow.
+      health: -8
+      tags:
+      - depths
+    '9':
+      label: You feel watched through the storm’s silence, every instinct screaming that you are not alone.
+      morale: -9
+    '10':
+      label: A frozen cave offers shelter from the wind but fills you with an overwhelming sense of dread.
+      morale: -10
+      tags:
+      - depths
+    jack:
+      label: A scavenger ambushes you, equally desperate and unwilling to retreat.
+      combat: true
+    queen:
+      label: Ice-bound ruins awaken their long-dormant protector at your approach.
+      combat: true
+    king:
+      label: Something vast and ancient stirs beneath the ice, drawn by your presence.
+      combat: true
+    ace:
+      label: You stray into the hunting grounds of a winter legend spoken of only in whispers.
+      health: -10
+scene_tables:
+  surveyor_tactics:
+    '2':
+      label: Measured Step
+      body: Reduce the opponent’s next attack damage by 2 by repositioning.
+    '3':
+      label: Quick Sketch
+      body: Draw 1 additional tactic card and discard 1 card from your hand.
+    '4':
+      label: Marked Ground
+      body: Reduce all incoming damage by 1 for three turns as you control the terrain.
+    '5':
+      label: Calculated Strike
+      body: Deal 3 damage. If you avoided damage last turn, deal +1 damage.
+    '6':
+      label: Prepared Supplies
+      body: Restore 2 Health or 2 Supplies. Choose when played.
+    '7':
+      label: Line of Retreat
+      body: Evade the opponent’s next attack. Your next attack deals -1 damage.
+    '8':
+      label: Environmental Advantage
+      body: Deal 4 damage using terrain features. Opponent’s next attack deals -2 damage.
+    '9':
+      label: Path Anticipated
+      body: The next two opponent attacks deal half damage. Rounded up.
+    '10':
+      label: Perfect Vantage
+      body: Deal 5 damage or completely avoid the next source of damage. Choose when played.
+    jack:
+      label: Advance Recon
+      body: Look at the top three cards of the deck. Put one into your hand and discard the rest.
+    queen:
+      label: Mapped Battlefield
+      body: All allies reduce incoming damage by 2 for the next two turns.
+    king:
+      label: No Way Through
+      body: Opponent skips their next turn as you deny them footing or access.
+    ace:
+      label: You Are Here
+      body: Until the end of combat, you may redraw one tactic card each turn and choose which result
+        to resolve. SURVEYOR T A CTIC CARDS

@@ -1,0 +1,145 @@
+# Legacies (Core Rulebook pp. 17–23). Abilities are once per day unless noted.
+
+overcome_the_odds:
+  label: Overcome the Odds
+  description: >
+    Once per day, in place of one Legacy ability: draw Ability + Outcome vs an
+    Unfortunate Event (Clubs/Spades). Higher ability wins; Ace = critical success,
+    2 = critical failure. Magic legacies (Seer, Storyteller, Soother) or gear
+    (Scrapper, Seeker, Sneaker) — narrate how your Gnawborn passes the event.
+
+legacies:
+  seer:
+    label: Seer
+    boost: "+5 Supplies"
+    flaw: "−3 Health"
+    health_delta: -3
+    supplies_delta: 5
+    abilities:
+      - id: arcane_insight
+        label: Arcane Insight
+        description: "During combat, draw an extra card on your turn and use it when needed."
+      - id: mystic_shield
+        label: Mystic Shield
+        description: "Negate the next attack or negative event resource impact (event still happens)."
+      - id: elemental_blast
+        label: Elemental Blast
+        description: "During combat, +2 to your damage for that encounter."
+      - id: divination
+        label: Divination
+        description: "Reveal the top three cards of the deck, then place them back in any order."
+
+  scrapper:
+    label: Scrapper
+    boost: "+5 Health"
+    flaw: "−3 Morale"
+    health_delta: 5
+    morale_delta: -3
+    abilities:
+      - id: power_strike
+        label: Power Strike
+        description: "During combat, double the damage of your next attack."
+      - id: resilience
+        label: Resilience
+        description: "Halve damage from an attack or halve resource loss from an event (round up)."
+      - id: taunt
+        label: Taunt
+        description: "During combat, opponent attack damage −2 for the next 2 turns."
+      - id: quick_berry
+        label: Quick Berry
+        description: "Restore 4 Health."
+
+  storyteller:
+    label: Storyteller
+    boost: "+5 Morale"
+    flaw: "−3 Supplies"
+    morale_delta: 5
+    supplies_delta: -3
+    abilities:
+      - id: inspiring_tale
+        label: Inspiring Tale
+        description: "During combat, −3 to all damage the opponent would deal for 2 turns."
+        tags: [combat]
+      - id: song_of_rest
+        label: Song of Rest
+        description: "Restore 2 Health and 2 Morale to all who hear the song."
+      - id: distract
+        label: Distract
+        description: "During combat, confuse the opponent with a story — skip their next turn."
+        tags: [combat]
+      - id: ageless_fables
+        label: Ageless Fables
+        description: "Redraw one unfavourable event card."
+        tags: [exploration]
+
+  seeker:
+    label: Seeker
+    boost: "+5 Supplies"
+    flaw: "−3 Health"
+    supplies_delta: 5
+    health_delta: -3
+    abilities:
+      - id: hunters_eye
+        label: "Hunter's Eye"
+        description: "During combat, after drawing tactics, use one card before combat begins."
+        tags: [combat]
+      - id: unyielding_nose
+        label: Unyielding Nose
+        description: "Change one negative event outcome to positive (e.g. −2 Morale → +2 Morale)."
+        tags: [exploration]
+      - id: voice_of_the_forest
+        label: Voice of the Forest
+        description: "During combat, a pet deals 2 damage to one opponent on each of your turns."
+        tags: [combat]
+      - id: forage
+        label: Forage
+        description: "Draw an extra card; add half its value (round up) to Supplies (Ace = 11)."
+        tags: [exploration]
+
+  sneaker:
+    label: Sneaker
+    boost: "+5 Health"
+    flaw: "−3 Morale"
+    health_delta: 5
+    morale_delta: -3
+    abilities:
+      - id: vanish
+        label: Vanish
+        description: "During combat, avoid all damage for a single turn."
+        tags: [combat]
+      - id: loot
+        label: Loot
+        description: "During exploration, draw an extra card; on 9+ (Ace = 11), find an item."
+        tags: [exploration]
+      - id: backstab
+        label: Backstab
+        description: "During combat, deal double damage on your first turn."
+        tags: [combat]
+      - id: quick_escape
+        label: Quick Escape
+        description: "Overcome resource damage from a negative event card (not combat)."
+        tags: [exploration]
+
+  soother:
+    label: Soother
+    boost: "+5 Morale"
+    flaw: "−3 Supplies"
+    morale_delta: 5
+    supplies_delta: -3
+    abilities:
+      - id: heal
+        label: Heal
+        description: "During combat, restore 3 Health and 2 Morale."
+        tags: [combat]
+      - id: foresight
+        label: Foresight
+        description: "Negate negative Morale impact from an event for all (not combat)."
+        tags: [exploration]
+      - id: harm
+        label: Harm
+        description: "During combat, halve your Health (round up) and add it to your next attack."
+        tags: [combat]
+      - id: calm
+        label: Calm
+        description: "Draw an extra card and subtract its value from a negative event outcome."
+        tags: [exploration]

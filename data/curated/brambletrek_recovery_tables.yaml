@@ -1,0 +1,38 @@
+# Recovery tables when a resource hits 0 (Core Rulebook p. 16).
+# Bands: 2-4, 5-7, 8-10, jack-queen, king-ace
+
+health:
+  "2-4":
+    label: "Find herbs to treat wounds"
+  "5-7":
+    label: "Secure place to rest and tend wounds"
+  "8-10":
+    label: "Find enough food to prepare a meal"
+  jack-queen:
+    label: "Crystal-clear stream"
+  king-ace:
+    label: "Wanderer aids your recovery"
+
+morale:
+  "2-4":
+    label: "Dream fills you with hope"
+  "5-7":
+    label: "Beautiful view lifts spirits"
+  "8-10":
+    label: "Traveller boosts morale with stories"
+  jack-queen:
+    label: "Uplifting tune on the wind"
+  king-ace:
+    label: "Trinket reminds you of your purpose"
+
+supplies:
+  "2-4":
+    label: "Patch of edible berries and nuts"
+  "5-7":
+    label: "Catch a small creature for food"
+  "8-10":
+    label: "Stumble upon a cache of supplies"
+  jack-queen:
+    label: "Adventurer shares provisions"
+  king-ace:
+    label: "Successful hunt fills your pack"

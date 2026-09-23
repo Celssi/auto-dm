@@ -1,9 +1,8 @@
 #!/usr/bin/env python3
 """Audit curated D&D 5e data against core PDFs (backgrounds + spot checks).
 
-Runs structural validation first, then PDF-backed background comparison for:
-  - player.pdf → dnd5e_backgrounds.yaml
-  - heroes_faerun.pdf → dnd5e_faerun.yaml (optional)
+Runs structural validation first, then PDF-backed comparison via
+``backend.games.dnd5e.curated_audit``.
 
 Examples:
   python -m scripts.audit_curated
@@ -22,20 +21,7 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT))
 
 from backend.config import CORE_PDFS, FAERUN_PDFS, pdf_path
-from backend.games.dnd5e.characters.background_extract import (  # noqa: E402
-    diff_background,
-    extract_background,
-    load_curated_backgrounds,
-    load_pdf_pages,
-)
-from backend.games.dnd5e.characters.character_data import (
-    get_background,
-    list_backgrounds,
-    list_classes,
-    list_species,
-)
-from backend.games.dnd5e.characters.features import class_features_data, subclass_features_data
-from backend.rag.retrieval_core import get_collection
+from backend.games.dnd5e.curated_audit import run_curated_audit
 
 
 def _check_pdfs_present() -> list[str]:
@@ -46,50 +32,14 @@ def _check_pdfs_present() -> list[str]:
     return missing
 
 
-def structural_audit() -> list[str]:
-    issues: list[str] = []
-
-    if len(list_classes(include_faerun=False)) != 12:
-        issues.append(f"Expected 12 PHB classes, got {len(list_classes(include_faerun=False))}")
-    if len(list_species()) != 10:
-        issues.append(f"Expected 10 PHB species, got {len(list_species())}")
-    if len(list_backgrounds(include_faerun=False)) != 16:
-        issues.append(
-            f"Expected 16 PHB backgrounds, got {len(list_backgrounds(include_faerun=False))}"
-        )
-
-    for cls in list_classes(include_faerun=False):
-        cid = cls["id"]
-        if not cls.get("hit_die"):
-            issues.append(f"Class {cid} missing hit_die")
-        if not cls.get("subclasses"):
-            issues.append(f"Class {cid} missing subclasses")
-        cf = (class_features_data().get("classes") or {}).get(cid)
-        if not cf:
-            issues.append(f"Class {cid} missing class_features entry")
-        subs = subclass_features_data().get("subclasses") or {}
-        sub_labels = {
-            str(v.get("label", ""))
-            for v in subs.values()
-            if isinstance(v, dict) and v.get("class_id") == cid
-        }
-        for sub in cls.get("subclasses") or []:
-            if sub not in sub_labels:
-                issues.append(f"Subclass feature missing: {cid} / {sub}")
-
-    for bg in list_backgrounds(include_faerun=False):
-        row = get_background(bg["id"])
-        if not row:
-            issues.append(f"Background {bg['id']} not loadable")
-            continue
-        for key in ("feat", "skills", "tool", "ability_scores"):
-            if not row.get(key):
-                issues.append(f"Background {bg['id']} missing {key}")
-
-    return issues
-
-
 def pdf_background_audit(source: str, *, limit: int = 0, force_ocr: bool = False) -> list[str]:
+    from backend.games.dnd5e.characters.background_extract import (
+        diff_background,
+        extract_background,
+        load_curated_backgrounds,
+        load_pdf_pages,
+    )
+
     issues: list[str] = []
     specs = load_curated_backgrounds(source)
     if limit > 0:
@@ -132,7 +82,7 @@ def main() -> int:
         "--include-faerun", action="store_true", help="Also audit Heroes of Faerûn backgrounds"
     )
     parser.add_argument(
-        "--limit", type=int, default=0, help="Limit PDF backgrounds checked per source"
+        "--limit", type=int, default=0, help="Limit PDF spot/background checks per source"
     )
     parser.add_argument(
         "--force-ocr",
@@ -141,8 +91,7 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    print("=== Structural audit ===")
-    # Re-use existing validators
+    print("=== Validator scripts ===")
     for script in ("scripts.validate_dnd5e_character", "scripts.validate_glossary"):
         proc = subprocess.run(
             [sys.executable, "-m", script],
@@ -156,37 +105,22 @@ def main() -> int:
             return proc.returncode
         print(proc.stdout.strip())
 
-    struct_issues = structural_audit()
-    if struct_issues:
-        print(f"\nStructural issues ({len(struct_issues)}):")
-        for issue in struct_issues:
-            print(f"  - {issue}")
-    else:
-        print("Structural spot-checks: OK")
-
     missing_pdfs = _check_pdfs_present()
     if missing_pdfs:
         print(f"\nMissing PDFs: {', '.join(missing_pdfs)}")
 
-    if args.skip_pdf:
-        return 1 if struct_issues else 0
-
-    collection = get_collection()
-    if collection is None or collection.count() == 0:
-        print(
-            "\nWARNING: Rules not indexed. PDF audit uses OCR + LLM only (slower, less accurate)."
-            "\n  Run: python -m scripts.ingest --core  # and --include-faerun for HoF"
-        )
-    else:
-        print(f"\nRAG index: {collection.count()} chunks")
+    rc = run_curated_audit(
+        skip_pdf=args.skip_pdf,
+        limit=args.limit,
+        force_ocr=args.force_ocr,
+    )
+    if rc != 0 or args.skip_pdf:
+        if args.include_faerun and not args.skip_pdf:
+            pass
+        else:
+            return rc
 
     pdf_issues: list[str] = []
-    if pdf_path("dnd5e/player.pdf").exists():
-        print("\n=== PDF audit: PHB backgrounds (player.pdf) ===")
-        pdf_issues.extend(
-            pdf_background_audit("player", limit=args.limit, force_ocr=args.force_ocr)
-        )
-
     if args.include_faerun and pdf_path("dnd5e/heroes_faerun.pdf").exists():
         print("\n=== PDF audit: Heroes of Faerûn backgrounds ===")
         pdf_issues.extend(
@@ -194,17 +128,12 @@ def main() -> int:
         )
 
     if pdf_issues:
-        print(f"\nPDF mismatches ({len(pdf_issues)}):")
+        print(f"\nFaerûn PDF mismatches ({len(pdf_issues)}):")
         for issue in pdf_issues:
             print(f"  - {issue}")
-        print(
-            "\nFix with: python -m scripts.extract_backgrounds"
-            " --source <player|heroes_faerun> --apply"
-        )
         return 1
 
-    print("\nPDF background audit: all matched (or none run)")
-    return 1 if struct_issues else 0
+    return rc
 
 
 if __name__ == "__main__":

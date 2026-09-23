@@ -18,6 +18,9 @@ export default function CharacterSheetPage2({ character: c, summary, editable, o
   const spellSlotsMax = (summary?.spell_slots_max as Record<string, number> | undefined) || {};
   const wildShapeMax = Number(summary?.wild_shape_max ?? 0);
   const luckPointsMax = Number(summary?.luck_points_max ?? 0);
+  const luckPointsRemaining = Number(
+    c.luck_points_remaining ?? summary?.luck_points_remaining ?? luckPointsMax,
+  );
   const showWildShape = wildShapeMax > 0 || (c.wild_shape_uses ?? 0) > 0;
   const preparedSpells = c.prepared_spells?.length ? c.prepared_spells : c.known_spells || [];
   const speciesTraits = ((summary?.unlocked_features as { species_traits?: SpeciesTraitRow[] } | undefined)
@@ -37,7 +40,13 @@ export default function CharacterSheetPage2({ character: c, summary, editable, o
             <p className="text-sm text-muted">No spellcasting resources.</p>
           ) : (
             <div className="space-y-3">
-              {luckPointsMax > 0 && <ResourcePips label="Luck points" remaining={luckPointsMax} max={luckPointsMax} />}
+              {luckPointsMax > 0 && (
+                <ResourcePips
+                  label="Luck points"
+                  remaining={luckPointsRemaining}
+                  max={luckPointsMax}
+                />
+              )}
               {Object.entries(c.spell_slots || {}).map(([lvl, n]) => {
                 const max = spellSlotsMax[lvl] ?? n;
                 return <SpellSlotPips key={lvl} level={lvl} remaining={n} max={max} />;

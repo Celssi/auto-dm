@@ -9,6 +9,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from backend.dm.lonelog import extract_narrative_snippets
 from backend.dm.world_context import world_context_for_campaign
 from backend.games.dnd5e.characters.entity import Dnd5eCharacter
+from backend.games.registry import resolve_game_id
 from backend.llm import get_langchain_chat_llm, invoke_chat_llm
 
 CANON_MAX = 4000
@@ -20,6 +21,31 @@ SUMMARY_SECTIONS = """## Premise
 ## Current situation
 ## Established facts (do not contradict)
 ## Open mysteries & hooks"""
+
+_CHRONICLER_GAME: dict[str, dict[str, str]] = {
+    "dnd5e": {
+        "label": "D&D 5e solo campaign",
+        "extra_rules": "- Be factual; no speculation. Include character level if known from the log.",
+        "system_opening": "Write spoiler-safe campaign canon from events that have already happened.",
+        "system_full": "Write structured campaign canon for a tabletop RPG DM.",
+        "system_increment": "Maintain accurate campaign canon for a solo D&D DM.",
+    },
+    "brambletrek": {
+        "label": "Brambletrek solo journaling session",
+        "extra_rules": (
+            "- Be factual; no speculation. This is cozy Gnawborn journaling in Hyhill, not D&D.\n"
+            "- Mention Health, Morale, or Supplies only if stated or changed in play.\n"
+            "- Card draws and journey days drive play; do not invent d20 checks or dungeon-crawl structure."
+        ),
+        "system_opening": "Write spoiler-safe Brambletrek journal canon from events that have already happened.",
+        "system_full": "Write structured Brambletrek journal canon for a solo journaling facilitator.",
+        "system_increment": "Maintain accurate Brambletrek journal canon for a solo journaling facilitator.",
+    },
+}
+
+
+def _chronicler_cfg(game_id: str) -> dict[str, str]:
+    return _CHRONICLER_GAME.get(game_id) or _CHRONICLER_GAME["dnd5e"]
 
 
 def _clip(text: str, limit: int) -> str:
@@ -119,10 +145,12 @@ def generate_opening_summary(
     log: str = "",
     opening_scene: str = "",
     npc_hints: str = "",
+    game_id: str = "dnd5e",
 ) -> str:
     """Spoiler-safe canon from play that has occurred (opening scene / log only)."""
+    cfg = _chronicler_cfg(resolve_game_id({"game_id": game_id}))
     llm = get_langchain_chat_llm("claude")
-    prompt = f"""Create an adventure canon summary for a D&D 5e solo campaign DM.
+    prompt = f"""Create an adventure canon summary for a {cfg["label"]} DM.
 
 Use exactly these markdown sections:
 {SUMMARY_SECTIONS}
@@ -134,7 +162,7 @@ Rules:
 - Established facts: concrete truths established so far (NPC status, locations, items)
 - Current situation: where play should resume NOW (time, place, mood, immediate tensions)
 - Open mysteries: unresolved questions raised IN PLAY so far, not planned future twists
-- Be factual; no speculation. Include character level if known from the log.
+{cfg["extra_rules"]}
 - Do not use em dashes or en dashes; use commas, periods, or plain hyphens for ranges
 
 NPC hints (names/details introduced so far):
@@ -149,9 +177,7 @@ Adventure log:
     response = invoke_chat_llm(
         llm,
         [
-            SystemMessage(
-                content="Write spoiler-safe campaign canon from events that have already happened."
-            ),
+            SystemMessage(content=cfg["system_opening"]),
             HumanMessage(content=prompt),
         ],
         agent="chronicler_opening",
@@ -168,10 +194,12 @@ def generate_full_summary(
     story_arc: str = "",
     npc_hints: str = "",
     opening_scene: str = "",
+    game_id: str = "dnd5e",
 ) -> str:
     """One-shot canon summary from adventure log or bootstrap material."""
+    cfg = _chronicler_cfg(resolve_game_id({"game_id": game_id}))
     llm = get_langchain_chat_llm("claude")
-    prompt = f"""Create an adventure canon summary for a D&D 5e solo campaign DM.
+    prompt = f"""Create an adventure canon summary for a {cfg["label"]} DM.
 
 Use exactly these markdown sections:
 {SUMMARY_SECTIONS}
@@ -182,7 +210,7 @@ Rules:
   (NPC status, locations, items, seals, deaths)
 - Current situation: where play should resume NOW (time, place, mood, immediate tensions)
 - Open mysteries: unresolved questions and hooks
-- Be factual; no speculation. Include character level if known from the log.
+{cfg["extra_rules"]}
 - Do not use em dashes or en dashes; use commas, periods, or plain hyphens for ranges
 
 Adventure outline:
@@ -203,7 +231,7 @@ Adventure log:
     response = invoke_chat_llm(
         llm,
         [
-            SystemMessage(content="Write structured campaign canon for a tabletop RPG DM."),
+            SystemMessage(content=cfg["system_full"]),
             HumanMessage(content=prompt),
         ],
         agent="chronicler_full",
@@ -219,12 +247,14 @@ def increment_summary(
     user_message: str,
     dm_response: str,
     log_entry: str = "",
+    game_id: str = "dnd5e",
 ) -> str:
     """Update adventure canon after one play turn."""
     if not dm_response.strip():
         return existing
+    cfg = _chronicler_cfg(resolve_game_id({"game_id": game_id}))
     llm = get_langchain_chat_llm("claude")
-    prompt = f"""Update this adventure canon summary after one D&D solo play turn.
+    prompt = f"""Update this adventure canon summary after one solo play turn ({cfg["label"]}).
 
 Keep exactly these sections:
 {SUMMARY_SECTIONS}
@@ -235,6 +265,7 @@ Rules:
 - Add/remove Established facts and Open mysteries as needed
 - Do NOT drop important earlier facts
 - Keep the full document under ~2500 words
+{cfg["extra_rules"]}
 - Do not use em dashes or en dashes; use commas, periods, or plain hyphens for ranges
 
 Existing canon:
@@ -252,7 +283,7 @@ Log entry for this turn:
     response = invoke_chat_llm(
         llm,
         [
-            SystemMessage(content="Maintain accurate campaign canon for a solo D&D DM."),
+            SystemMessage(content=cfg["system_increment"]),
             HumanMessage(content=prompt),
         ],
         agent="chronicler",

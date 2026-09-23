@@ -28,6 +28,7 @@ data/eval/
 
 # Rulebook PDFs (copyright — place your own copies locally)
 dnd5e/*.pdf
+brambletrek/*.pdf
 /*.pdf
 
 # Node / frontend

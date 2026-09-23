@@ -69,7 +69,10 @@ def configure_langsmith() -> dict[str, str | bool]:
         return {"enabled": False, "project": "", "endpoint": ""}
 
     tracing_requested = _env_truthy("LANGSMITH_TRACING") or _env_truthy("LANGCHAIN_TRACING_V2")
-    if os.environ.get("LANGSMITH_TRACING") is None and os.environ.get("LANGCHAIN_TRACING_V2") is None:
+    if (
+        os.environ.get("LANGSMITH_TRACING") is None
+        and os.environ.get("LANGCHAIN_TRACING_V2") is None
+    ):
         tracing_requested = True
     if not tracing_requested:
         return {"enabled": False, "project": "", "endpoint": ""}
@@ -125,7 +128,9 @@ DOCS_DIR = ROOT
 
 
 def pdf_path(relative: str) -> Path:
-    """Resolve dnd5e/foo.pdf to ROOT/dnd5e/foo.pdf."""
-    if relative.startswith("dnd5e/"):
+    """Resolve game PDF path (dnd5e/foo.pdf or brambletrek/foo.pdf)."""
+    if relative.startswith(("dnd5e/", "brambletrek/")):
         return ROOT / relative
+    if relative.startswith("brambletrek"):
+        return ROOT / "brambletrek" / relative.replace("brambletrek/", "")
     return PDF_DIR / relative

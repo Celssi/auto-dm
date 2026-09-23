@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { api, type ChatResult } from '../../api/client';
 import type { Character } from '../../types';
 import { type DiceModalState, type PlayAction, type PlayState } from './playState';
+import { getPlaySessionExtensions } from '../../games/brambletrek/playSession';
+import { DEFAULT_GAME_ID } from '../../games/registry';
+import { getGamePlayConfig } from '../../games/play/registry';
+import { bootstrapBrambletrekSession } from '../../games/brambletrek/bootstrapCampaign';
+
 import { initiativeMod } from '../../games/dnd5e/character-sheet/sheetUtils';
 
 const DICE_SHORTCUTS = new Set(['ability_check', 'saving_throw', 'attack_roll', 'initiative', 'death_save']);
@@ -53,6 +58,13 @@ export function usePlayPageSession(
     });
   }, [dispatch]);
 
+  const refreshJourney = useCallback(
+    async (sessionId: string, gameId: string) => {
+      await getPlaySessionExtensions(gameId).refreshJourney(sessionId, dispatch);
+    },
+    [dispatch],
+  );
+
   const loadSession = useCallback(
     async (id: string) => {
       if (!id) return;
@@ -73,6 +85,8 @@ export function usePlayPageSession(
         if (!session.adventure_id) {
           if (seq !== loadSeqRef.current) return;
           const [{ character: ch }, { summary }, log, audit] = await fetchCore();
+          const gameId = String((ch as Character).game_id || 'dnd5e');
+          const { shortcuts: sessionShortcuts } = await api.getShortcuts(gameId, session.character_id);
           campaignIdRef.current = '';
           dispatch({
             type: 'set',
@@ -91,8 +105,10 @@ export function usePlayPageSession(
               playerProgress: null,
               adventureComplete: false,
               nextAdventure: null,
+              shortcuts: sessionShortcuts,
             },
           });
+          if (gameId) await refreshJourney(id, gameId);
           return;
         }
 
@@ -142,8 +158,12 @@ export function usePlayPageSession(
             playerProgress,
             adventureComplete,
             nextAdventure: null,
+            shortcuts: (await api.getShortcuts(String((ch as Character).game_id || 'dnd5e'), session.character_id))
+              .shortcuts,
           },
         });
+        const loadedGameId = String((ch as Character).game_id || 'dnd5e');
+        if (loadedGameId) await refreshJourney(id, loadedGameId);
       } catch (e) {
         if (seq !== loadSeqRef.current) return;
         dispatch({
@@ -155,7 +175,7 @@ export function usePlayPageSession(
         });
       }
     },
-    [dispatch, loadSeqRef, campaignIdRef],
+    [dispatch, loadSeqRef, campaignIdRef, refreshJourney],
   );
 
   const startSession = async () => {
@@ -170,17 +190,27 @@ export function usePlayPageSession(
   };
 
   const bootstrapAndPlay = async () => {
-    const { newCampaign } = state;
-    if (!newCampaign.character_id || !newCampaign.theme.trim()) return;
+    const { newCampaign, characters } = state;
+    if (!newCampaign.character_id) return;
+    const selected = characters.find((c) => c.id === newCampaign.character_id);
+    const playConfig = getGamePlayConfig(selected?.game_id || DEFAULT_GAME_ID);
+    if (playConfig.campaignThemeRequired && !newCampaign.theme.trim()) return;
     dispatch({ type: 'set', patch: { bootstrapError: '', bootstrapping: true } });
     try {
-      const result = await api.bootstrapCampaign({
-        character_id: newCampaign.character_id,
-        mode: newCampaign.mode,
-        theme: newCampaign.theme.trim(),
-        include_faerun: newCampaign.include_faerun,
-        campaign_name: newCampaign.campaign_name.trim(),
-      });
+      const result = playConfig.usesAiCampaignGeneration
+        ? await api.bootstrapCampaign({
+            character_id: newCampaign.character_id,
+            mode: newCampaign.mode,
+            theme: newCampaign.theme.trim(),
+            include_faerun: newCampaign.include_faerun,
+            campaign_name: newCampaign.campaign_name.trim(),
+          })
+        : await bootstrapBrambletrekSession({
+            characterId: newCampaign.character_id,
+            activeAdventure: newCampaign.active_adventure,
+            campaignName: newCampaign.campaign_name,
+            flavorNotes: newCampaign.theme,
+          });
       dispatch({ type: 'set', patch: { sessionId: result.session_id } });
       navigate(`/play/${result.session_id}`);
       await loadSession(result.session_id);
@@ -246,6 +276,8 @@ export function usePlayPageSession(
         },
       });
       await refreshSessionLogs(sessionId);
+      const chatGameId = String((result.character as Character)?.game_id || state.character?.game_id || 'dnd5e');
+      await getPlaySessionExtensions(chatGameId).afterChat(sessionId, dispatch);
       if (campaignIdRef.current) {
         api
           .getCampaignEntities(campaignIdRef.current)
@@ -280,7 +312,13 @@ export function usePlayPageSession(
     }
   };
 
-  const runShortcut = (id: string) => {
+  const runShortcut = async (id: string) => {
+    if (!state.sessionId) return;
+    const gameId = state.character?.game_id ?? 'dnd5e';
+    const ext = getPlaySessionExtensions(gameId);
+    if (await ext.runShortcut(state.sessionId, id, dispatch, refreshSessionLogs)) {
+      return;
+    }
     if (!DICE_SHORTCUTS.has(id) || !state.character) {
       sendMessage(`/${id}`);
       return;
@@ -421,6 +459,110 @@ export function usePlayPageSession(
     dispatch({ type: 'set', patch: { startingNext: false, adventureComplete: false, nextAdventure: null } });
   };
 
+  const handleJourneyApply = useCallback(
+    async (eventIndex: number) => {
+      if (!state.sessionId) return {};
+      const gameId = state.character?.game_id ?? DEFAULT_GAME_ID;
+      return getPlaySessionExtensions(gameId).journeyHandlers.onApply(
+        state.sessionId,
+        eventIndex,
+        dispatch,
+        refreshSessionLogs,
+      );
+    },
+    [state.sessionId, state.character?.game_id, dispatch, refreshSessionLogs],
+  );
+
+  const handleJourneyDrawItem = useCallback(
+    async (eventIndex: number) => {
+      if (!state.sessionId) return {};
+      const gameId = state.character?.game_id ?? DEFAULT_GAME_ID;
+      return getPlaySessionExtensions(gameId).journeyHandlers.onDrawItem(
+        state.sessionId,
+        eventIndex,
+        dispatch,
+        refreshSessionLogs,
+      );
+    },
+    [state.sessionId, state.character?.game_id, dispatch, refreshSessionLogs],
+  );
+
+  const handleJourneyFinish = useCallback(async () => {
+    if (!state.sessionId) return;
+    const gameId = state.character?.game_id ?? DEFAULT_GAME_ID;
+    await getPlaySessionExtensions(gameId).journeyHandlers.onFinish(state.sessionId, dispatch, refreshSessionLogs);
+  }, [state.sessionId, state.character?.game_id, dispatch, refreshSessionLogs]);
+
+  const handleJourneyDiscard = useCallback(async () => {
+    if (!state.sessionId) return;
+    const gameId = state.character?.game_id ?? DEFAULT_GAME_ID;
+    await getPlaySessionExtensions(gameId).journeyHandlers.onDiscard(state.sessionId, dispatch, refreshSessionLogs);
+  }, [state.sessionId, state.character?.game_id, dispatch, refreshSessionLogs]);
+
+  const handleJourneyStartCombat = useCallback(
+    async (eventIndex: number) => {
+      if (!state.sessionId) return;
+      const gameId = state.character?.game_id ?? DEFAULT_GAME_ID;
+      await getPlaySessionExtensions(gameId).journeyHandlers.onStartCombat(
+        state.sessionId,
+        eventIndex,
+        dispatch,
+        refreshSessionLogs,
+      );
+    },
+    [state.sessionId, state.character?.game_id, dispatch, refreshSessionLogs],
+  );
+
+  const handleDragonkeepAction = useCallback(
+    async (action: string) => {
+      if (!state.sessionId) return;
+      const gameId = state.character?.game_id ?? DEFAULT_GAME_ID;
+      await getPlaySessionExtensions(gameId).dragonkeepHandlers.onAction(
+        state.sessionId,
+        action,
+        dispatch,
+        refreshSessionLogs,
+      );
+    },
+    [state.sessionId, state.character?.game_id, dispatch, refreshSessionLogs],
+  );
+
+  const handleDragonkeepInit = useCallback(async () => {
+    if (!state.sessionId) return;
+    const gameId = state.character?.game_id ?? DEFAULT_GAME_ID;
+    await getPlaySessionExtensions(gameId).dragonkeepHandlers.onInit(state.sessionId, dispatch);
+  }, [state.sessionId, state.character?.game_id, dispatch]);
+
+  const handleBrambletrekCombatAction = useCallback(
+    async (action: string, handIndex?: number) => {
+      if (!state.sessionId) return;
+      const gameId = state.character?.game_id ?? DEFAULT_GAME_ID;
+      await getPlaySessionExtensions(gameId).combatHandlers.onAction(
+        state.sessionId,
+        action,
+        handIndex,
+        dispatch,
+        refreshSessionLogs,
+      );
+    },
+    [state.sessionId, state.character?.game_id, dispatch, refreshSessionLogs],
+  );
+
+  const handleCombatAction = useCallback(
+    async (action: string, targetId?: string) => {
+      if (!state.sessionId) return;
+      const gameId = state.character?.game_id ?? DEFAULT_GAME_ID;
+      await getPlaySessionExtensions(gameId).combatHandlers.onAction(
+        state.sessionId,
+        action,
+        targetId,
+        dispatch,
+        refreshSessionLogs,
+      );
+    },
+    [state.sessionId, state.character?.game_id, dispatch, refreshSessionLogs],
+  );
+
   return {
     loadMeta,
     loadSession,
@@ -434,5 +576,14 @@ export function usePlayPageSession(
     handleDiceModalSubmit,
     handleDiceModalClose,
     startNextAdventure,
+    handleJourneyApply,
+    handleJourneyDrawItem,
+    handleJourneyFinish,
+    handleJourneyDiscard,
+    handleJourneyStartCombat,
+    handleDragonkeepAction,
+    handleDragonkeepInit,
+    handleBrambletrekCombatAction,
+    handleCombatAction,
   };
 }

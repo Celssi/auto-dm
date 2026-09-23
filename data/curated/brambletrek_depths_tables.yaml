@@ -1,0 +1,182 @@
+# Exploring the Depths of Aldwund (Core Rulebook pp. 26–27).
+# After a (DEPTHS) surface event, journey draws use this table until (EXIT).
+
+hearts:
+  "2":
+    label: "Clear spring replenishes water"
+    supplies: 2
+  "3":
+    label: "Large cavern; marvel at glistening rocks"
+    morale: 3
+  "4":
+    label: "Luminescent fungi reveal berries"
+    supplies: 4
+  "5":
+    label: "Echoing harmonies show a way out"
+    morale: 5
+    tags: [exit]
+  "6":
+    label: "Moss-covered rest spot"
+    health: 6
+  "7":
+    label: "Natural bridge over a chasm"
+    morale: 7
+    tags: [item]
+  "8":
+    label: "Friendly subterranean creature offers guidance"
+    morale: 8
+    tags: [item]
+  "9":
+    label: "Underground cathedral of stalactites"
+    morale: 9
+  "10":
+    label: "Underground river — catch fish"
+    supplies: 10
+  jack:
+    label: "Guardian beast of the caverns"
+    combat: true
+  queen:
+    label: "Formidable adversary in the dark"
+    combat: true
+  king:
+    label: "Monstrous entity in the deep"
+    combat: true
+  ace:
+    label: "Unmarked trail toward the legendary grove"
+    supplies: 10
+    morale: 10
+    tags: [exit]
+
+diamonds:
+  "2":
+    label: "Glistening minerals on cave walls"
+    morale: 2
+    tags: [item]
+  "3":
+    label: "Cache of edible fungi and roots"
+    supplies: 3
+  "4":
+    label: "Save a trapped creature; hidden knowledge"
+    morale: 4
+  "5":
+    label: "Restorative underground spring"
+    health: 5
+    tags: [exit]
+  "6":
+    label: "Glow-flies light your path"
+    morale: 6
+  "7":
+    label: "Urgent whispers draw you onward"
+    morale: 7
+    tags: [exit]
+  "8":
+    label: "Hidden alcove of relics and supplies"
+    supplies: 8
+    tags: [item]
+  "9":
+    label: "Revitalising underground waterfall"
+    health: 9
+  "10":
+    label: "Serene garden sustenance"
+    supplies: 10
+    tags: [item]
+  jack:
+    label: "Lurking cave creatures"
+    combat: true
+  queen:
+    label: "Cunning adversary in the shadows"
+    combat: true
+  king:
+    label: "Massive entity guarding its domain"
+    combat: true
+  ace:
+    label: "Ethereal sanctum of fireflies"
+    health: 10
+
+clubs:
+  "2":
+    label: "Mild cave-in obstructs the path"
+    morale: -2
+  "3":
+    label: "Noxious drip from stalactites"
+    health: -3
+  "4":
+    label: "Supplies lost in a deep crevice"
+    supplies: -4
+    tags: [exit]
+  "5":
+    label: "Echoing growls of unseen predators"
+    morale: -5
+  "6":
+    label: "Painful fall on slick moss"
+    health: -6
+  "7":
+    label: "Gear lost into the abyss on a narrow ledge"
+    supplies: -7
+    tags: [exit]
+  "8":
+    label: "Confusing maze of tunnels"
+    morale: -8
+  "9":
+    label: "Disturbed nest of subterranean insects"
+    health: -9
+  "10":
+    label: "Tremor causes panic and lost supplies"
+    supplies: -10
+  jack:
+    label: "Silhouettes of lurking threats"
+    combat: true
+  queen:
+    label: "Chittering foes in the dark"
+    combat: true
+  king:
+    label: "Colossus of the deep emerges"
+    combat: true
+  ace:
+    label: "Vast dark abyss drains body and pack"
+    health: -10
+    supplies: -10
+
+spades:
+  "2":
+    label: "Gust of cold wind"
+    morale: -2
+  "3":
+    label: "Sharp crystals injure your feet"
+    health: -3
+  "4":
+    label: "Misread map; wasted provisions"
+    supplies: -4
+  "5":
+    label: "Ominous whispers in the dark"
+    morale: -5
+  "6":
+    label: "Sudden drop; injury but a way out"
+    health: -6
+    tags: [exit]
+  "7":
+    label: "Toxic subterranean pools"
+    health: -7
+  "8":
+    label: "Darkness and isolation weigh on you"
+    morale: -8
+  "9":
+    label: "Unstable cavern floor gives way"
+    health: -9
+  "10":
+    label: "Aggressive cave creatures chase you out"
+    health: -10
+    tags: [exit]
+  jack:
+    label: "Eyes gleam in the dark"
+    combat: true
+  queen:
+    label: "Approaching threat in the rustling"
+    combat: true
+  king:
+    label: "Guardian of the abyss blocks the path"
+    combat: true
+  ace:
+    label: "Unseen forces drain vitality and will"
+    health: -10
+    morale: -10

@@ -1,0 +1,201 @@
+# Card-band prompts from Brambletrek Core Rulebook (pages 12–14).
+card_bands:
+  - id: ""
+    label: "— Not set —"
+  - id: ace
+    label: "Ace (11)"
+  - id: "2-4"
+    label: "2–4"
+  - id: "5-7"
+    label: "5–7"
+  - id: "8-10"
+    label: "8–10"
+  - id: jack
+    label: "Jack (10)"
+  - id: queen
+    label: "Queen (10)"
+  - id: king
+    label: "King (10)"
+
+reasons:
+  ace:
+    label: "Yearning for adventure — mythical golden grove"
+    title: Yearning for adventure
+    body: >
+      You've lived in the heart of the Hyhill forest all your life. It's familiar,
+      comfortable, but also limiting. You've heard stories from the elders of a
+      mythical grove filled with golden leaves, where the air is always warm, and
+      the animals live in harmony. Your heart aches for this place, for a world
+      bigger than what you've known. You're ready to see it for yourself.
+  "2-4":
+    label: "The Mysterious Stone — monument symbols and a dream"
+    title: The Mysterious Stone
+    body: >
+      You were always fascinated by the strange stone monument that stands at the
+      outskirts of your home. Carved with intricate symbols that no one has been able
+      to decipher, it has always felt like an enigma waiting to be unravelled. A
+      recent dream made you see the monument coming to life, glowing with a mystical
+      light, and you believe the answer to this mystery lies deeper in the forest.
+  "5-7":
+    label: "Hunt for the Elixir — Harvest's Dawn festival herbs"
+    title: Hunt for the Elixir
+    body: >
+      Every year, your village holds a grand festival, the Harvest's Dawn. The
+      highlight of the event is the Elixir of the Eternal Bloom, a drink brewed from
+      rare forest herbs that can only be gathered once a year. This time, the
+      village elder has chosen you to collect these ingredients from the depths of
+      the forest, a dangerous but noble task.
+  "8-10":
+    label: "Search for Kin — brother's terrifying giant tree"
+    title: Search for Kin
+    body: >
+      Your little brother, always adventurous, ventured too deep into the forest a
+      few days ago. He returned terrified, mumbling about a giant tree with eyes
+      that could see into his soul. You have decided to investigate this unusual
+      occurrence, as fear has spread amongst your community, and people are afraid
+      to venture into the woods.
+  jack:
+    label: "Lost Light — fireflies vanished from the forest"
+    title: Lost Light
+    body: >
+      The sudden disappearance of the fireflies has plunged your forest home into
+      darkness. The twinkling bugs were the only source of light during the
+      pitch-black nights, and their absence has everyone on edge. You've decided to
+      delve deeper into the forest to uncover the reason behind their sudden
+      departure and hopefully bring them back.
+  queen:
+    label: "Whispers of the Leaves — forest urges you deeper"
+    title: Whispers of the Leaves
+    body: >
+      You've always had the ability to hear the whispers of the forest, a gift not
+      many Gnawborn possess. Recently, the whispers have become desperate, urging
+      you to head deeper into the woods. You feel a sense of duty to follow this
+      call, even though it's a path filled with the unknown.
+  king:
+    label: "Luna's Blossomed Light — cure for the Forest Seer"
+    title: Luna's Blossomed Light
+    body: >
+      The Forest Seer, an elder who is said to communicate directly with the spirits
+      of the forest, has fallen gravely ill. The only cure is a mythical plant known
+      as the Luna Blossom, rumoured to bloom under the light of a full moon deep
+      within the forest. You've taken it upon yourself to embark on this perilous
+      journey to retrieve the blossom and save the Seer.
+
+backgrounds:
+  ace:
+    label: "Descendant of adventurers; oddity among farmers"
+    title: Descendant of adventurers
+    body: >
+      As a descendant of a long line of adventurers, you've always had a deep
+      connection to the natural world around you. However, you've been considered an
+      oddity in your village, which mainly consists of hard-working farmers. You've
+      often been drawn to the solitude of the deep forest, where you can better hear
+      the murmuring wind and the whispers of the leaves.
+  "2-4":
+    label: "Blacksmith's apprentice — forge rhythm, hunger for stories"
+    title: Blacksmith's apprentice
+    body: >
+      You were raised as the apprentice of the village blacksmith, a gruff but kind
+      Scrapper with hands as tough as the iron he worked with. While your days were
+      filled with hard work, the rhythmic beating of metal on metal and the
+      crackling of the forge were a comforting melody that you grew to love. Yet,
+      there's a yearning in your heart for adventure and the stories that come with
+      it.
+  "5-7":
+    label: "Child of the forest's best tracker"
+    title: Child of the forest's best tracker
+    body: >
+      Growing up as a child of the forest's best tracker, you've learned the secrets
+      of the forest and the art of survival. You can read the trails left by animals,
+      know which berries are safe to eat, and how to stay silent as a shadow. You've
+      always been more at home among the trees than in the hustle and bustle of the
+      village.
+  "8-10":
+    label: "Travelling troupe storytellers' child"
+    title: Travelling troupe storytellers' child
+    body: >
+      Your parents were part of a travelling troupe, who would regale the village
+      with tales of distant lands and legendary heroes. As a child, you soaked in the
+      enchanting stories and songs, dreaming of living out your own adventures. Now,
+      you wish to gather stories of your own and inspire others just as you were
+      inspired.
+  jack:
+    label: "Humble baker's child — hearth warmth, heroic dreams"
+    title: Humble baker's child
+    body: >
+      The child of a humble baker, your days were filled with the warmth of a hearth
+      and the smell of fresh bread. However, your heart longed for more than kneading
+      dough and shaping loaves. Stories of brave adventurers and magical creatures
+      told by travellers passing through the village filled your dreams, fuelling
+      your desire to embark on your own heroic tale.
+  queen:
+    label: "Youngest child of the village leader"
+    title: Youngest child of the village leader
+    body: >
+      You are the youngest child of the village leader, a position of privilege, but
+      also of expectations. You've always been seen as someone who needs to uphold the
+      family honour and stick to traditions. You yearn for freedom, a chance to prove
+      your worth. You wish to write your own destiny, not follow a predetermined path.
+  king:
+    label: "Born into a family of healers"
+    title: Born into a family of healers
+    body: >
+      Born into a family of healers, you have grown up with a deep understanding of
+      herbs and their remedies. Your gentle hands have comforted many and brought
+      relief to the weary and ill. Yet, you've always been intrigued by the tales of
+      magical healing practices of the ancient forest.
+
+trinkets:
+  ace:
+    label: "Mother's locket with portrait and pet fur"
+    title: Mother's locket
+    body: >
+      A locket given to you by your mother, containing a portrait of her when she was
+      young and a small tuft of fur from your first pet, a nimble squirrel. This
+      locket is a connection to your family and a reminder of simpler times.
+  "2-4":
+    label: "Grandfather's compass pointing to the heart of adventure"
+    title: Grandfather's compass
+    body: >
+      An old compass, passed down from your grandfather, a seasoned explorer. It no
+      longer points to the cardinal directions, but instead points to what your
+      grandfather claimed was "the heart of the adventure." You've yet to understand
+      what he meant, but you feel drawn to follow where it leads.
+  "5-7":
+    label: "Worn storybook of heroic tales"
+    title: Worn storybook
+    body: >
+      A worn-out storybook, filled with tales of heroic adventures and legendary
+      creatures. This was your favourite bedtime storybook as a child, gifted to you
+      by a passing Storyteller. The tales it holds have ignited your thirst for
+      adventure.
+  "8-10":
+    label: "Crystal shard necklace from a Seer ancestor"
+    title: Crystal shard necklace
+    body: >
+      A small crystal shard tied to a leather string, worn as a necklace. It's a
+      piece of a larger crystal that your Seer ancestor found deep in the forest. The
+      shard occasionally pulses with a soft glow, especially when in proximity to
+      areas of strong magic.
+  jack:
+    label: "Father's carved wolf with gem eyes"
+    title: Carved wolf
+    body: >
+      A wooden carving of a wolf, masterfully crafted by your father. The wolf's eyes
+      are made of small green gems, its posture alert and regal. This symbolises your
+      family's respect for the wild and its creatures.
+  queen:
+    label: "Mentor's engraved hunter's knife"
+    title: Hunter's knife
+    body: >
+      An old but sturdy hunter's knife given to you by your mentor. The blade is
+      engraved with various symbols representing nature's elements. This tool is more
+      than a weapon; it's a symbol of your responsibility towards the forest and its
+      inhabitants.
+  king:
+    label: "Grandmother's medicinal herb pouch"
+    title: Medicinal herb pouch
+    body: >
+      A medicinal pouch filled with dried herbs and seeds given to you by your healer
+      grandmother. She claimed that this pouch would be of great help in desperate
+      times, healing wounds and curing ailments.

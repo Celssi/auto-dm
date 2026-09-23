@@ -92,19 +92,24 @@ export function initiativeMod(char: Character): number {
   return mod;
 }
 
-export function spellAbility(classId: string): string | null {
+export function spellAbility(classId: string, subclass?: string): string | null {
+  const sub = String(subclass || '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_');
+  if (sub.includes('eldritch_knight') || sub.includes('eldritch')) return 'int';
+  if (sub.includes('arcane_trickster') || sub.includes('trickster')) return 'int';
   return SPELL_ABILITY[classId.toLowerCase()] ?? null;
 }
 
 export function spellSaveDc(char: Character): number | null {
-  const ab = spellAbility(char.class_name || '');
+  const ab = spellAbility(char.class_name || '', char.subclass);
   if (!ab) return null;
   const pb = proficiencyBonus(char.level || 1);
   return 8 + pb + abilityMod(char.ability_scores?.[ab] ?? 10);
 }
 
 export function spellAttackBonus(char: Character): number | null {
-  const ab = spellAbility(char.class_name || '');
+  const ab = spellAbility(char.class_name || '', char.subclass);
   if (!ab) return null;
   const pb = proficiencyBonus(char.level || 1);
   return pb + abilityMod(char.ability_scores?.[ab] ?? 10);

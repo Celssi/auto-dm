@@ -111,6 +111,14 @@ classes:
   fighter:
     - {id: fighting_style_feat, kind: feat, label: Fighting Style, min_level: 1, count: 1, options: $fighting_style_feats}
     - {id: weapon_mastery, kind: weapons, label: Weapon Mastery, min_level: 1, count: 3, options: $weapons}
+    - {id: subclass, kind: enum, label: Martial Archetype, min_level: 3, options: [
+        {id: champion, label: Champion},
+        {id: battle_master, label: Battle Master},
+        {id: eldritch_knight, label: Eldritch Knight},
+        {id: psi_warrior, label: Psi Warrior},
+      ]}
+    - {id: third_caster_cantrips, kind: spells, label: Wizard cantrips, min_level: 3, count: 2, spell_list: wizard, spell_level: 0, when_subclass: [Eldritch Knight, eldritch_knight]}
+    - {id: third_caster_spells, kind: spells, label: Prepared wizard spells, min_level: 3, count: 3, spell_list: wizard, spell_level: 1, when_subclass: [Eldritch Knight, eldritch_knight]}
   paladin:
     - {id: weapon_mastery, kind: weapons, label: Weapon Mastery, min_level: 1, count: 2, options: $weapons}
     - {id: fighting_style_feat, kind: feat, label: Fighting Style, min_level: 2, count: 1, options: $fighting_style_feats}
@@ -122,6 +130,14 @@ classes:
     - {id: rogue_expertise, kind: skills, label: Expertise, min_level: 1, count: 2, options: $skills}
     - {id: thieves_cant_language, kind: language, label: Thieves' Cant language, min_level: 1, count: 1, options: $languages}
     - {id: weapon_mastery, kind: weapons, label: Weapon Mastery, min_level: 1, count: 2, options: $weapons}
+    - {id: subclass, kind: enum, label: Roguish Archetype, min_level: 3, options: [
+        {id: thief, label: Thief},
+        {id: assassin, label: Assassin},
+        {id: arcane_trickster, label: Arcane Trickster},
+        {id: soulknife, label: Soulknife},
+      ]}
+    - {id: third_caster_cantrips, kind: spells, label: Wizard cantrips, min_level: 3, count: 2, spell_list: wizard, spell_level: 0, when_subclass: [Arcane Trickster, arcane_trickster]}
+    - {id: third_caster_spells, kind: spells, label: Prepared wizard spells, min_level: 3, count: 3, spell_list: wizard, spell_level: 1, when_subclass: [Arcane Trickster, arcane_trickster]}
   warlock:
     - {id: eldritch_invocations, kind: invocations, label: Eldritch Invocations, min_level: 1, count: 2, options: $eldritch_invocations}
 

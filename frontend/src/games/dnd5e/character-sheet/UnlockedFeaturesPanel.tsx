@@ -19,7 +19,7 @@ export type UnlockedFeatures = {
 function FeatureSection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="space-y-1.5">
-      <h4 className="text-[10px] font-semibold uppercase tracking-wider text-muted">{title}</h4>
+      <h4 className="section-heading">{title}</h4>
       {children}
     </section>
   );

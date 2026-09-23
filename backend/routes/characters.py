@@ -8,20 +8,8 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from backend.dm.graph import level_up_character
-from backend.games.dnd5e.characters.character_builder import (
-    add_multiclass_level,
-    character_creation_summary,
-    finalize_new_character,
-    level_up_preview,
-    rebuild_character,
-)
 from backend.games.dnd5e.characters.character_data import multiclass_prerequisites
-from backend.games.dnd5e.characters.entity import (
-    character_from_dict,
-    character_to_dict,
-    default_character,
-)
-from backend.games.registry import get_game
+from backend.games.registry import DEFAULT_GAME_ID, get_game, resolve_game_id
 from backend.settings_store import load_settings
 from backend.storage import delete_character, get_character, list_characters, save_character
 
@@ -50,6 +38,10 @@ class MulticlassBody(BaseModel):
     class_name: str
 
 
+def _plugin_for_data(data: dict | None = None):
+    return get_game(resolve_game_id(data))
+
+
 @router.get("")
 def list_all():
     return {"characters": list_characters()}
@@ -61,26 +53,33 @@ def options(include_faerun: bool = False, game_id: str | None = None):
     use_faerun = include_faerun or prefs.get("include_faerun", False)
     plugin = get_game(game_id)
     payload = plugin.character_options_payload(include_faerun=use_faerun)
-    payload["multiclass_prerequisites"] = {
-        cid: multiclass_prerequisites(cid) for cid in [c["id"] for c in payload.get("classes", [])]
-    }
+    if plugin.id == DEFAULT_GAME_ID:
+        payload["multiclass_prerequisites"] = {
+            cid: multiclass_prerequisites(cid)
+            for cid in [c["id"] for c in payload.get("classes", [])]
+        }
     return payload
 
 
 @router.post("/preview")
 def preview(body: CharacterBody, finalize: bool = True):
-    """Rebuild a draft character for wizard review without saving."""
+    plugin = _plugin_for_data(body.character)
+    if plugin.id == "brambletrek":
+        obj = plugin.character_from_dict(body.character)
+        char = plugin.finalize_new_character(obj) if finalize else plugin.rebuild_character(obj)
+        return {"character": plugin.character_to_dict(char)}
+
     from backend.games.dnd5e.characters.creation_choices import validate_creation_choices
 
-    obj = character_from_dict(body.character)
+    obj = plugin.character_from_dict(body.character)
     if finalize:
         missing = validate_creation_choices(obj)
         if missing:
             raise HTTPException(400, detail={"missing_choices": missing})
-        char = finalize_new_character(obj)
+        char = plugin.finalize_new_character(obj)
     else:
-        char = rebuild_character(obj, recompute_hp=False)
-    return {"character": character_to_dict(char)}
+        char = plugin.rebuild_character(obj, recompute_hp=False)
+    return {"character": plugin.character_to_dict(char)}
 
 
 @router.get("/{char_id}/summary")
@@ -88,8 +87,12 @@ def summary(char_id: str):
     char = get_character(char_id)
     if not char:
         raise HTTPException(404, "Character not found")
-    obj = rebuild_character(character_from_dict(char))
-    return {"summary": character_creation_summary(obj), "character": character_to_dict(obj)}
+    plugin = _plugin_for_data(char)
+    obj = plugin.rebuild_character(plugin.character_from_dict(char))
+    return {
+        "summary": plugin.character_creation_summary(obj),
+        "character": plugin.character_to_dict(obj),
+    }
 
 
 @router.get("/{char_id}")
@@ -103,15 +106,19 @@ def get_one(char_id: str):
 @router.post("")
 def create(body: CharacterBody):
     data = body.character if body.character else {}
-    char = finalize_new_character(character_from_dict(data) if data else default_character())
-    char_id = save_character(None, character_to_dict(char))
+    plugin = _plugin_for_data(data)
+    char = plugin.finalize_new_character(
+        plugin.character_from_dict(data) if data else plugin.default_character()
+    )
+    char_id = save_character(None, plugin.character_to_dict(char))
     return {"id": char_id, "character": get_character(char_id)}
 
 
 @router.put("/{char_id}")
 def update(char_id: str, body: CharacterBody):
-    char = rebuild_character(character_from_dict(body.character))
-    save_character(char_id, character_to_dict(char))
+    plugin = _plugin_for_data(body.character)
+    char = plugin.rebuild_character(plugin.character_from_dict(body.character))
+    save_character(char_id, plugin.character_to_dict(char))
     return {"character": get_character(char_id)}
 
 
@@ -120,6 +127,12 @@ def level_up_preview_route(char_id: str, class_name: str | None = None):
     char = get_character(char_id)
     if not char:
         raise HTTPException(404, "Character not found")
+    plugin = get_game(resolve_game_id(char))
+    if not plugin.play.supports_level_up:
+        raise HTTPException(400, "This game does not support level up")
+    from backend.games.dnd5e.characters.character_builder import level_up_preview, rebuild_character
+    from backend.games.dnd5e.characters.entity import character_from_dict
+
     obj = rebuild_character(character_from_dict(char))
     return {"preview": level_up_preview(obj, class_name=class_name)}
 
@@ -129,6 +142,12 @@ def level_up_route(char_id: str, body: LevelUpBody):
     char = get_character(char_id)
     if not char:
         raise HTTPException(404, "Character not found")
+    plugin = get_game(resolve_game_id(char))
+    if not plugin.play.supports_level_up:
+        raise HTTPException(400, "This game does not support level up")
+    from backend.games.dnd5e.characters.character_builder import rebuild_character
+    from backend.games.dnd5e.characters.entity import character_from_dict, character_to_dict
+
     pending: dict[str, Any] = {}
     if body.asi_choices is not None:
         pending["asi_choices"] = body.asi_choices
@@ -167,6 +186,15 @@ def add_multiclass(char_id: str, body: MulticlassBody):
     char = get_character(char_id)
     if not char:
         raise HTTPException(404, "Character not found")
+    if resolve_game_id(char) == "brambletrek":
+        raise HTTPException(400, "Brambletrek characters do not multiclass")
+    from backend.games.dnd5e.characters.character_builder import (
+        add_multiclass_level,
+        character_creation_summary,
+        rebuild_character,
+    )
+    from backend.games.dnd5e.characters.entity import character_from_dict, character_to_dict
+
     obj = rebuild_character(character_from_dict(char))
     updated, err = add_multiclass_level(obj, body.class_name)
     if err:

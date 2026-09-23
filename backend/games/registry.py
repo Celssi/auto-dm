@@ -7,7 +7,12 @@ from typing import Any, Callable
 
 from fastapi import HTTPException
 
+from backend.games.play_adapter import GamePlayAdapter
+from backend.games.rag_hooks import GameRagHooks
+
 DEFAULT_GAME_ID = "dnd5e"
+
+_ALL_PLUGINS: dict[str, "GamePlugin"] | None = None
 
 
 @dataclass(frozen=True)
@@ -19,6 +24,7 @@ class GamePlugin:
     character_to_dict: Callable[..., dict[str, Any]]
     default_character: Callable[[], Any]
     rebuild_character: Callable[..., Any]
+    finalize_new_character: Callable[..., Any]
     character_creation_summary: Callable[..., dict[str, Any]]
     character_options_payload: Callable[..., dict[str, Any]]
     shortcuts: list[dict[str, str]]
@@ -27,6 +33,9 @@ class GamePlugin:
     system_prompt: Callable[..., str]
     get_all_factions: Callable[[], list[str]]
     pdf_sources: dict[str, dict[str, str]]
+    format_character_for_prompt: Callable[..., str]
+    rag: GameRagHooks
+    play: GamePlayAdapter
 
 
 def resolve_game_id(char_dict: dict[str, Any] | None) -> str:
@@ -36,10 +45,19 @@ def resolve_game_id(char_dict: dict[str, Any] | None) -> str:
     return gid or DEFAULT_GAME_ID
 
 
-def get_game(game_id: str | None = None) -> GamePlugin:
+def _load_registry() -> dict[str, GamePlugin]:
+    global _ALL_PLUGINS
+    if _ALL_PLUGINS is not None:
+        return _ALL_PLUGINS
+    from backend.games.brambletrek.plugin import BRAMBLETREK_PLUGIN
     from backend.games.dnd5e.plugin import DND5E_PLUGIN
 
-    registry: dict[str, GamePlugin] = {DND5E_PLUGIN.id: DND5E_PLUGIN}
+    _ALL_PLUGINS = {DND5E_PLUGIN.id: DND5E_PLUGIN, BRAMBLETREK_PLUGIN.id: BRAMBLETREK_PLUGIN}
+    return _ALL_PLUGINS
+
+
+def get_game(game_id: str | None = None) -> GamePlugin:
+    registry = _load_registry()
     gid = (game_id or DEFAULT_GAME_ID).strip() or DEFAULT_GAME_ID
     plugin = registry.get(gid)
     if not plugin:
@@ -48,4 +66,4 @@ def get_game(game_id: str | None = None) -> GamePlugin:
 
 
 def list_games() -> list[dict[str, str]]:
-    return [{"id": g.id, "label": g.label} for g in [get_game(DEFAULT_GAME_ID)]]
+    return [{"id": g.id, "label": g.label} for g in _load_registry().values()]

@@ -1,0 +1,86 @@
+# Player combat tactic cards by Legacy (Core Rulebook pp. 30-31).
+player_tactics:
+  seer:
+    '2': Arcane Shield — reduce next attack damage by 2.
+    '3': Mystic Flare — 3 magic damage.
+    '4': Ancient Wisdom — 2 damage; draw two extra tactic cards next turn.
+    '5': Healing Touch — restore 3 Health.
+    '6': Teleport — evade opponent's next attack.
+    '7': Elemental Burst — 4 magic damage.
+    '8': Divine Calling — opponent skips next turn.
+    '9': Magic Missile — 3 damage per turn for opponent's next 2 turns.
+    '10': Energy Drain — 2 damage; recover 2 Health.
+    jack: Time Warp — take two extra turns in a row after this card.
+    queen: Summon Elemental — elemental deals 2 damage per turn you take.
+    king: Mind Control — opponent loses next turn.
+    ace: Arcane Overload — damage equal to half Morale (round up).
+  scrapper:
+    '2': Dodge — evade next attack; +2 damage on your next attack.
+    '3': Haymaker — 4 physical damage.
+    '4': Second Wind — restore 3 Health.
+    '5': Stunning Blow — 2 damage; opponent loses next turn.
+    '6': Battle Cry — next two attacks +2 damage.
+    '7': Savage Strike — 3 damage per turn for opponent's next 2 turns.
+    '8': Shield Bash — 3 damage; stun opponent next turn.
+    '9': Reckless Charge — 5 damage; take 2 damage.
+    '10': Berserk — double damage on next attack.
+    jack: Unbreakable Will — ignore damage from next attack.
+    queen: Piercing Strikes — damage = opponent HP minus 2.
+    king: Earthquake Slam — 5 damage; stun 2 turns.
+    ace: Heroic Strike — damage = half remaining Health (round up).
+  storyteller:
+    '2': Inspiring Tune — you and allies' next attacks +2 damage.
+    '3': Ancient Harmony — 3 damage; draw extra tactic next turn.
+    '4': Soothing Melody — restore 2 Morale to self and allies.
+    '5': Rhythmic Distraction — opponent loses next turn.
+    '6': Ballad of Bravery — +2 damage and Health for your next two turns.
+    '7': Song of Despair — opponent deals 2 less on next attack.
+    '8': Melodic Mirror — reflect next attack for half damage (round up).
+    '9': Sonic Blast — 4 sonic damage.
+    '10': Epic Recital — allies +5 Morale; 5 damage end of next turn.
+    jack: Symphony of Shadows — opponent misses; next tactic +2 damage.
+    queen: Sonnet of Slumber — opponent sleeps next turn.
+    king: Masterful Performance — draw 3 tactics; replace any in hand.
+    ace: Song of the Hero — restore all Health and Morale to max (self and allies).
+  seeker:
+    '2': Quick Shot — 3 physical damage.
+    '3': Hunter's Mark — next attack +2 damage.
+    '4': Camouflage — evade next attack.
+    '5': Nature's Bounty — +2 Supplies; 2 damage.
+    '6': Piercing Arrow — 4 physical damage.
+    '7': Tracking — draw 2 tactics; use one now.
+    '8': Explosive Trap — 5 damage on opponent's next turn.
+    '9': Rebound and Regroup — evade next attack; restore 2 Health.
+    '10': Double Shot — 3 damage per turn for next two turns.
+    jack: Poisoned Arrow — 2 damage + 1 per turn for 2 turns.
+    queen: Animal Companion — companion 2 damage per turn on your turns.
+    king: Swift Strike — two turns in a row; extra tactic per extra turn.
+    ace: Call of the Wild — restore all Health; gain companion next encounter.
+  sneaker:
+    '2': Quick Dodge — evade next attack.
+    '3': Precise Jab — 3 physical damage.
+    '4': Trap Set — opponent takes 2 at end of next turn and loses following turn.
+    '5': Confusing Blow — 2 damage; opponent damage −2 for 2 turns.
+    '6': Rapid Strike — 6 damage split across 3 hits.
+    '7': Steal and Stab — 2 damage; draw card (face/Ace = item after combat).
+    '8': Shadow Strike — 5 if unhurt this combat else 2.
+    '9': Shadow Strike — 5 if unhurt this combat else 2.
+    '10': Hidden Blade — +5 on next attack.
+    jack: Misty Movement — you or ally avoid next attack.
+    queen: Evade & Counter — dodge next attack; deal half back (round up).
+    king: Sneak Attack — 10 at max Health, −1 per 3 HP below max.
+    ace: Masterful Counter — opponent HP halved; half damage for 2 turns.
+  soother:
+    '2': Healing Prayer — restore 5 Health (self and allies).
+    '3': Divine Light — 2 damage per turn to opponent for 3 turns.
+    '4': Blessed Strike — 3 damage; draw card; heal half value (Ace=11, round up).
+    '5': Holy Blast — 5 damage; heal 2 per turn for 2 turns.
+    '6': Spiritual Guard — −2 damage for next 2 opponent attacks.
+    '7': Sanctuary — shield negates one attack for self or ally.
+    '8': Mystical Heal — restore half current Health (round up) for self and allies.
+    '9': Purifying Light — 3 damage; heal 3 Health.
+    '10': Angelic Aid — guardian reduces damage by 2; 2 damage ×3 turns.
+    jack: Holy Presence — opponent's next 2 attacks −2 each.
+    queen: Serene Strike — damage = Morale ÷ 3.
+    king: Divine Intervention — negate opponent's strongest attack once.
+    ace: Miraculous Recovery — restore all Health; +5 max Health until encounter ends.

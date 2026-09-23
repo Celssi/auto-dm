@@ -9,7 +9,7 @@ export interface CampaignsState {
   campaignAdventures: AdventureMeta[];
   allAdventures: AdventureMeta[];
   adventuresLoaded: boolean;
-  characters: { id: string; name: string }[];
+  characters: { id: string; name: string; game_id?: string }[];
   tab: CampaignTab;
   entry: JournalEntry | null;
   error: string | null;
@@ -31,6 +31,7 @@ export interface CampaignsState {
     adventure_count: number;
     include_faerun: boolean;
     bootstrap_first: boolean;
+    active_adventure: string;
   };
   adventureForm: {
     character_id: string;
@@ -78,6 +79,7 @@ export const initialCampaignsState: CampaignsState = {
     adventure_count: 3,
     include_faerun: false,
     bootstrap_first: false,
+    active_adventure: '',
   },
   adventureForm: {
     character_id: '',

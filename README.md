@@ -159,6 +159,15 @@ flowchart TD
 ./scripts/ingest-full.sh --skip-audit   # ingest only, no YAML audit
 ```
 
+**Brambletrek** (digital PDFs in `brambletrek/`; audit runs automatically after ingest):
+
+```bash
+python -m backend.rag.ingest --game brambletrek
+python -m backend.rag.ingest --game brambletrek --skip-audit   # index only
+python -m scripts.audit_brambletrek_curated                    # structural + PDF spot-checks
+python -m scripts.audit_brambletrek_curated --skip-pdf         # YAML structure only
+```
+
 OCR progress shows page counts, elapsed time, and ETA. Cached OCR lives in `data/ocr_cache/` (gitignored).
 
 ---
@@ -305,6 +314,10 @@ python -m scripts.audit_curated --skip-pdf
 
 # Audit YAML against PDF backgrounds (slow; needs index/OCR)
 python -m scripts.audit_curated --include-faerun
+
+# Brambletrek curated vs Core Rulebook PDF
+python -m scripts.validate_brambletrek_curated
+python -m scripts.audit_brambletrek_curated
 
 # Run backend tests
 pytest backend/tests/

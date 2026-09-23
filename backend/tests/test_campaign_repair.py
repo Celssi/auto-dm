@@ -1,9 +1,5 @@
 """Campaign repair and journal backfill tests."""
 
-import tempfile
-from pathlib import Path
-
-import backend.config as cfg
 from backend.dm.campaign_repair import (
     WAKING_DEEP_ENCOUNTERS,
     WAKING_DEEP_NPCS,
@@ -17,12 +13,8 @@ from backend.journal_storage import get_campaign_npc, list_campaign_npcs, save_c
 from backend.storage import save_adventure
 
 
-def test_save_journal_entries_writes_npcs():
-    tmpdir = Path(tempfile.mkdtemp())
-    cfg.SAVES_DIR = tmpdir
-    import backend.journal_storage as js
-
-    js.SAVES_DIR = tmpdir
+def test_save_journal_entries_writes_npcs(isolated_saves):
+    _ = isolated_saves
     campaign_id = "camp-1"
     save_campaign(campaign_id, {"name": "Test Campaign"})
     save_journal_entries(
@@ -37,17 +29,7 @@ def test_save_journal_entries_writes_npcs():
     assert npcs[0]["name"] == "Captain Venn"
 
 
-def test_repair_waking_deep_hardcoded_data():
-    tmpdir = Path(tempfile.mkdtemp())
-    cfg.SAVES_DIR = tmpdir
-    import backend.journal_storage as js
-    import backend.storage as storage
-
-    js.SAVES_DIR = tmpdir
-    storage.ADVENTURES_DIR = tmpdir / "adventures"
-    storage.ADVENTURES_INDEX = storage.ADVENTURES_DIR / "index.json"
-    storage.ADVENTURES_DIR.mkdir(parents=True, exist_ok=True)
-
+def test_repair_waking_deep_hardcoded_data(isolated_saves):
     campaign_id = "the-waking-deep-tides-of-the-shattered-crown"
     save_campaign(
         campaign_id, {"name": "The Waking Deep", "story_arc": "Marceska hunts the Crown."}

@@ -15,12 +15,14 @@ from backend.dm.encounters import (
 from backend.games.dnd5e.characters.entity import character_from_dict
 from backend.games.dnd5e.dm.combat_manager import (
     advance_turn,
+    apply_damage_to_enemy,
     apply_damage_to_player,
     check_concentration_save,
     current_combatant,
     pick_encounter_to_start,
     resolve_enemy_attack,
     resolve_enemy_turn,
+    resolve_player_attack,
     start_encounter,
 )
 from backend.games.dnd5e.dm.monster_resolver import MonsterAttack, MonsterStats
@@ -250,7 +252,59 @@ def test_player_took_combat_action():
 
     assert player_took_combat_action("I ask about the harbor") is False
     assert player_took_combat_action("I attack the merrow") is True
-    assert player_took_combat_action("", {"task": "attack_roll"}) is True
+    assert player_took_combat_action("", {"task": "attack_roll"}) is False
+    assert player_took_combat_action("", {"task": "initiative"}) is True
+
+
+def test_player_attack_reduces_enemy_hp():
+    state = CombatState(
+        encounter_id="e1",
+        encounter_name="Test",
+        order=["player", "gob1"],
+        turn_index=0,
+        round=1,
+        combatants=[
+            Combatant(
+                id="player",
+                name="Hero",
+                kind="player",
+                initiative=15,
+                hp=20,
+                max_hp=20,
+                ac=16,
+                attack_bonus=5,
+                damage="1d8+3",
+            ),
+            Combatant(
+                id="gob1",
+                name="Goblin",
+                kind="enemy",
+                initiative=10,
+                hp=12,
+                max_hp=12,
+                ac=13,
+            ),
+        ],
+    )
+    player = state.combatants[0]
+    target = state.combatants[1]
+    char = character_from_dict(
+        _char_dict(
+            weapons=[{"name": "Longsword", "damage": "1d8", "ability": "str", "proficient": True}],
+            ability_scores={"str": 16, "dex": 14},
+            class_name="fighter",
+            level=3,
+        )
+    )
+    with patch("backend.games.dnd5e.dm.combat_manager.roll_dice") as roll:
+        roll.side_effect = [
+            {"rolls": [15], "total": 15},
+            {"total": 6},
+        ]
+        result = resolve_player_attack(player, target, char=char)
+        assert result["hit"] is True
+        state = apply_damage_to_enemy(state, target.id, result["damage"])
+    assert target.hp == 6
 
 
 def test_pick_encounter_not_early_on_setup_beat():

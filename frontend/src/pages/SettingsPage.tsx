@@ -7,8 +7,10 @@ import StatusBadge from '../components/ui/StatusBadge';
 import Toggle from '../components/ui/forms/Toggle';
 import AnimatedPage from '../components/ui/AnimatedPage';
 import { fadeUp } from '../components/ui/motion';
+import { useToast } from '../components/ui/toast';
 
 export default function SettingsPage() {
+  const toast = useToast();
   const [settings, setSettings] = useState({ include_faerun: false, use_rerank: true });
   const [health, setHealth] = useState<{ indexed: boolean; claude_configured: boolean } | null>(null);
   const [indexing, setIndexing] = useState(false);
@@ -20,9 +22,16 @@ export default function SettingsPage() {
   }, []);
 
   const save = async () => {
-    const r = await api.updateSettings(settings);
-    setSettings(r.settings);
-    setMessage('Settings saved.');
+    try {
+      const r = await api.updateSettings(settings);
+      setSettings(r.settings);
+      setMessage(null);
+      toast.success('Settings saved');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to save settings';
+      toast.error(msg);
+      setMessage(msg);
+    }
   };
 
   const reindex = async (includeFaerun: boolean) => {
@@ -30,7 +39,10 @@ export default function SettingsPage() {
     setMessage(null);
     try {
       const r = await api.reindex(includeFaerun);
-      setMessage(r.ok ? `Indexed ${r.chunk_count} chunks.` : 'Indexing failed.');
+      const msg = r.ok ? `Indexed ${r.chunk_count} chunks` : 'Indexing failed';
+      if (r.ok) toast.success(msg);
+      else toast.error(msg);
+      setMessage(r.ok ? `${msg}.` : msg);
       const h = await api.health();
       setHealth(h);
     } finally {
@@ -58,7 +70,7 @@ export default function SettingsPage() {
       <m.div variants={fadeUp} className="panel-glow p-5 space-y-5">
         <div className="flex items-center gap-2">
           <Settings2 size={18} className="text-accent" />
-          <h2 className="font-display font-semibold text-gray-100">Rules search</h2>
+          <h2 className="display-title text-base">Rules search</h2>
         </div>
         <Toggle
           checked={settings.include_faerun}
@@ -78,7 +90,7 @@ export default function SettingsPage() {
       <m.div variants={fadeUp} className="panel-glow p-5 space-y-4">
         <div className="flex items-center gap-2">
           <Database size={18} className="text-accent" />
-          <h2 className="font-display font-semibold text-gray-100">Index rulebooks</h2>
+          <h2 className="display-title text-base">Index rulebooks</h2>
         </div>
         <p className="text-sm text-muted leading-relaxed">
           Requires Ollama with nomic-embed-text. First run may take hours with OCR.

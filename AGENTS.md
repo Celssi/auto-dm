@@ -1,6 +1,39 @@
 # Auto-DM - AI Assistant Guide
 
-Auto-DM is a D&D 5e (2024) solo play app: FastAPI backend, React frontend, Claude as DM.
+Auto-DM is a solo play app with **D&D 5e (2024)** and **Brambletrek** support: FastAPI backend, React frontend, Claude as DM.
+
+## Games
+
+| Game | `game_id` | Rules ingest |
+|------|-----------|--------------|
+| D&D 5e | `dnd5e` | `python -m backend.rag.ingest --core` |
+| Brambletrek | `brambletrek` | `python -m backend.rag.ingest --game brambletrek` |
+
+### Brambletrek PDF setup
+
+Symlink PDFs from your Dropbox (or local copy) into `auto-dm/brambletrek/`:
+
+- `Brambletrek_-_Complete_Digital_Edition.pdf` (core + CDE expansions)
+- `Brambletrek_-_A_Birthday_of_Wonders.pdf` (optional adventure)
+- `Brambletrek_-_Winter_Gift.pdf` (optional adventure)
+
+PDFs are gitignored. After symlinks exist, run ingest:
+
+```bash
+cd auto-dm
+python -m backend.rag.ingest --game brambletrek
+```
+
+Curated tables live in `data/curated/brambletrek_*.yaml`. Adventure modules are defined in `brambletrek_adventures.yaml` (7 modules including Hyhill solo).
+
+### Brambletrek modules and combat
+
+- Module YAML: `data/curated/brambletrek_modules/` (regenerate after PDF ingest with `python3 scripts/build_brambletrek_modules.py`)
+- **World Tree**: hearts/diamonds = guardians (p. 44); clubs/spades = core combat (p. 30)
+- **Dragonkeep**: elementals by exploration rank; Aerith finale uses automated 3-phase loop (Aerith → player → Eolan)
+- **Other modules** (`first_frost`, `winter_gift`, `pumpkin_party`, `birthday_wonders`): core combat with module legacy tactic tables when Legacy matches (`snacker`, `surveyor`)
+- **Combat UI**: Journey **Start combat** opens the **Combat** tab (HP, tactic hand, turn loop). Session state: `extras.brambletrek_combat`
+- **Oracle relic**: character flag `oracle_relic` gates Dragonkeep door (from Hyhill)
 
 ## Copy and typography
 
@@ -29,6 +62,7 @@ When editing frontend empty-value placeholders, use `EMPTY_FIELD` from `frontend
 
 | Area | Path |
 |------|------|
+| Game plugins | `backend/games/registry.py`, `backend/games/brambletrek/` |
 | DM graph | `backend/dm/graph.py` |
 | System prompt | `backend/dm/prompts.py` |
 | Campaign bootstrap | `backend/dm/campaign_bootstrap.py` |

@@ -1,0 +1,309 @@
+id: birthday_wonders
+label: A Birthday of Wonders
+source:
+  pdf: brambletrek/Brambletrek_-_A_Birthday_of_Wonders.pdf
+  printed_pages:
+    journeys:
+    - 4
+    - 5
+    - 6
+    - 7
+    skaeven_tactics: 8
+play:
+  journey_cards_per_day: 4
+  use_core_depths: false
+  use_core_combat: true
+  reason_key: band
+  encounter_table: skaeven_tactics
+journey_heading: '**Birthday journey** — exploration events'
+journeys:
+  hearts:
+    '2':
+      label: A trail of fireflies gathers around you, forming a path that feels like the forest itself
+        guiding your steps.
+      body: A trail of fireflies gathers around you, forming a path that feels like the forest itself
+        guiding your steps. Morale +1
+      morale: 1
+    '3':
+      label: You find a hollow log filled with sweet nuts, enough to lighten your pack and your heart.
+      body: You find a hollow log filled with sweet nuts, enough to lighten your pack and your heart.
+        Supplies +2
+      supplies: 2
+    '4':
+      label: A friendly Bushborn troupe shares a song about birthdays long past, lifting your spirits.
+      body: A friendly Bushborn troupe shares a song about birthdays long past, lifting your spirits.
+        Morale +3
+      morale: 3
+    '5':
+      label: The Bristleborn gift you a carved acorn charm for luck, its weight reassuring in your paw.
+      body: The Bristleborn gift you a carved acorn charm for luck, its weight reassuring in your paw.
+        Morale +4
+      morale: 4
+    '6':
+      label: A grove of wildflowers is blooming out of season, their nectar-rich petals provide sustenance.
+      body: A grove of wildflowers is blooming out of season, their nectar-rich petals provide sustenance.
+        Supplies +3
+      supplies: 3
+    '7':
+      label: You learn a new foraging trick from a Bristleborn cousin, restoring your confidence.
+      body: You learn a new foraging trick from a Bristleborn cousin, restoring your confidence. Health
+        +2, Supplies +2
+      health: 2
+      supplies: 2
+    '8':
+      label: The cousins set up a picnic beneath lantern trees, insisting you rest and share their feast.
+      body: The cousins set up a picnic beneath lantern trees, insisting you rest and share their feast.
+        Morale +5
+      morale: 5
+    '9':
+      label: A hidden clearing reveals a tree heavy with ripe fruit, its bounty more than you can carry.
+      body: A hidden clearing reveals a tree heavy with ripe fruit, its bounty more than you can carry.
+        Supplies +6
+      supplies: 6
+    '10':
+      label: A Bushborn child presses a ribbon into your paw, saying it will help you “find the perfect
+        gift.” Morale +4, Supplies +3
+      morale: 4
+      supplies: 3
+    jack:
+      label: You stumble upon a birthday game in the woods, joining in with cousins who cheer your cleverness.
+      body: You stumble upon a birthday game in the woods, joining in with cousins who cheer your cleverness.
+        Morale +7
+      morale: 7
+    queen:
+      label: An elder Bristleborn shares an old recipe and a pouch of rare spices, perfect for a gift.
+      body: An elder Bristleborn shares an old recipe and a pouch of rare spices, perfect for a gift.
+        Supplies +4, Morale +2
+      supplies: 4
+      morale: 2
+    king:
+      label: You are asked to lead the cousins in a song for the birthday lanterns, filling the night
+        with joy.
+      body: You are asked to lead the cousins in a song for the birthday lanterns, filling the night with
+        joy. Morale +8
+      morale: 8
+    ace:
+      label: In a glade of moonlight, you discover a rare blossom known as the Gift’s Heart.
+      body: In a glade of moonlight, you discover a rare blossom known as the Gift’s Heart. Its petals
+        are said to bless any offering. Supplies +5, Morale +5
+      supplies: 5
+      morale: 5
+  diamonds:
+    '5':
+      label: The cousins gather around a campfire to share riddles and jokes, laughter warming your body.
+      body: The cousins gather around a campfire to share riddles and jokes, laughter warming your body.
+        Health +3
+      health: 3
+    '2':
+      label: A Bushborn cousin insists you take a handful of their roasted chestnuts for the road.
+      body: A Bushborn cousin insists you take a handful of their roasted chestnuts for the road. Supplies
+        +2
+      supplies: 2
+    '3':
+      label: A Bristleborn healer gives you a small salve made of herbs, soothing your aches.
+      body: A Bristleborn healer gives you a small salve made of herbs, soothing your aches. Health +2
+      health: 2
+    '4':
+      label: ''
+    ace:
+      label: In a moment of rare stillness, all three kin; Gnawborn, Bristleborn, and Bushborn sing a
+        harmony together, filling you w
+      body: In a moment of rare stillness, all three kin; Gnawborn, Bristleborn, and Bushborn sing a harmony
+        together, filling you with wholeness. Health +5, Supplies +5
+      health: 5
+      supplies: 5
+    '6':
+      label: A Bristleborn elder gifts you a sturdy basket, woven to hold your discoveries.
+      body: A Bristleborn elder gifts you a sturdy basket, woven to hold your discoveries. Supplies +3
+      supplies: 3
+    '7':
+      label: You spend the evening with a Bushborn storyteller, their tales of old kin restoring your
+        energy.
+      body: You spend the evening with a Bushborn storyteller, their tales of old kin restoring your energy.
+        Health +4
+      health: 4
+    '8':
+      label: A family potluck welcomes you, each cousin contributing food until the table overflows.
+      body: A family potluck welcomes you, each cousin contributing food until the table overflows. Supplies
+        +5
+      supplies: 5
+    '9':
+      label: You are invited to dance in the lantern circle, the music easing weariness from your bones.
+      body: You are invited to dance in the lantern circle, the music easing weariness from your bones.
+        Health +6
+      health: 6
+    '10':
+      label: A Gnawborn artisan shares a birthday keepsake carved from heartwood, reminding you of home.
+      body: A Gnawborn artisan shares a birthday keepsake carved from heartwood, reminding you of home.
+        Health +3, Supplies +3
+      health: 3
+      supplies: 3
+    jack:
+      label: You are honoured with a seat beside the elders, who bless your journey with words of strength.
+      body: You are honoured with a seat beside the elders, who bless your journey with words of strength.
+        Health +7
+      health: 7
+    queen:
+      label: A Bristleborn matriarch shares her secret pantry, filling your pack with dried fruits and
+        roots.
+      body: A Bristleborn matriarch shares her secret pantry, filling your pack with dried fruits and
+        roots. Supplies +6, Health +2
+      supplies: 6
+      health: 2
+    king:
+      label: You lead a toaSTAT the family gathering, your words uniting kin in cheer and giving you renewed
+        vitality.
+      body: You lead a toaSTAT the family gathering, your words uniting kin in cheer and giving you renewed
+        vitality. Health +8
+      health: 8
+  spades:
+    '6':
+      label: A biting wind chills you to the bone, sapping your strength.
+      body: A biting wind chills you to the bone, sapping your strength. Health -6
+      health: -6
+    '2':
+      label: A sudden downpour drenches your pack, spoiling some food.
+      body: A sudden downpour drenches your pack, spoiling some food. Supplies -2
+      supplies: -2
+    '3':
+      label: You trip over a gnarled root and twist your paw.
+      body: You trip over a gnarled root and twist your paw. Health -3
+      health: -3
+    '4':
+      label: A sharp bramble thicket blocks your path, scratching as you force your way through.
+      body: A sharp bramble thicket blocks your path, scratching as you force your way through. Health
+        -4
+      health: -4
+    '5':
+      label: A rushing stream sweeps away part of your pack before you can recover it.
+      body: A rushing stream sweeps away part of your pack before you can recover it. Supplies -5
+      supplies: -5
+    '7':
+      label: A fallen log collapses under your weight, leaving you battered and shaken.
+      body: A fallen log collapses under your weight, leaving you battered and shaken. Health -4, Supplies
+        -3
+      health: -4
+      supplies: -3
+    '8':
+      label: A swarm of biting insects descends, leaving you drained and itching.
+      body: A swarm of biting insects descends, leaving you drained and itching. Health -8
+      health: -8
+    '9':
+      label: The trail grows steep and treacherous, forcing you to abandon supplies to climb safely.
+      body: The trail grows steep and treacherous, forcing you to abandon supplies to climb safely. Supplies
+        -9
+      supplies: -9
+    '10':
+      label: You stumble into a patch of poisonous nettles, burning your skin painfully.
+      body: You stumble into a patch of poisonous nettles, burning your skin painfully. Health -10
+      health: -10
+    jack:
+      label: The forest floods unexpectedly, soaking supplies and leaving you exhausted.
+      body: The forest floods unexpectedly, soaking supplies and leaving you exhausted. Health -4, Supplies
+        -4
+      health: -4
+      supplies: -4
+    queen:
+      label: A landslide crashes nearby, scattering your belongings as you scramble to safety.
+      body: A landslide crashes nearby, scattering your belongings as you scramble to safety. Supplies
+        -5, Health -5
+      supplies: -5
+      health: -5
+    king:
+      label: A storm lashes the forest, breaking branches and knocking you from your path.
+      body: A storm lashes the forest, breaking branches and knocking you from your path. Health -6, Supplies
+        -6
+      health: -6
+      supplies: -6
+    ace:
+      label: You stray into a shadowed hollow where the air turns heavy and stifling.
+      body: You stray into a shadowed hollow where the air turns heavy and stifling. The effort to escape
+        leaves you drained. Health -7, Supplies -7
+      health: -7
+      supplies: -7
+  clubs:
+    '7':
+      label: Tiredness breeds bickering, and trust frays as small mistakes pile up.
+      body: Tiredness breeds bickering, and trust frays as small mistakes pile up. Morale -4, Supplies
+        -3
+      morale: -4
+      supplies: -3
+    '2':
+      label: A playful prank from the Bushborn goes wrong, leaving you embarrassed and unsettled.
+      body: A playful prank from the Bushborn goes wrong, leaving you embarrassed and unsettled. Morale
+        -2
+      morale: -2
+    '3':
+      label: A Bristleborn cousin scolds you for wandering off, dampening your spirits.
+      body: A Bristleborn cousin scolds you for wandering off, dampening your spirits. Morale -3
+      morale: -3
+    '4':
+      label: Disagreements over the best path forward cause quarrels in the group.
+      body: Disagreements over the best path forward cause quarrels in the group. Morale -4
+      morale: -4
+    '5':
+      label: A Bushborn accidentally spills your provisions while showing off a trick.
+      body: A Bushborn accidentally spills your provisions while showing off a trick. Supplies -5
+      supplies: -5
+    '6':
+      label: You overhear unkind words about your gift-seeking quest, shaking your confidence.
+      body: You overhear unkind words about your gift-seeking quest, shaking your confidence. Morale -6
+      morale: -6
+    '8':
+      label: A cousin takes more than their share of the food, leaving the packs lighter.
+      body: A cousin takes more than their share of the food, leaving the packs lighter. Supplies -8
+      supplies: -8
+    '9':
+      label: A heated argument breaks out, leaving everyone quiet and downcast for the rest of the day.
+      body: A heated argument breaks out, leaving everyone quiet and downcast for the rest of the day.
+        Morale -9
+      morale: -9
+    '10':
+      label: You forget a promise to help with chores, causing disappointment among the others.
+      body: You forget a promise to help with chores, causing disappointment among the others. Morale
+        -10
+      morale: -10
+    jack:
+      label: A gift you offered is misunderstood, and your effort feels wasted.
+      body: A gift you offered is misunderstood, and your effort feels wasted. Morale -6, Supplies -4
+      morale: -6
+      supplies: -4
+    queen:
+      label: A Bushborn troupe insists you pay a “birthday toll” of food to pass their camp.
+      body: A Bushborn troupe insists you pay a “birthday toll” of food to pass their camp. Supplies -9
+      supplies: -9
+    king:
+      label: Old rivalries surface among the cousins, and you are caught in the middle of the tension.
+      body: Old rivalries surface among the cousins, and you are caught in the middle of the tension.
+        Morale -8, Supplies -6
+      morale: -8
+      supplies: -6
+    ace:
+      label: A deep misunderstanding leaves you feeling like an outsider just when you most need kinship.
+      body: A deep misunderstanding leaves you feeling like an outsider just when you most need kinship.
+        Morale -10, Supplies -10
+      morale: -10
+      supplies: -10
+scene_tables:
+  skaeven_tactics:
+    '8':
+      label: THE WORLD TREE After days of searching, your journey finally brings you to the base of the
+        World Tree.
+      body: THE WORLD TREE After days of searching, your journey finally brings you to the base of the
+        World Tree. Its vast roots curl like the arms of a guardian, and its branches rise until they
+        vanish into the heavens. The air here is hushed, filled with a pulse of ancient power. Bramble
+        points upward, eyes shining. “This is it,” he whispers. “The greatest gift for Brambletrek must
+        be here. Nothing else could be worthy.” But before you can step closer, shadows stir among the
+        roots. From the undergrowth emerge the Ratkin, lean and ragged, their eyes sharp with hunger and
+        greed. They hiss and chatter amongst themselves, clutching crude blades and broken spears. “We
+        know you carry something precious,” one sneers. “Hand it over, and perhaps we let you leave in
+        peace.” You protest that you do not yet have the gift, but the Ratkin do not listen. In their
+        envy they see only prey, and they surge forward to claim what they imagine is already yours. THE
+        AMBUSH This encounter uses the Tactic Rules from the Brambletrek core book (see page 29). Each
+        player draws 4 Tactic Cards, and the Ratkin act by drawing their own tactic card on each of their
+        turns. The fight lasts until either side retreats or falls. The Ratkin are a Jack-tier opponent
+        with 10 Health. Treat them as a single enemy swarm. Their attacks should be flavoured as darting
+        strikes, snapping teeth, and overwhelming numbers. When you draw their Tactic Cards, narrate them
+        as the desperate, reckless actions of the Ratkin mob. Fight for one full round. Describe how your
+        Gnawborn resist the ambush, what allies do, and how the cousins defend one another against the
+        sudden attack. Once you finish the first round of combat, turn the page to continue the story.

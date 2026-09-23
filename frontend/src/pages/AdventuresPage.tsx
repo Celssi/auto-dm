@@ -10,12 +10,14 @@ import ListLoading from '../components/ui/ListLoading';
 import AnimatedPage from '../components/ui/AnimatedPage';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { fadeUp } from '../components/ui/motion';
+import { useToast } from '../components/ui/toast';
 import AdventureCreateForm from './adventures/AdventureCreateForm';
 import AdventureDetailPanel from './adventures/AdventureDetailPanel';
 import { adventuresReducer, initialAdventuresState } from './adventures/adventuresState';
 
 export default function AdventuresPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const { adventureId } = useParams();
   const isNew = Boolean(useMatch('/adventures/new'));
 
@@ -67,8 +69,11 @@ export default function AdventuresPage() {
       dispatch({ type: 'set', patch: { creating: false } });
       await load();
       navigate(`/adventures/${res.id}`);
+      toast.success(`Created adventure "${state.form.name || res.adventure?.name || 'adventure'}"`);
     } catch (e) {
-      dispatch({ type: 'set', patch: { error: String(e) } });
+      const msg = e instanceof Error ? e.message : 'Failed to create adventure';
+      toast.error(msg);
+      dispatch({ type: 'set', patch: { error: msg } });
     }
   };
 

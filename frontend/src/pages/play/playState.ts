@@ -10,7 +10,7 @@ import type {
   Source,
   SpellConfirmation,
 } from '../../api/client';
-import type { Character } from '../../types';
+import type { Character, DragonkeepState, PendingJourney } from '../../types';
 
 export type PlayMode = 'freeform' | 'module';
 export type Advantage = 'normal' | 'advantage' | 'disadvantage';
@@ -38,8 +38,8 @@ export interface PlayState {
   metaLoaded: boolean;
   sessionLoaded: boolean;
   loadError: string;
-  characters: { id: string; name: string }[];
-  adventures: { id: string; name: string }[];
+  characters: { id: string; name: string; game_id?: string }[];
+  adventures: { id: string; name: string; game_id?: string }[];
   sessionId: string;
   messages: ChatMessage[];
   character: Character | null;
@@ -65,6 +65,7 @@ export interface PlayState {
     theme: string;
     campaign_name: string;
     include_faerun: boolean;
+    active_adventure: string;
   };
   spellConfirm: SpellConfirmation | null;
   chatError: string;
@@ -76,7 +77,10 @@ export interface PlayState {
   nextAdventure: NextAdventure | null;
   startingNext: boolean;
   combatState: CombatStateSnapshot | null;
+  brambletrekCombat: import('../../types').BrambletrekCombatState | null;
   diceModal: DiceModalState | null;
+  pendingJourney: PendingJourney | null;
+  dragonkeep: DragonkeepState | null;
 }
 
 export type PlayAction =
@@ -118,6 +122,7 @@ export function createInitialPlayState(sessionId = '', wizardTab: 'continue' | '
       theme: '',
       campaign_name: '',
       include_faerun: false,
+      active_adventure: '',
     },
     spellConfirm: null,
     chatError: '',
@@ -129,7 +134,10 @@ export function createInitialPlayState(sessionId = '', wizardTab: 'continue' | '
     nextAdventure: null,
     startingNext: false,
     combatState: null,
+    brambletrekCombat: null,
     diceModal: null,
+    pendingJourney: null,
+    dragonkeep: null,
   };
 }
 

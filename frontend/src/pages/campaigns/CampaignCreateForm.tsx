@@ -1,4 +1,7 @@
 import { m } from '../../lib/framer';
+import { DEFAULT_GAME_ID } from '../../games/registry';
+import { getGamePlayConfig } from '../../games/play/registry';
+import BrambletrekCampaignStartFields from '../../games/brambletrek/CampaignStartFields';
 import { Field } from '../../components/ui/forms/Field';
 import TextInput from '../../components/ui/forms/TextInput';
 import TextArea from '../../components/ui/forms/TextArea';
@@ -11,13 +14,14 @@ interface Props {
   createMode: 'manual' | 'ai';
   form: CampaignsState['form'];
   generateForm: CampaignsState['generateForm'];
-  characters: { id: string; name: string }[];
+  characters: CampaignsState['characters'];
   generating: boolean;
   onCreateModeChange: (mode: 'manual' | 'ai') => void;
   onPatchForm: (patch: Partial<CampaignsState['form']>) => void;
   onPatchGenerateForm: (patch: Partial<CampaignsState['generateForm']>) => void;
   onCreateManual: () => void;
   onGenerate: () => void;
+  onBootstrapBrambletrek: () => void;
   onCancel: () => void;
 }
 
@@ -32,8 +36,15 @@ export default function CampaignCreateForm({
   onPatchGenerateForm,
   onCreateManual,
   onGenerate,
+  onBootstrapBrambletrek,
   onCancel,
 }: Props) {
+  const selectedChar = characters.find((c) => c.id === generateForm.character_id);
+  const brambletrekOnly =
+    characters.length > 0 && characters.every((c) => (c.game_id || DEFAULT_GAME_ID) === 'brambletrek');
+  const selectedGameId = selectedChar?.game_id || (brambletrekOnly ? 'brambletrek' : DEFAULT_GAME_ID);
+  const playConfig = getGamePlayConfig(selectedGameId);
+  const showBrambletrekFlow = !playConfig.usesAiCampaignGeneration;
   const canGenerate = generateForm.character_id && generateForm.theme.trim();
 
   return (
@@ -44,18 +55,36 @@ export default function CampaignCreateForm({
       className="panel-glow p-5 space-y-4 overflow-hidden"
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="section-heading">Create campaign</h2>
-        <SegmentedControl
-          value={createMode}
-          onChange={(mode) => onCreateModeChange(mode as 'manual' | 'ai')}
-          options={[
-            { value: 'ai', label: 'AI generate' },
-            { value: 'manual', label: 'Manual' },
-          ]}
-        />
+        <h2 className="section-heading">{showBrambletrekFlow ? 'Start Brambletrek adventure' : 'Create campaign'}</h2>
+        {!showBrambletrekFlow && (
+          <SegmentedControl
+            value={createMode}
+            onChange={(mode) => onCreateModeChange(mode as 'manual' | 'ai')}
+            options={[
+              { value: 'ai', label: 'AI generate' },
+              { value: 'manual', label: 'Manual' },
+            ]}
+          />
+        )}
       </div>
 
-      {createMode === 'manual' ? (
+      {showBrambletrekFlow ? (
+        <BrambletrekCampaignStartFields
+          characters={characters}
+          characterId={generateForm.character_id}
+          onCharacterIdChange={(character_id) => onPatchGenerateForm({ character_id })}
+          activeAdventure={generateForm.active_adventure}
+          onActiveAdventureChange={(active_adventure) => onPatchGenerateForm({ active_adventure })}
+          campaignName={generateForm.campaign_name}
+          onCampaignNameChange={(campaign_name) => onPatchGenerateForm({ campaign_name })}
+          flavorNotes={generateForm.theme}
+          onFlavorNotesChange={(theme) => onPatchGenerateForm({ theme })}
+          onSubmit={onBootstrapBrambletrek}
+          submitting={generating}
+          submitLabel="Start adventure"
+          onCancel={onCancel}
+        />
+      ) : createMode === 'manual' ? (
         <>
           <Field label="Campaign name">
             <TextInput

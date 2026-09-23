@@ -1,0 +1,323 @@
+id: first_frost
+label: The Warmth of the First Frost
+source:
+  pdf: brambletrek/Brambletrek_-_Complete_Digital_Edition.pdf
+  printed_pages:
+    journeys:
+    - 105
+    - 106
+    - 107
+    - 108
+    snacker_tactics: 104
+play:
+  journey_cards_per_day: 4
+  use_core_depths: false
+  use_core_combat: true
+  reason_key: band
+  tactic_table: snacker_tactics
+  tactic_legacy: snacker
+journey_heading: '**Frozen Forest** — exploration events'
+journeys:
+  hearts:
+    '2':
+      label: A gentle flurry of snowflakes forms intricate patterns, mesmerising and calming you.
+      body: A gentle flurry of snowflakes forms intricate patterns, mesmerising and calming you. Morale
+        +1
+      morale: 1
+    '3':
+      label: You find a frozen pond where ice sprites skate across, inviting you to join in.
+      body: You find a frozen pond where ice sprites skate across, inviting you to join in. Health +2
+      health: 2
+    '4':
+      label: A snowy owl delivers a forgotten letter from an old friend, warming your heart.
+      body: A snowy owl delivers a forgotten letter from an old friend, warming your heart. Morale +3
+      morale: 3
+    '5':
+      label: ''
+    '6':
+      label: The frost patterns on a tree resemble a map, leading you to a hidden winter garden.
+      body: The frost patterns on a tree resemble a map, leading you to a hidden winter garden. Supplies
+        +3
+      supplies: 3
+    '7':
+      label: You participate in crafting ice sculptures with the Bristleborn, learning ancient techniques.
+      body: You participate in crafting ice sculptures with the Bristleborn, learning ancient techniques.
+        Health +4
+      health: 4
+    '8':
+      label: Sharing a hot berry cider with villagers around the Frostfire revitalises your spirits.
+      body: Sharing a hot berry cider with villagers around the Frostfire revitalises your spirits. Morale
+        +5
+      morale: 5
+    '9':
+      label: You catch a rare glimpse of the Aurora Forestalis, its colours boosting your morale.
+      body: You catch a rare glimpse of the Aurora Forestalis, its colours boosting your morale. Morale
+        +6
+      morale: 6
+    '10':
+      label: A procession of lantern-lit Bushborn pass by, their chants lifting everyone's spirits.
+      body: A procession of lantern-lit Bushborn pass by, their chants lifting everyone's spirits. Health
+        +4, Morale +3
+      health: 4
+      morale: 3
+    jack:
+      label: You help lost Bristleborn youngsters find their way back to the celebration, earning gratitude.
+      body: You help lost Bristleborn youngsters find their way back to the celebration, earning gratitude.
+        Morale +7
+      morale: 7
+    queen:
+      label: An elder Gnawborn recounts a tale of a legendary Frostfire that once saved the forest.
+      body: An elder Gnawborn recounts a tale of a legendary Frostfire that once saved the forest. Morale
+        +4, Supplies +2
+      morale: 4
+      supplies: 2
+    king:
+      label: You lead the final toast of the celebration, solidifying your place within the community.
+      body: You lead the final toast of the celebration, solidifying your place within the community.
+        Morale +8
+      morale: 8
+    ace:
+      label: The first snowfall brings a rare bloom of Frost-flowers, said to bring luck to those who
+        find them.
+      body: The first snowfall brings a rare bloom of Frost-flowers, said to bring luck to those who find
+        them. Supplies +5, Morale +5
+      supplies: 5
+      morale: 5
+  diamonds:
+    '2':
+      label: You help gather firewood for the Grand Frostfire, a task that strengthens your resolve.
+      body: You help gather firewood for the Grand Frostfire, a task that strengthens your resolve. Supplies
+        +1
+      supplies: 1
+    '3':
+      label: Slipping on an icy path, you manage a graceful recovery, impressing onlookers.
+      body: Slipping on an icy path, you manage a graceful recovery, impressing onlookers. Health +1
+      health: 1
+    '4':
+      label: You join a snowball fight, a playful competition that enhances agility and spirit.
+      body: You join a snowball fight, a playful competition that enhances agility and spirit. Morale
+        +2
+      morale: 2
+    '5':
+      label: Erecting shelters for the festival market tests your endurance and craft.
+      body: Erecting shelters for the festival market tests your endurance and craft. Health +2
+      health: 2
+    '6':
+      label: Assisting in setting up the ice sculpture exhibit, you learn the art of ice carving.
+      body: Assisting in setting up the ice sculpture exhibit, you learn the art of ice carving. Supplies
+        +3
+      supplies: 3
+    '7':
+      label: You track a lost Bushborn child through the snow, safely guiding them back.
+      body: You track a lost Bushborn child through the snow, safely guiding them back. Morale +3
+      morale: 3
+    '8':
+      label: Preparing and serving hot meals to the festival-goers, you manage the bustling crowd.
+      body: Preparing and serving hot meals to the festival-goers, you manage the bustling crowd. Supplies
+        +2
+      supplies: 2
+    '9':
+      label: Repairing a broken sled, you ensure the night's races go off without a hitch.
+      body: Repairing a broken sled, you ensure the night's races go off without a hitch. Supplies +1,
+        Health +1
+      supplies: 1
+      health: 1
+    '10':
+      label: Leading a lantern procession through the frost-covered woods, you ensure all are safe.
+      body: Leading a lantern procession through the frost-covered woods, you ensure all are safe. Morale
+        +4
+      morale: 4
+    jack:
+      label: Organising a frost fishing contest by the frozen lake, you bring excitement and joy.
+      body: Organising a frost fishing contest by the frozen lake, you bring excitement and joy. Morale
+        +3
+      morale: 3
+    queen:
+      label: Overseeing the construction of an ice fort, you foster teamwork and community spirit.
+      body: Overseeing the construction of an ice fort, you foster teamwork and community spirit. Health
+        +2, Morale +2
+      health: 2
+      morale: 2
+    king:
+      label: Coordinating the night's main event, the dance of the frost spirits, with precision.
+      body: Coordinating the night's main event, the dance of the frost spirits, with precision. Morale
+        +5
+      morale: 5
+    ace:
+      label: Discovering and safely containing a burst water pipe saves the feast from disaster.
+      body: Discovering and safely containing a burst water pipe saves the feast from disaster. Supplies
+        +4, Health +5
+      supplies: 4
+      health: 5
+  spades:
+    '2':
+      label: A sudden snowdrift collapses, burying your supplies under a heavy layer of snow.
+      body: A sudden snowdrift collapses, burying your supplies under a heavy layer of snow. Supplies
+        -2
+      supplies: -2
+    '3':
+      label: You slip on a patch of black ice, resulting in a minor sprain and a bruised ego.
+      body: You slip on a patch of black ice, resulting in a minor sprain and a bruised ego. Health -1
+      health: -1
+    '4':
+      label: Harsh winds tear through the festival, damaging decorations and chilling everyone.
+      body: Harsh winds tear through the festival, damaging decorations and chilling everyone. Morale
+        -1, Supplies -1
+      morale: -1
+      supplies: -1
+    '5':
+      label: A misstep on an icy bridge sends you tumbling into a snowbank, soaking your gear.
+      body: A misstep on an icy bridge sends you tumbling into a snowbank, soaking your gear. Health -2,
+        Supplies -1
+      health: -2
+      supplies: -1
+    '6':
+      label: Frostbite nips at your fingers as you struggle to set up outdoor stalls.
+      body: Frostbite nips at your fingers as you struggle to set up outdoor stalls. Health -3
+      health: -3
+    '7':
+      label: ''
+    '8':
+      label: Your attempt to light the Frostfire goes awry, burning some necessary supplies.
+      body: Your attempt to light the Frostfire goes awry, burning some necessary supplies. Supplies -3
+      supplies: -3
+    '9':
+      label: The intense cold causes a crucial supply cache to freeze solid, rendering it unusable.
+      body: The intense cold causes a crucial supply cache to freeze solid, rendering it unusable. Supplies
+        -4
+      supplies: -4
+    '10':
+      label: While clearing a snow blockage, you strain your back, reducing your mobility.
+      body: While clearing a snow blockage, you strain your back, reducing your mobility. Health -3, Morale
+        -2
+      health: -3
+      morale: -2
+    jack:
+      label: An icicle falls from a tree branch, striking near you and startling the group.
+      body: An icicle falls from a tree branch, striking near you and startling the group. Morale -3
+      morale: -3
+    queen:
+      label: A frozen lock prevents access to needed festival tools, delaying preparations.
+      body: A frozen lock prevents access to needed festival tools, delaying preparations. Supplies -2,
+        Morale -2
+      supplies: -2
+      morale: -2
+    king:
+      label: The main tent collapses under the weight of snow, causing chaos and injury.
+      body: The main tent collapses under the weight of snow, causing chaos and injury. Health -4, Supplies
+        -2
+      health: -4
+      supplies: -2
+    ace:
+      label: A severe snowstorm isolates part of the community, depleting resources drastically.
+      body: A severe snowstorm isolates part of the community, depleting resources drastically. Health
+        -4, Supplies -4, Morale -3
+      health: -4
+      supplies: -4
+      morale: -3
+  clubs:
+    '8':
+      label: ''
+    '2':
+      label: A heated debate over the best way to light the Frostfire leads to frayed tempers.
+      body: A heated debate over the best way to light the Frostfire leads to frayed tempers. Morale -2
+      morale: -2
+    '3':
+      label: Misunderstandings during a game of ice tag result in minor injuries and hurt feelings.
+      body: Misunderstandings during a game of ice tag result in minor injuries and hurt feelings. Health
+        -1, Morale -1
+      health: -1
+      morale: -1
+    '4':
+      label: You accidentally insult a Bristleborn artisan's ice sculpture, causing embarrassment.
+      body: You accidentally insult a Bristleborn artisan's ice sculpture, causing embarrassment. Morale
+        -3
+      morale: -3
+    '5':
+      label: A miscommunication leads to double preparation of a dish, wasting food and effort.
+      body: A miscommunication leads to double preparation of a dish, wasting food and effort. Supplies
+        -2
+      supplies: -2
+    '6':
+      label: Exclusion from a Bushborn-led scavenger hunt leaves some feeling left out.
+      body: Exclusion from a Bushborn-led scavenger hunt leaves some feeling left out. Morale -2
+      morale: -2
+    '7':
+      label: A misplaced comment about the winter's harshness dampens the festive spirit.
+      body: A misplaced comment about the winter's harshness dampens the festive spirit. Morale -3
+      morale: -3
+    '9':
+      label: A failed performance at a talent show results in embarrassment and reduced morale.
+      body: A failed performance at a talent show results in embarrassment and reduced morale. Morale
+        -4
+      morale: -4
+    '10':
+      label: Your advice on surviving the frost is ignored, leading to unnecessary hardship.
+      body: Your advice on surviving the frost is ignored, leading to unnecessary hardship. Morale -2,
+        Supplies -1
+      morale: -2
+      supplies: -1
+    jack:
+      label: A prank goes wrong, resulting in damage to a valuable community artefact.
+      body: A prank goes wrong, resulting in damage to a valuable community artefact. Supplies -3, Morale
+        -2
+      supplies: -3
+      morale: -2
+    queen:
+      label: A breakdown in cooperation during shelter building lowers trust within the group.
+      body: A breakdown in cooperation during shelter building lowers trust within the group. Morale -3,
+        Supplies -1
+      morale: -3
+      supplies: -1
+    king:
+      label: Leadership disputes during the setup of the Grand Frostfire cause division.
+      body: Leadership disputes during the setup of the Grand Frostfire cause division. Morale -4
+      morale: -4
+    ace:
+      label: A crucial misstep in coordinating the final ceremony leads to widespread confusion.
+      body: A crucial misstep in coordinating the final ceremony leads to widespread confusion. Morale
+        -5, Supplies -5
+      morale: -5
+      supplies: -5
+scene_tables:
+  snacker_tactics:
+    '2':
+      label: Skillet Shield
+      body: Quickly raise your skillet to block, reducing the next attack's damage by 2.
+    '3':
+      label: Pepper Flash
+      body: Toss a pinch of blinding pepper at your opponent, dealing 3 damage.
+    '4':
+      label: Oil Slip
+      body: Throw a slick of oil under the opponent, causing them to slip and miss their next attack.
+    '5':
+      label: Quick Sip Broth
+      body: Take a swift sip from your prepared broth to restore 4 health.
+    '6':
+      label: Rolling Pin Swing
+      body: Swing your rolling pin in a quick, fierce arc, dealing 3 damage.
+    '7':
+      label: Utensil Barrage
+      body: Fling a barrage of utensils in a swift motion, dealing 4 damage.
+    '8':
+      label: Energising Bite
+      body: Eat a bite of an energising snack to boost your damage by 2 for the next turn.
+    '9':
+      label: Grease Trap
+      body: Toss a handful of slippery grease at your opponent's feet, making them deal 2 extra damage
+        but take 4 damage.
+    '10':
+      label: Hot Soup Splash
+      body: Splash hot soup from your ladle, dealing 3 damage and restoring 3 health to yourself.
+    jack:
+      label: Distraction Dish
+      body: Toss a dish in the air to distract, causing the opponent to skip their next turn.
+    queen:
+      label: Revitalising Refreshment
+      body: Consume a quick refreshment that restores 5 health and adds 2 damage to your next attack.
+    king:
+      label: Double Dish
+      body: Draw 2 cards and take an additional 2 turns immediately after this card is played.
+    ace:
+      label: Ultimate Feast
+      body: Serve a feast in a flash that deals damage equal to half your current supplies, rounded up.

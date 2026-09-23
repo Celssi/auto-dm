@@ -144,7 +144,7 @@ export default function DiceRollModal({
         aria-modal="true"
         aria-labelledby="dice-modal-title"
       >
-        <h2 id="dice-modal-title" className="font-display text-lg text-gray-100">
+        <h2 id="dice-modal-title" className="display-title text-lg">
           {label}
         </h2>
 

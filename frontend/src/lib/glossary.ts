@@ -3,6 +3,14 @@ export function glossaryKey(name: string): string {
   return name.toLowerCase().replace(/[^a-z0-9]+/g, '');
 }
 
+/** Internal DB ids (UUIDs, hex keys) are not game terms — skip glossary lookup. */
+export function isLikelyEntityId(value: string): boolean {
+  const trimmed = value.trim();
+  if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmed)) return true;
+  if (/^[0-9a-f]{8,}$/i.test(trimmed)) return true;
+  return false;
+}
+
 /** Strip quantity suffix and simple plural for equipment lookup. */
 function normalizeLookupName(name: string): string {
   const base = name.replace(/\s*\(\s*\d+\s*\)\s*$/, '').trim();
@@ -49,6 +57,7 @@ export function lookupGlossary(
 
 function fuzzyGlossaryLookup(name: string, entries: Record<string, GlossaryEntry>): GlossaryEntry | null {
   const key = glossaryKey(name);
+  if (isLikelyEntityId(name) || isLikelyEntityId(key)) return null;
   const exact = entries[key];
   if (exact?.summary) return exact;
   if (key.length < 8) return exact ?? null;

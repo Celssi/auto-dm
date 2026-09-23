@@ -1,0 +1,297 @@
+id: pumpkin_party
+label: The Pumpkin Party
+source:
+  pdf: brambletrek/Brambletrek_-_Complete_Digital_Edition.pdf
+  printed_pages:
+    scene_tables:
+    - 86
+    - 87
+    - 88
+    - 89
+    - 90
+    - 91
+    - 92
+play:
+  journey_cards_per_day: 1
+  use_core_depths: false
+  use_core_combat: true
+  reason_key: band
+  default_scene_table: choose_adventure
+journey_heading: '**Pumpkin Party** — choose your activity (up to 3 draws)'
+scene_tables:
+  festival_role:
+    '3':
+      label: Costume Conjurer Noticing a lack of costumes, you dash to the tailor’s to craft delightful
+        disguises for everyone.
+    '2':
+      label: Master Carver The pumpkin carving station awaits your creative touch.
+      body: Master Carver The pumpkin carving station awaits your creative touch. Carve intricate designs
+        that tell tales of old.
+    '4':
+      label: Baker's Apprentice Inspired by family traditions, you join the bakers to whip up your favorite
+        festive treats.
+    '5':
+      label: Chief Organizer With chaos around, you step up to coordinate the tasks and ensure everything
+        goes smoothly.
+    '6':
+      label: Scarecrow Sentinel As crows menace the pumpkin patch, you fashion a scare to keep these pesky
+        birds at bay.
+    '7':
+      label: Face Painter Armed with colorful berry pastes, you decorate faces with symbols of harvest
+        and folklore.
+    '8':
+      label: Basket Weaver You weave sturdy baskets perfect for gathering treats under the moonlit sky.
+    '9':
+      label: Decorator Supreme Feeling the area could use more flair, you craft additional decorations
+        to enhance the festive vibe.
+    '10':
+      label: Music Maestro The quiet whispers of more music; you organize a troupe to fill the air with
+        harmonious melodies.
+    jack:
+      label: Potion Mixer Amidst the bustling crowd, you concoct your famous drink that's sure to lift
+        spirits.
+    queen:
+      label: Lightbringer To comfort children afraid of the dark, you illuminate the party with enchanting
+        fairy lights.
+    king:
+      label: Leader of the Band Seeing the need for leadership, you guide the villagers in setting up
+        and running the event smoothly.
+    ace:
+      label: Magician of the Eve Believing no party is complete without a touch of magic, you dazzle the
+        crowd with mysterious tricks
+      body: Magician of the Eve Believing no party is complete without a touch of magic, you dazzle the
+        crowd with mysterious tricks. Y OUR R OLE A T THE P ARTY As the festive preparations for the Pumpkin
+        Party are underway, each Gnawborn has a special role to play. Your contribution is essential to
+        bring the spirit of the festival alive.
+  party_companion:
+    '4':
+      label: The Generous Cook Bearing a bowl of steaming pumpkin soup, the village cook offers you a
+        taste.
+    '2':
+      label: The Raven Scribe A wise raven with a basket full of mysterious runes approaches you.
+    '3':
+      label: Bristleback Buddy The spiky silhouette of a bristleback emerges, eager to join in the fun.
+    '5':
+      label: Firefly Flicker
+    ace:
+      label: Mysterious Masquerader An unknown figure in a spectacular costume approaches, their identity
+        a playful mystery.
+      body: Mysterious Masquerader An unknown figure in a spectacular costume approaches, their identity
+        a playful mystery. COMP ANIONS A T THE P ARTY As the last touches of decoration brighten the clearing
+        and the festive air fills with laughter, you pause to take in the beauty of it all. The evening
+        is alight with joy and the glow of fireflies. Amidst this magical ambiance, a familiar figure
+        approaches.
+    '6':
+      label: Childhood Friend Your oldest friend runs up with a wide smile, ready to reminisce and make
+        new memories.
+    '7':
+      label: The Friendly Ghost A glowing apparition floats by your side, its presence comforting and
+        cheerful.
+    '8':
+      label: The Wise Herbalist The village herbalist, curious about your latest adventures, meets you
+        with a bundle of fresh herbs.
+    '9':
+      label: Beloved Kin A family member you haven’t seen in ages approaches with a warm, welcoming embrace.
+    '10':
+      label: Will-o'-the-Wisp A soft, pulsing light of a will-o’-wisp floats near, its dance enchanting
+        and inviting.
+    jack:
+      label: Forest Fox A curious fox, larger than usual, peeks from the trees, its eyes sparkling with
+        mischief.
+    queen:
+      label: Children's Brigade A group of energetic children surround you, their eyes wide with wonder,
+        eager for stories.
+    king:
+      label: The Village Mayor The mayor approaches, his handshake firm and grateful, acknowledging your
+        contributions.
+  choose_adventure:
+    hearts:
+      label: Pumpkin Hunt
+      scene_table: pumpkin_hunt
+      body: Venture into the pumpkin patch. Use the pumpkin hunt table.
+    diamonds:
+      label: Spirit Catching
+      scene_table: spirit_catching
+      body: Engage with ethereal guests. Use the spirit catching table.
+    clubs:
+      label: Costume Contest
+      scene_table: costume_contest
+      body: Show off your costume. Use the costume contest table.
+    spades:
+      label: Pie Tasting
+      scene_table: pie_tasting
+      body: Sample pies from village bakers. Use the pie tasting table.
+  pumpkin_hunt:
+    '6':
+      label: ''
+    '2':
+      label: You discover a mini jack o'lantern, skillfully carved and glowing warmly.
+      body: 'You discover a mini jack o''lantern, skillfully carved and glowing warmly. Mini Jack o''Lantern:
+        Perfect light for the evening. Allows you to redraw your next encounter.'
+    '3':
+      label: ''
+    ace:
+      label: Amidst the festive decorations, a magical gourd lantern reveals itself, promising to light
+        your path.
+      body: 'Amidst the festive decorations, a magical gourd lantern reveals itself, promising to light
+        your path. Magical Gourd Lantern: Illuminates hidden paths and enhances night encounters.'
+    '4':
+      label: Hidden among the leaves, you find
+    '5':
+      label: The sweet aroma of apple pie guides you to a hidden treat, still warm from the oven.
+      body: 'The sweet aroma of apple pie guides you to a hidden treat, still warm from the oven. Sweet
+        Apple Pie: Consumable. Instantly restores health to the maximum.'
+    '7':
+      label: Tucked away, a spooky mask waits to transform your visage into that of
+    '8':
+      label: Draped over a branch, a shimmering cloak catches your eye with its enchanting glimmer.
+      body: 'Draped over a branch, a shimmering cloak catches your eye with its enchanting glimmer. Shimmering
+        Cloak: Consumable. Dodges up to 5 damage in combat.'
+    '9':
+      label: You hear a ghostly whistle, leading you to a carved pipe that calls to the spirits.
+      body: 'You hear a ghostly whistle, leading you to a carved pipe that calls to the spirits. Ghost
+        Pipe: Consumable. Summons a spirit to aid in combat, dealing 2 damage per turn.'
+    '10':
+      label: ''
+    jack:
+      label: ''
+    queen:
+      label: You find a starlit raven feather that sparkles under the moonlight, promising good fortune.
+      body: 'You find a starlit raven feather that sparkles under the moonlight, promising good fortune.
+        Starlit Raven Feather: Redraw the next negative event.'
+    king:
+      label: . Pumpkin Crown
+      body: Grants the title of Pumpkin King for the year; draw another item.
+  spirit_catching:
+    '7':
+      label: A pink streak, quick and bright, races past.
+      body: A pink streak, quick and bright, races past. "The rustle of silk, the warmth of stage lights—where
+        have all the costumes gone?"
+    '2':
+      label: ''
+    ace:
+      label: mysterious blue light encircles you, its presence both ancient and serene.
+      body: mysterious blue light encircles you, its presence both ancient and serene. "I have tales of
+        old, lost in the winds of time. Where might I find echoes of my past?"
+    '3':
+      label: Hesitant and timid, a green glow flickers near you.
+      body: Hesitant and timid, a green glow flickers near you. "The chirping of birds once filled my
+        days. Where might I find them again?"
+    '4':
+      label: A bold, white orb shines with the confidence of a forgotten hero.
+      body: A bold, white orb shines with the confidence of a forgotten hero. "I wielded swords and won
+        great battles, but whence came I?"
+    '5':
+      label: ''
+    '6':
+      label: ''
+    '8':
+      label: Dragging slowly along, an aqua light murmurs with urgency.
+      body: Dragging slowly along, an aqua light murmurs with urgency. "The deep calls to me, its dark
+        embrace familiar. How do I return below?"
+    '9':
+      label: An orange orb blinks rapidly as it crosses your path.
+      body: An orange orb blinks rapidly as it crosses your path. "My life among crystals, tinctures,
+        and herbs—where did I leave my workshop?"
+    '10':
+      label: A dull grey orb appears suddenly, its presence heavy.
+      body: A dull grey orb appears suddenly, its presence heavy. "Time is short and I must not dally.
+        Where is the nearest cave?"
+    jack:
+      label: Darting about with vibrant energy, a colorful light seeks answers.
+      body: Darting about with vibrant energy, a colorful light seeks answers. "I see visions of crystals,
+        countless and bright. Where are they hidden?"
+    queen:
+      label: ''
+    king:
+      label: With a spark of urgency, a silver orb pulses.
+      body: With a spark of urgency, a silver orb pulses. "I am called to heal, to aid the ailing, but
+        I know not where they rest. Where must I go?"
+  costume_contest:
+    '8':
+      label: Pumpkin's Charm
+      body: Rounded and ribbed, your costume mirrors the cheerful visage of a carved pumpkin, lit from
+        within.
+    '2':
+      label: Skeleton's Guise
+      body: You don an ensemble of eerie, bone-white attire, mimicking the rattling dance of a skeleton
+        in the moonlight.
+    '3':
+      label: Mystic Mushroom
+      body: Cloaked in a cap and stem, your costume embodies a whimsical mushroom, dotted with faux dewdrops.
+    '4':
+      label: Bat's Winged Silhouette
+      body: With wings outstretched, you embody the silent, fleeting shadow of a bat under the night sky.
+    '5':
+      label: Lycan's Hide
+      body: Fur bristles along your costume as you take on the form of a fearsome werewolf, eyes glowing
+        with feral intensity.
+    '6':
+      label: Vampire's Elegance
+      body: Draped in a cloak as dark as the night, your vampire costume comes complete with sharp, shining
+        fangs.
+    '7':
+      label: Wizard's Robes
+      body: Adorned in starlit robes and a pointed hat, you channel the arcane wisdom of a seasoned wizard.
+    '9':
+      label: Dragon's Majesty
+      body: Scales shimmer across your costume, with a tail that sweeps and a roar that echoes ancient
+        power.
+    '10':
+      label: Warrior's Armor
+      body: Clad in battle-worn armor, you stand ready to defend the festivities as a noble warrior of
+        old.
+    jack:
+      label: Jester's Folly
+      body: Colorful and whimsical, your jester's attire jingles with every mischievous step you take.
+    queen:
+      label: Ghost's Whisper
+      body: Ethereal and flowing, your ghost costume seems to drift on unseen breezes, hauntingly beautiful.
+    king:
+      label: Royal Regalia
+      body: Majestic and imposing, your royal garb commands respect with its rich fabrics and regal adornments.
+    ace:
+      label: Phoenix's Rebirth
+      body: Resplendent in fiery reds and golds, your costume symbolizes the mythical phoenix, reborn
+        from ash.
+  pie_tasting:
+    '10':
+      label: Pear Pie Tart and sweet, decorated whimsically with pastry mice, it's a playful twist on
+        a traditional fruit pie.
+      body: Pear Pie Tart and sweet, decorated whimsically with pastry mice, it's a playful twist on a
+        traditional fruit pie. JA CKNettle Pie Earthy and unexpected, this pie reminds you of woodland
+        walks and the tang of fresh nettles.
+    '2':
+      label: Apple Pie A classic delight, this pie is brimming with spiced apple slices nestled in a flaky
+        crust.
+    '3':
+      label: Cherry Pie Vibrantly red and sweet, this pie's glistening cherries offer a burst of flavor
+        with every bite.
+    '4':
+      label: Chestnut Pie Light and nutty, this pie offers a subtle, earthy flavor, perfect for a crisp
+        autumn evening.
+    '5':
+      label: Maple Pie Thick and gooey, this golden pie is a sweet homage to the maple trees surrounding
+        the village.
+    '6':
+      label: Sticky Toffee Pie Rich and decadent, the sticky toffee clings to your teeth,
+    ace:
+      label: Custard Pie Creamy and comforting, topped with dollops of cream, it's a soothing end to a
+        festive evening.
+    '7':
+      label: Cheese and Onion Pie
+    '8':
+      label: Pumpkin Pie The essence of autumn packed into a pie, with a creamy filling and a hint of
+        spice.
+    '9':
+      label: Berry Pie Bursting with wild berries from the local woods, this pie is a colorful treat for
+        the senses.
+    queen:
+      label: Golden Honey Syrup Pie Lusciously sweet and thick, it's a decadent treat that's almost too
+        rich to finish.
+    king:
+      label: Ghost Pie An enigmatic offering that seems almost ethereal, leaving a lingering taste of
+        something unforgettable.
+notes:
+- Draw for festival role and companion at start; up to 3 choose-your-adventure draws.
+- Route each draw through choose_adventure then the linked scene table.

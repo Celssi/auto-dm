@@ -136,6 +136,7 @@ def spawn_enemy_combatants(spec_enemies: list, encounter_id: str) -> list[Combat
 
 
 def build_player_combatant(char: Dnd5eCharacter) -> Combatant:
+    attack_bonus, damage = _player_attack_stats(char)
     return Combatant(
         id="player",
         name=char.name or "Hero",
@@ -144,7 +145,164 @@ def build_player_combatant(char: Dnd5eCharacter) -> Combatant:
         hp=char.hp,
         max_hp=char.max_hp,
         ac=char.ac,
+        attack_bonus=attack_bonus,
+        damage=damage,
     )
+
+
+def _player_attack_stats(char: Dnd5eCharacter) -> tuple[int, str]:
+    weapons = list(char.weapons or [])
+    weapon = weapons[0] if weapons else {}
+    ability = str(weapon.get("ability") or "str").lower()
+    mod = char.ability_modifier(ability)
+    if weapon.get("proficient", True):
+        mod += _proficiency_bonus(char)
+    damage = str(weapon.get("damage") or "1d6")
+    if "+" not in damage and mod != 0:
+        damage = f"{damage}{mod:+d}"
+    return mod, damage
+
+
+def resolve_player_attack(
+    player: Combatant,
+    target: Combatant,
+    *,
+    char: Dnd5eCharacter | None = None,
+) -> dict[str, Any]:
+    if char is not None:
+        attack_bonus, damage_expr = _player_attack_stats(char)
+    else:
+        attack_bonus = int(player.attack_bonus or 0)
+        damage_expr = str(player.damage or "1d6")
+    atk = roll_dice("1d20", caller="combat_manager.player_attack")
+    roll = int(atk["rolls"][0])
+    total = roll + attack_bonus
+    target_ac = int(target.ac or 10)
+    hit = roll == 20 or (roll != 1 and total >= target_ac)
+    crit = roll == 20
+    damage = 0
+    damage_summary = ""
+    if hit:
+        dmg_expr = damage_expr or "1d6"
+        if crit and "d" in dmg_expr.split("+")[0]:
+            base = dmg_expr.split("+")[0].strip()
+            count, rest = base.split("d", 1)
+            dmg_expr = f"{int(count) * 2}d{rest}"
+            if "+" in damage_expr:
+                dmg_expr += damage_expr[damage_expr.index("+") :]
+        dmg = roll_dice(dmg_expr, caller="combat_manager.player_damage")
+        damage = int(dmg.get("total", 0))
+        damage_summary = f" for **{damage}** damage"
+    result = {
+        "attacker": player.name,
+        "target": target.name,
+        "roll": roll,
+        "total": total,
+        "hit": hit,
+        "crit": crit,
+        "damage": damage,
+        "summary": (
+            f"**{player.name}** attacks **{target.name}** "
+            f"(d20 {roll} + {attack_bonus} = {total} vs AC {target_ac}): "
+            + ("**HIT**" if hit else "miss")
+            + damage_summary
+        ),
+    }
+    record_audit(
+        {
+            "event": "combat_attack",
+            "source": "combat_manager",
+            "detail": {
+                "attacker": player.name,
+                "target": target.name,
+                "roll": roll,
+                "attack_bonus": attack_bonus,
+                "total": total,
+                "target_ac": target_ac,
+                "hit": hit,
+                "crit": crit,
+                "damage": damage,
+                "player_attack": True,
+                "inferred": False,
+            },
+        }
+    )
+    return result
+
+
+def apply_damage_to_enemy(state: CombatState, enemy_id: str, damage: int) -> CombatState:
+    for combatant in state.combatants:
+        if combatant.id == enemy_id:
+            combatant.hp = max(0, int(combatant.hp) - max(0, int(damage)))
+            break
+    if _all_enemies_defeated(state):
+        state.status = "ended"
+    return state
+
+
+def combat_action(
+    session_id: str,
+    action: str,
+    char_dict: dict,
+    *,
+    target_id: str | None = None,
+) -> tuple[CombatState | None, dict, list[str], dict]:
+    """Mechanical combat actions: attack, end_turn, dismiss."""
+    from backend.dm.encounters import combat_state_view
+
+    state = load_combat_state(session_id)
+    if not state and action != "dismiss":
+        return None, char_dict, [], {"error": "no_active_combat"}
+
+    events: list[str] = []
+    if action == "dismiss":
+        if state:
+            clear_combat_state(session_id)
+        return None, char_dict, ["Combat dismissed."], {"combat_state": {}}
+
+    if not state or state.status != "active":
+        return state, char_dict, [], {"error": "combat_not_active"}
+
+    actor = current_combatant(state)
+    if action == "end_turn":
+        if not actor or actor.kind != "player":
+            return state, char_dict, [], {"error": "not_player_turn"}
+        state, char_dict, turn_events = finish_player_turn(session_id, char_dict)
+        events.extend(turn_events)
+        view = combat_state_view(load_combat_state(session_id) or state)
+        return load_combat_state(session_id), char_dict, events, {"combat_state": view}
+
+    if action == "attack":
+        if not actor or actor.kind != "player":
+            return state, char_dict, [], {"error": "not_player_turn"}
+        if not target_id:
+            living = _living_enemies(state)
+            if len(living) == 1:
+                target_id = living[0].id
+            else:
+                return state, char_dict, [], {"error": "target_required"}
+        target = _combatant_by_id(state, target_id)
+        if not target or target.kind != "enemy" or target.hp <= 0:
+            return state, char_dict, [], {"error": "invalid_target"}
+        player = _combatant_by_id(state, "player")
+        if not player:
+            return state, char_dict, [], {"error": "no_player"}
+        char = character_from_dict(char_dict)
+        result = resolve_player_attack(player, target, char=char)
+        events.append(result["summary"])
+        if result["hit"] and result["damage"] > 0:
+            state = apply_damage_to_enemy(state, target.id, result["damage"])
+            if state.status == "ended":
+                _finish_combat(session_id, state)
+                events.append("All enemies defeated. Combat ended.")
+            else:
+                save_combat_state(session_id, state)
+        else:
+            save_combat_state(session_id, state)
+        view = combat_state_view(load_combat_state(session_id) or state)
+        return load_combat_state(session_id), char_dict, events, {"combat_state": view}
+
+    return state, char_dict, [], {"error": "unknown_action"}
 
 
 def roll_initiative_for_state(state: CombatState) -> CombatState:
@@ -558,9 +716,7 @@ def _message_has_combat_intent(msg: str) -> bool:
     return any(t in lowered for t in triggers)
 
 
-_COMBAT_PLAYER_TASKS = frozenset(
-    {"attack_roll", "initiative", "death_save", "cast_spell", "saving_throw"}
-)
+_COMBAT_PLAYER_TASKS = frozenset({"initiative", "death_save", "cast_spell", "saving_throw"})
 
 
 def player_took_combat_action(

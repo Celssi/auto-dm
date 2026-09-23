@@ -10,13 +10,8 @@ def test_base_story_arc_strips_plot_updates():
     assert _base_story_arc(arc) == "Main plot."
 
 
-def test_copy_campaign_resets_for_new_character(tmp_path, monkeypatch):
-    monkeypatch.setattr(journal_storage, "SAVES_DIR", tmp_path)
-    monkeypatch.setattr(storage, "SAVES_DIR", tmp_path)
-    journal_storage.CAMPAIGNS_DIR.mkdir(parents=True, exist_ok=True)
-    storage.ADVENTURES_DIR.mkdir(parents=True, exist_ok=True)
-    storage.CHARACTERS_DIR.mkdir(parents=True, exist_ok=True)
-
+def test_copy_campaign_resets_for_new_character(isolated_saves):
+    _ = isolated_saves
     storage.save_character("hero", {"name": "Hero"})
     storage.save_character("rogue", {"name": "Rogue"})
 

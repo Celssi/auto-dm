@@ -4,8 +4,8 @@ import { m } from '../lib/framer';
 import { UserPlus, Users } from 'lucide-react';
 import { api } from '../api/client';
 import type { Character } from '../types';
-import { DEFAULT_GAME_ID, GAMES, gameLabel } from '../games/registry';
-import CharacterWizard from '../games/dnd5e/character-sheet/CharacterWizard';
+import { DEFAULT_GAME_ID, GAMES, gameLabel, getGameCharacterConfig } from '../games/registry';
+import { GameCharacterSetup, GameCharacterWizard } from '../games/components';
 import LevelUpDialog from '../games/dnd5e/character-sheet/LevelUpDialog';
 import PageHeader from '../components/ui/PageHeader';
 import ListCard from '../components/ui/ListCard';
@@ -16,9 +16,13 @@ import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { fadeUp, staggerContainer } from '../components/ui/motion';
 import CharacterDetailPanel from './characters/CharacterDetailPanel';
 import { charactersReducer, initialCharactersState } from './characters/charactersState';
+import { useToast } from '../components/ui/toast';
+
+type SaveCharOptions = { silentToast?: boolean; alreadyPersisted?: boolean };
 
 export default function CharactersPage() {
   const navigate = useNavigate();
+  const toast = useToast();
   const { characterId } = useParams();
   const isNew = useMatch('/characters/new');
   const isEdit = useMatch('/characters/:characterId/edit');
@@ -28,6 +32,8 @@ export default function CharactersPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [charOptions, setCharOptions] = useState<Record<string, unknown>>({});
+  const [newGameId, setNewGameId] = useState<string | null>(null);
+  const [creatingImmediate, setCreatingImmediate] = useState(false);
 
   const load = useCallback(async () => {
     const { characters } = await api.listCharacters();
@@ -58,31 +64,61 @@ export default function CharactersPage() {
   }, [characterId, isNew, mode, loadCharacter]);
 
   useEffect(() => {
-    if ((mode === 'view' || mode === 'wizard') && characterId && !isNew) {
-      api
-        .getCharacterOptions(false)
-        .then(setCharOptions)
-        .catch(() => setCharOptions({}));
-    }
-  }, [mode, characterId, isNew]);
+    if (mode !== 'view' && mode !== 'wizard') return;
+    if (!characterId || isNew) return;
+    const gid = state.character?.game_id || DEFAULT_GAME_ID;
+    api
+      .getCharacterOptions(false, gid)
+      .then(setCharOptions)
+      .catch(() => setCharOptions({}));
+  }, [mode, characterId, isNew, state.character?.game_id]);
 
-  const saveChar = async (c: Character) => {
+  const saveChar = async (c: Character, opts?: SaveCharOptions) => {
     let id = state.activeId || characterId || null;
-    if (id) {
-      await api.updateCharacter(id, c as Record<string, unknown>);
-    } else {
-      const res = await api.createCharacter({
-        ...(c as Record<string, unknown>),
-        game_id: c.game_id || DEFAULT_GAME_ID,
-      });
-      id = res.id;
-      dispatch({ type: 'set', patch: { activeId: res.id, character: res.character as Character } });
+    try {
+      if (!opts?.alreadyPersisted) {
+        if (id) {
+          await api.updateCharacter(id, c as Record<string, unknown>);
+        } else {
+          const res = await api.createCharacter({
+            ...(c as Record<string, unknown>),
+            game_id: c.game_id || newGameId || DEFAULT_GAME_ID,
+          });
+          id = res.id;
+          dispatch({ type: 'set', patch: { activeId: res.id, character: res.character as Character } });
+        }
+      }
+      await load();
+      if (id) {
+        const sum = await api.getCharacterSummary(id);
+        dispatch({ type: 'set', patch: { summary: sum.summary, character: sum.character as Character } });
+        if (!opts?.silentToast) {
+          const name = String(c.name || sum.character?.name || '').trim() || 'Character';
+          toast.success(`Saved ${name}`);
+        }
+        navigate(`/characters/${id}`);
+      }
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Save failed';
+      toast.error(msg);
+      dispatch({ type: 'set', patch: { error: msg } });
+      throw e;
     }
-    await load();
-    if (id) {
-      const sum = await api.getCharacterSummary(id);
-      dispatch({ type: 'set', patch: { summary: sum.summary, character: sum.character as Character } });
-      navigate(`/characters/${id}`);
+  };
+
+  const startImmediateCharacter = async (targetGameId: string) => {
+    setCreatingImmediate(true);
+    dispatch({ type: 'set', patch: { error: null } });
+    try {
+      const res = await api.createCharacter({ game_id: targetGameId, name: '' });
+      await load();
+      navigate(`/characters/${res.id}/edit`, { replace: true });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to create character';
+      toast.error(msg);
+      dispatch({ type: 'set', patch: { error: msg } });
+    } finally {
+      setCreatingImmediate(false);
     }
   };
 
@@ -95,7 +131,8 @@ export default function CharactersPage() {
   ) => {
     const id = state.activeId || characterId;
     if (!id) return;
-    const res = await api.levelUpCharacter(id, {
+    try {
+      const res = await api.levelUpCharacter(id, {
       hp_roll: hpRoll,
       asi_choices: asiChoices,
       class_name: className,
@@ -106,10 +143,16 @@ export default function CharactersPage() {
       ...(typeof choices?.human_skill === 'string' && choices.human_skill ? { human_skill: choices.human_skill } : {}),
       ...(choices?.versatile_origin_feat ? { versatile_origin_feat: choices.versatile_origin_feat } : {}),
     });
-    dispatch({
-      type: 'set',
-      patch: { character: res.character as Character, summary: res.summary, levelUpOpen: false },
-    });
+      dispatch({
+        type: 'set',
+        patch: { character: res.character as Character, summary: res.summary, levelUpOpen: false },
+      });
+      toast.success('Character leveled up');
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Level up failed';
+      toast.error(msg);
+      dispatch({ type: 'set', patch: { error: msg } });
+    }
   };
 
   const deleteCharacter = async () => {
@@ -123,8 +166,11 @@ export default function CharactersPage() {
       dispatch({ type: 'set', patch: { activeId: null, character: null } });
       await load();
       navigate('/characters');
+      toast.success(`Deleted ${character.name || 'character'}`);
     } catch (e) {
-      dispatch({ type: 'set', patch: { error: String(e) } });
+      const msg = e instanceof Error ? e.message : 'Delete failed';
+      toast.error(msg);
+      dispatch({ type: 'set', patch: { error: msg } });
     } finally {
       setDeleting(false);
     }
@@ -196,13 +242,67 @@ export default function CharactersPage() {
         </m.div>
       )}
 
-      {mode === 'wizard' && (
+      {mode === 'wizard' && isNew && !newGameId && (
+        <m.div variants={fadeUp} className="panel-glow p-6 space-y-4 max-w-lg">
+          <h2 className="display-title text-lg">Choose game</h2>
+          <p className="text-sm text-muted">Pick which ruleset this character uses.</p>
+          <div className="grid gap-2">
+            {GAMES.map((g) => {
+              const config = getGameCharacterConfig(g.id);
+              return (
+                <button
+                  key={g.id}
+                  type="button"
+                  className="play-chip text-left px-4 py-3 w-full"
+                  disabled={config.creationFlow === 'immediate' && creatingImmediate}
+                  onClick={() => {
+                    if (config.creationFlow === 'immediate') {
+                      void startImmediateCharacter(g.id);
+                      return;
+                    }
+                    setNewGameId(g.id);
+                  }}
+                >
+                  {g.label}
+                </button>
+              );
+            })}
+          </div>
+          <button type="button" className="btn-ghost text-sm" onClick={() => navigate('/characters')}>
+            Cancel
+          </button>
+        </m.div>
+      )}
+
+      {mode === 'wizard' && getGameCharacterConfig(newGameId ?? gameId).creationFlow === 'wizard' && (
         <m.div variants={fadeUp}>
-          <CharacterWizard
+          <GameCharacterWizard
+            gameId={newGameId ?? gameId}
             initial={character || undefined}
             onSave={saveChar}
             onCancel={() => navigate(activeId ? `/characters/${activeId}` : '/characters')}
           />
+        </m.div>
+      )}
+
+      {mode === 'wizard' && getGameCharacterConfig(gameId).creationFlow === 'immediate' && character && (
+        <m.div variants={fadeUp}>
+          <GameCharacterSetup
+            gameId={gameId}
+            characterId={activeId}
+            entity={character as Record<string, unknown>}
+            onChange={(entity) => dispatch({ type: 'set', patch: { character: entity as Character } })}
+            onSaved={async (entity) => {
+              await saveChar(entity as Character, { silentToast: true, alreadyPersisted: true });
+            }}
+          />
+          <button
+            type="button"
+            className="btn-ghost mt-3 text-sm"
+            onClick={() => navigate(activeId ? `/characters/${activeId}` : '/characters')}
+          >
+            {activeId ? 'Done' : 'Cancel'}
+          </button>
         </m.div>
       )}
 
@@ -212,7 +312,7 @@ export default function CharactersPage() {
           title="Game not supported yet"
           description={`This character uses "${gameLabel(gameId)}", which is not available in the UI yet.`}
           action={
-            <button type="button" className="btn-secondary" onClick={() => navigate('/characters')}>
+            <button type="button" className="btn-ghost" onClick={() => navigate('/characters')}>
               Back to list
             </button>
           }
@@ -234,7 +334,7 @@ export default function CharactersPage() {
         />
       )}
 
-      {state.levelUpOpen && character && activeId && (
+      {state.levelUpOpen && character && activeId && getGameCharacterConfig(gameId).supportsLevelUp && (
         <LevelUpDialog
           characterId={activeId}
           character={character}

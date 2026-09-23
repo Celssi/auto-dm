@@ -25,7 +25,7 @@ export default function AdventureDetailPanel({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <p className="label-text">Campaign</p>
-              <h2 className="font-display text-xl text-gray-100">{campaignName}</h2>
+              <h2 className="display-title text-xl">{campaignName}</h2>
             </div>
             {onDelete && (
               <button type="button" className="btn-danger text-sm" onClick={onDelete}>
@@ -36,7 +36,7 @@ export default function AdventureDetailPanel({
         </>
       ) : (
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <h2 className="font-display text-xl text-gray-100">{adventure.name}</h2>
+          <h2 className="display-title text-xl">{adventure.name}</h2>
           {onDelete && (
             <button type="button" className="btn-danger text-sm" onClick={onDelete}>
               Delete adventure

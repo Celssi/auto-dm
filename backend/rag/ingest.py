@@ -197,10 +197,13 @@ def extract_pages_pypdf(pdf_path: Path) -> list[tuple[int, str]]:
 
 
 def _pdf_key(pdf_path: Path) -> str:
-    """Return dnd5e/foo.pdf style key for OCR list matching."""
+    """Return dnd5e/foo.pdf or brambletrek/foo.pdf style key for OCR list matching."""
     parts = pdf_path.parts
     if "dnd5e" in parts:
         idx = parts.index("dnd5e")
+        return "/".join(parts[idx:])
+    if "brambletrek" in parts:
+        idx = parts.index("brambletrek")
         return "/".join(parts[idx:])
     return pdf_path.name
 
@@ -349,7 +352,23 @@ def run_ingest(
     reset: bool = True,
     use_ocr: bool = True,
     force_ocr: bool = False,
+    game_id: str = "dnd5e",
+    skip_audit: bool = False,
 ) -> int:
+    from backend.games.registry import get_game
+
+    plugin = get_game(game_id)
+    if plugin.rag.run_ingest:
+        return plugin.rag.run_ingest(
+            core_only=core_only,
+            include_faerun=include_faerun,
+            reset=reset,
+            use_ocr=use_ocr,
+            force_ocr=force_ocr,
+            game_id=game_id,
+            skip_audit=skip_audit,
+        )
+
     pdf_sources = get_pdf_sources()
     ocr_pdfs = get_ocr_pdfs()
     pdf_names = load_pdf_list(core_only=core_only, include_faerun=include_faerun)
@@ -423,8 +442,117 @@ def run_ingest(
         show_progress=True,
     )
     print(f"Done. Index '{COLLECTION_NAME}' stored in {CHROMA_DIR}")
-    _build_glossary_after_ingest()
+    if not skip_audit:
+        _build_glossary_after_ingest()
+        return _audit_dnd5e_curated_after_ingest(skip_pdf=True)
+    print("Curated audit: skipped")
     return 0
+
+
+def _audit_dnd5e_curated_after_ingest(*, skip_pdf: bool = True) -> int:
+    from backend.games.dnd5e.curated_audit import run_curated_audit
+
+    print("")
+    return run_curated_audit(skip_pdf=skip_pdf)
+
+
+def _audit_brambletrek_curated_after_ingest(*, skip_pdf: bool = False) -> int:
+    from backend.games.brambletrek.curated_audit import run_curated_audit
+
+    print("")
+    return run_curated_audit(skip_pdf=skip_pdf)
+
+
+def run_brambletrek_ingest(
+    *,
+    reset: bool = True,
+    use_ocr: bool = True,
+    force_ocr: bool = False,
+    skip_audit: bool = False,
+) -> int:
+    return _run_brambletrek_ingest(
+        reset=reset,
+        use_ocr=use_ocr,
+        force_ocr=force_ocr,
+        skip_audit=skip_audit,
+    )
+
+
+def _run_brambletrek_ingest(
+    *,
+    reset: bool = True,
+    use_ocr: bool = True,
+    force_ocr: bool = False,
+    skip_audit: bool = False,
+) -> int:
+    from backend.games.brambletrek.rag_config import COLLECTION, MVP_PDFS, get_pdf_sources
+
+    collection_name = COLLECTION
+    pdf_sources = get_pdf_sources()
+    pdf_names = list(MVP_PDFS)
+    preflight_errors = preflight_ingest(pdf_names=pdf_names, use_ocr=use_ocr)
+    if preflight_errors:
+        for msg in preflight_errors:
+            print(f"PREFLIGHT ERROR: {msg}", file=sys.stderr)
+        return 1
+
+    present = [name for name in pdf_names if pdf_path(name).exists()]
+    for name in pdf_names:
+        if name not in present:
+            print(f"SKIP (missing): {name} at {pdf_path(name)}")
+
+    if not present:
+        print("No Brambletrek PDF files found to index.")
+        return 1
+
+    all_docs: list[Document] = []
+    print(f"Indexing {len(present)} Brambletrek PDFs...")
+    for idx, name in enumerate(present, 1):
+        path = pdf_path(name)
+        meta = pdf_sources.get(name, {"faction": "core", "label": name})
+        print(f"\n[{idx}/{len(present)}] {name}")
+        page_docs = build_documents(
+            path,
+            meta,
+            use_ocr=use_ocr,
+            force_ocr=force_ocr,
+            ocr_pdfs=[],
+        )
+        all_docs.extend(page_docs)
+        print(f"  -> {len(page_docs)} chunks")
+
+    if not all_docs:
+        print("No text extracted from Brambletrek PDFs.")
+        return 1
+
+    client = chromadb.PersistentClient(path=str(CHROMA_DIR))
+    if reset:
+        try:
+            client.delete_collection(collection_name)
+        except Exception:
+            pass
+
+    collection = client.get_or_create_collection(collection_name)
+    vector_store = ChromaVectorStore(chroma_collection=collection)
+    storage_context = StorageContext.from_defaults(vector_store=vector_store)
+    embed_model = OllamaEmbedding(
+        model_name=EMBED_MODEL,
+        base_url=OLLAMA_BASE_URL,
+        text_instruction=EMBED_DOCUMENT_PREFIX,
+        query_instruction=EMBED_QUERY_PREFIX,
+    )
+    print(f"\nEmbedding {len(all_docs)} chunks with {EMBED_MODEL}...")
+    VectorStoreIndex.from_documents(
+        all_docs,
+        storage_context=storage_context,
+        embed_model=embed_model,
+        show_progress=True,
+    )
+    print(f"Done. Index '{collection_name}' stored in {CHROMA_DIR}")
+    if skip_audit:
+        print("Curated audit: skipped")
+        return 0
+    return _audit_brambletrek_curated_after_ingest()
 
 
 def _build_glossary_after_ingest() -> None:
@@ -445,6 +573,9 @@ def _build_glossary_after_ingest() -> None:
 
 
 def main() -> None:
+    from backend.games.registry import get_game, list_games
+
+    game_ids = [g["id"] for g in list_games()]
     parser = argparse.ArgumentParser(description="Index D&D 5e PDFs into Chroma")
     parser.add_argument("--core", action="store_true", help="Index PHB + DMG + MM only (default)")
     parser.add_argument(
@@ -455,7 +586,30 @@ def main() -> None:
     parser.add_argument("--no-reset", action="store_true", help="Append without deleting index")
     parser.add_argument("--ocr", action="store_true", help="Force OCR refresh")
     parser.add_argument("--no-ocr", action="store_true", help="Disable OCR fallback")
+    parser.add_argument(
+        "--skip-audit",
+        action="store_true",
+        help="Skip curated YAML audit after ingest / glossary build",
+    )
+    parser.add_argument(
+        "--game",
+        default="dnd5e",
+        choices=game_ids,
+        help="Game to index (default: dnd5e)",
+    )
     args = parser.parse_args()
+    plugin = get_game(args.game)
+    if plugin.rag.run_ingest:
+        print(f"Ingest {plugin.label} from {DOCS_DIR}")
+        sys.exit(
+            run_ingest(
+                reset=not args.no_reset,
+                use_ocr=not args.no_ocr,
+                force_ocr=args.ocr,
+                game_id=args.game,
+                skip_audit=args.skip_audit,
+            )
+        )
     include_faerun = args.include_faerun
     core_only = not include_faerun or args.core
     label = (

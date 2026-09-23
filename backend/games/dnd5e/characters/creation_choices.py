@@ -185,7 +185,32 @@ def _species_choices(char: Dnd5eCharacter, data: dict[str, Any]) -> list[dict[st
     return [_expand_choice(r, data) for r in rows if isinstance(r, dict)]
 
 
+def _subclass_matches(when_list: list[Any], char: Dnd5eCharacter, entry: dict[str, Any]) -> bool:
+    if not when_list:
+        return True
+    from backend.games.dnd5e.characters.features import find_subclass_key
+
+    fc = char.feature_choices or {}
+    sub = str(entry.get("subclass") or char.subclass or fc.get("subclass") or "").strip()
+    active = {sub.lower(), sub.lower().replace(" ", "_")}
+    key = find_subclass_key(str(entry.get("class_name") or ""), sub)
+    if key:
+        active.add(key)
+    for raw in when_list:
+        token = str(raw or "").strip()
+        if not token:
+            continue
+        low = token.lower()
+        if low in active or low.replace(" ", "_") in active:
+            return True
+        fk = find_subclass_key(str(entry.get("class_name") or ""), token)
+        if fk and fk in active:
+            return True
+    return False
+
+
 def _class_choices_for_entry(
+    char: Dnd5eCharacter,
     entry: dict[str, Any],
     data: dict[str, Any],
     *,
@@ -206,7 +231,21 @@ def _class_choices_for_entry(
                 continue
         elif lv < min_lv:
             continue
-        out.append(_expand_choice(raw, data))
+        when_sub = raw.get("when_subclass")
+        if when_sub and not _subclass_matches(
+            when_sub if isinstance(when_sub, list) else [when_sub],
+            char,
+            entry,
+        ):
+            continue
+        expanded = _expand_choice(raw, data)
+        spell_list = raw.get("spell_list")
+        if spell_list:
+            sl = spell_list_for(str(spell_list))
+            level = int(raw.get("spell_level") or 0)
+            key = "cantrips" if level == 0 else str(level)
+            expanded["spell_options"] = list(sl.get(key) or sl.get("cantrips") or [])
+        out.append(expanded)
     return out
 
 
@@ -250,7 +289,7 @@ def choices_for_character(
             {"class_name": tc, "level": int(char.level or 1) + 1}
         ]
     for entry in entries:
-        out.extend(_class_choices_for_entry(entry, data, target_level=target_level))
+        out.extend(_class_choices_for_entry(char, entry, data, target_level=target_level))
     out.extend(_origin_subchoices(char, data))
     return out
 
@@ -432,19 +471,37 @@ def apply_creation_choices(char: Dnd5eCharacter) -> None:
                 langs.append(lang)
             char.languages = langs
         if kind == "spells" or (kind == "spell" and cid.startswith("magic_initiate")):
-            cantrips = list(char.cantrips or [])
-            if isinstance(val, list):
-                for c in val:
-                    cn = normalize_spell_name(str(c))
-                    if cn and cn not in [normalize_spell_name(x) for x in cantrips]:
-                        cantrips.append(str(c))
-                char.cantrips = cantrips
-            elif kind == "spell":
-                known = list(char.known_spells or [])
-                sn = str(val)
-                if sn and sn not in known:
-                    known.append(sn)
-                char.known_spells = known
+            spell_level = int(choice.get("spell_level") or 0)
+            if cid == "third_caster_spells" or (kind == "spells" and spell_level > 0):
+                prepared = list(char.prepared_spells or [])
+                for c in val if isinstance(val, list) else []:
+                    sn = str(c)
+                    if sn and sn not in prepared:
+                        prepared.append(sn)
+                char.prepared_spells = prepared
+            else:
+                cantrips = list(char.cantrips or [])
+                if isinstance(val, list):
+                    for c in val:
+                        cn = normalize_spell_name(str(c))
+                        if cn and cn not in [normalize_spell_name(x) for x in cantrips]:
+                            cantrips.append(str(c))
+                    char.cantrips = cantrips
+                elif kind == "spell":
+                    known = list(char.known_spells or [])
+                    sn = str(val)
+                    if sn and sn not in known:
+                        known.append(sn)
+                    char.known_spells = known
+        if cid == "subclass" and kind == "enum":
+            label = _label_for_option(choice, str(val))
+            char.subclass = label
+            entries = char.normalized_class_entries()
+            for entry in entries:
+                if entry.get("class_name") == char.class_name:
+                    entry["subclass"] = label
+            char.classes = entries
+            char.sync_legacy_class_fields()
     char.skill_proficiencies = skills
     char.tool_proficiencies = tools
     apply_origin_feat_proficiencies(char)

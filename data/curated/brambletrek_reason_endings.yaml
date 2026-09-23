@@ -1,0 +1,51 @@
+# Reason endings (Core Rulebook p. 36). Keys match reason card bands.
+
+intro: >
+  Your ending is up to you. When your journey feels complete — you found related
+  items or prompts tied to your Reason — choose a true ending or one that lets you
+  stay in Hyhill and continue later.
+
+endings:
+  ace:
+    title: Yearning for adventure
+    body: >
+      As you navigate the vast forest beyond Hyhill, the mythical grove with golden
+      leaves finally unfolds before you. This discovery is not just the end of a
+      journey but the beginning of countless others. The world is bigger and filled
+      with wonders; the path ahead is limitless.
+  "2-4":
+    title: The Mysterious Stone
+    body: >
+      Unravelling the stone monument leads to ancient ruins where the air thrums with
+      mystic energy. The symbols were a key; that door is open, revealing paths lined
+      with more mysteries and ancient magics. Your dream was only the beginning.
+  "5-7":
+    title: Hunt for the Elixir
+    body: >
+      Gathering the rare herbs marks a rite of passage, but deep in the forest you
+      find a garden of such herbs. The Harvest's Dawn festival may be over, but your
+      quest to uncover the forest's flora has just begun.
+  "8-10":
+    title: Search for Kin
+    body: >
+      The giant tree and its ancient wisdom reveal a deeper bond between your
+      community and the forest. Your kin's adventure makes you a bridge between the
+      two, with endless mysteries within and beyond.
+  jack:
+    title: Lost Light
+    body: >
+      Restoring the fireflies uncovers a delicate balance between nature and your
+      Gnawborn community. The quest illuminates the forest and a path to safeguarding
+      the land; understanding nature's harmony is endless and filled with light.
+  queen:
+    title: Whispers of the Leaves
+    body: >
+      Following the whispers leads to the heart of the forest and an ancient entity
+      calling for aid. Your gift opens guardianship of the forest's secrets; the
+      whispers now guide you to protect and explore deeper mysteries.
+  king:
+    title: Luna's Blossomed Light
+    body: >
+      The Luna Blossom cures the Seer and reveals untapped magical flora. Your return
+      marks deeper exploration into the forest's mystical properties and guardianship
+      of its ancient magic.

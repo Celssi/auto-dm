@@ -284,7 +284,7 @@ class_starting_gear_options:
       label: Heavy warrior
       description: Chain Mail, Greatsword, Flail, 8 Javelins, Dungeoneer's Pack, 4 GP
       items: [Dungeoneer's Pack, Flail, Javelins (8)]
-      weapons: [{name: Greatsword, damage: 1d12, damage_type: slashing, ability: str}]
+      weapons: [{name: Greatsword, damage: 2d6, damage_type: slashing, ability: str}]
       armor: chain_mail
       currency: {gp: 4}
     - id: skirmisher

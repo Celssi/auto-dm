@@ -2,23 +2,14 @@
 
 from __future__ import annotations
 
-import tempfile
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import backend.config as cfg
 import backend.journal_storage as js
 from backend.dm.story_memory import generate_opening_summary
 from backend.dm.world_context import world_context_for_campaign
 
 
-def test_world_context_for_narrator_omits_story_arc():
-    tmpdir = Path(tempfile.mkdtemp())
-    cfg.SAVES_DIR = tmpdir
-    js.CAMPAIGNS_DIR = tmpdir / "campaigns"
-    js.CAMPAIGNS_INDEX = js.CAMPAIGNS_DIR / "index.json"
-    js.CAMPAIGNS_DIR.mkdir(parents=True, exist_ok=True)
-
+def test_world_context_for_narrator_omits_story_arc(isolated_saves):
     long_arc = "SECRET FUTURE PLOT " + "X" * 500
     js.save_campaign("test-camp", {"name": "Test", "story_arc": long_arc, "status": "active"})
 
@@ -27,6 +18,28 @@ def test_world_context_for_narrator_omits_story_arc():
 
     assert "SECRET FUTURE PLOT" not in narrator_ctx
     assert "SECRET FUTURE PLOT" in bootstrap_ctx
+
+
+@patch("backend.dm.story_memory.invoke_chat_llm")
+@patch("backend.dm.story_memory.get_langchain_chat_llm")
+def test_generate_opening_summary_brambletrek_prompt(mock_llm, mock_invoke):
+    mock_response = MagicMock()
+    mock_response.content = "## Current situation\nAt the bakery door."
+    mock_invoke.return_value = mock_response
+    mock_llm.return_value = MagicMock()
+
+    generate_opening_summary(
+        log="Tuke left the bakery.",
+        opening_scene="Morning light on Hyhill.",
+        game_id="brambletrek",
+    )
+
+    call_args = mock_invoke.call_args[0][1]
+    prompt = call_args[1].content
+    system = call_args[0].content
+    assert "Brambletrek" in prompt
+    assert "D&D 5e" not in prompt
+    assert "Brambletrek" in system
 
 
 @patch("backend.dm.story_memory.invoke_chat_llm")

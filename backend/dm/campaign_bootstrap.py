@@ -17,8 +17,7 @@ from backend.dm.session_opening import attach_opening_to_session
 from backend.dm.story_director import ensure_story_progress
 from backend.dm.story_memory import generate_opening_summary
 from backend.dm.world_context import prior_adventures_context, world_context_for_campaign
-from backend.games.dnd5e.characters.entity import character_from_dict, format_for_prompt
-from backend.games.registry import get_game
+from backend.games.registry import get_game, resolve_game_id
 from backend.journal_storage import (
     get_campaign,
     save_campaign,
@@ -40,6 +39,27 @@ from backend.storage import (
 )
 
 BootstrapMode = Literal["freeform", "module"]
+
+
+def _plugin_for_character(char: dict[str, Any] | None):
+    return get_game(resolve_game_id(char))
+
+
+def _char_prompt(char: dict[str, Any] | None) -> str:
+    if not char:
+        return ""
+    plugin = _plugin_for_character(char)
+    entity = plugin.character_from_dict(char)
+    return plugin.format_character_for_prompt(entity)
+
+
+def _require_campaign_plan(char: dict[str, Any] | None) -> None:
+    plugin = _plugin_for_character(char)
+    if not plugin.play.supports_campaign_plan:
+        raise ValueError(
+            f"Multi-adventure campaign planning is not supported for {plugin.label}. "
+            "Use single-adventure bootstrap instead."
+        )
 
 
 def _clean_opening(text: str) -> str:
@@ -71,8 +91,10 @@ def rag_context_for_theme(
     mode: BootstrapMode,
     theme: str,
     include_faerun: bool,
+    game_id: str | None = None,
 ) -> tuple[str, list[str]]:
-    factions = get_game().get_all_factions() if include_faerun else ["player", "dm", "monsters"]
+    plugin = get_game(game_id)
+    factions = plugin.get_all_factions() if include_faerun else ["player", "dm", "monsters"]
     rules_query = theme
     if mode == "module" and include_faerun:
         rules_query = f"Adventure in Faerûn: {theme}. Locations, NPCs, plot hooks."
@@ -81,7 +103,12 @@ def rag_context_for_theme(
         rules_query = f"D&D adventure module: {theme}. Dungeons, encounters, plot."
         factions = ["dm", "adventures_faerun"]
     rag = query_rules(
-        rules_query, factions=factions, top_k=8, use_rerank=True, generate_answer=False
+        rules_query,
+        game_id=plugin.id,
+        factions=factions,
+        top_k=8,
+        use_rerank=True,
+        generate_answer=False,
     )
     context = "\n\n".join(
         f"{s.get('source_label', s.get('label', '?'))} "
@@ -103,10 +130,13 @@ def generate_bootstrap_spec(
     char = get_character(character_id)
     if not char:
         raise ValueError(f"Character not found: {character_id}")
-    char_obj = character_from_dict(char)
+    plugin = _plugin_for_character(char)
+    _require_campaign_plan(char)
     prefs = load_settings()
     include_faerun = include_faerun or prefs.get("include_faerun", False)
-    context, _ = rag_context_for_theme(mode=mode, theme=theme, include_faerun=include_faerun)
+    context, _ = rag_context_for_theme(
+        mode=mode, theme=theme, include_faerun=include_faerun, game_id=plugin.id
+    )
 
     setting = "Faerûn (Forgotten Realms)" if include_faerun else "freeform/homebrew"
     name_hint = f'\nPreferred campaign name: "{campaign_name}".' if campaign_name.strip() else ""
@@ -119,7 +149,7 @@ Setting: {setting}
 {name_hint}
 
 Player character:
-{format_for_prompt(char_obj)}
+{_char_prompt(char)}
 
 Rulebook reference (use for tone and facts when relevant):
 {context[:4000]}
@@ -146,82 +176,15 @@ def bootstrap_campaign(
     include_faerun: bool = False,
     campaign_name: str = "",
 ) -> dict[str, Any]:
-    if not theme.strip():
-        raise ValueError("Theme is required")
-    spec = generate_bootstrap_spec(
+    char = get_character(character_id)
+    plugin = get_game(resolve_game_id(char))
+    return plugin.play.bootstrap_campaign(
+        character_id=character_id,
         mode=mode,
         theme=theme.strip(),
-        character_id=character_id,
         include_faerun=include_faerun,
         campaign_name=campaign_name,
     )
-
-    camp_name = campaign_name.strip() or spec.campaign_name
-    campaign_id = slugify(camp_name)
-    save_campaign(
-        campaign_id,
-        {
-            "name": camp_name,
-            "story_arc": spec.story_arc,
-            "status": "active",
-            "character_ids": [character_id],
-        },
-    )
-
-    for npc in spec.npcs:
-        save_campaign_npc(campaign_id, slugify(npc.name), {"name": npc.name, "body": npc.body})
-    for loc in spec.locations:
-        save_campaign_location(campaign_id, slugify(loc.name), {"name": loc.name, "body": loc.body})
-
-    adventure_id = slugify(spec.adventure_name)
-    opening = _clean_opening(spec.opening_scene)
-    save_adventure(
-        adventure_id,
-        {
-            "name": spec.adventure_name,
-            "mode": mode,
-            "theme": theme.strip(),
-            "character_id": character_id,
-            "campaign_id": campaign_id,
-            "include_faerun": include_faerun,
-            "status": "active",
-        },
-        outline=spec.adventure_outline,
-        log=(
-            "# Adventure log\n\n"
-            "_Bootstrap opening scene logged._\n\n"
-            f"{opening}\n"
-        ),
-    )
-
-    npc_hints = "\n".join(f"- {n.name}: {n.body[:200]}" for n in spec.npcs[:8])
-    summary = generate_opening_summary(
-        log=opening,
-        opening_scene=opening,
-        npc_hints=npc_hints,
-    )
-    write_adventure_summary(adventure_id, summary)
-
-    ensure_story_progress(adventure_id, spec.adventure_outline)
-    encounters = extract_encounters_from_outline(spec.adventure_outline, spec.adventure_name)
-    if encounters:
-        save_adventure_encounters(adventure_id, encounters)
-
-    session_id = create_session(
-        character_id=character_id,
-        adventure_id=adventure_id,
-        name=f"{camp_name} - session 1",
-        include_faerun=include_faerun,
-    )
-    attach_opening_to_session(session_id=session_id, opening=opening)
-
-    return {
-        "session_id": session_id,
-        "campaign_id": campaign_id,
-        "adventure_id": adventure_id,
-        "opening_scene": opening,
-        "counts": {"npcs": len(spec.npcs), "locations": len(spec.locations)},
-    }
 
 
 class AdventureContinuationSpec(BaseModel):
@@ -257,10 +220,13 @@ def generate_adventure_spec_for_campaign(
     char = get_character(character_id)
     if not char:
         raise ValueError(f"Character not found: {character_id}")
-    char_obj = character_from_dict(char)
+    plugin = _plugin_for_character(char)
+    _require_campaign_plan(char)
     prefs = load_settings()
     include_faerun = include_faerun or prefs.get("include_faerun", False)
-    context, _ = rag_context_for_theme(mode=mode, theme=theme, include_faerun=include_faerun)
+    context, _ = rag_context_for_theme(
+        mode=mode, theme=theme, include_faerun=include_faerun, game_id=plugin.id
+    )
 
     prior_adventures = list_adventures_for_campaign(campaign_id)
     prior_names = ", ".join(a.get("name", a["id"]) for a in prior_adventures) or "(none yet)"
@@ -280,7 +246,7 @@ Mode: {mode}
 {name_hint}
 
 Player character:
-{format_for_prompt(char_obj)}
+{_char_prompt(char)}
 
 Campaign world context (NPCs, locations, story arc — treat as canonical):
 {world[:6000]}
@@ -312,7 +278,7 @@ Adventure name hint: {adventure_name or "(choose a fitting title)"}
 Mode: {mode}
 
 Player character:
-{format_for_prompt(char_obj)}
+{_char_prompt(char)}
 
 Campaign context (canonical):
 {world[:3500]}
@@ -384,20 +350,26 @@ def generate_campaign_plan(
     include_faerun = include_faerun or prefs.get("include_faerun", False)
     count = max(1, min(adventure_count, 8))
 
+    game_id = None
     if character_id.strip():
         char = get_character(character_id)
         if not char:
             raise ValueError(f"Character not found: {character_id}")
-        char_section = format_for_prompt(character_from_dict(char))
+        _require_campaign_plan(char)
+        plugin = _plugin_for_character(char)
+        game_id = plugin.id
+        char_section = _char_prompt(char)
     else:
         char_section = (
             "A solo adventurer (no specific character chosen yet). "
             "Design for a single 2024-rules hero without assuming class, race, or backstory."
         )
 
+    rag_plugin = get_game(game_id)
     rag = query_rules(
         theme if mode == "module" else f"D&D campaign arc: {theme}",
-        factions=get_game().get_all_factions() if include_faerun else ["player", "dm", "monsters"],
+        game_id=rag_plugin.id,
+        factions=rag_plugin.get_all_factions() if include_faerun else ["player", "dm", "monsters"],
         top_k=10 if mode == "module" else 6,
         use_rerank=True,
         generate_answer=False,
@@ -676,7 +648,7 @@ def suggest_next_adventure_hook(
     char = get_character(character_id)
     if not char:
         raise ValueError(f"Character not found: {character_id}")
-    char_obj = character_from_dict(char)
+    _require_campaign_plan(char)
 
     prior_adventures = list_adventures_for_campaign(campaign_id)
     prior_names = ", ".join(a.get("name", a["id"]) for a in prior_adventures) or "(none yet)"
@@ -689,7 +661,7 @@ Campaign: {campaign.get("name", campaign_id)}
 Prior adventures: {prior_names}
 
 Player character:
-{format_for_prompt(char_obj)}
+{_char_prompt(char)}
 
 Campaign world context:
 {world[:6000]}

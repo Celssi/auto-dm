@@ -13,6 +13,9 @@ import ChoiceGroup from '../../components/ui/forms/ChoiceGroup';
 import Toggle from '../../components/ui/forms/Toggle';
 import SegmentedControl from '../../components/ui/forms/SegmentedControl';
 import type { PlayMode, PlayState } from './playState';
+import { getGamePlayConfig } from '../../games/play/registry';
+import BrambletrekCampaignStartFields from '../../games/brambletrek/CampaignStartFields';
+import { DEFAULT_GAME_ID, gameShortLabel } from '../../games/registry';
 
 interface Props {
   state: PlayState;
@@ -47,6 +50,15 @@ export default function PlayWizard({
     bootstrapError,
     bootstrapping,
   } = state;
+
+  const selectedChar = characters.find((c) => c.id === newSession.character_id);
+  const selectedGameId = selectedChar?.game_id || DEFAULT_GAME_ID;
+  const gameAdventures = adventures.filter((a) => !a.game_id || a.game_id === selectedGameId);
+  const campaignChar = characters.find((c) => c.id === newCampaign.character_id);
+  const brambletrekOnly =
+    metaLoaded && characters.length > 0 && characters.every((c) => (c.game_id || DEFAULT_GAME_ID) === 'brambletrek');
+  const campaignGameId = campaignChar?.game_id || (brambletrekOnly ? 'brambletrek' : DEFAULT_GAME_ID);
+  const campaignPlay = getGamePlayConfig(campaignGameId);
 
   return (
     <AnimatedPage className="max-w-xl mx-auto space-y-6">
@@ -102,8 +114,11 @@ export default function PlayWizard({
                 <Field label="Character">
                   <ChoiceGroup
                     value={newSession.character_id}
-                    onChange={(character_id) => onPatchNewSession({ character_id })}
-                    options={characters.map((c) => ({ value: c.id, label: c.name }))}
+                    onChange={(character_id) => onPatchNewSession({ character_id, adventure_id: '' })}
+                    options={characters.map((c) => ({
+                      value: c.id,
+                      label: `${c.name} (${gameShortLabel(c.game_id)})`,
+                    }))}
                     allowEmpty
                     emptyLabel="Select character"
                     columns={2}
@@ -113,7 +128,7 @@ export default function PlayWizard({
                   <ChoiceGroup
                     value={newSession.adventure_id}
                     onChange={(adventure_id) => onPatchNewSession({ adventure_id })}
-                    options={adventures.map((a) => ({ value: a.id, label: a.name }))}
+                    options={gameAdventures.map((a) => ({ value: a.id, label: a.name }))}
                     allowEmpty
                     emptyLabel="Select adventure"
                     columns={2}
@@ -152,6 +167,38 @@ export default function PlayWizard({
             exit={{ opacity: 0, y: -8 }}
             className="panel-glow p-5 space-y-4"
           >
+            {!campaignPlay.usesAiCampaignGeneration ? (
+              <>
+                <BrambletrekCampaignStartFields
+                  characters={characters}
+                  characterId={newCampaign.character_id}
+                  onCharacterIdChange={(character_id) => onPatchNewCampaign({ character_id })}
+                  activeAdventure={newCampaign.active_adventure}
+                  onActiveAdventureChange={(active_adventure) => onPatchNewCampaign({ active_adventure })}
+                  campaignName={newCampaign.campaign_name}
+                  onCampaignNameChange={(campaign_name) => onPatchNewCampaign({ campaign_name })}
+                  flavorNotes={newCampaign.theme}
+                  onFlavorNotesChange={(theme) => onPatchNewCampaign({ theme })}
+                  onSubmit={onBootstrapAndPlay}
+                  submitting={bootstrapping}
+                  showActions={false}
+                />
+                {bootstrapError && (
+                  <p className="text-sm text-danger rounded-lg border border-danger/30 bg-danger/10 px-3 py-2">
+                    {bootstrapError}
+                  </p>
+                )}
+                <button
+                  type="button"
+                  className="btn-primary w-full py-2.5"
+                  disabled={!newCampaign.character_id || bootstrapping}
+                  onClick={onBootstrapAndPlay}
+                >
+                  {bootstrapping ? 'Starting adventure…' : 'Start adventure'}
+                </button>
+              </>
+            ) : (
+              <>
             <p className="text-sm text-muted leading-relaxed">
               Generate a campaign, adventure, journal entries, and opening scene, then jump straight into play.
             </p>
@@ -160,7 +207,10 @@ export default function PlayWizard({
               <ChoiceGroup
                 value={newCampaign.character_id}
                 onChange={(character_id) => onPatchNewCampaign({ character_id })}
-                options={characters.map((c) => ({ value: c.id, label: c.name }))}
+                options={characters.map((c) => ({
+                  value: c.id,
+                  label: `${c.name} (${gameShortLabel(c.game_id)})`,
+                }))}
                 allowEmpty
                 emptyLabel="Select character"
                 columns={2}
@@ -203,11 +253,13 @@ export default function PlayWizard({
               />
             </Field>
 
-            <Toggle
-              checked={newCampaign.include_faerun}
-              onChange={(include_faerun) => onPatchNewCampaign({ include_faerun })}
-              label="Use Faerûn supplements (Heroes & Adventures)"
-            />
+            {campaignPlay.showFaerunToggle && (
+              <Toggle
+                checked={newCampaign.include_faerun}
+                onChange={(include_faerun) => onPatchNewCampaign({ include_faerun })}
+                label="Use Faerûn supplements (Heroes & Adventures)"
+              />
+            )}
 
             {bootstrapError && (
               <p className="text-sm text-danger rounded-lg border border-danger/30 bg-danger/10 px-3 py-2">
@@ -218,11 +270,17 @@ export default function PlayWizard({
             <button
               type="button"
               className="btn-primary w-full py-2.5"
-              disabled={!newCampaign.character_id || !newCampaign.theme.trim() || bootstrapping}
+              disabled={
+                !newCampaign.character_id ||
+                (campaignPlay.campaignThemeRequired && !newCampaign.theme.trim()) ||
+                bootstrapping
+              }
               onClick={onBootstrapAndPlay}
             >
               {bootstrapping ? 'Generating campaign… (30-60 s)' : 'Generate & play'}
             </button>
+              </>
+            )}
           </m.div>
         )}
       </AnimatePresence>

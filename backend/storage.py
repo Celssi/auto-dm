@@ -72,7 +72,23 @@ CHARACTERS_INDEX = CHARACTERS_DIR / "roster.json"
 
 def list_characters() -> list[dict[str, str]]:
     roster = _read_json(CHARACTERS_INDEX, [])
-    return [{"id": r["id"], "name": r.get("name", "Hero")} for r in roster if r.get("id")]
+    out: list[dict[str, str]] = []
+    for r in roster:
+        cid = r.get("id")
+        if not cid:
+            continue
+        game_id = r.get("game_id")
+        if not game_id:
+            full = get_character(cid)
+            game_id = str((full or {}).get("game_id") or "dnd5e")
+        out.append(
+            {
+                "id": cid,
+                "name": r.get("name", "Hero"),
+                "game_id": game_id or "dnd5e",
+            }
+        )
+    return out
 
 
 def get_character(char_id: str) -> dict | None:
@@ -91,12 +107,19 @@ def save_character(char_id: str | None, data: dict) -> str:
     for entry in roster:
         if entry.get("id") == char_id:
             entry["name"] = name
+            entry["game_id"] = str(data.get("game_id") or entry.get("game_id") or "dnd5e")
             entry["updated_at"] = _now_iso()
             found = True
             break
     if not found:
         roster.append(
-            {"id": char_id, "name": name, "created_at": _now_iso(), "updated_at": _now_iso()}
+            {
+                "id": char_id,
+                "name": name,
+                "game_id": str(data.get("game_id") or "dnd5e"),
+                "created_at": _now_iso(),
+                "updated_at": _now_iso(),
+            }
         )
     _write_json(CHARACTERS_INDEX, roster)
     return char_id
@@ -178,6 +201,8 @@ def list_adventures(campaign_id: str | None = None) -> list[dict[str, str]]:
         if char_id is None:
             meta = _read_json(ADVENTURES_DIR / a["id"] / "adventure.json", {})
             char_id = str(meta.get("character_id") or "").strip()
+        else:
+            meta = _read_json(ADVENTURES_DIR / a["id"] / "adventure.json", {})
         rows.append(
             {
                 "id": a["id"],
@@ -188,6 +213,7 @@ def list_adventures(campaign_id: str | None = None) -> list[dict[str, str]]:
                 "sequence": a.get("sequence"),
                 "source_module": a.get("source_module"),
                 "character_id": char_id or "",
+                "game_id": str(meta.get("game_id") or a.get("game_id") or "dnd5e"),
             }
         )
     if campaign_id:
@@ -339,6 +365,7 @@ def create_session(
         "character_id": character_id,
         "adventure_id": adventure_id,
         "include_faerun": include_faerun,
+        "extras": {},
         "created_at": _now_iso(),
         "updated_at": _now_iso(),
     }
@@ -365,6 +392,14 @@ def update_session(session_id: str, updates: dict) -> None:
     path = SESSIONS_DIR / session_id / "session.json"
     meta = _read_json(path, {})
     meta.update(updates)
+    meta["updated_at"] = _now_iso()
+    _write_json(path, meta)
+
+
+def update_session_extras(session_id: str, extras: dict) -> None:
+    path = SESSIONS_DIR / session_id / "session.json"
+    meta = _read_json(path, {})
+    meta["extras"] = extras
     meta["updated_at"] = _now_iso()
     _write_json(path, meta)
 

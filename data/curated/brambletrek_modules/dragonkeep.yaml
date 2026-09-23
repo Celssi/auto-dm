@@ -1,0 +1,824 @@
+id: dragonkeep
+label: Dungeons of Dragonkeep
+source:
+  pdf: brambletrek/Brambletrek_-_Complete_Digital_Edition.pdf
+  printed_pages:
+    path:
+    - 59
+    - 60
+    - 61
+    exploration:
+    - 64
+    - 66
+    - 68
+    combat:
+    - 65
+    - 67
+    - 69
+    eolan:
+    - 70
+    - 72
+    - 76
+    - 77
+    - 78
+    - 79
+    - 80
+    - 81
+    - 82
+play:
+  journey_cards_per_day: 3
+  use_core_depths: false
+  use_core_combat: false
+  reason_key: band
+  default_scene_table: path_of_tempest
+journey_heading: '**Dragonkeep exploration** — three events per path section'
+path_locations:
+  '1':
+    title: Trees
+    body: Trees — Amidst the dense forest, a clearing reveals an ancient tree. Its branches stretch skyward,
+      whispering secrets of the ages. The air feels alive with the spirit of the forest, offering a moment
+      of tranquillity and a sense of connection with nature's timeless rhythm.
+  '2':
+    title: Forgotten Equipment
+    body: Forgotten Equipment — In a secluded nook, you stumble upon remnants of a past traveller's equipment.
+      The items lay scattered, touched by time and the elements, hinting at tales untold and adventures
+      that once echoed through these woods.
+    suit_outcomes:
+      hearts:
+        label: A well-preserved backpack contains useful supplies. (+3 Supplies)
+        supplies: 3
+      diamonds:
+        label: A map among the equipment reveals a shortcut. (+2 Morale)
+        morale: 2
+      clubs:
+        label: A trap set by a previous adventurer springs. (-3 Health)
+        health: -3
+      spades:
+        label: The equipment crumbles to dust as you touch it. (-1 Morale)
+        morale: -1
+  '3':
+    title: Crates
+    body: Crates — Hidden under a canopy of leaves, a stack of wooden crates awaits. Weathered and worn,
+      they are silent sentinels of forgotten supplies or secrets. What stories do they hold? What purpose
+      did they once serve in this secluded forest?
+  '4':
+    title: Cave Door
+    body: Cave Door — Right at the edge of the forest, a small cave opening is visible, about the size
+      of a small rodent, vines seem to drape over the top. As you get closer, you hear a slight hum, it
+      vibrates your ears slightly, and you get the feeling of magical energy coursing through your tiny
+      hands. If you decide to take your steps inside and travel within, please turn to the next section…
+    suit_outcomes:
+      hearts:
+        label: You find a tranquil spot under a grand, ancient tree. (+2 Morale)
+        morale: 2
+      diamonds:
+        label: A tree with carvings reveals a hidden compartment. (ITEM) (+1 Supplies)
+        supplies: 1
+        tags:
+        - item
+      clubs:
+        label: You find nothing of note near the trees.
+      spades:
+        label: A seemingly benign tree suddenly drops a branch. (-2 Health)
+        health: -2
+  '5':
+    title: Old Bonfire
+    body: Old Bonfire — A circle of stones, blackened by old flames, speaks of a campfire long extinguished.
+      Ashes and charred wood paint a picture of travellers resting here, sharing tales and warmth before
+      continuing their journey into the unknown.
+  '6':
+    title: Runic Stone
+    body: Runic Stone — In a quiet part of the forest stands a mysterious runic stone. Its ancient carvings
+      pulse with a latent power, a relic of forgotten magic. The runes, etched by hands long gone, beckon
+      with their arcane promise and hidden knowledge.
+    suit_outcomes:
+      hearts:
+        label: The rune starts to glow. (Dwarf Rune - Take 1 less damage per turn in next combat)
+      diamonds:
+        label: The runes reveal the location of a hidden treasure. (+3 Supplies)
+        supplies: 3
+      clubs:
+        label: The stone awakens a guardian. (Combat — King) (Use core rulebook combat info)
+        combat: true
+      spades:
+        label: Misspeaking the runes triggers an attack. (-2 Health)
+        health: -2
+  '7':
+    title: A Small Duck Pond
+    body: A Small Duck Pond — Nestled in a quiet grove, you discover a serene duck pond. The water, clear
+      and calm, reflects the lush greenery and the soft blue of the sky. Ducks glide gracefully across
+      the surface, undisturbed by the world outside their tranquil haven.
+    suit_outcomes:
+      hearts:
+        label: The log nearby has a small folded note about having confidence. (+2 Morale)
+        morale: 2
+      diamonds:
+        label: Around the bonfire, you find a peaceful spot to rest. (+2 Health)
+        health: 2
+      clubs:
+        label: The smoke attracts attention. (Combat — Jack) (Use core rulebook combat info)
+        combat: true
+      spades:
+        label: A seemingly benign tree suddenly drops a branch. (-2 Health)
+        health: -2
+exploration_tables:
+  path_of_tempest:
+    '2':
+      label: Find a small pond with healing properties.
+      health: 2
+    '3':
+      label: Discover a mural depicting ancient water rituals.
+      morale: 3
+    '4':
+      label: Encounter a harmless water creature. Gain an aquatic ally.
+    '5':
+      label: Stumble upon a cascading underground waterfall.
+      morale: 5
+    '6':
+      label: Find a pathway lined with precious pearls.
+      morale: 3
+    '7':
+      label: Slip on wet stones, injuring yourself slightly.
+      health: -2
+    '8':
+      label: A hidden grotto offers safe rest and fresh water.
+      supplies: 8
+    '9':
+      label: Discover an ancient, water-damaged tome. (ITEM — Tome of Water — Once per day you can use
+        a turn in combat to flood, deal 3 damage to opponent and stun for one turn.)
+      tags:
+      - item
+    '10':
+      label: A flooded area requires careful navigation.
+      morale: 10
+    jack:
+      label: 'Encounter an aggressive water elemental. (Combat: Water Elemental)'
+      combat: true
+    queen:
+      label: 'Face off against a guardian naiad. (Combat: Naiad)'
+      combat: true
+    king:
+      label: 'A giant crab guards a treasure trove. (Combat: Giant Crab)'
+      combat: true
+    ace:
+      label: 'Unearth a submerged treasure chest. (ITEM: Shell of the Depths — Once per day during combat,
+        blow the shell, deal 5 damage to opponent & reduce their damage by -3 for two turns)'
+      tags:
+      - item
+  path_of_pyre:
+    ace:
+      label: 'Unearth a legendary Emberstone. (ITEM — Emberstone: When used in combat it deals 5 damage,
+        and burns the opponent for 2 damage over the next two turns)'
+      tags:
+      - item
+    '2':
+      label: 'Discover a heat-resistant cloak. (ITEM — Flameguard Cloak: Reduces fire-based damage by
+        2)'
+      tags:
+      - item
+    '3':
+      label: Find a small, warm spring, rejuvenating your spirit.
+      morale: 3
+    '4':
+      label: Encounter a harmless salamander basking in the heat.
+      supplies: 2
+    '5':
+      label: Stumble upon ancient, fire-etched runes.
+      morale: 5
+    '6':
+      label: Navigate through a field of geothermal vents.
+      health: -2
+    '7':
+      label: 'Discover a forge with tools. (ITEM — Forged Bond: Your attacks deal +2 damage)'
+      tags:
+      - item
+    '8':
+      label: A hidden chamber offers a restful haven.
+      supplies: 8
+    '9':
+      label: Find a scorched, but valuable, gemstone.
+      supplies: 3
+    '10':
+      label: A river of lava requires careful crossing.
+      health: -3
+    jack:
+      label: 'Face a fire elemental. (Combat: Elemental of Embers)'
+      combat: true
+    queen:
+      label: 'Encounter a molten golem. (Combat: Golem)'
+      combat: true
+    king:
+      label: 'Challenge a Firebird. (Combat: Firebird)'
+      combat: true
+  path_of_leaf:
+    '2':
+      label: A healing herb patch.
+      health: 2
+    '3':
+      label: A tranquil clearing bathed in sunlight.
+      morale: 3
+    '4':
+      label: Friendly forest spirits guide you.
+      supplies: 4
+    '5':
+      label: 'Discover a druid''s lost staff. (ITEM — Druid''s Staff: Deals 3 damage, heals 1 health)'
+      tags:
+      - item
+    '6':
+      label: Path blocked by thorny vines.
+      health: -2
+    '7':
+      label: Stumble upon a pool of crystal-clear water.
+      supplies: 7
+    '8':
+      label: A grove of nourishing fruit trees.
+      supplies: 8
+    '9':
+      label: A sleeping forest guardian blocks the way. (Combat)
+      combat: true
+    '10':
+      label: A maze of dense undergrowth.
+      morale: -3
+    jack:
+      label: 'Encounter an enchanted treant. (Combat: Treant)'
+      combat: true
+    queen:
+      label: 'Face off against a woodland sprite. (Combat: Sprite)'
+      combat: true
+    king:
+      label: 'A territorial forest drake emerges. (Combat: Forest Wyrm)'
+      combat: true
+    ace:
+      label: 'Discover the Heart of the Forest. (ITEM — Heart of the Forest: Restores 5 health, next tactic
+        you use will also deal +3 damage)'
+      tags:
+      - item
+combat:
+  opponent_by_rank:
+    path_of_tempest:
+      jack: water_elemental
+      queen: naiad
+      king: king_crab
+    path_of_pyre:
+      jack: fire_elemental
+      queen: molten_golem
+      king: firebird
+    path_of_leaf:
+      '9': forest_elemental
+      jack: enchanted_treant
+      queen: woodland_sprite
+      king: forest_wyrm
+  opponents:
+    water_elemental:
+      label: Water Elemental
+      health: 14
+      tactics:
+        2-4:
+          label: 'Soothing Melody: Lowers damage taken by 1 next 3 turns.'
+          opponent_armor: 1
+          opponent_armor_turns: 3
+        5-7:
+          label: 'Aqua Dart: Shoots a quick water dart, dealing 2 damage.'
+          damage: 2
+        8-10:
+          label: 'Mystic Bubble: Reduces the next damage taken by half (rounded up).'
+          opponent_halve_next: 1
+        jack:
+          label: 'Siren''s Song: Causes the player to skip their next turn.'
+          skip_turn: true
+        queen:
+          label: 'Stream Heal: Restores 4 health points to itself.'
+          heal: 4
+        king:
+          label: 'Cascade Strike: A flurry of water strikes, dealing 3 damage.'
+          damage: 3
+        ace:
+          label: 'Flood Pulse: Deals 5 damage and reduces the player''s next attack by 2.'
+          damage: 5
+          reduce_player_damage: 2
+          reduce_player_damage_turns: 1
+    king_crab:
+      label: King Crab
+      health: 16
+      tactics:
+        2-4:
+          label: 'Brackish Snap: Quick pincer attack, dealing 2 damage.'
+          damage: 2
+        5-7:
+          label: 'Shell Guard: Reduces next damage taken by half (rounded up).'
+          opponent_halve_next: 1
+        8-10:
+          label: 'Tidal Pincer: Strong claw attack, dealing 3 damage.'
+          damage: 3
+        jack:
+          label: 'Saltwater Spray: Reduces player''s attack damage by 3 next turn.'
+          reduce_player_damage: 3
+          reduce_player_damage_turns: 1
+        queen:
+          label: 'Dangerous Waters: Deal 2 damage to the player for next 3 turns.'
+          damage: 2
+        king:
+          label: 'Crushing Claw: Powerful grip, dealing 4 damage.'
+          damage: 4
+        ace:
+          label: 'Ocean''s Fury: Ally deals 5 damage; reduce damage taken by 3 next turn.'
+          damage: 5
+    naiad:
+      label: Naiad
+      health: 12
+      tactics:
+        2-4:
+          label: 'Ripple Strike: Quick water lash, dealing 2 damage.'
+          damage: 2
+        5-7:
+          label: 'Mist Veil: Evades the next attack.'
+          opponent_evades_next: 1
+        8-10:
+          label: 'Surge Blast: Strong water jet, dealing 3 damage.'
+          damage: 3
+        jack:
+          label: 'Whirlpool Spin: Reduces player''s attack by 1 next turn.'
+          reduce_player_damage: 1
+          reduce_player_damage_turns: 1
+        queen:
+          label: 'Hydro Heal: Restores 2 health points to itself.'
+          heal: 2
+        king:
+          label: 'Tidal Wave: Powerful wave attack, dealing 4 damage.'
+          damage: 4
+        ace:
+          label: 'Abyssal Torrent: Deals 5 damage and stuns the player next turn.'
+          damage: 5
+          skip_turn: true
+    fire_elemental:
+      label: Elemental of Embers
+      health: 14
+      tactics:
+        2-4:
+          label: 'Flame Lash: Strikes with fiery tendrils, dealing 2 damage.'
+          damage: 2
+        5-7:
+          label: 'Blazing Shield: Reduces damage by 2.'
+          opponent_armor: 2
+          opponent_armor_turns: 1
+        8-10:
+          label: 'Inferno Burst: Fiery explosion, dealing 3 damage.'
+          damage: 3
+        jack:
+          label: 'Cinder Dance: Disorients the player, reducing attack by 2 next turn.'
+          reduce_player_damage: 2
+          reduce_player_damage_turns: 1
+        queen:
+          label: 'Flame Renewal: Restores 3 health to itself.'
+          heal: 3
+        king:
+          label: 'Volcanic Strike: Deals 4 damage.'
+          damage: 4
+        ace:
+          label: 'Inferno: Deals 5 damage and burns for 2 over next 2 turns.'
+          damage: 5
+    molten_golem:
+      label: Molten Golem
+      health: 18
+      tactics:
+        2-4:
+          label: 'Lava Throw: Hurls molten rock, dealing 2 damage.'
+          damage: 2
+        5-7:
+          label: 'Rocky Armour: Halves the next attack''s damage.'
+        8-10:
+          label: 'Magma Surge: Erupts with molten lava, dealing 3 damage.'
+          damage: 3
+        jack:
+          label: 'Quake Stomp: Increase damage dealt by 2 for 2 turns.'
+        queen:
+          label: 'Regeneration: Heals 2 health per turn for 3 turns.'
+          heal: 2
+        king:
+          label: 'Volcanic Smash: Deals 4 damage.'
+          damage: 4
+        ace:
+          label: 'Eruption: Deals 5 damage and stuns the player next turn.'
+          damage: 5
+          skip_turn: true
+    firebird:
+      label: Firebird
+      health: 15
+      tactics:
+        2-4:
+          label: 'Fiery Plume: Swoops with a fiery attack, dealing 2 damage.'
+          damage: 2
+        5-7:
+          label: 'Wing Gust: Reduces the player''s attack by 2 until end of turn.'
+          reduce_player_damage: 2
+          reduce_player_damage_turns: 1
+        8-10:
+          label: 'Blaze Dive: Dives in a ball of fire, dealing 3 damage.'
+          damage: 3
+        jack:
+          label: 'Rebirth: If defeated, restores half health once (redraw if drawn again).'
+        queen:
+          label: 'Scorching Cry: Reduces player''s defence.'
+        king:
+          label: 'Solar Flare: Deals 4 damage.'
+          damage: 4
+        ace:
+          label: 'Pyre Burst: Deals 5 damage and 1 damage per turn for 2 turns.'
+          damage: 5
+    forest_elemental:
+      label: Forest Elemental
+      health: 14
+      tactics:
+        2-4:
+          label: 'Barkskin: Reduces incoming damage by 2 for 3 turns.'
+          opponent_armor: 2
+          opponent_armor_turns: 3
+        5-7:
+          label: 'Root Snare: Reduces player''s damage by 2 for 2 turns.'
+          reduce_player_damage: 2
+          reduce_player_damage_turns: 2
+        8-10:
+          label: 'Leafstorm: Whirls leaves to deal 2 damage.'
+          damage: 2
+        jack:
+          label: 'Nature''s Embrace: Restores 1 health for the next 3 turns.'
+          heal: 1
+        queen:
+          label: 'Entangling Vines: Player skips a turn.'
+          skip_turn: true
+        king:
+          label: 'Crushing Limbs: Deals 4 damage.'
+          damage: 4
+        ace:
+          label: 'Ancient Growth: Restores 5 health and +4 damage on next tactic.'
+          heal: 5
+    enchanted_treant:
+      label: Enchanted Treant
+      health: 20
+      tactics:
+        2-4:
+          label: 'Branch Whip: Strikes with a long branch, dealing 3 damage.'
+          damage: 3
+        5-7:
+          label: 'Sap Coating: Reduces damage taken by 3.'
+        8-10:
+          label: 'Twig Barrage: 2 damage per turn for 3 turns.'
+          damage: 2
+        jack:
+          label: 'Woodland Stealth: Evades the next tactic card.'
+          opponent_evades_next: 1
+        queen:
+          label: 'Healing Roots: Heals 5 health points.'
+          heal: 5
+        king:
+          label: 'Timber Smash: Deals 7 damage to opponent and 4 to itself.'
+          damage: 7
+        ace:
+          label: 'Forest''s Fury: 2 damage per turn for 2 turns.'
+          damage: 2
+    woodland_sprite:
+      label: Woodland Sprite
+      health: 10
+      tactics:
+        2-4:
+          label: 'Sparkle Dust: Player attacks reduced by 2 damage for 3 turns.'
+        5-7:
+          label: 'Healing Chant: Heals itself by 4.'
+          heal: 4
+        8-10:
+          label: 'Nature''s Strike: Deals 4 damage.'
+          damage: 4
+        jack:
+          label: 'Illusion: Player skips their next turn.'
+          skip_turn: true
+        queen:
+          label: 'Wind Dance: Evades the next attack.'
+          evade: true
+        king:
+          label: 'Sprite''s Mischief: Steals the last item found by the player.'
+        ace:
+          label: 'Enchanted Whirl: Deals 3 damage; player skips next 2 turns.'
+          damage: 3
+    forest_wyrm:
+      label: Forest Wyrm
+      health: 18
+      tactics:
+        2-4:
+          label: 'Claw Rake: Deals 3 damage.'
+          damage: 3
+        5-7:
+          label: 'Scale Armour: Halves next damage.'
+        8-10:
+          label: 'Tail Sweep: Deals 4 damage.'
+          damage: 4
+        jack:
+          label: 'Roar: Player skips next turn.'
+          skip_turn: true
+        queen:
+          label: 'Regenerate: Heals 3 health.'
+          heal: 3
+        king:
+          label: 'Crushing Bite: Deals 5 damage.'
+          damage: 5
+        ace:
+          label: 'Forest Wrath: Deals 6 damage.'
+          damage: 6
+    aerith:
+      label: Aerith, Keeper of the Moon
+      health: 60
+      tactics: {}
+    ratkin_ambush:
+      label: Ratkin Ambush
+      health: 10
+      tactics: {}
+  eolan:
+    antechamber:
+      body: Eolan tends his wound beside a makeshift camp. Thistle the squirrel watches from his staff.
+        He seeks the Moon Dragon's treasure and proposes an alliance — together you may reach what he
+        could not alone.
+    door:
+      body: The Door of Lunar Light bears a cryptic riddle. A slot fits the Oracle's relic; placing it
+        opens the way to the Deep Chambers.
+      requires: oracle_relic
+    chambers:
+      body: Wealth and a chained lunar drake fill the cavern. Aerith descends from the shadows — the guardian
+        of the smaller drake. Combat with Eolan at your side is inevitable.
+    combat_rules:
+      body: 'Turn order: Aerith → You → Eolan. Each phase: discard hand and redraw 4 tactic cards. Survive
+        one of each Aerith attack type to complete a phase (or meet damage goals). Red Ace/King on Eolan''s
+        draw grants Critical Chance (double damage on your next damaging tactic). Two red face cards in
+        a row completes the phase immediately.'
+    aerith_phases:
+      '1':
+        label: Phase 1 — Lunar Fury
+        goal: Deal 20 damage to Aerith collectively OR survive 4 rounds.
+        damage_goal: 20
+        rounds_goal: 4
+        bands_goal: 7
+        aerith_tactics:
+          2-4:
+            label: 'Shadow Swipe: Claw strike dealing 2 damage.'
+            damage: 2
+          5-7:
+            label: 'Wing Gust: Reduces your next attack by 1.'
+            reduce_player_damage: 1
+            reduce_player_damage_turns: 1
+          8-10:
+            label: 'Tail Whip: Deals 3 damage.'
+            damage: 3
+          jack:
+            label: 'Lunar Roar: You miss your next turn.'
+            skip_turn: true
+          queen:
+            label: 'Darkened Flame: Deals 4 damage.'
+            damage: 4
+          king:
+            label: 'Nightfall Embrace: Your damage reduced by 3 next turn.'
+            reduce_player_damage: 3
+            reduce_player_damage_turns: 1
+          ace:
+            label: 'Eclipse Fury: Deals 5 damage; next attack −2.'
+            damage: 5
+            reduce_player_damage: 2
+            reduce_player_damage_turns: 1
+        eolan_tactics:
+          2-4:
+            label: 'Quick Shot: Deals 2 damage.'
+            damage: 2
+          5-7:
+            label: 'Defend: Halves Aerith''s next attack against you.'
+            halve_incoming_turns: 1
+          8-10:
+            label: 'Strategic Strike: Deals 3 damage.'
+            damage: 3
+          jack:
+            label: 'Coordinated Attack: +2 damage for your next 2 turns.'
+            damage_bonus: 2
+            damage_bonus_turns: 2
+          queen:
+            label: 'Healing Herb: Heals you 2 health.'
+            heal: 2
+          king:
+            label: 'Flank Move: Your next attack +3 damage. (CRITICAL)'
+            critical: true
+          ace:
+            label: 'Desperate Blow: Deals 4 damage. (CRITICAL)'
+            damage: 4
+            critical: true
+        items:
+          2-4:
+            label: Whispering Wind Chime
+            effect: Reduces Aerith's attack by 1 next turn.
+            reduce_opponent_damage: 1
+          5-7:
+            label: Emberheart Pendant
+            effect: Immunity to fire attacks for two turns.
+            halve_incoming_turns: 2
+          8-10:
+            label: Lunarsteel Blade
+            effect: Deals 3 damage; +1 attack next turn.
+            damage: 3
+          jack:
+            label: Shade Cloak
+            effect: Avoid one Aerith attack.
+            evade_next: 1
+          queen:
+            label: Starlight Elixir
+            effect: Restores 4 health.
+            heal: 4
+          king:
+            label: Dawnbreaker Shield
+            effect: Halves Aerith's next two attacks.
+            halve_incoming_turns: 2
+          ace:
+            label: Phoenix Feather Charm
+            effect: Deals 5 damage; Aerith skips next turn.
+            damage: 5
+            skip_opponent_turns: 1
+      '2':
+        label: Phase 2 — Darkened Assault
+        goal: Deal 20 damage OR survive 4 rounds.
+        damage_goal: 20
+        rounds_goal: 4
+        bands_goal: 7
+        aerith_tactics:
+          2-4:
+            label: 'Darkened Talons: 3 damage for two turns.'
+            damage: 3
+          5-7:
+            label: 'Shadow Breath: Reduces your attack by 2 next turn.'
+            reduce_player_damage: 2
+            reduce_player_damage_turns: 1
+          8-10:
+            label: 'Lunar Strike: Deals 4 damage.'
+            damage: 4
+          jack:
+            label: 'Eclipse Swoop: You miss your next turn.'
+            skip_turn: true
+          queen:
+            label: 'Nightshade Flames: Deals 5 damage.'
+            damage: 5
+          king:
+            label: 'Veil of Darkness: Your attacks miss for 2 turns.'
+            player_attacks_miss_turns: 2
+          ace:
+            label: 'Fury of the Night Sky: Deals 6 damage.'
+            damage: 6
+        eolan_tactics:
+          2-4:
+            label: 'Arrow of Light: Deals 3 damage.'
+            damage: 3
+          5-7:
+            label: 'Shield of Valour: Halves Aerith''s next attack.'
+            halve_incoming_turns: 1
+          8-10:
+            label: 'Warrior''s Finesse: Deals 4 damage.'
+            damage: 4
+          jack:
+            label: 'Duo Assault: +2 damage on your next attack.'
+            damage_bonus: 2
+            damage_bonus_turns: 1
+          queen:
+            label: 'Herbal Remedy: Heals you 3 health.'
+            heal: 3
+          king:
+            label: 'Tactical Retreat: +4 damage on your next attack. (CRITICAL)'
+            critical: true
+          ace:
+            label: 'Heroic Charge: Deals 5 damage. (CRITICAL)'
+            damage: 5
+            critical: true
+        items:
+          2-4:
+            label: Starlit Sash
+            effect: +1 attack for two turns.
+            damage_bonus: 1
+            damage_bonus_turns: 2
+          5-7:
+            label: Ember of Courage
+            effect: Nullifies Aerith's next attack.
+            evade_next: 1
+          8-10:
+            label: Moonbeam Flask
+            effect: Restores 5 health.
+            heal: 5
+          jack:
+            label: Twilight Dagger
+            effect: Deals 4 damage; Aerith −3 next attack.
+            damage: 4
+            reduce_opponent_damage: 3
+          queen:
+            label: Shield of Dawn
+            effect: Halves Aerith's next three attacks.
+            halve_incoming_turns: 3
+          king:
+            label: Comet's Heart
+            effect: Deals 6 damage; stuns Aerith.
+            damage: 6
+            skip_opponent_turns: 1
+          ace:
+            label: Eclipse Orb
+            effect: Deals 7 damage; +3 on your next attack.
+            damage: 7
+            damage_bonus: 3
+            damage_bonus_turns: 1
+      '3':
+        label: Phase 3 — Cosmic Wrath
+        goal: Deal 25 damage OR survive 5 rounds.
+        damage_goal: 25
+        rounds_goal: 5
+        bands_goal: 7
+        aerith_tactics:
+          2-4:
+            label: 'Nightmare Claws: Deals 4 damage.'
+            damage: 4
+          5-7:
+            label: 'Shadow Maelstrom: Your attack −3 next turn.'
+            reduce_player_damage: 3
+            reduce_player_damage_turns: 1
+          8-10:
+            label: 'Lunar Fury: Deals 5 damage.'
+            damage: 5
+          jack:
+            label: 'Dread Dive: You lose your next turn.'
+            skip_turn: true
+          queen:
+            label: 'Dark Nova: Deals 6 damage.'
+            damage: 6
+          king:
+            label: 'Eclipse''s Embrace: Your damage −3 for 3 turns.'
+            reduce_player_damage: 3
+            reduce_player_damage_turns: 3
+          ace:
+            label: 'Cosmic Wrath: Deals 7 damage.'
+            damage: 7
+        eolan_tactics:
+          2-4:
+            label: 'Light of Hope: Deals 4 damage.'
+            damage: 4
+          5-7:
+            label: 'Guardian''s Shield: Reflects Aerith''s next attack.'
+            reflect_next: 1
+          8-10:
+            label: 'Final Strike: Deals 5 damage.'
+            damage: 5
+          jack:
+            label: 'United Front: +3 damage on your next attack.'
+            damage_bonus: 3
+            damage_bonus_turns: 1
+          queen:
+            label: 'Lifespring Herb: Regain 4 health per turn for 2 turns.'
+            heal: 4
+            heal_per_turn_turns: 2
+          king:
+            label: 'Daring Feint: 6 damage to Eolan, 3 to you. (CRITICAL)'
+            damage: 6
+            self_damage: 3
+            critical: true
+          ace:
+            label: 'Valiant Rush: Deals 6 damage. (CRITICAL)'
+            damage: 6
+            critical: true
+        items:
+          2-4:
+            label: Gleaming Star Orb
+            effect: +2 attack next turn.
+            damage_bonus: 2
+            damage_bonus_turns: 1
+          5-7:
+            label: Mantle of Shadows
+            effect: Avoid Aerith's next attack.
+            evade_next: 1
+          8-10:
+            label: Flameheart Talisman
+            effect: Deals 4 damage; fire ward 2 turns.
+            damage: 4
+            halve_incoming_turns: 2
+          jack:
+            label: Lunar Shard
+            effect: Aerith's next two attacks −5.
+            reduce_opponent_damage: 5
+            reduce_opponent_damage_turns: 2
+          queen:
+            label: Eclipse Arrow
+            effect: Deals 5 damage; Aerith −1 attack.
+            damage: 5
+            reduce_opponent_damage: 1
+          king:
+            label: Duskblade Dagger
+            effect: Deals 6 damage; dodge one attack.
+            damage: 6
+            evade_next: 1
+          ace:
+            label: Celestial Shield
+            effect: Deals 7 damage; halves next attack.
+            damage: 7
+            halve_incoming_turns: 1
+    finale:
+      body: After Aerith falls, the lunar drake awakens. The key clatters down. Eolan asks whether to
+        free the drake or claim the treasure — the key shatters after one use. There is no wrong answer;
+        you exit via a secret door to the forest.
+notes:
+- Path to Dragonkeep uses numbered locations with suit draws.
+- Gem paths use exploration_tables (rank-only, 3 cards each).
+- Elemental opponents and Eolan finale use module combat tables.

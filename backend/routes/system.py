@@ -5,7 +5,14 @@ from __future__ import annotations
 from fastapi import APIRouter
 from pydantic import BaseModel
 
-from backend.config import ANTHROPIC_API_KEY, CLAUDE_CHAT_MODEL, COLLECTION_NAME, LANGSMITH_ENABLED, LANGSMITH_ENDPOINT, LANGSMITH_PROJECT
+from backend.config import (
+    ANTHROPIC_API_KEY,
+    CLAUDE_CHAT_MODEL,
+    COLLECTION_NAME,
+    LANGSMITH_ENABLED,
+    LANGSMITH_ENDPOINT,
+    LANGSMITH_PROJECT,
+)
 from backend.games.registry import get_game, list_games
 from backend.glossary import glossary_payload, lookup_entries
 from backend.rag.engine import query_rules

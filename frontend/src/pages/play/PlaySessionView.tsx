@@ -1,27 +1,19 @@
-import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { m, AnimatePresence } from '../../lib/framer';
 import { Swords } from 'lucide-react';
-import type {
-  ChatMessage,
-  AuditEvent,
-  CombatStateSnapshot,
-  PlayerProgress,
-  Source,
-  SpellConfirmation,
-} from '../../api/client';
+import type { ChatMessage, PlayerProgress, SpellConfirmation } from '../../api/client';
 import type { Character } from '../../types';
 import PlayCharacterSidebar from '../../components/play/PlayCharacterSidebar';
+import PlayToolsPanel from '../../components/play/PlayToolsPanel';
 import ListLoading from '../../components/ui/ListLoading';
 import { fadeUp } from '../../components/ui/motion';
 import { displayLabel } from '../../lib/displayText';
 import AnimatedPage from '../../components/ui/AnimatedPage';
 import ChatMarkdown from '../../components/play/ChatMarkdown';
-import MarkdownContent from '../../components/ui/MarkdownContent';
+import { getGamePlayConfig } from '../../games/play/registry';
 import type { PlayState, DiceModalState } from './playState';
 import type { JournalEntity } from '../../api/client';
 import DiceRollModal from '../../components/play/DiceRollModal';
-import { formatAuditSummary, formatAuditTime, isInferredAudit } from './auditSummary';
 
 interface Props {
   state: PlayState;
@@ -37,6 +29,15 @@ interface Props {
   onDiceModalUpdate: (patch: Partial<DiceModalState>) => void;
   onDiceModalSubmit: (preRolled?: number[]) => void;
   onDiceModalClose: () => void;
+  onJourneyApply: (index: number) => Promise<{ summary?: string; item_error?: string | null }>;
+  onJourneyDrawItem: (index: number) => Promise<{ item_error?: string | null }>;
+  onJourneyFinish: () => Promise<void>;
+  onJourneyDiscard: () => Promise<void>;
+  onJourneyStartCombat: (index: number) => Promise<void>;
+  onDragonkeepAction: (action: string) => Promise<void>;
+  onDragonkeepInit: () => Promise<void>;
+  onBrambletrekCombatAction: (action: string, handIndex?: number) => Promise<void>;
+  onCombatAction: (action: string, targetId?: string) => Promise<void>;
 }
 
 export default function PlaySessionView({
@@ -53,6 +54,15 @@ export default function PlaySessionView({
   onDiceModalUpdate,
   onDiceModalSubmit,
   onDiceModalClose,
+  onJourneyApply,
+  onJourneyDrawItem,
+  onJourneyFinish,
+  onJourneyDiscard,
+  onJourneyStartCombat,
+  onDragonkeepAction,
+  onDragonkeepInit,
+  onBrambletrekCombatAction,
+  onCombatAction,
 }: Props) {
   const {
     sessionLoaded,
@@ -79,8 +89,17 @@ export default function PlaySessionView({
     startingNext,
     campaignId,
     combatState,
+    brambletrekCombat,
     diceModal,
+    pendingJourney,
+    dragonkeep,
+    sessionId,
   } = state;
+
+  const activeAdventure = String(character?.active_adventure ?? '');
+
+  const gameId = character?.game_id ?? 'dnd5e';
+  const playConfig = getGamePlayConfig(gameId);
 
   return (
     <AnimatedPage className="lg:flex-1 lg:min-h-0 lg:h-full grid grid-cols-1 lg:grid-cols-12 lg:grid-rows-1 gap-3 lg:overflow-hidden">
@@ -122,6 +141,12 @@ export default function PlaySessionView({
       </main>
 
       <PlayToolsPanel
+        gameId={gameId}
+        sessionId={sessionId}
+        characterId={characterId}
+        pendingJourney={pendingJourney}
+        dragonkeep={dragonkeep}
+        activeAdventure={activeAdventure}
         oracles={oracles}
         shortcuts={shortcuts}
         lonelog={lonelog}
@@ -129,12 +154,22 @@ export default function PlaySessionView({
         sources={sources}
         loading={loading}
         combatState={combatState}
+        brambletrekCombat={brambletrekCombat}
         onRunOracle={onRunOracle}
         onRunShortcut={onRunShortcut}
+        onJourneyApply={onJourneyApply}
+        onJourneyDrawItem={onJourneyDrawItem}
+        onJourneyFinish={onJourneyFinish}
+        onJourneyDiscard={onJourneyDiscard}
+        onJourneyStartCombat={onJourneyStartCombat}
+        onDragonkeepAction={onDragonkeepAction}
+        onDragonkeepInit={onDragonkeepInit}
+        onBrambletrekCombatAction={onBrambletrekCombatAction}
+        onCombatAction={onCombatAction}
       />
 
       <AnimatePresence>
-        {diceModal && character && (
+        {diceModal && character && playConfig.usesDiceModal && (
           <DiceRollModal
             modal={diceModal}
             abilityScores={character.ability_scores ?? {}}
@@ -165,7 +200,7 @@ function PlayCharacterPanel({
   return (
     <aside className="lg:col-span-3 panel-glow overflow-y-auto p-3 flex flex-col gap-3 min-h-0">
       <div className="flex items-center justify-between gap-2 shrink-0">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted">Character</h2>
+        <h2 className="section-heading">Character</h2>
         {character && characterId && (
           <Link
             to={`/characters/${characterId}`}
@@ -181,7 +216,7 @@ function PlayCharacterPanel({
         <p className="text-sm text-muted">Loading…</p>
       )}
       <div className="rounded-lg border border-border bg-bg/40 p-3 space-y-2 shrink-0">
-        <p className="text-xs font-semibold uppercase tracking-wider text-muted">Story so far</p>
+        <p className="section-heading">Story so far</p>
         {playerProgress?.adventure_complete ? (
           <p className="text-sm text-accent">Adventure complete.</p>
         ) : playerProgress?.stage ? (
@@ -259,7 +294,7 @@ function PlayChatArea({
               className="flex flex-col items-center justify-center h-full min-h-[12rem] text-center px-6"
             >
               <Swords className="text-accent/40 mb-4" size={36} />
-              <p className="font-display text-lg text-gray-300">Ready to begin</p>
+              <p className="display-title text-lg">Ready to begin</p>
               <p className="text-sm text-muted mt-2 max-w-md mb-5">
                 The DM will write the opening scene and drop you into the action.
               </p>
@@ -280,7 +315,7 @@ function PlayChatArea({
               className="flex flex-col items-center justify-center min-h-[12rem] text-center px-6"
             >
               <Swords className="text-accent/40 mb-4 animate-pulse" size={36} />
-              <p className="font-display text-lg text-gray-300">Setting the scene…</p>
+              <p className="display-title text-lg">Setting the scene…</p>
               <p className="text-sm text-muted mt-2">Writing the opening scene (30-60 s)</p>
             </m.div>
           )}
@@ -411,195 +446,6 @@ function PlayChatInput({
           Send
         </button>
       </div>
-    </div>
-  );
-}
-
-function visibleLonelogLines(lonelog: string[]): string[] {
-  const lines: string[] = [];
-  for (const line of lonelog.slice(-24)) {
-    const trimmed = line.trim();
-    if (!trimmed) continue;
-    if (/^#+\s/.test(trimmed)) continue;
-    if (/^_.*_$/.test(trimmed)) continue;
-    lines.push(line);
-  }
-  return lines;
-}
-
-function PlayToolsPanel({
-  oracles,
-  shortcuts,
-  lonelog,
-  auditEvents,
-  sources,
-  loading,
-  combatState,
-  onRunOracle,
-  onRunShortcut,
-}: {
-  oracles: { id: string; label: string }[];
-  shortcuts: { id: string; label: string }[];
-  lonelog: string[];
-  auditEvents: AuditEvent[];
-  sources: Source[];
-  loading: boolean;
-  combatState: CombatStateSnapshot | null;
-  onRunOracle: (id: string) => void;
-  onRunShortcut: (id: string) => void;
-}) {
-  const [logTab, setLogTab] = useState<'lonelog' | 'audit'>('lonelog');
-  const visibleLog = useMemo(() => visibleLonelogLines(lonelog), [lonelog]);
-  const visibleAudit = useMemo(() => auditEvents.slice(-30).reverse(), [auditEvents]);
-
-  return (
-    <aside className="lg:col-span-3 panel-glow overflow-hidden p-3 min-h-0 flex flex-col gap-2">
-      {combatState && combatState.status === 'active' && <CombatPanel state={combatState} />}
-      <div className="shrink-0">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Oracles</h2>
-        <div className="grid grid-cols-2 gap-1 max-h-[9rem] overflow-y-auto pr-0.5">
-          {oracles.map((o) => (
-            <button
-              key={o.id}
-              type="button"
-              className="play-chip text-left"
-              onClick={() => onRunOracle(o.id)}
-              disabled={loading}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="shrink-0">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted mb-1.5">Shortcuts</h2>
-        <div className="grid grid-cols-2 gap-1 max-h-[11rem] overflow-y-auto pr-0.5">
-          {shortcuts.map((s) => (
-            <button
-              key={s.id}
-              type="button"
-              className="play-chip text-left"
-              onClick={() => onRunShortcut(s.id)}
-              disabled={loading}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-        <div className="flex items-center gap-2 mb-1.5 shrink-0">
-          <button
-            type="button"
-            className={`text-xs font-semibold uppercase tracking-wider ${logTab === 'lonelog' ? 'text-gray-200' : 'text-muted hover:text-gray-300'}`}
-            onClick={() => setLogTab('lonelog')}
-          >
-            Lonelog
-          </button>
-          <span className="text-muted text-xs">|</span>
-          <button
-            type="button"
-            className={`text-xs font-semibold uppercase tracking-wider ${logTab === 'audit' ? 'text-gray-200' : 'text-muted hover:text-gray-300'}`}
-            onClick={() => setLogTab('audit')}
-          >
-            Audit
-          </button>
-        </div>
-        <div className="flex-1 min-h-0 rounded-md border border-border bg-bg/40 p-2 overflow-y-auto">
-          {logTab === 'lonelog' ? (
-            visibleLog.length === 0 ? (
-              <p className="text-xs text-muted italic">Session events will appear here.</p>
-            ) : (
-              <div className="space-y-2">
-                {visibleLog.map((line) => (
-                  <div
-                    key={`log-${line.slice(0, 40)}-${line.length}`}
-                    className="text-xs leading-relaxed text-gray-400 border-b border-border/40 pb-2 last:border-0 last:pb-0"
-                  >
-                    <MarkdownContent content={line} className="text-xs" />
-                  </div>
-                ))}
-              </div>
-            )
-          ) : visibleAudit.length === 0 ? (
-            <p className="text-xs text-muted italic">Mechanical audit events will appear here.</p>
-          ) : (
-            <div className="space-y-1.5">
-              {visibleAudit.map((event, idx) => (
-                <div
-                  key={`audit-${event.ts ?? idx}-${event.event}-${idx}`}
-                  className="text-xs leading-relaxed text-gray-400 border-b border-border/40 pb-1.5 last:border-0 last:pb-0"
-                >
-                  <div className="flex items-center gap-1.5 flex-wrap">
-                    <span className="text-[10px] text-muted tabular-nums">{formatAuditTime(event.ts)}</span>
-                    <span className="text-[10px] uppercase tracking-wide text-amber-200/80">
-                      {event.event.replace(/_/g, ' ')}
-                    </span>
-                    <span
-                      className={`text-[10px] px-1 py-0 rounded ${isInferredAudit(event) ? 'bg-purple-500/20 text-purple-200' : 'bg-emerald-500/15 text-emerald-200'}`}
-                    >
-                      {isInferredAudit(event) ? 'inferred' : 'code'}
-                    </span>
-                    {event.source && <span className="text-[10px] text-muted truncate">{event.source}</span>}
-                  </div>
-                  <p className="mt-0.5 text-gray-300">{formatAuditSummary(event)}</p>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-      {sources.length > 0 && (
-        <div className="shrink-0">
-          <h2 className="text-xs font-semibold uppercase tracking-wider text-muted mb-2">Sources</h2>
-          <ul className="text-xs text-muted space-y-1">
-            {sources.slice(0, 4).map((s) => (
-              <li key={`${s.source_label}-${s.page}`} className="truncate">
-                {s.source_label} p.{s.page}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </aside>
-  );
-}
-
-function CombatPanel({ state }: { state: CombatStateSnapshot }) {
-  const byId = new Map(state.combatants.map((c) => [c.id, c]));
-  return (
-    <div className="shrink-0 rounded-lg border border-red-500/30 bg-red-500/5 p-2.5 space-y-2">
-      <div className="flex items-center justify-between gap-2">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-red-300/90">Combat</h2>
-        <span className="text-[10px] text-muted">Round {state.round}</span>
-      </div>
-      <p className="text-sm font-medium text-gray-200 truncate" title={state.encounter_name}>
-        {state.encounter_name}
-      </p>
-      <ol className="space-y-1 max-h-[10rem] overflow-y-auto pr-0.5">
-        {state.order.map((id) => {
-          const c = byId.get(id);
-          if (!c) return null;
-          const isCurrent = id === state.current_combatant_id;
-          const down = c.hp <= 0;
-          return (
-            <li
-              key={id}
-              className={`text-xs rounded px-2 py-1 border ${
-                isCurrent ? 'border-accent/50 bg-accent/10 text-gray-100' : 'border-border/50 bg-bg/30 text-gray-400'
-              } ${down ? 'opacity-50 line-through' : ''}`}
-            >
-              <span className="font-medium">{c.name}</span>
-              {c.kind === 'enemy' && (
-                <span className="text-muted ml-1">
-                  HP {c.hp}/{c.max_hp} · AC {c.ac}
-                </span>
-              )}
-              {isCurrent && <span className="ml-1 text-accent text-[10px] uppercase">turn</span>}
-            </li>
-          );
-        })}
-      </ol>
     </div>
   );
 }

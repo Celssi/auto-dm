@@ -30,6 +30,15 @@ export default function PlayPage() {
     handleDiceModalSubmit,
     handleDiceModalClose,
     startNextAdventure,
+    handleJourneyApply,
+    handleJourneyDrawItem,
+    handleJourneyFinish,
+    handleJourneyDiscard,
+    handleJourneyStartCombat,
+    handleDragonkeepAction,
+    handleDragonkeepInit,
+    handleBrambletrekCombatAction,
+    handleCombatAction,
   } = usePlayPageSession(state, dispatch, loadSeqRef, campaignIdRef);
 
   useEffect(() => {
@@ -77,6 +86,15 @@ export default function PlayPage() {
       onDiceModalUpdate={handleDiceModalUpdate}
       onDiceModalSubmit={handleDiceModalSubmit}
       onDiceModalClose={handleDiceModalClose}
+      onJourneyApply={handleJourneyApply}
+      onJourneyDrawItem={handleJourneyDrawItem}
+      onJourneyFinish={handleJourneyFinish}
+      onJourneyDiscard={handleJourneyDiscard}
+      onJourneyStartCombat={handleJourneyStartCombat}
+      onDragonkeepAction={handleDragonkeepAction}
+      onDragonkeepInit={handleDragonkeepInit}
+      onBrambletrekCombatAction={handleBrambletrekCombatAction}
+      onCombatAction={handleCombatAction}
     />
   );
 }

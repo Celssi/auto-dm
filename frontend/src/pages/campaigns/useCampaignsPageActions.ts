@@ -1,6 +1,8 @@
 import { useCallback, useRef, type Dispatch } from 'react';
 import type { NavigateFunction } from 'react-router-dom';
 import { api } from '../../api/client';
+import { useToast } from '../../components/ui/toast';
+import { bootstrapBrambletrekSession } from '../../games/brambletrek/bootstrapCampaign';
 import { type CampaignsAction, type CampaignsState, type CampaignTab } from './campaignsState';
 
 export function useCampaignsPageActions(
@@ -11,6 +13,7 @@ export function useCampaignsPageActions(
   setDeleting: (value: boolean) => void,
   navigate: NavigateFunction,
 ) {
+  const toast = useToast();
   const load = useCallback(async () => {
     const [res, chars, advs] = await Promise.all([api.listCampaigns(), api.listCharacters(), api.listAdventures()]);
     dispatch({
@@ -35,13 +38,20 @@ export function useCampaignsPageActions(
 
   const charactersRef = useRef(state.characters);
   charactersRef.current = state.characters;
-  const inflightOpenRef = useRef<Map<string, Promise<void>>>(new Map());
+  const inflightOpenRef = useRef<Map<string, Promise<void>> | null>(null);
+
+  const getInflightMap = () => {
+    if (!inflightOpenRef.current) {
+      inflightOpenRef.current = new Map();
+    }
+    return inflightOpenRef.current;
+  };
 
   const open = useCallback(
     async (id: string, force = false) => {
-      if (force) inflightOpenRef.current.delete(id);
+      if (force) getInflightMap().delete(id);
 
-      const inflight = inflightOpenRef.current.get(id);
+      const inflight = getInflightMap().get(id);
       if (inflight) return inflight;
 
       const promise = (async () => {
@@ -59,12 +69,12 @@ export function useCampaignsPageActions(
         await loadAdventures(id);
       })();
 
-      inflightOpenRef.current.set(id, promise);
+      getInflightMap().set(id, promise);
       try {
         await promise;
       } finally {
-        if (inflightOpenRef.current.get(id) === promise) {
-          inflightOpenRef.current.delete(id);
+        if (getInflightMap().get(id) === promise) {
+          getInflightMap().delete(id);
         }
       }
     },
@@ -78,9 +88,12 @@ export function useCampaignsPageActions(
       dispatch({ type: 'set', patch: { selected: res.campaign, creating: false, form: { name: '', story_arc: '' } } });
       await load();
       await loadAdventures(res.id);
+      toast.success(`Created campaign "${res.campaign.name || state.form.name}"`);
       return res.id;
     } catch (e) {
-      dispatch({ type: 'set', patch: { error: String(e) } });
+      const msg = e instanceof Error ? e.message : 'Failed to create campaign';
+      toast.error(msg);
+      dispatch({ type: 'set', patch: { error: msg } });
       return null;
     }
   };
@@ -133,6 +146,37 @@ export function useCampaignsPageActions(
         type: 'set',
         patch: { error: e instanceof Error ? e.message : 'Failed to generate campaign' },
       });
+    } finally {
+      dispatch({ type: 'set', patch: { generating: false } });
+    }
+  };
+
+  const bootstrapBrambletrekCampaign = async (): Promise<string | null> => {
+    const { generateForm } = state;
+    if (!generateForm.character_id) return null;
+    dispatch({ type: 'set', patch: { error: null, generating: true } });
+    try {
+      const result = await bootstrapBrambletrekSession({
+        characterId: generateForm.character_id,
+        activeAdventure: generateForm.active_adventure,
+        campaignName: generateForm.campaign_name,
+        flavorNotes: generateForm.theme,
+      });
+      await load();
+      dispatch({
+        type: 'set',
+        patch: {
+          creating: false,
+          generateForm: { ...generateForm, theme: '', campaign_name: '' },
+        },
+      });
+      toast.success('Adventure started');
+      return result.session_id;
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Failed to start adventure';
+      toast.error(msg);
+      dispatch({ type: 'set', patch: { error: msg } });
+      return null;
     } finally {
       dispatch({ type: 'set', patch: { generating: false } });
     }
@@ -203,13 +247,20 @@ export function useCampaignsPageActions(
   const saveEntry = async () => {
     const { selected, entry, tab } = state;
     if (!selected || !entry) return;
-    if (tab === 'npcs') {
-      await api.updateCampaignNpc(selected.id, entry.id, { name: entry.name, body: entry.body });
-    } else if (tab === 'locations') {
-      await api.updateCampaignLocation(selected.id, entry.id, { name: entry.name, body: entry.body });
+    try {
+      if (tab === 'npcs') {
+        await api.updateCampaignNpc(selected.id, entry.id, { name: entry.name, body: entry.body });
+      } else if (tab === 'locations') {
+        await api.updateCampaignLocation(selected.id, entry.id, { name: entry.name, body: entry.body });
+      }
+      await open(selected.id, true);
+      dispatch({ type: 'set', patch: { entry: null } });
+      toast.success(`Saved ${entry.name || (tab === 'npcs' ? 'NPC' : 'location')}`);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Save failed';
+      toast.error(msg);
+      dispatch({ type: 'set', patch: { error: msg } });
     }
-    await open(selected.id, true);
-    dispatch({ type: 'set', patch: { entry: null } });
   };
 
   const onTabChange = (tab: CampaignTab) => {
@@ -296,6 +347,7 @@ export function useCampaignsPageActions(
     create,
     openCreateForm,
     generateCampaign,
+    bootstrapBrambletrekCampaign,
     startNewAdventure,
     playAdventure,
     openEntry,

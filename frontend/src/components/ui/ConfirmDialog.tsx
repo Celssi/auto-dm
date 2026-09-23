@@ -39,7 +39,7 @@ export default function ConfirmDialog({
             aria-modal="true"
             aria-labelledby="confirm-dialog-title"
           >
-            <h2 id="confirm-dialog-title" className="font-display text-lg text-gray-100">
+            <h2 id="confirm-dialog-title" className="display-title text-lg">
               {title}
             </h2>
             <p className="text-sm text-muted leading-relaxed">{message}</p>

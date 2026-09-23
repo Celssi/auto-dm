@@ -6,6 +6,7 @@ from backend.games.dnd5e import rag_config
 from backend.games.dnd5e.actions import SHORTCUTS, match_dnd5e_shortcut, run_shortcut
 from backend.games.dnd5e.characters.character_builder import (
     character_creation_summary,
+    finalize_new_character,
     rebuild_character,
 )
 from backend.games.dnd5e.characters.character_data import character_options_payload
@@ -13,8 +14,11 @@ from backend.games.dnd5e.characters.entity import (
     character_from_dict,
     character_to_dict,
     default_character,
+    format_for_prompt,
 )
+from backend.games.dnd5e.dm.play_adapter import DND_PLAY_ADAPTER
 from backend.games.dnd5e.prompts import dnd5e_system_prompt
+from backend.games.dnd5e.rag_hooks import DND_RAG_HOOKS
 from backend.games.registry import GamePlugin
 from backend.rag.plugin import get_all_factions, get_pdf_sources
 
@@ -26,6 +30,7 @@ DND5E_PLUGIN = GamePlugin(
     character_to_dict=character_to_dict,
     default_character=default_character,
     rebuild_character=rebuild_character,
+    finalize_new_character=finalize_new_character,
     character_creation_summary=character_creation_summary,
     character_options_payload=character_options_payload,
     shortcuts=list(SHORTCUTS),
@@ -34,4 +39,7 @@ DND5E_PLUGIN = GamePlugin(
     system_prompt=dnd5e_system_prompt,
     get_all_factions=get_all_factions,
     pdf_sources=get_pdf_sources(),
+    format_character_for_prompt=format_for_prompt,
+    rag=DND_RAG_HOOKS,
+    play=DND_PLAY_ADAPTER,
 )

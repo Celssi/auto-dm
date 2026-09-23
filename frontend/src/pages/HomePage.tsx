@@ -53,7 +53,7 @@ export default function HomePage({ indexed, claudeOk, recentSession, sessionsLoa
           <div className="panel-glow p-5 sm:col-span-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <p className="label-text mb-1">Continue playing</p>
-              <p className="font-display text-lg text-gray-100">{recentSession.name}</p>
+              <p className="display-title text-lg">{recentSession.name}</p>
             </div>
             <Link to={`/play/${recentSession.id}`} className="btn-primary inline-flex items-center gap-2 shrink-0">
               <Play size={16} /> Resume session
@@ -90,9 +90,7 @@ export default function HomePage({ indexed, claudeOk, recentSession, sessionsLoa
               className="panel-glow block p-6 h-full group hover:border-accent/40 hover:shadow-glow transition-all duration-300"
             >
               <Icon className="text-accent mb-4 group-hover:scale-110 transition-transform duration-300" size={28} />
-              <h2 className="font-display font-semibold text-lg text-gray-100 group-hover:text-accent transition-colors">
-                {title}
-              </h2>
+              <h2 className="display-title text-lg group-hover:text-yellow-300 transition-colors">{title}</h2>
               <p className="text-sm text-muted mt-2 leading-relaxed">{desc}</p>
             </Link>
           </m.div>

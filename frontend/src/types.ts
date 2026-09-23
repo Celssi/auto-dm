@@ -46,6 +46,8 @@ export interface Character {
   appearance?: string;
   equipment_notes?: string;
   wild_shape_uses?: number;
+  luck_points_remaining?: number;
+  savage_attacker_used_this_turn?: boolean;
   concentration?: string;
   conditions?: string[];
   size?: string;
@@ -118,4 +120,130 @@ export interface LevelUpPreview {
   notices?: string[];
   pending_choices?: Array<Record<string, unknown>>;
   missing_choices?: string[];
+}
+
+export interface BrambletrekCharacter {
+  id?: string;
+  game_id?: string;
+  name: string;
+  reason_band: string;
+  background_band: string;
+  trinket_band: string;
+  legacy: string;
+  health: number;
+  morale: number;
+  supplies: number;
+  journey_day: number;
+  in_aldwund: boolean;
+  active_adventure: string;
+  reason_card?: string;
+  background_card?: string;
+  trinket_card?: string;
+  notes?: string;
+  legacy_abilities_used?: Record<string, boolean>;
+  resource_cards?: Record<string, string[]>;
+  resource_base_health?: number | null;
+  resource_base_morale?: number | null;
+  resource_base_supplies?: number | null;
+  oracle_relic?: boolean;
+  [key: string]: unknown;
+}
+
+export interface BrambletrekCombatState {
+  status: string;
+  mode?: string;
+  opponent?: { id?: string; label?: string; hp?: number; max_hp?: number };
+  player?: { hp?: number };
+  initiative?: { player_card?: string; opponent_card?: string; first?: string };
+  tactic_hand?: string[];
+  turn?: string;
+  finale_phase?: string;
+  phase_progress?: Record<string, unknown>;
+  phase_goals?: { damage_goal?: number; rounds_goal?: number; bands_goal?: number };
+  phase_complete?: boolean;
+  can_advance_phase?: boolean;
+  log?: string[];
+  combat_preview?: string;
+  item_used_this_phase?: boolean;
+  can_search_item?: boolean;
+  combat_items?: string[];
+  buffs?: Record<string, unknown>;
+}
+
+export interface JourneyEvent {
+  index: number;
+  card: string;
+  zone: string;
+  applied: boolean;
+  can_apply: boolean;
+  label?: string;
+  preview: string;
+  needs_item: boolean;
+  item_card?: string | null;
+  item_label?: string | null;
+  item_preview?: string | null;
+  combat?: boolean;
+  combat_preview?: string;
+}
+
+export interface PendingJourney {
+  events: JourneyEvent[];
+  shortcut_id?: string;
+  exploration_table?: string;
+}
+
+export interface DragonkeepGemOption {
+  id: string;
+  label: string;
+  short: string;
+  completed: boolean;
+}
+
+export interface DragonkeepState {
+  phase: string;
+  phase_label: string;
+  path_step: number;
+  path_total: number;
+  location_title: string;
+  location_body: string;
+  needs_path_draw: boolean;
+  path_resolved: boolean;
+  pending_path_card: string;
+  pending_path_preview: string;
+  pending_path_label: string;
+  active_gem: string;
+  active_gem_label: string;
+  gems: DragonkeepGemOption[];
+  gems_completed: string[];
+  met_eolan: boolean;
+  door_opened: boolean;
+  combat_context?: Record<string, unknown> | null;
+  combat_preview?: string;
+  finale_step?: string;
+  finale_step_label?: string;
+  finale_phase?: string;
+  eolan_wounded?: boolean;
+  instructions: string;
+  actions: string[];
+  module_label: string;
+}
+
+export interface LegacyAbility {
+  id: string;
+  label: string;
+  description: string;
+  tags: string[];
+  used: boolean;
+}
+
+export interface BrambletrekCharacterHeader {
+  name: string;
+  health: number;
+  morale: number;
+  supplies: number;
+  journey_day: number;
+  legacy: string;
+  legacy_label?: string;
+  in_aldwund?: boolean;
+  active_adventure?: string;
 }

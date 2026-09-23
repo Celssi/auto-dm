@@ -1,0 +1,96 @@
+# Adventure module metadata (labels, PDF page ranges, synopsis).
+# Per-module card→row tables live in data/curated/brambletrek_modules/*.yaml
+# and are resolved when active_adventure is set (see modules/loader.py).
+# Most content lives in Complete Digital Edition; Birthday and Winter Gift are separate PDFs.
+
+complete_edition_label: "Brambletrek Complete Digital Edition"
+
+adventures:
+  "":
+    label: "Hyhill solo (core rules)"
+    source_label: "Brambletrek Complete Digital Edition"
+    faction: core
+    synopsis: "Open exploration using core journey, combat, and Aldwund tables in the Complete Digital Edition."
+    tips:
+      - "Use Journey day and Aldwund when (DEPTHS) appears."
+      - "Resolve Reason ending from book p. 36 when the story feels complete."
+
+  world_tree:
+    label: "Secrets of the World Tree"
+    source_label: "Brambletrek Complete Digital Edition"
+    faction: core
+    pdf_page_min: 37
+    pdf_page_max: 53
+    synopsis: "Journey to Heimstre, the World Tree — expanded exploration beyond Hyhill."
+    tips:
+      - "Indexed from Complete Digital Edition only (not a separate PDF in this repo)."
+
+  dragonkeep:
+    label: "Dungeons of Dragonkeep"
+    source_label: "Brambletrek Complete Digital Edition"
+    faction: core
+    pdf_page_min: 54
+    pdf_page_max: 84
+    synopsis: "Dungeon crawl with phased battles, item tables, and Dragonkeep lore."
+    tips:
+      - "Indexed from Complete Digital Edition only (not a separate PDF in this repo)."
+
+  pumpkin_party:
+    label: "The Pumpkin Party"
+    source_label: "Brambletrek Complete Digital Edition"
+    faction: core
+    pdf_page_min: 85
+    pdf_page_max: 100
+    synopsis: >
+      Autumn festival in Hyhill — pumpkin carving, costumes, spirit catching,
+      and the pumpkin patch hunt (Complete Digital Edition p. 85+).
+    acts:
+      - "Festival opening and companions"
+      - "Choose-your-adventure activities (up to three draws)"
+      - "Pumpkin hunt, spirits, costume contest, pie tasting"
+    tips:
+      - "Uses core combat rules when a face card calls for combat."
+
+  first_frost:
+    label: "The Warmth of the First Frost"
+    source_label: "Brambletrek Complete Digital Edition"
+    faction: core
+    pdf_page_min: 101
+    pdf_page_max: 115
+    synopsis: >
+      Winter celebration and frozen-forest adventures with Gnawborn, Bristleborn,
+      and Bushborn (Complete Digital Edition p. 101+).
+    acts:
+      - "The Shiver — Grand Frostfire celebration"
+      - "Adventures in the Frozen Forest"
+      - "Epilogue at the village"
+    tips:
+      - "Watch Supplies and Morale; recovery tables still apply from core."
+
+  birthday_wonders:
+    label: "A Birthday of Wonders"
+    source_label: "Brambletrek: A Birthday of Wonders"
+    faction: adventure
+    synopsis: >
+      A celebratory birthday journey — not included in Complete Digital Edition;
+      requires the separate PDF.
+    acts:
+      - "Opening celebration and hooks into the forest"
+      - "Challenges and encounters tied to the birthday theme"
+      - "Climax and resolution of the day's wonders"
+    tips:
+      - "Keep core combat and journey rules; follow adventure scene prompts."
+
+  winter_gift:
+    label: "Winter Gift"
+    source_label: "Brambletrek: Winter Gift"
+    faction: adventure
+    synopsis: >
+      A short winter tale of giving and gratitude — separate PDF only, not in
+      Complete Digital Edition.
+    acts:
+      - "The gift and its meaning"
+      - "Journey to deliver or protect it"
+      - "Closing warmth"
+    tips:
+      - "Compact module — good for a single session."

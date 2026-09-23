@@ -1,12 +1,15 @@
 import { useState } from 'react';
 import { m } from '../../lib/framer';
-import type { Character } from '../../types';
+import type { BrambletrekCharacter, Character } from '../../types';
 import type { PdfUnlockedFeatures } from '../../games/dnd5e/character-sheet/characterSheetPdfAssembly';
 import CharacterSheetView from '../../games/dnd5e/character-sheet/CharacterSheetView';
 import CharacterSheetHeader from '../../games/dnd5e/character-sheet/CharacterSheetHeader';
 import CreationChoicesForm from '../../games/dnd5e/character-sheet/CreationChoicesForm';
 import MulticlassPanel from '../../games/dnd5e/character-sheet/MulticlassPanel';
 import UnlockedFeaturesPanel from '../../games/dnd5e/character-sheet/UnlockedFeaturesPanel';
+import { getGameCharacterConfig } from '../../games/registry';
+import { GameCharacterSetup } from '../../games/components';
+import { brambletrekSummaryLine } from '../../games/brambletrek/sheetUtils';
 import { fadeUp } from '../../components/ui/motion';
 
 type UnlockedFeatures = import('../../games/dnd5e/character-sheet/UnlockedFeaturesPanel').UnlockedFeatures;
@@ -19,7 +22,7 @@ type Props = {
   onBack: () => void;
   onEdit: () => void;
   onLevelUp: () => void;
-  onSave: (c: Character) => void;
+  onSave: (c: Character, opts?: { silentToast?: boolean; alreadyPersisted?: boolean }) => void | Promise<void>;
   onDelete: () => void;
   onChange: (c: Character) => void;
 };
@@ -37,9 +40,47 @@ export default function CharacterDetailPanel({
   onChange,
 }: Props) {
   const [choicesOpen, setChoicesOpen] = useState(true);
+  const gameId = character.game_id || 'dnd5e';
+  const config = getGameCharacterConfig(gameId);
 
   const unlockedFeatures = summary.unlocked_features as UnlockedFeatures | undefined;
   const missingChoices = (summary.missing_creation_choices as string[]) || [];
+
+  if (config.id === 'brambletrek') {
+    const bt = character as unknown as BrambletrekCharacter;
+    return (
+      <m.div variants={fadeUp} className="space-y-5">
+        <div className="flex flex-wrap items-center gap-2 panel-glow p-3">
+          <button type="button" className="btn-ghost" onClick={onBack}>
+            ← Back
+          </button>
+          <div className="w-px h-6 bg-border hidden sm:block" />
+          <button type="button" className="btn-ghost" onClick={onEdit}>
+            Edit
+          </button>
+          <button type="button" className="btn-danger ml-auto" onClick={onDelete}>
+            Delete
+          </button>
+        </div>
+
+        <div className="panel-glow p-4">
+          <h2 className="display-title text-xl">{bt.name || 'Unnamed Gnawborn'}</h2>
+          <p className="text-sm text-muted mt-1">{brambletrekSummaryLine(bt, summary)}</p>
+          {typeof summary.reason === 'string' && summary.reason && (
+            <p className="text-xs text-muted mt-2">Reason: {summary.reason}</p>
+          )}
+        </div>
+
+        <GameCharacterSetup
+          gameId={gameId}
+          characterId={activeId}
+          entity={character as Record<string, unknown>}
+          onChange={(entity) => onChange(entity as Character)}
+          onSaved={(entity) => onSave(entity as Character, { silentToast: true, alreadyPersisted: true })}
+        />
+      </m.div>
+    );
+  }
 
   return (
     <m.div variants={fadeUp} className="space-y-5">

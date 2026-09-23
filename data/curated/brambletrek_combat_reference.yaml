@@ -1,0 +1,45 @@
+# Combat reference (Core Rulebook pp. 30–31).
+
+opponent_health_by_rank:
+  jack: 10
+  queen: 12
+  king: 14
+
+opponent_type_by_suit:
+  hearts: "mammal"
+  diamonds: "lizard/amphibian"
+  clubs: "bird/winged beast"
+  spades: "insect/arachnid"
+
+rules:
+  initiative: "Draw initiative for you and opponent; Ace=11, face=10; higher goes first."
+  tactics: "Draw 4 tactic cards for your hand; play one per turn; redraw 4 when hand empty (new round)."
+  opponent_tactics: "On opponent turn, draw a card and use value from Opponent Tactics table (p. 30)."
+
+opponent_tactics:
+  "2":
+    label: "Wild Swipe — 2 physical damage"
+  "3":
+    label: "Charging Assault — 3 damage, you lose next turn"
+  "4":
+    label: "Rapid Cut — draw 1, damage half value (round up)"
+  "5":
+    label: "Savage Roar — Morale −2 next turn"
+  "6":
+    label: "Defensive Stance — your next attack −3 damage"
+  "7":
+    label: "Terrifying Howl — Morale −3"
+  "8":
+    label: "Vicious Bite — 4 physical damage"
+  "9":
+    label: "Predatory Leap — 4 damage, you lose your turn"
+  "10":
+    label: "Feral Rage — 5 damage, opponent takes 2"
+  jack:
+    label: "Pack Attack — adds 3 HP ally, 2 damage per turn"
+  queen:
+    label: "Regeneration — heals 2 HP per turn for 2 turns"
+  king:
+    label: "Roar of Defiance — your next attack damage halved"
+  ace:
+    label: "Deadly Assault — damage equal to opponent remaining Health"

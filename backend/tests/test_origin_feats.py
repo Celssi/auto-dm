@@ -152,6 +152,80 @@ def test_origin_feat_passive_lines_cover_active_feats():
     assert unlocked["origin_feat_effects"] == lines
 
 
+def test_lucky_spend_reduces_remaining():
+    from backend.games.dnd5e.actions import run_shortcut
+    from backend.games.dnd5e.characters.origin_feats import spend_luck_point
+
+    char = _fighter(level=5, origin_feat="lucky")
+    char.clamp()
+    assert char.luck_points_remaining == 3
+    assert spend_luck_point(char)
+    assert char.luck_points_remaining == 2
+    result = run_shortcut(
+        "lucky",
+        name=char.name,
+        class_name=char.class_name,
+        level=char.level,
+        origin_feat=char.origin_feat,
+        luck_points_remaining=char.luck_points_remaining,
+    )
+    assert result["entity_updates"]["luck_points_remaining"] == 1
+
+
+def test_long_rest_refills_luck_points():
+    from backend.games.dnd5e.characters.character_builder import long_rest_recover
+
+    char = _fighter(level=5, origin_feat="lucky")
+    char.luck_points_remaining = 0
+    long_rest_recover(char)
+    assert char.luck_points_remaining == 3
+
+
+def test_savage_attacker_eligibility():
+    from backend.games.dnd5e.characters.origin_feats import savage_attacker_eligible
+
+    char = _fighter(origin_feat="savage_attacker")
+    assert savage_attacker_eligible(char, hit=True, melee=True)
+    char.savage_attacker_used_this_turn = True
+    assert not savage_attacker_eligible(char, hit=True, melee=True)
+
+
+def test_healer_medic_requires_kit():
+    from backend.games.dnd5e.actions import run_shortcut
+
+    char = _fighter(origin_feat="healer", inventory=["Spear"])
+    result = run_shortcut(
+        "healer_medic",
+        name=char.name,
+        class_name=char.class_name,
+        level=char.level,
+        origin_feat=char.origin_feat,
+        inventory=char.inventory,
+        hp=10,
+        max_hp=20,
+    )
+    assert "cannot heal" in result["user_message"].lower()
+
+
+def test_healer_medic_with_kit_heals():
+    from backend.games.dnd5e.actions import run_shortcut
+
+    char = _fighter(origin_feat="healer", inventory=["Healer's Kit"])
+    result = run_shortcut(
+        "healer_medic",
+        name=char.name,
+        class_name=char.class_name,
+        level=char.level,
+        origin_feat=char.origin_feat,
+        inventory=char.inventory,
+        hp=10,
+        max_hp=20,
+        heal_target="self",
+    )
+    assert "Battle Medic" in result["user_message"]
+    assert result["entity_updates"]["hp"] > 10
+
+
 def test_has_origin_feat_for_all_canonical_ids():
     for fid in ORIGIN_FEAT_LABELS:
         char = _fighter(origin_feat=fid)

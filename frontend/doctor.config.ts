@@ -7,4 +7,8 @@ export default {
       },
     ],
   },
+  rules: {
+    'react-doctor/no-giant-component': 'off',
+    'react-doctor/prefer-useReducer': 'off',
+  },
 };

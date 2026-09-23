@@ -384,11 +384,11 @@ Copy this and tick each box against PHB + app sheet:
 
 When manually checking Larry, expect these differences until the app is updated:
 
-1. **Defense fighting style** — PHB +1 AC not added in `compute_ac()` → sheet shows **16** instead of **17**.
-2. **Greatsword damage** — PHB is **2d6**; app weapon block may show **1d12**.
-3. **Starting gold** — PHB merged total **18 GP**; Larry’s save may still show **60 GP** if currency was edited or not rebuilt from gear packages.
-4. **Savage Attacker / Lucky / Healer** — rules text on sheet; damage rerolls and luck points not automated in dice roller.
-5. **Eldritch Knight** — subclass and spellcasting not applied until level 3 choice is implemented.
+1. ~~**Defense fighting style**~~ **Fixed** — Defense adds +1 AC while wearing armor.
+2. ~~**Greatsword damage**~~ **Fixed** — weapon catalog merge uses PHB damage.
+3. ~~**Starting gold**~~ **Fixed** — gear choice changes re-apply packages at level 1.
+4. ~~**Savage Attacker / Lucky / Healer**~~ **Fixed** — luck pips, Lucky/Savage Attacker/Healer shortcuts track PHB resources.
+5. ~~**Eldritch Knight**~~ **Fixed** — third-caster subclasses (EK, Arcane Trickster) grant slots and wizard-list spells at level 3+.
 
 ---
 

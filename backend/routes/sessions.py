@@ -49,15 +49,21 @@ class OracleBody(BaseModel):
     likelihood_level: str = "fifty_fifty"
 
 
+class CombatActionBody(BaseModel):
+    action: str
+    target_id: str | None = None
+
+
 @router.get("")
 def list_all():
     return {"sessions": list_sessions()}
 
 
 @router.get("/shortcuts")
-def shortcuts(game_id: str | None = None):
+def shortcuts(game_id: str | None = None, character_id: str | None = None):
     plugin = get_game(game_id)
-    return {"shortcuts": plugin.shortcuts}
+    char = get_character(character_id) if character_id else None
+    return {"shortcuts": plugin.play.shortcuts_for_character(char or {})}
 
 
 @router.get("/oracles")
@@ -109,6 +115,12 @@ def shortcut(session_id: str, body: ShortcutBody):
         raise HTTPException(404, "Session not found")
     char = get_character(sess["character_id"]) or {}
     params = {**char, **body.params}
+    if resolve_game_id(char) == "brambletrek":
+        from backend.games.brambletrek.play_handlers import get_session_combat_context
+
+        ctx = get_session_combat_context(session_id)
+        if ctx:
+            params["combat_context"] = ctx
     if body.pre_rolled is not None:
         if not body.pre_rolled:
             raise HTTPException(400, "pre_rolled must not be empty")
@@ -183,3 +195,23 @@ def remove(session_id: str):
     if not delete_session(session_id):
         raise HTTPException(404, "Session not found")
     return {"ok": True}
+
+
+@router.get("/{session_id}/combat")
+def get_combat(session_id: str):
+    sess = get_session(session_id)
+    if not sess:
+        raise HTTPException(404, "Session not found")
+    from backend.games.dnd5e.play_handlers import get_session_combat
+
+    return {"combat_state": get_session_combat(session_id)}
+
+
+@router.post("/{session_id}/combat")
+def post_combat(session_id: str, body: CombatActionBody):
+    sess = get_session(session_id)
+    if not sess:
+        raise HTTPException(404, "Session not found")
+    from backend.games.dnd5e.play_handlers import session_combat_action
+
+    return session_combat_action(session_id, action=body.action, target_id=body.target_id)

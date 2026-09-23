@@ -55,6 +55,51 @@ def equipment_data() -> dict[str, Any]:
     return _load(_EQUIPMENT_PATH)
 
 
+def third_caster_subclasses() -> dict[str, Any]:
+    return dict(classes_data().get("third_caster_subclasses") or {})
+
+
+def find_third_caster(class_id: str, subclass_label: str) -> dict[str, Any] | None:
+    from backend.games.dnd5e.characters.features import find_subclass_key
+
+    cid = str(class_id or "").strip().lower()
+    label = str(subclass_label or "").strip()
+    if not cid or not label:
+        return None
+    key = find_subclass_key(cid, label)
+    subs = third_caster_subclasses()
+    if key and key in subs:
+        row = subs[key]
+        if str(row.get("class_id") or "").lower() == cid:
+            return row
+    norm = label.lower().replace(" ", "_")
+    if norm in subs and str(subs[norm].get("class_id") or "").lower() == cid:
+        return subs[norm]
+    return None
+
+
+def third_caster_slots(class_level: int) -> dict[str, int]:
+    if class_level < 3:
+        return {}
+    table = classes_data().get("third_caster_slots_by_level") or {}
+    row = table.get(str(class_level)) or table.get(class_level) or {}
+    return {str(k): int(v) for k, v in row.items() if int(v) > 0}
+
+
+def third_caster_cantrips_cap(class_level: int) -> int:
+    table = classes_data().get("third_caster_cantrips_by_level") or []
+    return int(table[_level_index(class_level)] or 0) if table else 0
+
+
+def third_caster_spells_known_cap(class_level: int) -> int:
+    table = classes_data().get("third_caster_spells_known_by_level") or []
+    return int(table[_level_index(class_level)] or 0) if table else 0
+
+
+def _level_index(level: int) -> int:
+    return max(0, min(19, int(level or 1) - 1))
+
+
 def _is_gear_starting_package(package: dict[str, Any]) -> bool:
     """Drop gold-only PHB options (e.g. fighter C: 155 GP)."""
     if not isinstance(package, dict):

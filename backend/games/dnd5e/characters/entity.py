@@ -87,6 +87,8 @@ class Dnd5eCharacter:
     conditions: list[str] = field(default_factory=list)
     concentration: str = ""
     wild_shape_uses: int = 0
+    luck_points_remaining: int = -1
+    savage_attacker_used_this_turn: bool = False
     campaign_setting: str = "freeform"
     campaign_notes: str = ""
     last_roll_summary: str = ""
@@ -170,6 +172,16 @@ class Dnd5eCharacter:
         self.conditions = _clean_list(self.conditions, 12)
         self.concentration = str(self.concentration or "").strip()[:80]
         self.wild_shape_uses = max(0, min(10, int(self.wild_shape_uses or 0)))
+        from backend.games.dnd5e.characters.origin_feats import luck_points_max
+
+        lp_max = luck_points_max(self)
+        if lp_max <= 0:
+            self.luck_points_remaining = 0
+        elif int(self.luck_points_remaining or -1) < 0:
+            self.luck_points_remaining = lp_max
+        else:
+            self.luck_points_remaining = max(0, min(lp_max, int(self.luck_points_remaining)))
+        self.savage_attacker_used_this_turn = bool(self.savage_attacker_used_this_turn)
         self.equipment_notes = str(self.equipment_notes or "").strip()
         self.starting_gear_choice = str(self.starting_gear_choice or "").strip().lower()
         setting = str(self.campaign_setting or "freeform").strip().lower()
@@ -389,12 +401,19 @@ def character_from_dict(data: dict[str, Any] | None) -> Dnd5eCharacter:
         conditions=_clean_list(data.get("conditions"), 12),
         concentration=str(data.get("concentration", "") or ""),
         wild_shape_uses=int(data.get("wild_shape_uses", 0) or 0),
+        luck_points_remaining=int(data.get("luck_points_remaining", -1) or -1),
+        savage_attacker_used_this_turn=bool(data.get("savage_attacker_used_this_turn", False)),
         campaign_setting=str(data.get("campaign_setting", "freeform") or "freeform"),
         campaign_notes=str(data.get("campaign_notes", "") or ""),
         last_roll_summary=str(data.get("last_roll_summary") or ""),
         classes=list(data.get("classes") or []),
     )
     char.clamp()
+    if "luck_points_remaining" not in data or int(data.get("luck_points_remaining", -1) or -1) < 0:
+        from backend.games.dnd5e.characters.origin_feats import luck_points_max
+
+        char.luck_points_remaining = luck_points_max(char)
+        char.clamp()
     return char
 
 
@@ -460,6 +479,8 @@ def character_to_dict(char: Dnd5eCharacter) -> dict[str, Any]:
         "conditions": list(char.conditions),
         "concentration": char.concentration,
         "wild_shape_uses": char.wild_shape_uses,
+        "luck_points_remaining": char.luck_points_remaining,
+        "savage_attacker_used_this_turn": char.savage_attacker_used_this_turn,
         "campaign_setting": char.campaign_setting,
         "campaign_notes": char.campaign_notes,
         "last_roll_summary": char.last_roll_summary,

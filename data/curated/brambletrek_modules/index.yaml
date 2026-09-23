@@ -1,0 +1,19 @@
+modules:
+  world_tree:
+    file: world_tree.yaml
+    label: Secrets of the World Tree
+  first_frost:
+    file: first_frost.yaml
+    label: The Warmth of the First Frost
+  pumpkin_party:
+    file: pumpkin_party.yaml
+    label: The Pumpkin Party
+  birthday_wonders:
+    file: birthday_wonders.yaml
+    label: A Birthday of Wonders
+  winter_gift:
+    file: winter_gift.yaml
+    label: Winter Gift
+  dragonkeep:
+    file: dragonkeep.yaml
+    label: Dungeons of Dragonkeep
