@@ -52,7 +52,7 @@ export interface PlaySessionExtensions {
     onAction: (
       sessionId: string,
       action: string,
-      handIndex: number | undefined,
+      target: number | string | undefined,
       dispatch: DispatchFn,
       refreshSessionLogs: RefreshLogs,
     ) => Promise<void>;
@@ -254,7 +254,8 @@ const brambletrekExtensions: PlaySessionExtensions = {
   },
   combatHandlers: {
     async onAction(sessionId, action, handIndex, dispatch, refreshSessionLogs) {
-      const res = await api.brambletrekCombatAction(sessionId, action, handIndex ?? -1);
+      const index = typeof handIndex === 'number' ? handIndex : -1;
+      const res = await api.brambletrekCombatAction(sessionId, action, index);
       dispatch({
         type: 'set',
         patch: {
@@ -289,7 +290,7 @@ const EXTENSIONS: Record<string, PlaySessionExtensions> = {
       onAction: async (sessionId, action, targetId, dispatch, refreshSessionLogs) => {
         const res = await api.sessionCombatAction(sessionId, {
           action,
-          target_id: targetId,
+          target_id: typeof targetId === 'string' ? targetId : undefined,
         });
         if (res.combat_state) {
           dispatch({

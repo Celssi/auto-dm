@@ -72,7 +72,7 @@ export default function MulticlassPanel({ character, onChange }: Props) {
       {entries.length === 0 && <p className="text-sm text-muted">Set a primary class first.</p>}
       {entries.map((e, i) => (
         <div
-          key={`${e.class_name}-${i}`}
+          key={e.class_name || `class-row-${e.level}-${e.subclass ?? ''}`}
           className="grid grid-cols-[1fr_auto_1fr] gap-3 items-center rounded-lg border border-border bg-bg/30 px-3 py-2 text-sm"
         >
           <span className="font-medium">{displayLabel(e.class_name)}</span>

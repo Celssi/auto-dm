@@ -160,10 +160,9 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
     });
   };
 
-  const classSkillOptions =
-    selectedClass?.skill_options === 'any'
-      ? skills
-      : skills.filter((s) => (selectedClass?.skill_options as string[] | undefined)?.includes(s.id));
+  const skillOptions = selectedClass?.skill_options;
+  const allowedSkillIds = Array.isArray(skillOptions) ? new Set(skillOptions) : null;
+  const classSkillOptions = skillOptions === 'any' ? skills : skills.filter((s) => allowedSkillIds?.has(s.id) ?? false);
 
   const backgroundGroups = [
     {
@@ -198,86 +197,185 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
         ))}
       </div>
 
-      {step === 0 && (
-        <WizardBasicsStep
-          char={char}
-          patch={patch}
-          onClassChange={patchClassName}
-          onCampaignSettingChange={(_setting, patchFields) => {
-            patch(patchFields);
-          }}
-          classes={classes}
-          species={species}
-          backgroundGroups={backgroundGroups}
-          faerunBackgroundIds={faerunBackgrounds.map((b) => b.id)}
-        />
-      )}
-      {step === 1 && <WizardOriginStep char={char} patch={patch} />}
-      {step === 2 && <WizardAbilitiesStep char={char} patch={patch} onApplyStandardArray={applyStandardArray} />}
-      {step === 3 && (
-        <WizardSkillsSpellsStep
-          char={char}
-          patch={patch}
-          selectedClass={selectedClass}
-          classSkillOptions={classSkillOptions}
-          spellLimits={spellLimits}
-          spellField={spellField}
-          spellList={spellList}
-          spellOptions={spellOptions}
-        />
-      )}
-      {step === 4 && <WizardFeaturesStep char={char} options={options} patch={patch} />}
-      {step === 5 && (
-        <WizardStartingGearStep
-          char={char}
-          classOptions={startingGearOptions}
-          backgroundOptions={backgroundGearOptions}
-          patch={patch}
-        />
-      )}
-      {step === 6 &&
-        (previewLoading ? (
-          <p className="text-sm text-muted py-8 text-center">Building character preview…</p>
-        ) : (
-          <CharacterSheetView character={previewChar || char} />
-        ))}
+      <WizardStepBody
+        step={step}
+        char={char}
+        patch={patch}
+        onClassChange={patchClassName}
+        classes={classes}
+        species={species}
+        backgroundGroups={backgroundGroups}
+        faerunBackgroundIds={faerunBackgrounds.map((b) => b.id)}
+        selectedClass={selectedClass}
+        classSkillOptions={classSkillOptions}
+        spellLimits={spellLimits}
+        spellField={spellField}
+        spellList={spellList}
+        spellOptions={spellOptions}
+        options={options}
+        startingGearOptions={startingGearOptions}
+        backgroundGearOptions={backgroundGearOptions}
+        previewLoading={previewLoading}
+        previewChar={previewChar}
+        onApplyStandardArray={applyStandardArray}
+      />
+      <WizardNav
+        step={step}
+        featureChoiceMissing={featureChoiceMissing.length}
+        startingGearOptions={startingGearOptions}
+        backgroundGearOptions={backgroundGearOptions}
+        char={char}
+        previewChar={previewChar}
+        onCancel={onCancel}
+        onGoToStep={goToStep}
+        onSave={onSave}
+      />
+    </div>
+  );
+}
 
-      <div className="flex gap-2 justify-between pt-2">
-        <div>
-          {onCancel && (
-            <button type="button" className="btn-ghost" onClick={onCancel}>
-              Cancel
-            </button>
-          )}
-        </div>
-        <div className="flex gap-2">
-          {step > 0 && (
-            <button type="button" className="btn-ghost" onClick={() => goToStep(step - 1)}>
-              Back
-            </button>
-          )}
-          {step < WIZARD_STEPS.length - 1 ? (
-            <button
-              type="button"
-              className="btn-primary"
-              onClick={() => goToStep(step + 1)}
-              disabled={
-                (step === 4 && featureChoiceMissing.length > 0) ||
-                (step === 5 && startingGearOptions.length > 1 && !char.starting_gear_choice) ||
-                (step === 5 &&
-                  Boolean(char.background) &&
-                  backgroundGearOptions.length > 1 &&
-                  !char.background_gear_choice)
-              }
-            >
-              Next
-            </button>
-          ) : (
-            <button type="button" className="btn-primary" onClick={() => onSave((previewChar || char) as Character)}>
-              Save character
-            </button>
-          )}
-        </div>
+function WizardStepBody({
+  step,
+  char,
+  patch,
+  onClassChange,
+  classes,
+  species,
+  backgroundGroups,
+  faerunBackgroundIds,
+  selectedClass,
+  classSkillOptions,
+  spellLimits,
+  spellField,
+  spellList,
+  spellOptions,
+  options,
+  startingGearOptions,
+  backgroundGearOptions,
+  previewLoading,
+  previewChar,
+  onApplyStandardArray,
+}: {
+  step: number;
+  char: Character;
+  patch: (p: Partial<Character>) => void;
+  onClassChange: (className: string) => void;
+  classes: WizardClassOption[];
+  species: WizardOption[];
+  backgroundGroups: { label: string; options: { value: string; label: string }[] }[];
+  faerunBackgroundIds: string[];
+  selectedClass: WizardClassOption | undefined;
+  classSkillOptions: { id: string; label: string }[];
+  spellLimits: ReturnType<typeof spellLimitsFromClass>;
+  spellField: ReturnType<typeof spellListField>;
+  spellList: Record<string, string[]>;
+  spellOptions: string[];
+  options: Record<string, unknown>;
+  startingGearOptions: { id: string; label: string; description?: string }[];
+  backgroundGearOptions: { id: string; label: string; description?: string }[];
+  previewLoading: boolean;
+  previewChar: Character | null;
+  onApplyStandardArray: () => void;
+}) {
+  if (step === 0) {
+    return (
+      <WizardBasicsStep
+        char={char}
+        patch={patch}
+        onClassChange={onClassChange}
+        onCampaignSettingChange={(_setting, patchFields) => {
+          patch(patchFields);
+        }}
+        classes={classes}
+        species={species}
+        backgroundGroups={backgroundGroups}
+        faerunBackgroundIds={faerunBackgroundIds}
+      />
+    );
+  }
+  if (step === 1) return <WizardOriginStep char={char} patch={patch} />;
+  if (step === 2) return <WizardAbilitiesStep char={char} patch={patch} onApplyStandardArray={onApplyStandardArray} />;
+  if (step === 3) {
+    return (
+      <WizardSkillsSpellsStep
+        char={char}
+        patch={patch}
+        selectedClass={selectedClass}
+        classSkillOptions={classSkillOptions}
+        spellLimits={spellLimits}
+        spellField={spellField}
+        spellList={spellList}
+        spellOptions={spellOptions}
+      />
+    );
+  }
+  if (step === 4) return <WizardFeaturesStep char={char} options={options} patch={patch} />;
+  if (step === 5) {
+    return (
+      <WizardStartingGearStep
+        char={char}
+        classOptions={startingGearOptions}
+        backgroundOptions={backgroundGearOptions}
+        patch={patch}
+      />
+    );
+  }
+  if (previewLoading) {
+    return <p className="text-sm text-muted py-8 text-center">Building character preview…</p>;
+  }
+  return <CharacterSheetView character={previewChar || char} />;
+}
+
+function WizardNav({
+  step,
+  featureChoiceMissing,
+  startingGearOptions,
+  backgroundGearOptions,
+  char,
+  previewChar,
+  onCancel,
+  onGoToStep,
+  onSave,
+}: {
+  step: number;
+  featureChoiceMissing: number;
+  startingGearOptions: { id: string }[];
+  backgroundGearOptions: { id: string }[];
+  char: Character;
+  previewChar: Character | null;
+  onCancel?: () => void;
+  onGoToStep: (next: number) => void;
+  onSave: (char: Character) => void;
+}) {
+  const nextDisabled =
+    (step === 4 && featureChoiceMissing > 0) ||
+    (step === 5 && startingGearOptions.length > 1 && !char.starting_gear_choice) ||
+    (step === 5 && Boolean(char.background) && backgroundGearOptions.length > 1 && !char.background_gear_choice);
+  const isLast = step >= WIZARD_STEPS.length - 1;
+  return (
+    <div className="flex gap-2 justify-between pt-2">
+      <div>
+        {onCancel && (
+          <button type="button" className="btn-ghost" onClick={onCancel}>
+            Cancel
+          </button>
+        )}
+      </div>
+      <div className="flex gap-2">
+        {step > 0 && (
+          <button type="button" className="btn-ghost" onClick={() => onGoToStep(step - 1)}>
+            Back
+          </button>
+        )}
+        {isLast ? (
+          <button type="button" className="btn-primary" onClick={() => onSave((previewChar || char) as Character)}>
+            Save character
+          </button>
+        ) : (
+          <button type="button" className="btn-primary" onClick={() => onGoToStep(step + 1)} disabled={nextDisabled}>
+            Next
+          </button>
+        )}
       </div>
     </div>
   );

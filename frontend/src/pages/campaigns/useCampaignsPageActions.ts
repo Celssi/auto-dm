@@ -1,4 +1,4 @@
-import { useCallback, useRef, type Dispatch } from 'react';
+import { useCallback, useEffect, useRef, type Dispatch } from 'react';
 import type { NavigateFunction } from 'react-router-dom';
 import { api } from '../../api/client';
 import { useToast } from '../../components/ui/toast';
@@ -37,7 +37,10 @@ export function useCampaignsPageActions(
   );
 
   const charactersRef = useRef(state.characters);
-  charactersRef.current = state.characters;
+
+  useEffect(() => {
+    charactersRef.current = state.characters;
+  }, [state.characters]);
   const inflightOpenRef = useRef<Map<string, Promise<void>> | null>(null);
 
   const getInflightMap = () => {
@@ -99,7 +102,10 @@ export function useCampaignsPageActions(
   };
 
   const generateFormRef = useRef(state.generateForm);
-  generateFormRef.current = state.generateForm;
+
+  useEffect(() => {
+    generateFormRef.current = state.generateForm;
+  }, [state.generateForm]);
 
   const openCreateForm = useCallback(() => {
     const defaultChar = generateFormRef.current.character_id || charactersRef.current[0]?.id || '';

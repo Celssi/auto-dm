@@ -272,118 +272,163 @@ function PlayChatArea({
   campaignId: string;
   onStartNextAdventure: () => void;
 }) {
-  return (
-    <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4 scroll-smooth min-h-0">
-      {!sessionLoaded ? (
+  if (!sessionLoaded) {
+    return (
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4 scroll-smooth min-h-0">
         <div className="flex flex-col items-center justify-center h-full min-h-[12rem]">
           <ListLoading />
         </div>
-      ) : loadError ? (
+      </div>
+    );
+  }
+  if (loadError) {
+    return (
+      <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4 scroll-smooth min-h-0">
         <div className="flex flex-col items-center justify-center h-full min-h-[12rem] text-center px-6">
           <p className="text-sm text-danger rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 max-w-md">
             {loadError}
           </p>
         </div>
-      ) : (
-        <>
-          {messages.length === 0 && !loading && !beginning && (
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4 scroll-smooth min-h-0">
+      <>
+        <ChatReadyPrompt
+          show={messages.length === 0 && !loading && !beginning}
+          beginError={beginError}
+          onBegin={onBegin}
+        />
+        <ChatBeginning show={beginning} />
+        <AdventureCompleteBanner
+          show={adventureComplete}
+          playerProgress={playerProgress}
+          nextAdventure={nextAdventure}
+          startingNext={startingNext}
+          campaignId={campaignId}
+          onStartNextAdventure={onStartNextAdventure}
+        />
+        <AnimatePresence initial={false}>
+          {messages.map((msg) => (
             <m.div
-              variants={fadeUp}
-              initial="initial"
-              animate="animate"
-              className="flex flex-col items-center justify-center h-full min-h-[12rem] text-center px-6"
-            >
-              <Swords className="text-accent/40 mb-4" size={36} />
-              <p className="display-title text-lg">Ready to begin</p>
-              <p className="text-sm text-muted mt-2 max-w-md mb-5">
-                The DM will write the opening scene and drop you into the action.
-              </p>
-              {beginError && (
-                <p className="text-sm text-danger rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 mb-4 max-w-md">
-                  {beginError}
-                </p>
-              )}
-              <button type="button" className="btn-primary px-6 py-2.5" onClick={onBegin}>
-                Begin adventure
-              </button>
-            </m.div>
-          )}
-          {beginning && (
-            <m.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center min-h-[12rem] text-center px-6"
-            >
-              <Swords className="text-accent/40 mb-4 animate-pulse" size={36} />
-              <p className="display-title text-lg">Setting the scene…</p>
-              <p className="text-sm text-muted mt-2">Writing the opening scene (30-60 s)</p>
-            </m.div>
-          )}
-          {adventureComplete && (
-            <m.div
-              initial={{ opacity: 0, y: 8 }}
+              key={`${msg.role}-${msg.content.length}-${msg.content.slice(0, 48)}`}
+              initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="rounded-xl border border-accent/30 bg-accent/10 px-4 py-4 space-y-3"
+              transition={{ duration: 0.25 }}
+              className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
             >
-              <p className="font-display text-lg text-accent">Adventure complete</p>
-              {(playerProgress?.completed_beats ?? []).length > 0 && (
-                <ul className="text-sm text-gray-300 space-y-1 list-disc list-inside">
-                  {(playerProgress?.completed_beats ?? []).map((beat) => (
-                    <li key={beat}>{beat}</li>
-                  ))}
-                </ul>
-              )}
-              {nextAdventure ? (
-                <button
-                  type="button"
-                  className="btn-primary text-sm"
-                  onClick={onStartNextAdventure}
-                  disabled={startingNext}
-                >
-                  {startingNext ? 'Starting next adventure…' : `Start: ${nextAdventure.name}`}
-                </button>
-              ) : campaignId ? (
-                <Link to={`/campaigns/${campaignId}`} className="text-sm text-accent hover:underline">
-                  View campaign adventures
-                </Link>
-              ) : null}
-            </m.div>
-          )}
-          <AnimatePresence initial={false}>
-            {messages.map((msg) => (
-              <m.div
-                key={`${msg.role}-${msg.content.length}-${msg.content.slice(0, 48)}`}
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.25 }}
-                className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              <div
+                className={`max-w-[92%] rounded-xl px-4 py-3 ${
+                  msg.role === 'user'
+                    ? 'bg-accent/15 border border-accent/25 text-gray-100'
+                    : 'bg-bg/80 border border-border border-l-2 border-l-accent/60'
+                }`}
               >
-                <div
-                  className={`max-w-[92%] rounded-xl px-4 py-3 ${
-                    msg.role === 'user'
-                      ? 'bg-accent/15 border border-accent/25 text-gray-100'
-                      : 'bg-bg/80 border border-border border-l-2 border-l-accent/60'
-                  }`}
-                >
-                  {msg.role === 'assistant' && (
-                    <div className="text-[10px] uppercase tracking-wider text-accent/70 mb-1.5 font-medium">DM</div>
-                  )}
-                  <ChatMarkdown content={msg.content} entities={journalEntities} />
-                </div>
-              </m.div>
-            ))}
-          </AnimatePresence>
-          {loading && (
-            <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-              <div className="rounded-xl px-4 py-3 bg-bg/80 border border-border border-l-2 border-l-accent/60">
-                <p className="text-sm text-muted animate-pulse">DM is thinking…</p>
+                {msg.role === 'assistant' && (
+                  <div className="text-[10px] uppercase tracking-wider text-accent/70 mb-1.5 font-medium">DM</div>
+                )}
+                <ChatMarkdown content={msg.content} entities={journalEntities} />
               </div>
             </m.div>
-          )}
-          <div ref={bottomRef} />
-        </>
-      )}
+          ))}
+        </AnimatePresence>
+        {loading && (
+          <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+            <div className="rounded-xl px-4 py-3 bg-bg/80 border border-border border-l-2 border-l-accent/60">
+              <p className="text-sm text-muted animate-pulse">DM is thinking…</p>
+            </div>
+          </m.div>
+        )}
+        <div ref={bottomRef} />
+      </>
     </div>
+  );
+}
+
+function ChatReadyPrompt({ show, beginError, onBegin }: { show: boolean; beginError: string; onBegin: () => void }) {
+  if (!show) return null;
+  return (
+    <m.div
+      variants={fadeUp}
+      initial="initial"
+      animate="animate"
+      className="flex flex-col items-center justify-center h-full min-h-[12rem] text-center px-6"
+    >
+      <Swords className="text-accent/40 mb-4" size={36} />
+      <p className="display-title text-lg">Ready to begin</p>
+      <p className="text-sm text-muted mt-2 max-w-md mb-5">
+        The DM will write the opening scene and drop you into the action.
+      </p>
+      {beginError && (
+        <p className="text-sm text-danger rounded-lg border border-danger/30 bg-danger/10 px-3 py-2 mb-4 max-w-md">
+          {beginError}
+        </p>
+      )}
+      <button type="button" className="btn-primary px-6 py-2.5" onClick={onBegin}>
+        Begin adventure
+      </button>
+    </m.div>
+  );
+}
+
+function ChatBeginning({ show }: { show: boolean }) {
+  if (!show) return null;
+  return (
+    <m.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="flex flex-col items-center justify-center min-h-[12rem] text-center px-6"
+    >
+      <Swords className="text-accent/40 mb-4 animate-pulse" size={36} />
+      <p className="display-title text-lg">Setting the scene…</p>
+      <p className="text-sm text-muted mt-2">Writing the opening scene (30-60 s)</p>
+    </m.div>
+  );
+}
+
+function AdventureCompleteBanner({
+  show,
+  playerProgress,
+  nextAdventure,
+  startingNext,
+  campaignId,
+  onStartNextAdventure,
+}: {
+  show: boolean;
+  playerProgress: PlayerProgress | null;
+  nextAdventure: { id: string; name: string } | null;
+  startingNext: boolean;
+  campaignId: string;
+  onStartNextAdventure: () => void;
+}) {
+  if (!show) return null;
+  const beats = playerProgress?.completed_beats ?? [];
+  return (
+    <m.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-xl border border-accent/30 bg-accent/10 px-4 py-4 space-y-3"
+    >
+      <p className="font-display text-lg text-accent">Adventure complete</p>
+      {beats.length > 0 && (
+        <ul className="text-sm text-gray-300 space-y-1 list-disc list-inside">
+          {beats.map((beat) => (
+            <li key={beat}>{beat}</li>
+          ))}
+        </ul>
+      )}
+      {nextAdventure ? (
+        <button type="button" className="btn-primary text-sm" onClick={onStartNextAdventure} disabled={startingNext}>
+          {startingNext ? 'Starting next adventure…' : `Start: ${nextAdventure.name}`}
+        </button>
+      ) : campaignId ? (
+        <Link to={`/campaigns/${campaignId}`} className="text-sm text-accent hover:underline">
+          View campaign adventures
+        </Link>
+      ) : null}
+    </m.div>
   );
 }
 

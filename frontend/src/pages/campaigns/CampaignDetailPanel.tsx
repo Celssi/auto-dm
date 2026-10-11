@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { m, AnimatePresence } from '../../lib/framer';
+import { revealPanel } from '../../components/ui/motion';
 import { Map, Users, Compass, Play, Sparkles, Copy } from 'lucide-react';
 import type { AdventureMeta, CampaignFull, JournalEntry, ModuleSource } from '../../api/client';
 import TabBar from '../../components/ui/TabBar';
@@ -73,7 +74,8 @@ export default function CampaignDetailPanel({
   const [linkCharacterId, setLinkCharacterId] = useState(defaultLinkCharacterId);
   const effectiveLinkCharacterId = linkCharacterId || defaultLinkCharacterId;
 
-  const linkedChar = state.characters.find((c) => linkedIds.includes(c.id));
+  const linkedIdSet = new Set(linkedIds);
+  const linkedChar = state.characters.find((c) => linkedIdSet.has(c.id));
   const isBrambletrekCampaign = (linkedChar?.game_id || '') === 'brambletrek';
 
   const list = state.tab === 'npcs' ? campaign.npcs : state.tab === 'locations' ? campaign.locations : [];
@@ -90,142 +92,27 @@ export default function CampaignDetailPanel({
       animate={{ opacity: 1, x: 0 }}
       className="lg:col-span-2 panel-glow p-5 space-y-5"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="space-y-3 min-w-0 flex-1">
-          <div>
-            <h2 className="display-title text-xl">{campaign.name}</h2>
-            {!needsCharacterLink && (
-              <p className="text-sm text-muted mt-1">
-                {campaignCharacterLabel(campaign.character_ids, state.characters, state.campaignAdventures)}
-              </p>
-            )}
-          </div>
-
-          {needsCharacterLink && (
-            <div className="rounded-lg border border-border bg-bg/40 p-4 space-y-3 max-w-md">
-              <p className="text-sm text-muted">No character linked to this campaign yet.</p>
-              {state.characters.length === 0 ? (
-                <p className="text-sm">
-                  <Link to="/characters" className="text-accent hover:underline">
-                    Create a character
-                  </Link>{' '}
-                  first, then link them here.
-                </p>
-              ) : (
-                <>
-                  <Field label="Link character">
-                    <ChoiceGroup
-                      value={effectiveLinkCharacterId}
-                      onChange={setLinkCharacterId}
-                      options={state.characters.map((c) => ({ value: c.id, label: c.name }))}
-                      columns={2}
-                    />
-                  </Field>
-                  <button
-                    type="button"
-                    className="btn-primary text-sm"
-                    disabled={!effectiveLinkCharacterId || state.linkingCharacter}
-                    onClick={() => onLinkCharacter(effectiveLinkCharacterId)}
-                  >
-                    {state.linkingCharacter ? 'Linking…' : 'Link character'}
-                  </button>
-                </>
-              )}
-            </div>
-          )}
-        </div>
-        <button type="button" className="btn-danger text-sm" onClick={onDelete}>
-          Delete campaign
-        </button>
-      </div>
-
-      <div className="rounded-lg border border-border bg-bg/40 p-4 space-y-3">
-        <div className="flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <p className="text-sm font-medium text-gray-100">Replay with another character</p>
-            <p className="text-xs text-muted mt-1 max-w-xl">
-              Copy this campaign with fresh adventure logs and story progress. Outlines, NPCs, and locations stay the
-              same; plot updates from your first run are removed.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="btn-ghost text-sm inline-flex items-center gap-1.5 shrink-0"
-            onClick={onToggleCopy}
-          >
-            <Copy size={14} />
-            {state.copyOpen ? 'Cancel' : 'Copy campaign'}
-          </button>
-        </div>
-
-        <AnimatePresence>
-          {state.copyOpen && (
-            <m.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="space-y-3 overflow-hidden"
-            >
-              {state.characters.length === 0 ? (
-                <p className="text-sm">
-                  <Link to="/characters" className="text-accent hover:underline">
-                    Create a character
-                  </Link>{' '}
-                  first to start a replay copy.
-                </p>
-              ) : (
-                <>
-                  <Field label="Character for the copy">
-                    <ChoiceGroup
-                      value={state.copyForm.character_id}
-                      onChange={(character_id) => onPatchCopyForm({ character_id })}
-                      options={state.characters.map((c) => ({ value: c.id, label: c.name }))}
-                      columns={2}
-                    />
-                  </Field>
-                  <Field label="Copy name (optional)">
-                    <TextInput
-                      placeholder={`${campaign.name} (${state.characters.find((c) => c.id === state.copyForm.character_id)?.name ?? 'Character'})`}
-                      value={state.copyForm.name}
-                      onChange={(e) => onPatchCopyForm({ name: e.target.value })}
-                    />
-                  </Field>
-                  <button
-                    type="button"
-                    className="btn-primary text-sm"
-                    disabled={!state.copyForm.character_id || state.copyingCampaign}
-                    onClick={onCopyCampaign}
-                  >
-                    {state.copyingCampaign ? 'Copying…' : 'Copy & reset'}
-                  </button>
-                </>
-              )}
-            </m.div>
-          )}
-        </AnimatePresence>
-      </div>
+      <CampaignDetailHeader
+        campaign={campaign}
+        state={state}
+        needsCharacterLink={needsCharacterLink}
+        effectiveLinkCharacterId={effectiveLinkCharacterId}
+        onLinkCharacterId={setLinkCharacterId}
+        onLinkCharacter={onLinkCharacter}
+        onDelete={onDelete}
+      />
+      <CopyCampaignBlock
+        campaign={campaign}
+        state={state}
+        onToggleCopy={onToggleCopy}
+        onPatchCopyForm={onPatchCopyForm}
+        onCopyCampaign={onCopyCampaign}
+      />
 
       <TabBar tabs={tabs} active={state.tab} onChange={(id) => onTabChange(id as CampaignTab)} />
 
       <AnimatePresence mode="wait">
-        {state.tab === 'story' && (
-          <m.div
-            key="story"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0 }}
-            className="space-y-4"
-          >
-            {campaign.source_module && <ModuleSourceBadge source={campaign.source_module} />}
-            <div className="rounded-lg border border-border bg-bg/40 p-4 max-h-[60vh] overflow-y-auto">
-              {campaign.story_arc ? (
-                <MarkdownContent content={campaign.story_arc} />
-              ) : (
-                <p className="text-sm text-muted">No story arc yet.</p>
-              )}
-            </div>
-          </m.div>
-        )}
+        {state.tab === 'story' && <CampaignStoryTab campaign={campaign} />}
 
         {state.tab === 'adventures' && (
           <CampaignAdventuresTab
@@ -250,6 +137,196 @@ export default function CampaignDetailPanel({
 
         {state.entry && <CampaignEntryEditor entry={state.entry} onSetEntry={onSetEntry} onSaveEntry={onSaveEntry} />}
       </AnimatePresence>
+    </m.div>
+  );
+}
+
+function CampaignDetailHeader({
+  campaign,
+  state,
+  needsCharacterLink,
+  effectiveLinkCharacterId,
+  onLinkCharacterId,
+  onLinkCharacter,
+  onDelete,
+}: {
+  campaign: CampaignFull;
+  state: Props['state'];
+  needsCharacterLink: boolean;
+  effectiveLinkCharacterId: string;
+  onLinkCharacterId: (id: string) => void;
+  onLinkCharacter: (characterId: string) => void;
+  onDelete: () => void;
+}) {
+  return (
+    <div className="flex flex-wrap items-start justify-between gap-3">
+      <div className="space-y-3 min-w-0 flex-1">
+        <div>
+          <h2 className="display-title text-xl">{campaign.name}</h2>
+          {!needsCharacterLink && (
+            <p className="text-sm text-muted mt-1">
+              {campaignCharacterLabel(campaign.character_ids, state.characters, state.campaignAdventures)}
+            </p>
+          )}
+        </div>
+        {needsCharacterLink && (
+          <LinkCharacterBlock
+            characters={state.characters}
+            linking={state.linkingCharacter}
+            characterId={effectiveLinkCharacterId}
+            onCharacterId={onLinkCharacterId}
+            onLink={onLinkCharacter}
+          />
+        )}
+      </div>
+      <button type="button" className="btn-danger text-sm" onClick={onDelete}>
+        Delete campaign
+      </button>
+    </div>
+  );
+}
+
+function LinkCharacterBlock({
+  characters,
+  linking,
+  characterId,
+  onCharacterId,
+  onLink,
+}: {
+  characters: { id: string; name: string }[];
+  linking: boolean;
+  characterId: string;
+  onCharacterId: (id: string) => void;
+  onLink: (id: string) => void;
+}) {
+  return (
+    <div className="rounded-lg border border-border bg-bg/40 p-4 space-y-3 max-w-md">
+      <p className="text-sm text-muted">No character linked to this campaign yet.</p>
+      {characters.length === 0 ? (
+        <p className="text-sm">
+          <Link to="/characters" className="text-accent hover:underline">
+            Create a character
+          </Link>{' '}
+          first, then link them here.
+        </p>
+      ) : (
+        <>
+          <Field label="Link character">
+            <ChoiceGroup
+              value={characterId}
+              onChange={onCharacterId}
+              options={characters.map((c) => ({ value: c.id, label: c.name }))}
+              columns={2}
+            />
+          </Field>
+          <button
+            type="button"
+            className="btn-primary text-sm"
+            disabled={!characterId || linking}
+            onClick={() => onLink(characterId)}
+          >
+            {linking ? 'Linking…' : 'Link character'}
+          </button>
+        </>
+      )}
+    </div>
+  );
+}
+
+function CopyCampaignBlock({
+  campaign,
+  state,
+  onToggleCopy,
+  onPatchCopyForm,
+  onCopyCampaign,
+}: {
+  campaign: CampaignFull;
+  state: Props['state'];
+  onToggleCopy: () => void;
+  onPatchCopyForm: (patch: Partial<CampaignsState['copyForm']>) => void;
+  onCopyCampaign: () => void;
+}) {
+  const copyCharName = state.characters.find((c) => c.id === state.copyForm.character_id)?.name ?? 'Character';
+  return (
+    <div className="rounded-lg border border-border bg-bg/40 p-4 space-y-3">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-sm font-medium text-gray-100">Replay with another character</p>
+          <p className="text-xs text-muted mt-1 max-w-xl">
+            Copy this campaign with fresh adventure logs and story progress. Outlines, NPCs, and locations stay the
+            same; plot updates from your first run are removed.
+          </p>
+        </div>
+        <button
+          type="button"
+          className="btn-ghost text-sm inline-flex items-center gap-1.5 shrink-0"
+          onClick={onToggleCopy}
+        >
+          <Copy size={14} />
+          {state.copyOpen ? 'Cancel' : 'Copy campaign'}
+        </button>
+      </div>
+      <AnimatePresence>
+        {state.copyOpen && (
+          <m.div {...revealPanel} className="space-y-3 overflow-hidden">
+            {state.characters.length === 0 ? (
+              <p className="text-sm">
+                <Link to="/characters" className="text-accent hover:underline">
+                  Create a character
+                </Link>{' '}
+                first to start a replay copy.
+              </p>
+            ) : (
+              <>
+                <Field label="Character for the copy">
+                  <ChoiceGroup
+                    value={state.copyForm.character_id}
+                    onChange={(character_id) => onPatchCopyForm({ character_id })}
+                    options={state.characters.map((c) => ({ value: c.id, label: c.name }))}
+                    columns={2}
+                  />
+                </Field>
+                <Field label="Copy name (optional)">
+                  <TextInput
+                    placeholder={`${campaign.name} (${copyCharName})`}
+                    value={state.copyForm.name}
+                    onChange={(e) => onPatchCopyForm({ name: e.target.value })}
+                  />
+                </Field>
+                <button
+                  type="button"
+                  className="btn-primary text-sm"
+                  disabled={!state.copyForm.character_id || state.copyingCampaign}
+                  onClick={onCopyCampaign}
+                >
+                  {state.copyingCampaign ? 'Copying…' : 'Copy & reset'}
+                </button>
+              </>
+            )}
+          </m.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function CampaignStoryTab({ campaign }: { campaign: CampaignFull }) {
+  return (
+    <m.div
+      key="story"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0 }}
+      className="space-y-4"
+    >
+      {campaign.source_module && <ModuleSourceBadge source={campaign.source_module} />}
+      <div className="rounded-lg border border-border bg-bg/40 p-4 max-h-[60vh] overflow-y-auto">
+        {campaign.story_arc ? (
+          <MarkdownContent content={campaign.story_arc} />
+        ) : (
+          <p className="text-sm text-muted">No story arc yet.</p>
+        )}
+      </div>
     </m.div>
   );
 }
@@ -292,7 +369,7 @@ function CampaignAdventuresTab({
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-sm text-muted">
           {isBrambletrek
-            ? 'Each play session journals through book tables — draw journey cards and describe what happens.'
+            ? 'Each play session journals through book tables: draw journey cards and describe what happens.'
             : 'Each adventure keeps its own log and canon. The DM remembers prior adventures when you start a new one.'}
         </p>
         {!isBrambletrek && (
@@ -306,134 +383,191 @@ function CampaignAdventuresTab({
           </button>
         )}
       </div>
-
       <AnimatePresence>
         {newAdventureOpen && !isBrambletrek && (
-          <m.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="rounded-lg border border-accent/25 bg-accent/5 p-4 space-y-4 overflow-hidden"
-          >
-            <Field label="Character">
-              <ChoiceGroup
-                value={adventureForm.character_id}
-                onChange={(character_id) => onPatchAdventureForm({ character_id })}
-                options={characters.map((c) => ({ value: c.id, label: c.name }))}
-                columns={2}
-              />
-            </Field>
-            <Field label="Adventure type">
-              <SegmentedControl
-                value={adventureForm.mode}
-                onChange={(mode) => onPatchAdventureForm({ mode: mode as 'freeform' | 'module' })}
-                options={[
-                  { value: 'freeform', label: 'Freeform' },
-                  { value: 'module', label: 'Module' },
-                ]}
-              />
-            </Field>
-            <Toggle
-              checked={adventureForm.auto_continue}
-              onChange={(auto_continue) =>
-                onPatchAdventureForm({ auto_continue, theme: auto_continue ? '' : adventureForm.theme })
-              }
-              label="AI invents what happens next (no theme needed)"
-            />
-            {!adventureForm.auto_continue && (
-              <Field label="Theme / hook">
-                <TextArea
-                  placeholder="What happens next in the campaign?"
-                  value={adventureForm.theme}
-                  onChange={(e) => onPatchAdventureForm({ theme: e.target.value })}
-                  className="min-h-[80px]"
-                />
-              </Field>
-            )}
-            <Field label="Adventure name (optional)">
-              <TextInput
-                placeholder="e.g. The Seal Beneath the Tower"
-                value={adventureForm.adventure_name}
-                onChange={(e) => onPatchAdventureForm({ adventure_name: e.target.value })}
-              />
-            </Field>
-            <Toggle
-              checked={adventureForm.include_faerun}
-              onChange={(include_faerun) => onPatchAdventureForm({ include_faerun })}
-              label="Use Faerûn supplements"
-            />
-            <button
-              type="button"
-              className="btn-primary w-full py-2.5"
-              disabled={
-                !adventureForm.character_id ||
-                (!adventureForm.auto_continue && !adventureForm.theme.trim()) ||
-                bootstrapping
-              }
-              onClick={onStartNewAdventure}
-            >
-              {bootstrapping
-                ? adventureForm.auto_continue
-                  ? 'Inventing next adventure… (30-60 s)'
-                  : 'Generating adventure… (30-60 s)'
-                : adventureForm.auto_continue
-                  ? 'Invent & play'
-                  : 'Generate & play'}
-            </button>
-          </m.div>
+          <NewAdventureForm
+            characters={characters}
+            adventureForm={adventureForm}
+            bootstrapping={bootstrapping}
+            onPatchAdventureForm={onPatchAdventureForm}
+            onStartNewAdventure={onStartNewAdventure}
+          />
         )}
       </AnimatePresence>
-
-      {!adventuresLoaded ? (
-        <ListLoading />
-      ) : adventures.length === 0 ? (
-        <EmptyState
-          icon={<Compass size={28} />}
-          title="No adventures yet"
-          description="Start the first adventure in this campaign, or use Play → New campaign to bootstrap one."
-        />
-      ) : (
-        <ul className="divide-y divide-border rounded-lg border border-border">
-          {adventures.map((adv) => (
-            <li key={adv.id} className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-accent/5">
-              <div className="min-w-0">
-                <div className="flex items-center gap-2 flex-wrap">
-                  {adv.sequence != null && <span className="text-xs text-muted font-mono">#{adv.sequence}</span>}
-                  <p className="font-medium text-gray-100 truncate">{adv.name}</p>
-                  {adv.status === 'planned' && (
-                    <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted/20 text-muted">
-                      planned
-                    </span>
-                  )}
-                  {adv.status === 'completed' && (
-                    <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-accent/20 text-accent">
-                      completed
-                    </span>
-                  )}
-                </div>
-                <p className="text-xs text-muted capitalize">{adv.mode || 'freeform'}</p>
-                {adv.source_module && (
-                  <p className="text-xs text-accent/80 truncate mt-0.5">{formatModuleSource(adv.source_module)}</p>
-                )}
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <button type="button" className="btn-danger text-xs" onClick={() => onDeleteAdventure(adv.id)}>
-                  Delete
-                </button>
-                <button
-                  type="button"
-                  className="btn-primary text-xs inline-flex items-center gap-1 shrink-0"
-                  onClick={() => onPlayAdventure(adv.id)}
-                  disabled={adv.status === 'completed'}
-                >
-                  <Play size={12} /> {adv.status === 'planned' ? 'Start' : adv.status === 'completed' ? 'Done' : 'Play'}
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      <CampaignAdventureList
+        adventures={adventures}
+        adventuresLoaded={adventuresLoaded}
+        onPlayAdventure={onPlayAdventure}
+        onDeleteAdventure={onDeleteAdventure}
+      />
     </m.div>
+  );
+}
+
+function NewAdventureForm({
+  characters,
+  adventureForm,
+  bootstrapping,
+  onPatchAdventureForm,
+  onStartNewAdventure,
+}: {
+  characters: { id: string; name: string }[];
+  adventureForm: CampaignsState['adventureForm'];
+  bootstrapping: boolean;
+  onPatchAdventureForm: (patch: Partial<CampaignsState['adventureForm']>) => void;
+  onStartNewAdventure: () => void;
+}) {
+  const submitLabel = bootstrapping
+    ? adventureForm.auto_continue
+      ? 'Inventing next adventure… (30-60 s)'
+      : 'Generating adventure… (30-60 s)'
+    : adventureForm.auto_continue
+      ? 'Invent & play'
+      : 'Generate & play';
+  return (
+    <m.div {...revealPanel} className="rounded-lg border border-accent/25 bg-accent/5 p-4 space-y-4 overflow-hidden">
+      <Field label="Character">
+        <ChoiceGroup
+          value={adventureForm.character_id}
+          onChange={(character_id) => onPatchAdventureForm({ character_id })}
+          options={characters.map((c) => ({ value: c.id, label: c.name }))}
+          columns={2}
+        />
+      </Field>
+      <Field label="Adventure type">
+        <SegmentedControl
+          value={adventureForm.mode}
+          onChange={(mode) => onPatchAdventureForm({ mode: mode as 'freeform' | 'module' })}
+          options={[
+            { value: 'freeform', label: 'Freeform' },
+            { value: 'module', label: 'Module' },
+          ]}
+        />
+      </Field>
+      <Toggle
+        checked={adventureForm.auto_continue}
+        onChange={(auto_continue) =>
+          onPatchAdventureForm({ auto_continue, theme: auto_continue ? '' : adventureForm.theme })
+        }
+        label="AI invents what happens next (no theme needed)"
+      />
+      {!adventureForm.auto_continue && (
+        <Field label="Theme / hook">
+          <TextArea
+            placeholder="What happens next in the campaign?"
+            value={adventureForm.theme}
+            onChange={(e) => onPatchAdventureForm({ theme: e.target.value })}
+            className="min-h-[80px]"
+          />
+        </Field>
+      )}
+      <Field label="Adventure name (optional)">
+        <TextInput
+          placeholder="e.g. The Seal Beneath the Tower"
+          value={adventureForm.adventure_name}
+          onChange={(e) => onPatchAdventureForm({ adventure_name: e.target.value })}
+        />
+      </Field>
+      <Toggle
+        checked={adventureForm.include_faerun}
+        onChange={(include_faerun) => onPatchAdventureForm({ include_faerun })}
+        label="Use Faerûn supplements"
+      />
+      <button
+        type="button"
+        className="btn-primary w-full py-2.5"
+        disabled={
+          !adventureForm.character_id || (!adventureForm.auto_continue && !adventureForm.theme.trim()) || bootstrapping
+        }
+        onClick={onStartNewAdventure}
+      >
+        {submitLabel}
+      </button>
+    </m.div>
+  );
+}
+
+function CampaignAdventureList({
+  adventures,
+  adventuresLoaded,
+  onPlayAdventure,
+  onDeleteAdventure,
+}: {
+  adventures: AdventureMeta[];
+  adventuresLoaded: boolean;
+  onPlayAdventure: (id: string) => void;
+  onDeleteAdventure: (id: string) => void;
+}) {
+  if (!adventuresLoaded) return <ListLoading />;
+  if (adventures.length === 0) {
+    return (
+      <EmptyState
+        icon={<Compass size={28} />}
+        title="No adventures yet"
+        description="Start the first adventure in this campaign, or use Play → New campaign to bootstrap one."
+      />
+    );
+  }
+  return (
+    <ul className="divide-y divide-border rounded-lg border border-border">
+      {adventures.map((adv) => (
+        <AdventureListItem
+          key={adv.id}
+          adventure={adv}
+          onPlayAdventure={onPlayAdventure}
+          onDeleteAdventure={onDeleteAdventure}
+        />
+      ))}
+    </ul>
+  );
+}
+
+function AdventureListItem({
+  adventure: adv,
+  onPlayAdventure,
+  onDeleteAdventure,
+}: {
+  adventure: AdventureMeta;
+  onPlayAdventure: (id: string) => void;
+  onDeleteAdventure: (id: string) => void;
+}) {
+  const playLabel = adv.status === 'planned' ? 'Start' : adv.status === 'completed' ? 'Done' : 'Play';
+  return (
+    <li className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-accent/5">
+      <div className="min-w-0">
+        <div className="flex items-center gap-2 flex-wrap">
+          {adv.sequence != null && <span className="text-xs text-muted font-mono">#{adv.sequence}</span>}
+          <p className="font-medium text-gray-100 truncate">{adv.name}</p>
+          {adv.status === 'planned' && (
+            <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-muted/20 text-muted">
+              planned
+            </span>
+          )}
+          {adv.status === 'completed' && (
+            <span className="text-[10px] uppercase tracking-wide px-1.5 py-0.5 rounded bg-accent/20 text-accent">
+              completed
+            </span>
+          )}
+        </div>
+        <p className="text-xs text-muted capitalize">{adv.mode || 'freeform'}</p>
+        {adv.source_module && (
+          <p className="text-xs text-accent/80 truncate mt-0.5">{formatModuleSource(adv.source_module)}</p>
+        )}
+      </div>
+      <div className="flex items-center gap-2 shrink-0">
+        <button type="button" className="btn-danger text-xs" onClick={() => onDeleteAdventure(adv.id)}>
+          Delete
+        </button>
+        <button
+          type="button"
+          className="btn-primary text-xs inline-flex items-center gap-1 shrink-0"
+          onClick={() => onPlayAdventure(adv.id)}
+          disabled={adv.status === 'completed'}
+        >
+          <Play size={12} /> {playLabel}
+        </button>
+      </div>
+    </li>
   );
 }
 

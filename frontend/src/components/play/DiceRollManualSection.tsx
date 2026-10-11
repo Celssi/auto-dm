@@ -1,5 +1,5 @@
-import { m } from '../../lib/framer';
 import type { Advantage } from '../../pages/play/playState';
+import DiceResultLine from './DiceResultLine';
 
 interface Props {
   diceCount: number;
@@ -20,14 +20,12 @@ export default function DiceRollManualSection({
   canSubmitManual,
   onManualValue,
 }: Props) {
-  const modSign = modifier >= 0 ? '+' : '';
   const chosenManual =
     diceCount === 2 && manualValues.every((v) => v != null)
       ? advantage === 'advantage'
         ? Math.max(...(manualValues as number[]))
         : Math.min(...(manualValues as number[]))
       : manualValues[0];
-  const manualTotal = chosenManual != null && hasModifier ? chosenManual + modifier : chosenManual;
 
   return (
     <div className="space-y-3">
@@ -49,30 +47,14 @@ export default function DiceRollManualSection({
         ))}
       </div>
 
-      {canSubmitManual && (
-        <m.div
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center text-sm text-gray-300"
-        >
-          {diceCount === 2 && (
-            <span className="text-muted">
-              {advantage === 'advantage' ? 'Keep highest: ' : 'Keep lowest: '}
-              <span className="text-gray-200 font-semibold">{chosenManual}</span>
-              {' · '}
-            </span>
-          )}
-          {hasModifier ? (
-            <span>
-              {chosenManual} {modSign}
-              {modifier} = <span className="text-accent font-display text-lg font-semibold">{manualTotal}</span>
-            </span>
-          ) : (
-            <span>
-              Result: <span className="text-accent font-display text-lg font-semibold">{chosenManual}</span>
-            </span>
-          )}
-        </m.div>
+      {canSubmitManual && chosenManual != null && (
+        <DiceResultLine
+          diceCount={diceCount}
+          advantage={advantage}
+          chosen={chosenManual}
+          hasModifier={hasModifier}
+          modifier={modifier}
+        />
       )}
     </div>
   );

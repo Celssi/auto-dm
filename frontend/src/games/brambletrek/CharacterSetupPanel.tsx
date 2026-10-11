@@ -344,72 +344,160 @@ export default function CharacterSetupPanel({ characterId, entity, onChange, onS
     return <p className="text-muted text-sm">Loading character tables…</p>;
   }
 
-  const adventureOptions = options.adventures?.length ? options.adventures : [{ id: '', label: '— Not set —' }];
+  const adventureOptions = options.adventures?.length ? options.adventures : [{ id: '', label: 'Not set' }];
 
   return (
     <div className="space-y-6 panel-glow p-5">
       <p className="text-muted text-xs leading-relaxed">
-        Create your Gnawborn — name, creation bands, legacy, resources, and active adventure module. Use{' '}
+        Create your Gnawborn: name, creation bands, legacy, resources, and active adventure module. Use{' '}
         <strong>Draw</strong> to pull table cards from the virtual deck.
       </p>
-
       <Field label="Name" className="space-y-2">
         <TextInput value={String(entity.name || '')} onChange={(e) => patch('name', e.target.value)} />
       </Field>
+      <SetupTableDraws
+        entity={entity}
+        options={options}
+        reasonBand={reasonBand}
+        backgroundBand={backgroundBand}
+        trinketBand={trinketBand}
+        tablePreviews={tablePreviews}
+        drawing={drawing}
+        characterId={characterId}
+        onChange={onChange}
+        onDrawTable={drawTable}
+      />
 
-      <div className="space-y-4">
-        <TableDrawField
-          label="Reason for adventure"
-          value={reasonBand}
-          bandId={reasonBand}
-          card={String(entity.reason_card || '') || undefined}
-          cardBands={options.card_bands || []}
-          preview={tablePreviews.reason}
-          options={options.reasons}
-          drawing={drawing === 'reason'}
-          disabled={!characterId}
-          onChange={(id) => onChange({ ...entity, reason_band: id, reason_card: '' })}
-          onDraw={() => drawTable('reason')}
+      <SetupLegacy
+        entity={entity}
+        options={options}
+        selectedLegacy={selectedLegacy}
+        drawing={drawing}
+        characterId={characterId}
+        onChangeLegacy={changeLegacy}
+        onRollLegacy={rollLegacy}
+      />
+      <SetupResources
+        entity={entity}
+        resourceDraft={resourceDraft}
+        resourceBusy={resourceBusy}
+        characterId={characterId}
+        onDrawResources={drawResources}
+        onDrawBonus={drawResourceBonus}
+        onApply={applyResources}
+        onPatch={patch}
+      />
+      <SetupFooter
+        entity={entity}
+        adventureOptions={adventureOptions}
+        reasonBand={reasonBand}
+        reasonPreview={reasonPreview}
+        error={error}
+        saving={saving}
+        characterId={characterId}
+        onPatch={patch}
+        onSave={save}
+      />
+    </div>
+  );
+}
+
+function SetupTableDraws({
+  entity,
+  options,
+  reasonBand,
+  backgroundBand,
+  trinketBand,
+  tablePreviews,
+  drawing,
+  characterId,
+  onChange,
+  onDrawTable,
+}: {
+  entity: Record<string, unknown>;
+  options: CharacterOptions;
+  reasonBand: string;
+  backgroundBand: string;
+  trinketBand: string;
+  tablePreviews: { reason: string; background: string; trinket: string };
+  drawing: string | null;
+  characterId: string | null;
+  onChange: (entity: Record<string, unknown>) => void;
+  onDrawTable: (table: 'reason' | 'background' | 'trinket') => void;
+}) {
+  return (
+    <div className="space-y-4">
+      <TableDrawField
+        label="Reason for adventure"
+        value={reasonBand}
+        bandId={reasonBand}
+        card={String(entity.reason_card || '') || undefined}
+        cardBands={options.card_bands || []}
+        preview={tablePreviews.reason}
+        options={options.reasons}
+        drawing={drawing === 'reason'}
+        disabled={!characterId}
+        onChange={(id) => onChange({ ...entity, reason_band: id, reason_card: '' })}
+        onDraw={() => onDrawTable('reason')}
+      />
+      <TableDrawField
+        label="Background"
+        value={backgroundBand}
+        bandId={backgroundBand}
+        card={String(entity.background_card || '') || undefined}
+        cardBands={options.card_bands || []}
+        preview={tablePreviews.background}
+        options={options.backgrounds}
+        drawing={drawing === 'background'}
+        disabled={!characterId}
+        onChange={(id) => onChange({ ...entity, background_band: id, background_card: '' })}
+        onDraw={() => onDrawTable('background')}
+      />
+      <TableDrawField
+        label="Trinket"
+        value={trinketBand}
+        bandId={trinketBand}
+        card={String(entity.trinket_card || '') || undefined}
+        cardBands={options.card_bands || []}
+        preview={tablePreviews.trinket}
+        options={options.trinkets}
+        drawing={drawing === 'trinket'}
+        disabled={!characterId}
+        onChange={(id) => onChange({ ...entity, trinket_band: id, trinket_card: '' })}
+        onDraw={() => onDrawTable('trinket')}
+      />
+      <label className="flex items-center gap-2 text-xs text-muted cursor-pointer">
+        <input
+          type="checkbox"
+          className="rounded border-border"
+          checked={Boolean(entity.oracle_relic)}
+          onChange={(e) => onChange({ ...entity, oracle_relic: e.target.checked })}
         />
+        Oracle relic (from Hyhill): required for Dragonkeep door
+      </label>
+    </div>
+  );
+}
 
-        <TableDrawField
-          label="Background"
-          value={backgroundBand}
-          bandId={backgroundBand}
-          card={String(entity.background_card || '') || undefined}
-          cardBands={options.card_bands || []}
-          preview={tablePreviews.background}
-          options={options.backgrounds}
-          drawing={drawing === 'background'}
-          disabled={!characterId}
-          onChange={(id) => onChange({ ...entity, background_band: id, background_card: '' })}
-          onDraw={() => drawTable('background')}
-        />
-
-        <TableDrawField
-          label="Trinket"
-          value={trinketBand}
-          bandId={trinketBand}
-          card={String(entity.trinket_card || '') || undefined}
-          cardBands={options.card_bands || []}
-          preview={tablePreviews.trinket}
-          options={options.trinkets}
-          drawing={drawing === 'trinket'}
-          disabled={!characterId}
-          onChange={(id) => onChange({ ...entity, trinket_band: id, trinket_card: '' })}
-          onDraw={() => drawTable('trinket')}
-        />
-        <label className="flex items-center gap-2 text-xs text-muted cursor-pointer">
-          <input
-            type="checkbox"
-            className="rounded border-border"
-            checked={Boolean(entity.oracle_relic)}
-            onChange={(e) => onChange({ ...entity, oracle_relic: e.target.checked })}
-          />
-          Oracle relic (from Hyhill) — required for Dragonkeep door
-        </label>
-      </div>
-
+function SetupLegacy({
+  entity,
+  options,
+  selectedLegacy,
+  drawing,
+  characterId,
+  onChangeLegacy,
+  onRollLegacy,
+}: {
+  entity: Record<string, unknown>;
+  options: CharacterOptions;
+  selectedLegacy?: LegacyOption;
+  drawing: string | null;
+  characterId: string | null;
+  onChangeLegacy: (id: string) => void;
+  onRollLegacy: () => void;
+}) {
+  return (
+    <>
       <section className="rounded-lg border border-border p-4 space-y-3">
         <div className="flex items-start justify-between gap-4">
           <span className="label-text pt-0.5">Legacy</span>
@@ -417,7 +505,7 @@ export default function CharacterSetupPanel({ characterId, entity, onChange, onS
             type="button"
             className="btn-ghost text-[11px] px-2.5 py-1.5 border border-border rounded-md inline-flex items-center gap-1 text-muted hover:text-accent shrink-0"
             disabled={drawing === 'legacy' || !characterId}
-            onClick={rollLegacy}
+            onClick={onRollLegacy}
           >
             {drawing === 'legacy' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shuffle className="w-3 h-3" />}
             Roll d6
@@ -426,10 +514,10 @@ export default function CharacterSetupPanel({ characterId, entity, onChange, onS
         <select
           className="select w-full"
           value={String(entity.legacy || '')}
-          onChange={(e) => changeLegacy(e.target.value)}
+          onChange={(e) => onChangeLegacy(e.target.value)}
           aria-label="Legacy"
         >
-          <option value="">— Not set —</option>
+          <option value="">Not set</option>
           {options.legacies.map((o) => (
             <option key={o.id} value={o.id}>
               {o.label}
@@ -447,7 +535,6 @@ export default function CharacterSetupPanel({ characterId, entity, onChange, onS
           </p>
         )}
       </section>
-
       {selectedLegacy && (selectedLegacy.abilities?.length ?? 0) > 0 && (
         <div className="rounded-lg border border-border p-4 space-y-3">
           <div className="label-text">Daily abilities</div>
@@ -469,109 +556,177 @@ export default function CharacterSetupPanel({ characterId, entity, onChange, onS
           ))}
         </div>
       )}
+    </>
+  );
+}
 
-      <section className="rounded-lg border border-border p-4 space-y-4">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <div className="label-text">Resources (max 20 each)</div>
-            <p className="text-[11px] text-muted leading-relaxed">
-              Draw six cards (1–2 Health, 3–4 Morale, 5–6 Supplies). Ace = 11, J/Q/K = 10. Pair total ≤ 6 may take one
-              bonus card.
-            </p>
-          </div>
-          <button
-            type="button"
-            className="btn-ghost text-[11px] px-2.5 py-1.5 border border-border rounded-md inline-flex items-center gap-1 text-muted hover:text-accent shrink-0"
-            disabled={Boolean(resourceBusy) || !characterId}
-            onClick={drawResources}
-          >
-            {resourceBusy === 'draw' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shuffle className="w-3 h-3" />}
-            Draw 6
-          </button>
+function SetupResources({
+  entity,
+  resourceDraft,
+  resourceBusy,
+  characterId,
+  onDrawResources,
+  onDrawBonus,
+  onApply,
+  onPatch,
+}: {
+  entity: Record<string, unknown>;
+  resourceDraft: ResourceDraft | null;
+  resourceBusy: string | null;
+  characterId: string | null;
+  onDrawResources: () => void;
+  onDrawBonus: (stat: 'health' | 'morale' | 'supplies') => void;
+  onApply: () => void;
+  onPatch: (key: string, value: unknown) => void;
+}) {
+  return (
+    <section className="rounded-lg border border-border p-4 space-y-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="space-y-1">
+          <div className="label-text">Resources (max 20 each)</div>
+          <p className="text-[11px] text-muted leading-relaxed">
+            Draw six cards (1-2 Health, 3-4 Morale, 5-6 Supplies). Ace = 11, J/Q/K = 10. Pair total ≤ 6 may take one
+            bonus card.
+          </p>
         </div>
+        <button
+          type="button"
+          className="btn-ghost text-[11px] px-2.5 py-1.5 border border-border rounded-md inline-flex items-center gap-1 text-muted hover:text-accent shrink-0"
+          disabled={Boolean(resourceBusy) || !characterId}
+          onClick={onDrawResources}
+        >
+          {resourceBusy === 'draw' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shuffle className="w-3 h-3" />}
+          Draw 6
+        </button>
+      </div>
+      {resourceDraft && (
+        <ResourceDraftList
+          resourceDraft={resourceDraft}
+          resourceBusy={resourceBusy}
+          onDrawBonus={onDrawBonus}
+          onApply={onApply}
+        />
+      )}
+      {hasResourceBases(entity) && !resourceDraft && <SavedResourceBases entity={entity} />}
+      <div className="grid grid-cols-3 gap-3">
+        {(['health', 'morale', 'supplies'] as const).map((k) => (
+          <div key={k}>
+            <div className="text-xs text-muted capitalize mb-1">{k}</div>
+            <input
+              type="number"
+              min={0}
+              max={20}
+              className="input"
+              aria-label={k}
+              value={Number(entity[k] ?? 10)}
+              onChange={(e) => {
+                const next = e.currentTarget.valueAsNumber;
+                if (Number.isFinite(next)) onPatch(k, next);
+              }}
+            />
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
 
-        {resourceDraft && (
-          <div className="space-y-2">
-            {resourceDraft.stats.map((row) => (
-              <div key={row.stat} className="text-xs rounded-md border border-border bg-bg/40 p-2">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="capitalize font-medium">{row.stat}</span>
-                  <span className="text-muted">
-                    base {row.base}
-                    {resourceDraft.final_stats && (
-                      <span className="text-gray-300"> → {resourceDraft.final_stats[row.stat]}</span>
-                    )}
-                  </span>
-                </div>
-                <div className="text-muted mt-1">
-                  {row.cards.map((card, i) => (
-                    <span key={`${card}-${i}`}>
-                      {i > 0 ? ', ' : ''}
-                      {card} ({row.card_values[i] ?? '?'})
-                    </span>
-                  ))}
-                </div>
-                {row.needs_bonus && (
-                  <button
-                    type="button"
-                    className="mt-1.5 text-[11px] text-accent hover:underline"
-                    disabled={resourceBusy === row.stat}
-                    onClick={() => drawResourceBonus(row.stat)}
-                  >
-                    {resourceBusy === row.stat ? 'Drawing bonus…' : 'Low roll — draw bonus card'}
-                  </button>
-                )}
-              </div>
+function ResourceDraftList({
+  resourceDraft,
+  resourceBusy,
+  onDrawBonus,
+  onApply,
+}: {
+  resourceDraft: ResourceDraft;
+  resourceBusy: string | null;
+  onDrawBonus: (stat: 'health' | 'morale' | 'supplies') => void;
+  onApply: () => void;
+}) {
+  return (
+    <div className="space-y-2">
+      {resourceDraft.stats.map((row) => (
+        <div key={row.stat} className="text-xs rounded-md border border-border bg-bg/40 p-2">
+          <div className="flex items-center justify-between gap-2">
+            <span className="capitalize font-medium">{row.stat}</span>
+            <span className="text-muted">
+              base {row.base}
+              {resourceDraft.final_stats && (
+                <span className="text-gray-300"> : {resourceDraft.final_stats[row.stat]}</span>
+              )}
+            </span>
+          </div>
+          <div className="text-muted mt-1">
+            {row.cards.map((card, i) => (
+              <span key={`${card}-${i}`}>
+                {i > 0 ? ', ' : ''}
+                {card} ({row.card_values[i] ?? '?'})
+              </span>
             ))}
+          </div>
+          {row.needs_bonus && (
             <button
               type="button"
-              className="btn-primary text-xs w-full"
-              disabled={Boolean(resourceBusy)}
-              onClick={applyResources}
+              className="mt-1.5 text-[11px] text-accent hover:underline"
+              disabled={resourceBusy === row.stat}
+              onClick={() => onDrawBonus(row.stat)}
             >
-              {resourceBusy === 'apply' ? 'Applying…' : 'Apply resources to character'}
+              {resourceBusy === row.stat ? 'Drawing bonus…' : 'Low roll: draw bonus card'}
             </button>
-          </div>
-        )}
-
-        {hasResourceBases(entity) && !resourceDraft && (
-          <div className="text-[11px] text-muted space-y-1">
-            {(['health', 'morale', 'supplies'] as const).map((k) => {
-              const cards = (entity.resource_cards as Record<string, string[]> | undefined)?.[k] || [];
-              if (!cards.length) return null;
-              return (
-                <div key={k}>
-                  <span className="capitalize">{k}</span>: {cards.join(', ')} (base{' '}
-                  {Number(entity[`resource_base_${k}`] ?? 0)})
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="grid grid-cols-3 gap-3">
-          {(['health', 'morale', 'supplies'] as const).map((k) => (
-            <div key={k}>
-              <div className="text-xs text-muted capitalize mb-1">{k}</div>
-              <input
-                type="number"
-                min={0}
-                max={20}
-                className="input"
-                aria-label={k}
-                value={Number(entity[k] ?? 10)}
-                onChange={(e) => patch(k, Number(e.target.value))}
-              />
-            </div>
-          ))}
+          )}
         </div>
-      </section>
+      ))}
+      <button type="button" className="btn-primary text-xs w-full" disabled={Boolean(resourceBusy)} onClick={onApply}>
+        {resourceBusy === 'apply' ? 'Applying…' : 'Apply resources to character'}
+      </button>
+    </div>
+  );
+}
 
+function SavedResourceBases({ entity }: { entity: Record<string, unknown> }) {
+  return (
+    <div className="text-[11px] text-muted space-y-1">
+      {(['health', 'morale', 'supplies'] as const).map((k) => {
+        const cards = (entity.resource_cards as Record<string, string[]> | undefined)?.[k] || [];
+        if (!cards.length) return null;
+        return (
+          <div key={k}>
+            <span className="capitalize">{k}</span>: {cards.join(', ')} (base{' '}
+            {Number(entity[`resource_base_${k}`] ?? 0)})
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SetupFooter({
+  entity,
+  adventureOptions,
+  reasonBand,
+  reasonPreview,
+  error,
+  saving,
+  characterId,
+  onPatch,
+  onSave,
+}: {
+  entity: Record<string, unknown>;
+  adventureOptions: TableOption[];
+  reasonBand: string;
+  reasonPreview: string;
+  error: string | null;
+  saving: boolean;
+  characterId: string | null;
+  onPatch: (key: string, value: unknown) => void;
+  onSave: () => void;
+}) {
+  return (
+    <>
       <Field label="Active adventure" className="space-y-2">
         <select
           className="select w-full"
           value={String(entity.active_adventure || '')}
-          onChange={(e) => patch('active_adventure', e.target.value)}
+          onChange={(e) => onPatch('active_adventure', e.target.value)}
           aria-label="Active adventure"
         >
           {adventureOptions.map((o) => (
@@ -581,7 +736,6 @@ export default function CharacterSetupPanel({ characterId, entity, onChange, onS
           ))}
         </select>
       </Field>
-
       {reasonBand && reasonPreview && (
         <details className="rounded-lg border border-border p-3">
           <summary className="cursor-pointer text-xs text-muted">Reason ending preview (p. 36)</summary>
@@ -590,21 +744,18 @@ export default function CharacterSetupPanel({ characterId, entity, onChange, onS
           </div>
         </details>
       )}
-
       <Field label="Journal notes">
         <TextArea
           className="min-h-[80px]"
           placeholder="Journal notes"
           value={String(entity.notes || '')}
-          onChange={(e) => patch('notes', e.target.value)}
+          onChange={(e) => onPatch('notes', e.target.value)}
         />
       </Field>
-
       {error && <p className="text-red-400 text-xs">{error}</p>}
-
-      <button type="button" className="btn-primary" disabled={saving} onClick={save}>
+      <button type="button" className="btn-primary" disabled={saving} onClick={onSave}>
         {saving ? 'Saving…' : characterId ? 'Save character' : 'Create character'}
       </button>
-    </div>
+    </>
   );
 }

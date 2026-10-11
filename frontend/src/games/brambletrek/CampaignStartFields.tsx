@@ -1,4 +1,3 @@
-import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Link } from 'react-router-dom';
 import { api } from '../../api/client';
@@ -7,6 +6,18 @@ import TextInput from '../../components/ui/forms/TextInput';
 import TextArea from '../../components/ui/forms/TextArea';
 import ChoiceGroup from '../../components/ui/forms/ChoiceGroup';
 import { gameShortLabel } from '../registry';
+
+export function useLoadedCharacterAdventure(characterId: string, enabled: boolean) {
+  const { data } = useQuery({
+    queryKey: ['brambletrek-character-adventure', characterId],
+    queryFn: async () => {
+      const { character } = await api.getCharacter(characterId);
+      return String((character as Record<string, unknown>).active_adventure || '');
+    },
+    enabled: enabled && Boolean(characterId),
+  });
+  return enabled ? data : undefined;
+}
 
 interface CharacterOption {
   id: string;
@@ -50,25 +61,6 @@ export default function BrambletrekCampaignStartFields({
   showActions = true,
 }: Props) {
   const btCharacters = characters.filter((c) => (c.game_id || 'dnd5e') === 'brambletrek');
-  const syncedCharacterRef = useRef('');
-  const onActiveAdventureChangeRef = useRef(onActiveAdventureChange);
-  onActiveAdventureChangeRef.current = onActiveAdventureChange;
-
-  const { data: characterAdventure } = useQuery({
-    queryKey: ['brambletrek-character-adventure', characterId],
-    queryFn: async () => {
-      const { character } = await api.getCharacter(characterId);
-      return String((character as Record<string, unknown>).active_adventure || '');
-    },
-    enabled: Boolean(characterId),
-  });
-
-  useEffect(() => {
-    if (!characterId || characterAdventure === undefined) return;
-    if (syncedCharacterRef.current === characterId) return;
-    syncedCharacterRef.current = characterId;
-    onActiveAdventureChangeRef.current(characterAdventure);
-  }, [characterId, characterAdventure]);
 
   const { data: adventureOptions = [] } = useQuery({
     queryKey: ['brambletrek-adventure-modules'],
@@ -84,8 +76,8 @@ export default function BrambletrekCampaignStartFields({
   return (
     <div className="space-y-4">
       <p className="text-sm text-muted leading-relaxed">
-        Brambletrek adventures come from the rulebook and modules — not AI-generated story arcs. Pick your Gnawborn
-        and adventure module, then journal by drawing cards and describing what happens.
+        Brambletrek adventures come from the rulebook and modules, not AI-generated story arcs. Pick your Gnawborn and
+        adventure module, then journal by drawing cards and describing what happens.
       </p>
 
       <Field label="Character">
@@ -112,7 +104,10 @@ export default function BrambletrekCampaignStartFields({
       </Field>
 
       {characterId && (
-        <Field label="Adventure module" hint="Set on the character sheet; change here if you want a different book adventure.">
+        <Field
+          label="Adventure module"
+          hint="Set on the character sheet; change here if you want a different book adventure."
+        >
           <select
             className="select w-full"
             value={activeAdventure}
@@ -148,7 +143,7 @@ export default function BrambletrekCampaignStartFields({
         />
       </Field>
 
-      <Field label="Personal hook (optional)" hint="Flavor for the opening scene — the book tables drive play.">
+      <Field label="Personal hook (optional)" hint="Flavor for the opening scene. The book tables drive play.">
         <TextArea
           placeholder="e.g. Returning to Hyhill after a long journey north"
           value={flavorNotes}

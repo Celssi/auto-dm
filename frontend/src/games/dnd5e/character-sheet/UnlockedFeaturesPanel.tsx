@@ -25,15 +25,35 @@ function FeatureSection({ title, children }: { title: string; children: ReactNod
   );
 }
 
-export default function UnlockedFeaturesPanel({ features }: { features: UnlockedFeatures }) {
+function unlockedFeatureModel(features: UnlockedFeatures) {
   const speciesTraits = features.species_traits || [];
   const originFeatEffects = features.origin_feat_effects || [];
   const classFeatures = Object.entries(features.class_features || {});
   const subclassFeatures = Object.entries(features.subclass_features || {});
   const resolvedChoices = features.resolved_choices || [];
-
   const hasOriginColumn = speciesTraits.length > 0 || originFeatEffects.length > 0;
   const hasClassColumn = classFeatures.length > 0 || subclassFeatures.length > 0 || resolvedChoices.length > 0;
+  return {
+    speciesTraits,
+    originFeatEffects,
+    classFeatures,
+    subclassFeatures,
+    resolvedChoices,
+    hasOriginColumn,
+    hasClassColumn,
+  };
+}
+
+export default function UnlockedFeaturesPanel({ features }: { features: UnlockedFeatures }) {
+  const {
+    speciesTraits,
+    originFeatEffects,
+    classFeatures,
+    subclassFeatures,
+    resolvedChoices,
+    hasOriginColumn,
+    hasClassColumn,
+  } = unlockedFeatureModel(features);
 
   if (!hasOriginColumn && !hasClassColumn) return null;
 

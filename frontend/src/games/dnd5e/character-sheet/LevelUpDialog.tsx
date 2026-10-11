@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState } from 'react';
+import { useEffect, useReducer, useState, type Dispatch, type SetStateAction } from 'react';
 import { m } from '../../../lib/framer';
 import { api } from '../../../api/client';
 import type { Character, ClassLevel, LevelUpPreview } from '../../../types';
@@ -87,10 +87,18 @@ function createFormState(
     targetClass,
     hpMode: 'roll',
     hpRoll: '',
-    localAsi: (character.asi_choices || []) as Record<string, unknown>[],
+    localAsi: ((character.asi_choices || []) as Record<string, unknown>[]).map(withAsiId),
     localCantrips: character.cantrips || [],
     localSpells: spellValuesForField(character, spellField),
   };
+}
+
+function withAsiId(choice: Record<string, unknown>): Record<string, unknown> {
+  return typeof choice.uiId === 'string' ? choice : { ...choice, uiId: crypto.randomUUID() };
+}
+
+function asiPayload(choices: Record<string, unknown>[]): Record<string, unknown>[] {
+  return choices.map(({ uiId: _uiId, ...rest }) => rest);
 }
 
 function formReducer(state: FormState, action: FormAction): FormState {
@@ -121,10 +129,80 @@ function spellValuesForField(character: Character, field: 'prepared_spells' | 'k
   return (character[field] as string[]) || [];
 }
 
-export default function LevelUpDialog({ characterId, character, summary, onConfirm, onCancel }: Props) {
-  const classEntries = (
+function spellPickerVisible(
+  hasOptions: boolean,
+  budget: { additional_picks: number; limit_increased?: boolean } | undefined,
+) {
+  return Boolean(hasOptions && budget && (budget.additional_picks > 0 || budget.limit_increased));
+}
+
+function confirmLevelUpArgs({
+  hpMode,
+  hpRoll,
+  hitDie,
+  showCantripPicker,
+  showSpellPicker,
+  localCantrips,
+  localSpells,
+  spellField,
+  localAsi,
+  targetClass,
+  choicePatch,
+}: {
+  hpMode: 'roll' | 'average';
+  hpRoll: number | '';
+  hitDie: number;
+  showCantripPicker: boolean;
+  showSpellPicker: boolean;
+  localCantrips: string[];
+  localSpells: string[];
+  spellField: 'prepared_spells' | 'known_spells';
+  localAsi: Record<string, unknown>[];
+  targetClass: string;
+  choicePatch: Partial<Character>;
+}): Parameters<Props['onConfirm']> {
+  const roll = hpMode === 'average' ? Math.floor(hitDie / 2) + 1 : hpRoll === '' ? undefined : Number(hpRoll);
+  const spellPayload: { cantrips?: string[]; prepared_spells?: string[]; known_spells?: string[] } = {};
+  if (showCantripPicker) spellPayload.cantrips = localCantrips;
+  if (showSpellPicker) spellPayload[spellField] = localSpells;
+  return [roll, asiPayload(localAsi), targetClass, spellPayload, choicePatch];
+}
+
+function levelUpClassEntries(character: Character, summary: Summary) {
+  return (
     summary.classes?.length ? summary.classes : [{ class_name: character.class_name, level: character.level }]
   ) as ClassLevel[];
+}
+
+function levelUpDerived(
+  characterId: string,
+  character: Character,
+  summary: Summary,
+  classEntries: ClassLevel[],
+  form: FormState,
+  previewState: PreviewState,
+) {
+  const preview = previewState.preview;
+  const spellField = (preview?.spells?.field || 'prepared_spells') as 'prepared_spells' | 'known_spells';
+  const cantripBudget = preview?.cantrips;
+  const spellBudget = preview?.spells;
+  return {
+    selected: classEntries.find((c) => c.class_name === form.targetClass) || classEntries[0],
+    preview,
+    loadingPreview: previewState.loading,
+    hitDie: preview?.hit_die || summary.hit_die || character.hit_die || 8,
+    spellField,
+    formKey: `${characterId}:${form.targetClass}:${spellField}`,
+    showAsi: Boolean(summary.needs_asi || preview?.asi_this_level),
+    cantripBudget,
+    spellBudget,
+    showCantripPicker: spellPickerVisible(Boolean(preview?.spell_list?.cantrips?.length), cantripBudget),
+    showSpellPicker: spellPickerVisible(Boolean(preview?.spell_list?.options?.length), spellBudget),
+  };
+}
+
+export default function LevelUpDialog({ characterId, character, summary, onConfirm, onCancel }: Props) {
+  const classEntries = levelUpClassEntries(character, summary);
   const initialTargetClass = classEntries[0]?.class_name || character.class_name;
   const initialSpellField = 'prepared_spells' as const;
   const [form, dispatchForm] = useReducer(formReducer, undefined, () =>
@@ -139,31 +217,23 @@ export default function LevelUpDialog({ characterId, character, summary, onConfi
   const [choicePatch, setChoicePatch] = useState<Partial<Character>>({});
 
   const { targetClass, hpMode, hpRoll, localAsi, localCantrips, localSpells } = form;
+  const derived = levelUpDerived(characterId, character, summary, classEntries, form, previewState);
+  const {
+    selected,
+    preview,
+    loadingPreview,
+    hitDie,
+    spellField,
+    showAsi,
+    cantripBudget,
+    spellBudget,
+    showCantripPicker,
+    showSpellPicker,
+  } = derived;
 
-  const selected = classEntries.find((c) => c.class_name === targetClass) || classEntries[0];
-  const preview = previewState.preview;
-  const loadingPreview = previewState.loading;
-  const hitDie = preview?.hit_die || summary.hit_die || character.hit_die || 8;
-  const spellField = (preview?.spells?.field || 'prepared_spells') as 'prepared_spells' | 'known_spells';
-  const formKey = `${characterId}:${targetClass}:${spellField}`;
-
-  if (formKey !== form.key) {
-    dispatchForm({ type: 'reset', key: formKey, character, spellField });
+  if (derived.formKey !== form.key) {
+    dispatchForm({ type: 'reset', key: derived.formKey, character, spellField });
   }
-
-  const showAsi = Boolean(summary.needs_asi || preview?.asi_this_level);
-  const cantripBudget = preview?.cantrips;
-  const spellBudget = preview?.spells;
-  const showCantripPicker = Boolean(
-    preview?.spell_list?.cantrips?.length &&
-    cantripBudget &&
-    (cantripBudget.additional_picks > 0 || cantripBudget.limit_increased),
-  );
-  const showSpellPicker = Boolean(
-    preview?.spell_list?.options?.length &&
-    spellBudget &&
-    (spellBudget.additional_picks > 0 || spellBudget.limit_increased),
-  );
 
   useEffect(() => {
     api
@@ -201,16 +271,30 @@ export default function LevelUpDialog({ characterId, character, summary, onConfi
     });
   };
 
-  const addAsi = () => dispatchForm({ type: 'setLocalAsi', value: [...localAsi, { type: 'asi', plus: { str: 2 } }] });
-  const addFeat = () => dispatchForm({ type: 'setLocalAsi', value: [...localAsi, { type: 'feat', feat: '' }] });
+  const addAsi = () =>
+    dispatchForm({
+      type: 'setLocalAsi',
+      value: [...localAsi, withAsiId({ type: 'asi', plus: { str: 2 } })],
+    });
+  const addFeat = () =>
+    dispatchForm({ type: 'setLocalAsi', value: [...localAsi, withAsiId({ type: 'feat', feat: '' })] });
 
-  const confirm = () => {
-    const roll = hpMode === 'average' ? Math.floor(hitDie / 2) + 1 : hpRoll === '' ? undefined : Number(hpRoll);
-    const spellPayload: { cantrips?: string[]; prepared_spells?: string[]; known_spells?: string[] } = {};
-    if (showCantripPicker) spellPayload.cantrips = localCantrips;
-    if (showSpellPicker) spellPayload[spellField] = localSpells;
-    onConfirm(roll, localAsi, targetClass, spellPayload, choicePatch);
-  };
+  const confirm = () =>
+    onConfirm(
+      ...confirmLevelUpArgs({
+        hpMode,
+        hpRoll,
+        hitDie,
+        showCantripPicker,
+        showSpellPicker,
+        localCantrips,
+        localSpells,
+        spellField,
+        localAsi,
+        targetClass,
+        choicePatch,
+      }),
+    );
 
   const classOptions = classEntries.map((c) => ({
     value: c.class_name,
@@ -234,160 +318,35 @@ export default function LevelUpDialog({ characterId, character, summary, onConfi
           </p>
         )}
 
-        {classEntries.length > 1 && (
-          <Field label="Which class gains a level?">
-            <ChoiceGroup value={targetClass} onChange={handleTargetClassChange} options={classOptions} columns={2} />
-          </Field>
-        )}
-
-        {loadingPreview && <p className="text-xs text-muted">Loading level-up changes…</p>}
-
-        {!loadingPreview && preview?.notices && preview.notices.length > 0 && (
-          <div className="rounded-lg border border-accent/25 bg-accent/5 px-3 py-2 space-y-1">
-            <p className="text-xs font-semibold uppercase tracking-wider text-accent">At this level</p>
-            <ul className="text-sm text-gray-200 space-y-1 list-disc list-inside">
-              {preview.notices.map((line) => (
-                <li key={line}>{line}</li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {preview?.needs_subclass && (
-          <p className="text-xs text-amber-200/90 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
-            Pick a subclass in Edit after leveling if you have not already.
-          </p>
-        )}
-
-        <Field label={`Hit Points (d${hitDie} + CON), ${displayLabel(selected?.class_name || character.class_name)}`}>
-          <SegmentedControl
-            value={hpMode}
-            onChange={(v) => dispatchForm({ type: 'setHpMode', mode: v as 'roll' | 'average' })}
-            options={[
-              { value: 'roll', label: 'Roll' },
-              { value: 'average', label: `Average (${Math.floor(hitDie / 2) + 1})` },
-            ]}
-          />
-          {hpMode === 'roll' && (
-            <NumberInput
-              className="mt-2"
-              min={1}
-              max={hitDie}
-              placeholder={`1-${hitDie}`}
-              value={hpRoll}
-              onChange={(e) =>
-                dispatchForm({ type: 'setHpRoll', value: e.target.value === '' ? '' : parseInt(e.target.value) })
-              }
-            />
-          )}
-        </Field>
-
-        {showCantripPicker && cantripBudget && (
-          <Field
-            label={`Cantrips (max ${cantripBudget.limit_after}${cantripBudget.additional_picks ? ` — pick ${cantripBudget.additional_picks} more` : ''})`}
-          >
-            {cantripBudget.additional_picks === 0 && cantripBudget.limit_increased && (
-              <p className="text-xs text-muted mb-2">
-                Limit increases to {cantripBudget.limit_after}; you already have {cantripBudget.current}. No new picks
-                required.
-              </p>
-            )}
-            <MultiChoice
-              value={localCantrips}
-              onChange={(value) => dispatchForm({ type: 'setLocalCantrips', value })}
-              options={preview?.spell_list?.cantrips || []}
-              max={cantripBudget.limit_after}
-            />
-          </Field>
-        )}
-
-        {showSpellPicker && spellBudget && (
-          <Field
-            label={`${spellBudget.label} (max ${spellBudget.limit_after}${spellBudget.additional_picks ? ` — pick ${spellBudget.additional_picks} more` : ''})`}
-          >
-            {spellBudget.additional_picks === 0 && spellBudget.limit_increased && (
-              <p className="text-xs text-muted mb-2">
-                Limit increases to {spellBudget.limit_after}; you already have {spellBudget.current}.
-              </p>
-            )}
-            <MultiChoice
-              value={localSpells}
-              onChange={(value) => dispatchForm({ type: 'setLocalSpells', value })}
-              options={preview?.spell_list?.options || []}
-              max={spellBudget.limit_after}
-            />
-          </Field>
-        )}
-
-        {showAsi && (
-          <Field label={`ASI / Feat (${summary.asi_feat_taken}/${summary.asi_feat_slots} taken)`}>
-            {preview?.asi_this_level && (
-              <p className="text-xs text-muted mb-2">This level grants an Ability Score Improvement or feat.</p>
-            )}
-            <div className="space-y-3 max-h-48 overflow-y-auto">
-              {localAsi.map((choice, i) => (
-                <div
-                  key={`asi-${choice.type}-${i}-${choice.type === 'feat' ? String(choice.feat || '') : 'plus'}`}
-                  className="text-xs border border-border rounded-lg p-3 bg-bg/30"
-                >
-                  {choice.type === 'feat' ? (
-                    <TextInput
-                      inputClassName="text-xs"
-                      placeholder="Feat name"
-                      value={String(choice.feat || '')}
-                      onChange={(e) => {
-                        const next = [...localAsi];
-                        next[i] = { ...choice, feat: e.target.value };
-                        dispatchForm({ type: 'setLocalAsi', value: next });
-                      }}
-                    />
-                  ) : (
-                    <div className="space-y-2">
-                      <p className="text-muted">Assign +2 to one ability, or +1 to two:</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {ABILITIES.map((ab) => (
-                          <NumberStepper
-                            key={ab}
-                            label={ab}
-                            value={Number((choice.plus as Record<string, number>)?.[ab] || 0)}
-                            min={0}
-                            max={2}
-                            onChange={(n) => {
-                              const next = [...localAsi];
-                              const plus = { ...(choice.plus as Record<string, number>) };
-                              plus[ab] = n;
-                              next[i] = { ...choice, plus };
-                              dispatchForm({ type: 'setLocalAsi', value: next });
-                            }}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-            <div className="flex gap-2 mt-2">
-              <button type="button" className="btn-ghost text-xs" onClick={addAsi}>
-                + ASI
-              </button>
-              <button type="button" className="btn-ghost text-xs" onClick={addFeat}>
-                + Feat
-              </button>
-            </div>
-          </Field>
-        )}
-
-        {pendingChoices.length > 0 && (
-          <Field label="Class choices at this level">
-            <CreationChoicesForm
-              char={{ ...character, ...choicePatch }}
-              options={options}
-              patch={(p) => setChoicePatch((prev) => ({ ...prev, ...p }))}
-              choices={pendingChoices}
-            />
-          </Field>
-        )}
+        <LevelUpFields
+          classEntries={classEntries}
+          targetClass={targetClass}
+          classOptions={classOptions}
+          onTargetClassChange={handleTargetClassChange}
+          loadingPreview={loadingPreview}
+          preview={preview}
+          hitDie={hitDie}
+          selected={selected}
+          character={character}
+          hpMode={hpMode}
+          hpRoll={hpRoll}
+          dispatchForm={dispatchForm}
+          showCantripPicker={showCantripPicker}
+          cantripBudget={cantripBudget}
+          localCantrips={localCantrips}
+          showSpellPicker={showSpellPicker}
+          spellBudget={spellBudget}
+          localSpells={localSpells}
+          showAsi={showAsi}
+          summary={summary}
+          localAsi={localAsi}
+          addAsi={addAsi}
+          addFeat={addFeat}
+          pendingChoices={pendingChoices}
+          options={options}
+          choicePatch={choicePatch}
+          setChoicePatch={setChoicePatch}
+        />
 
         <div className="flex gap-2 justify-end pt-2">
           <button type="button" className="btn-ghost" onClick={onCancel}>
@@ -403,6 +362,300 @@ export default function LevelUpDialog({ characterId, character, summary, onConfi
           </button>
         </div>
       </m.div>
+    </div>
+  );
+}
+
+function LevelUpFields({
+  classEntries,
+  targetClass,
+  classOptions,
+  onTargetClassChange,
+  loadingPreview,
+  preview,
+  hitDie,
+  selected,
+  character,
+  hpMode,
+  hpRoll,
+  dispatchForm,
+  showCantripPicker,
+  cantripBudget,
+  localCantrips,
+  showSpellPicker,
+  spellBudget,
+  localSpells,
+  showAsi,
+  summary,
+  localAsi,
+  addAsi,
+  addFeat,
+  pendingChoices,
+  options,
+  choicePatch,
+  setChoicePatch,
+}: {
+  classEntries: ClassLevel[];
+  targetClass: string;
+  classOptions: { value: string; label: string }[];
+  onTargetClassChange: (className: string) => void;
+  loadingPreview: boolean;
+  preview: LevelUpPreview | null;
+  hitDie: number;
+  selected: ClassLevel | undefined;
+  character: Character;
+  hpMode: 'roll' | 'average';
+  hpRoll: number | '';
+  dispatchForm: Dispatch<FormAction>;
+  showCantripPicker: boolean;
+  cantripBudget: LevelUpPreview['cantrips'];
+  localCantrips: string[];
+  showSpellPicker: boolean;
+  spellBudget: LevelUpPreview['spells'];
+  localSpells: string[];
+  showAsi: boolean;
+  summary: Summary;
+  localAsi: Record<string, unknown>[];
+  addAsi: () => void;
+  addFeat: () => void;
+  pendingChoices: CreationChoiceDef[];
+  options: Record<string, unknown>;
+  choicePatch: Partial<Character>;
+  setChoicePatch: Dispatch<SetStateAction<Partial<Character>>>;
+}) {
+  return (
+    <>
+      {classEntries.length > 1 && (
+        <Field label="Which class gains a level?">
+          <ChoiceGroup value={targetClass} onChange={onTargetClassChange} options={classOptions} columns={2} />
+        </Field>
+      )}
+      {loadingPreview && <p className="text-xs text-muted">Loading level-up changes…</p>}
+      <LevelUpNotices preview={preview} loadingPreview={loadingPreview} />
+      <LevelUpHpField
+        hitDie={hitDie}
+        className={selected?.class_name || character.class_name}
+        hpMode={hpMode}
+        hpRoll={hpRoll}
+        dispatchForm={dispatchForm}
+      />
+      {showCantripPicker && cantripBudget && (
+        <LevelUpSpellPicker
+          label={`Cantrips (max ${cantripBudget.limit_after}${cantripBudget.additional_picks ? `: pick ${cantripBudget.additional_picks} more` : ''})`}
+          budget={cantripBudget}
+          value={localCantrips}
+          options={preview?.spell_list?.cantrips || []}
+          extraNote
+          onChange={(value) => dispatchForm({ type: 'setLocalCantrips', value })}
+        />
+      )}
+      {showSpellPicker && spellBudget && (
+        <LevelUpSpellPicker
+          label={`${spellBudget.label} (max ${spellBudget.limit_after}${spellBudget.additional_picks ? `: pick ${spellBudget.additional_picks} more` : ''})`}
+          budget={spellBudget}
+          value={localSpells}
+          options={preview?.spell_list?.options || []}
+          onChange={(value) => dispatchForm({ type: 'setLocalSpells', value })}
+        />
+      )}
+      {showAsi && (
+        <LevelUpAsiField
+          summary={summary}
+          preview={preview}
+          localAsi={localAsi}
+          dispatchForm={dispatchForm}
+          addAsi={addAsi}
+          addFeat={addFeat}
+        />
+      )}
+      {pendingChoices.length > 0 && (
+        <Field label="Class choices at this level">
+          <CreationChoicesForm
+            char={{ ...character, ...choicePatch }}
+            options={options}
+            patch={(p) => setChoicePatch((prev) => ({ ...prev, ...p }))}
+            choices={pendingChoices}
+          />
+        </Field>
+      )}
+    </>
+  );
+}
+
+function LevelUpNotices({ preview, loadingPreview }: { preview: LevelUpPreview | null; loadingPreview: boolean }) {
+  return (
+    <>
+      {!loadingPreview && preview?.notices && preview.notices.length > 0 && (
+        <div className="rounded-lg border border-accent/25 bg-accent/5 px-3 py-2 space-y-1">
+          <p className="text-xs font-semibold uppercase tracking-wider text-accent">At this level</p>
+          <ul className="text-sm text-gray-200 space-y-1 list-disc list-inside">
+            {preview.notices.map((line) => (
+              <li key={line}>{line}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {preview?.needs_subclass && (
+        <p className="text-xs text-amber-200/90 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+          Pick a subclass in Edit after leveling if you have not already.
+        </p>
+      )}
+    </>
+  );
+}
+
+function LevelUpHpField({
+  hitDie,
+  className,
+  hpMode,
+  hpRoll,
+  dispatchForm,
+}: {
+  hitDie: number;
+  className: string;
+  hpMode: 'roll' | 'average';
+  hpRoll: number | '';
+  dispatchForm: Dispatch<FormAction>;
+}) {
+  return (
+    <Field label={`Hit Points (d${hitDie} + CON), ${displayLabel(className)}`}>
+      <SegmentedControl
+        value={hpMode}
+        onChange={(v) => dispatchForm({ type: 'setHpMode', mode: v as 'roll' | 'average' })}
+        options={[
+          { value: 'roll', label: 'Roll' },
+          { value: 'average', label: `Average (${Math.floor(hitDie / 2) + 1})` },
+        ]}
+      />
+      {hpMode === 'roll' && (
+        <NumberInput
+          className="mt-2"
+          min={1}
+          max={hitDie}
+          placeholder={`1-${hitDie}`}
+          value={hpRoll}
+          onChange={(e) =>
+            dispatchForm({ type: 'setHpRoll', value: e.target.value === '' ? '' : parseInt(e.target.value) })
+          }
+        />
+      )}
+    </Field>
+  );
+}
+
+function LevelUpSpellPicker({
+  label,
+  budget,
+  value,
+  options,
+  extraNote,
+  onChange,
+}: {
+  label: string;
+  budget: { additional_picks: number; limit_increased?: boolean; limit_after: number; current: number };
+  value: string[];
+  options: string[];
+  extraNote?: boolean;
+  onChange: (value: string[]) => void;
+}) {
+  return (
+    <Field label={label}>
+      {budget.additional_picks === 0 && budget.limit_increased && (
+        <p className="text-xs text-muted mb-2">
+          Limit increases to {budget.limit_after}; you already have {budget.current}
+          {extraNote ? '. No new picks required.' : '.'}
+        </p>
+      )}
+      <MultiChoice value={value} onChange={onChange} options={options} max={budget.limit_after} />
+    </Field>
+  );
+}
+
+function LevelUpAsiField({
+  summary,
+  preview,
+  localAsi,
+  dispatchForm,
+  addAsi,
+  addFeat,
+}: {
+  summary: Summary;
+  preview: LevelUpPreview | null;
+  localAsi: Record<string, unknown>[];
+  dispatchForm: Dispatch<FormAction>;
+  addAsi: () => void;
+  addFeat: () => void;
+}) {
+  return (
+    <Field label={`ASI / Feat (${summary.asi_feat_taken}/${summary.asi_feat_slots} taken)`}>
+      {preview?.asi_this_level && (
+        <p className="text-xs text-muted mb-2">This level grants an Ability Score Improvement or feat.</p>
+      )}
+      <div className="space-y-3 max-h-48 overflow-y-auto">
+        {localAsi.map((choice, i) => (
+          <LevelUpAsiChoice
+            key={String(choice.uiId)}
+            choice={choice}
+            onChange={(next) => {
+              const copy = [...localAsi];
+              copy[i] = next;
+              dispatchForm({ type: 'setLocalAsi', value: copy });
+            }}
+          />
+        ))}
+      </div>
+      <div className="flex gap-2 mt-2">
+        <button type="button" className="btn-ghost text-xs" onClick={addAsi}>
+          + ASI
+        </button>
+        <button type="button" className="btn-ghost text-xs" onClick={addFeat}>
+          + Feat
+        </button>
+      </div>
+    </Field>
+  );
+}
+
+function LevelUpAsiChoice({
+  choice,
+  onChange,
+}: {
+  choice: Record<string, unknown>;
+  onChange: (choice: Record<string, unknown>) => void;
+}) {
+  if (choice.type === 'feat') {
+    return (
+      <div className="text-xs border border-border rounded-lg p-3 bg-bg/30">
+        <TextInput
+          inputClassName="text-xs"
+          placeholder="Feat name"
+          value={String(choice.feat || '')}
+          onChange={(e) => onChange({ ...choice, feat: e.target.value })}
+        />
+      </div>
+    );
+  }
+  return (
+    <div className="text-xs border border-border rounded-lg p-3 bg-bg/30">
+      <div className="space-y-2">
+        <p className="text-muted">Assign +2 to one ability, or +1 to two:</p>
+        <div className="grid grid-cols-2 gap-2">
+          {ABILITIES.map((ab) => (
+            <NumberStepper
+              key={ab}
+              label={ab}
+              value={Number((choice.plus as Record<string, number>)?.[ab] || 0)}
+              min={0}
+              max={2}
+              onChange={(n) => {
+                const plus = { ...(choice.plus as Record<string, number>) };
+                plus[ab] = n;
+                onChange({ ...choice, plus });
+              }}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

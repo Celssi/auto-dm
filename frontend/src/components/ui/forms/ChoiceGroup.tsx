@@ -51,15 +51,7 @@ function glossaryNameFor(opt: Option): string {
   return opt.value;
 }
 
-function ChoiceChip({
-  active,
-  onClick,
-  children,
-}: {
-  active: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
+function ChoiceChip({ active, onClick, children }: { active: boolean; onClick: () => void; children: ReactNode }) {
   return (
     <button
       type="button"

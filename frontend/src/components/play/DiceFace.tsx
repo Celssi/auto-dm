@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { m } from '../../lib/framer';
 
 export default function DiceFace({
@@ -12,22 +12,16 @@ export default function DiceFace({
   chosen?: boolean;
   dimmed?: boolean;
 }) {
-  const [display, setDisplay] = useState(value ?? 20);
-  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const [rollingFace, setRollingFace] = useState(value ?? 20);
+  const display = !rolling && value != null ? value : rollingFace;
 
   useEffect(() => {
-    if (!rolling) {
-      if (value != null) setDisplay(value);
-      if (intervalRef.current) clearInterval(intervalRef.current);
-      return;
-    }
-    intervalRef.current = setInterval(() => {
-      setDisplay(Math.floor(Math.random() * 20) + 1);
+    if (!rolling) return;
+    const intervalId = setInterval(() => {
+      setRollingFace(Math.floor(Math.random() * 20) + 1);
     }, 60);
-    return () => {
-      if (intervalRef.current) clearInterval(intervalRef.current);
-    };
-  }, [rolling, value]);
+    return () => clearInterval(intervalId);
+  }, [rolling]);
 
   return (
     <m.div

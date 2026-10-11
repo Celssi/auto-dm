@@ -69,7 +69,7 @@ export default function WizardStartingGearStep({ char, classOptions, backgroundO
     <div className="space-y-6">
       <GearSection
         title={classOptions.length > 1 ? 'Class starting equipment (pick 1)' : 'Class starting equipment'}
-        description="PHB class kits only — gold-only class options are omitted."
+        description="PHB class kits only. Gold-only class options are omitted."
         options={classOptions}
         selected={classSelected}
         onSelect={(id) => patch({ starting_gear_choice: id })}

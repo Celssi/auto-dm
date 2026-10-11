@@ -1,9 +1,10 @@
-import { useEffect, useReducer, useRef } from 'react';
+import { useEffect, useReducer, useRef, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import PlayWizard from './play/PlayWizard';
 import PlaySessionView from './play/PlaySessionView';
 import { createInitialPlayState, playReducer } from './play/playState';
 import { usePlayPageSession } from './play/usePlayPageSession';
+import { useLoadedCharacterAdventure } from '../games/brambletrek/CampaignStartFields';
 
 export default function PlayPage() {
   const { sessionId: paramId } = useParams();
@@ -40,6 +41,17 @@ export default function PlayPage() {
     handleBrambletrekCombatAction,
     handleCombatAction,
   } = usePlayPageSession(state, dispatch, loadSeqRef, campaignIdRef);
+
+  const campaignCharacter = state.characters.find((c) => c.id === state.newCampaign.character_id);
+  const syncAdventure = !state.sessionId && campaignCharacter?.game_id === 'brambletrek';
+  const loadedAdventure = useLoadedCharacterAdventure(state.newCampaign.character_id, syncAdventure);
+  const [syncedAdventureCharacterId, setSyncedAdventureCharacterId] = useState('');
+  if (!syncAdventure || !state.newCampaign.character_id) {
+    if (syncedAdventureCharacterId) setSyncedAdventureCharacterId('');
+  } else if (loadedAdventure !== undefined && syncedAdventureCharacterId !== state.newCampaign.character_id) {
+    setSyncedAdventureCharacterId(state.newCampaign.character_id);
+    dispatch({ type: 'patchNewCampaign', patch: { active_adventure: loadedAdventure } });
+  }
 
   useEffect(() => {
     loadMeta();

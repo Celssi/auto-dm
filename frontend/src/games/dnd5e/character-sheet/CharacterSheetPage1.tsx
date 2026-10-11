@@ -38,89 +38,16 @@ export default function CharacterSheetPage1({ character: c, editable, onChange, 
     <div className="space-y-4">
       {!hideHeader && <CharacterSheetHeader character={c} editable={editable} onChange={onChange} />}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <SheetSection title="Abilities" className="lg:col-span-3">
-          <div className="grid grid-cols-2 gap-2">
-            {ABILITIES.map((ab) => (
-              <AbilityTile
-                key={ab}
-                ab={ab}
-                score={scores[ab] ?? 10}
-                save={saveBonus(c, ab)}
-                proficient={saves.has(ab)}
-              />
-            ))}
-          </div>
-        </SheetSection>
-
-        <SheetSection title="Skills" className="lg:col-span-5">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
-            {SKILLS.map((sk) => (
-              <div
-                key={sk.id}
-                className={`flex items-center justify-between text-sm py-0.5 px-1 rounded ${
-                  profs.has(sk.id) ? 'text-gray-100 bg-accent/5' : 'text-muted'
-                }`}
-              >
-                <span className="flex items-center gap-1.5 min-w-0">
-                  <span className={profs.has(sk.id) ? 'text-accent' : 'text-border'}>
-                    {profs.has(sk.id) ? '●' : '○'}
-                  </span>
-                  <GlossaryTip name={sk.id} variant="custom">
-                    <span className="truncate cursor-pointer">{sk.label}</span>
-                  </GlossaryTip>
-                </span>
-                <span
-                  className={`tabular-nums shrink-0 ml-2 ${profs.has(sk.id) ? 'font-semibold text-accent/90' : ''}`}
-                >
-                  {skillBonus(c, sk.id, sk.ability)}
-                </span>
-              </div>
-            ))}
-          </div>
-          <div className="mt-3 pt-3 border-t border-border flex justify-between text-sm">
-            <span className="text-muted">Passive Perception</span>
-            <span className="font-semibold text-accent">{passivePerception(c)}</span>
-          </div>
-        </SheetSection>
-
+        <Page1Abilities scores={scores} character={c} saves={saves} />
+        <Page1Skills character={c} profs={profs} />
         <div className="lg:col-span-4 space-y-4">
-          <SheetSection title="Combat">
-            <div className="grid grid-cols-3 gap-2 mb-3">
-              <CombatStat label="Armor Class" value={String(c.ac ?? 10)} accent />
-              <CombatStat label="Initiative" value={formatMod(initiativeMod(c))} />
-              <CombatStat label="Speed" value={`${c.speed ?? 30} ft`} />
-            </div>
-            <SheetField
-              label="Hit Points"
-              value={`${c.hp ?? 0} / ${c.max_hp ?? 0}`}
-              editable={editable}
-              onChange={(v) => {
-                const [cur, max] = v.split('/').map((s) => parseInt(s.trim()) || 0);
-                patch({ hp: cur, max_hp: max || c.max_hp });
-              }}
-              mono
-            />
-            <HpBar hp={c.hp ?? 0} maxHp={c.max_hp ?? 0} />
-            <div className="grid grid-cols-2 gap-3 mt-3">
-              <SheetField label="Hit Dice" value={`${hitDiceMax - hitDiceSpent}d${c.hit_die ?? 8}`} mono />
-              <div className="sheet-field flex items-center justify-between">
-                <div>
-                  <div className="sheet-label">Heroic Inspiration</div>
-                  {String(c.species || '').toLowerCase() === 'human' && (
-                    <div className="text-[9px] text-muted mt-0.5">Resourceful · Long Rest</div>
-                  )}
-                  <div className="text-xl mt-0.5">{c.heroic_inspiration ? '★' : '☆'}</div>
-                </div>
-              </div>
-            </div>
-            <div className="mt-3">
-              <DeathSaves
-                successes={Number(c.death_save_successes ?? 0)}
-                failures={Number(c.death_save_failures ?? 0)}
-              />
-            </div>
-          </SheetSection>
-
+          <Page1Combat
+            character={c}
+            editable={editable}
+            hitDiceMax={hitDiceMax}
+            hitDiceSpent={hitDiceSpent}
+            onPatch={patch}
+          />
           {spellDc !== null && (
             <SheetSection title="Spellcasting">
               <div className="grid grid-cols-3 gap-2">
@@ -130,49 +57,164 @@ export default function CharacterSheetPage1({ character: c, editable, onChange, 
               </div>
             </SheetSection>
           )}
-
-          <SheetSection title="Features & Gear">
-            <div className="space-y-3">
-              <div>
-                <div className="sheet-label mb-1.5">Cantrips</div>
-                <GlossaryTagList items={c.cantrips || []} classId={c.class_name} />
-              </div>
-              <div>
-                <div className="sheet-label mb-1.5">Feats</div>
-                <GlossaryTagList
-                  items={[c.origin_feat, c.versatile_origin_feat, ...(c.feats || [])].filter(Boolean) as string[]}
-                />
-              </div>
-              <div>
-                <div className="sheet-label mb-1.5">Weapons</div>
-                {(c.weapons || []).length ? (
-                  <div className="flex flex-wrap gap-1.5">
-                    {(c.weapons || []).map((w) => (
-                      <GlossaryTip key={w.name} name={w.name} />
-                    ))}
-                  </div>
-                ) : (
-                  <span className="text-sm text-muted">{EMPTY_FIELD}</span>
-                )}
-              </div>
-              {c.subclass &&
-                (editable ? (
-                  <SheetField
-                    label="Subclass"
-                    value={c.subclass}
-                    editable={editable}
-                    onChange={(v) => patch({ subclass: v })}
-                  />
-                ) : (
-                  <div>
-                    <div className="sheet-label mb-1">Subclass</div>
-                    <GlossaryTip name={c.subclass} variant="inline" className="text-sm font-medium" />
-                  </div>
-                ))}
-            </div>
-          </SheetSection>
+          <Page1FeaturesGear character={c} editable={editable} onPatch={patch} />
         </div>
       </div>
     </div>
+  );
+}
+
+function Page1Abilities({
+  scores,
+  character: c,
+  saves,
+}: {
+  scores: Record<string, number>;
+  character: Character;
+  saves: Set<string>;
+}) {
+  return (
+    <SheetSection title="Abilities" className="lg:col-span-3">
+      <div className="grid grid-cols-2 gap-2">
+        {ABILITIES.map((ab) => (
+          <AbilityTile key={ab} ab={ab} score={scores[ab] ?? 10} save={saveBonus(c, ab)} proficient={saves.has(ab)} />
+        ))}
+      </div>
+    </SheetSection>
+  );
+}
+
+function Page1Skills({ character: c, profs }: { character: Character; profs: Set<string> }) {
+  return (
+    <SheetSection title="Skills" className="lg:col-span-5">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
+        {SKILLS.map((sk) => (
+          <div
+            key={sk.id}
+            className={`flex items-center justify-between text-sm py-0.5 px-1 rounded ${
+              profs.has(sk.id) ? 'text-gray-100 bg-accent/5' : 'text-muted'
+            }`}
+          >
+            <span className="flex items-center gap-1.5 min-w-0">
+              <span className={profs.has(sk.id) ? 'text-accent' : 'text-border'}>{profs.has(sk.id) ? '●' : '○'}</span>
+              <GlossaryTip name={sk.id} variant="custom">
+                <span className="truncate cursor-pointer">{sk.label}</span>
+              </GlossaryTip>
+            </span>
+            <span className={`tabular-nums shrink-0 ml-2 ${profs.has(sk.id) ? 'font-semibold text-accent/90' : ''}`}>
+              {skillBonus(c, sk.id, sk.ability)}
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-3 pt-3 border-t border-border flex justify-between text-sm">
+        <span className="text-muted">Passive Perception</span>
+        <span className="font-semibold text-accent">{passivePerception(c)}</span>
+      </div>
+    </SheetSection>
+  );
+}
+
+function Page1Combat({
+  character: c,
+  editable,
+  hitDiceMax,
+  hitDiceSpent,
+  onPatch,
+}: {
+  character: Character;
+  editable?: boolean;
+  hitDiceMax: number;
+  hitDiceSpent: number;
+  onPatch: (p: Partial<Character>) => void;
+}) {
+  return (
+    <SheetSection title="Combat">
+      <div className="grid grid-cols-3 gap-2 mb-3">
+        <CombatStat label="Armor Class" value={String(c.ac ?? 10)} accent />
+        <CombatStat label="Initiative" value={formatMod(initiativeMod(c))} />
+        <CombatStat label="Speed" value={`${c.speed ?? 30} ft`} />
+      </div>
+      <SheetField
+        label="Hit Points"
+        value={`${c.hp ?? 0} / ${c.max_hp ?? 0}`}
+        editable={editable}
+        onChange={(v) => {
+          const [cur, max] = v.split('/').map((s) => parseInt(s.trim()) || 0);
+          onPatch({ hp: cur, max_hp: max || c.max_hp });
+        }}
+        mono
+      />
+      <HpBar hp={c.hp ?? 0} maxHp={c.max_hp ?? 0} />
+      <div className="grid grid-cols-2 gap-3 mt-3">
+        <SheetField label="Hit Dice" value={`${hitDiceMax - hitDiceSpent}d${c.hit_die ?? 8}`} mono />
+        <div className="sheet-field flex items-center justify-between">
+          <div>
+            <div className="sheet-label">Heroic Inspiration</div>
+            {String(c.species || '').toLowerCase() === 'human' && (
+              <div className="text-[9px] text-muted mt-0.5">Resourceful · Long Rest</div>
+            )}
+            <div className="text-xl mt-0.5">{c.heroic_inspiration ? '★' : '☆'}</div>
+          </div>
+        </div>
+      </div>
+      <div className="mt-3">
+        <DeathSaves successes={Number(c.death_save_successes ?? 0)} failures={Number(c.death_save_failures ?? 0)} />
+      </div>
+    </SheetSection>
+  );
+}
+
+function Page1FeaturesGear({
+  character: c,
+  editable,
+  onPatch,
+}: {
+  character: Character;
+  editable?: boolean;
+  onPatch: (p: Partial<Character>) => void;
+}) {
+  const weapons = c.weapons || [];
+  return (
+    <SheetSection title="Features & Gear">
+      <div className="space-y-3">
+        <div>
+          <div className="sheet-label mb-1.5">Cantrips</div>
+          <GlossaryTagList items={c.cantrips || []} classId={c.class_name} />
+        </div>
+        <div>
+          <div className="sheet-label mb-1.5">Feats</div>
+          <GlossaryTagList
+            items={[c.origin_feat, c.versatile_origin_feat, ...(c.feats || [])].filter(Boolean) as string[]}
+          />
+        </div>
+        <div>
+          <div className="sheet-label mb-1.5">Weapons</div>
+          {weapons.length ? (
+            <div className="flex flex-wrap gap-1.5">
+              {weapons.map((w) => (
+                <GlossaryTip key={w.name} name={w.name} />
+              ))}
+            </div>
+          ) : (
+            <span className="text-sm text-muted">{EMPTY_FIELD}</span>
+          )}
+        </div>
+        {c.subclass &&
+          (editable ? (
+            <SheetField
+              label="Subclass"
+              value={c.subclass}
+              editable={editable}
+              onChange={(v) => onPatch({ subclass: v })}
+            />
+          ) : (
+            <div>
+              <div className="sheet-label mb-1">Subclass</div>
+              <GlossaryTip name={c.subclass} variant="inline" className="text-sm font-medium" />
+            </div>
+          ))}
+      </div>
+    </SheetSection>
   );
 }

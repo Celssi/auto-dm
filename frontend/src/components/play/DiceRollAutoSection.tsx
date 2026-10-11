@@ -1,6 +1,6 @@
-import { m } from '../../lib/framer';
 import type { Advantage } from '../../pages/play/playState';
 import DiceFace from './DiceFace';
+import DiceResultLine from './DiceResultLine';
 
 interface Props {
   diceCount: number;
@@ -21,14 +21,12 @@ export default function DiceRollAutoSection({
   rolling,
   onAutoRoll,
 }: Props) {
-  const modSign = modifier >= 0 ? '+' : '';
   const autoChosen =
     autoResult && autoResult.length === 2
       ? advantage === 'advantage'
         ? Math.max(...autoResult)
         : Math.min(...autoResult)
       : (autoResult?.[0] ?? null);
-  const autoTotal = autoChosen != null && hasModifier ? autoChosen + modifier : autoChosen;
 
   return (
     <div className="space-y-3">
@@ -51,29 +49,13 @@ export default function DiceRollAutoSection({
       </div>
 
       {autoResult && !rolling && (
-        <m.div
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center text-sm text-gray-300"
-        >
-          {diceCount === 2 && (
-            <span className="text-muted">
-              {advantage === 'advantage' ? 'Keep highest: ' : 'Keep lowest: '}
-              <span className="text-gray-200 font-semibold">{autoChosen}</span>
-              {' · '}
-            </span>
-          )}
-          {hasModifier ? (
-            <span>
-              {autoChosen} {modSign}
-              {modifier} = <span className="text-accent font-display text-lg font-semibold">{autoTotal}</span>
-            </span>
-          ) : (
-            <span>
-              Result: <span className="text-accent font-display text-lg font-semibold">{autoChosen}</span>
-            </span>
-          )}
-        </m.div>
+        <DiceResultLine
+          diceCount={diceCount}
+          advantage={advantage}
+          chosen={autoChosen}
+          hasModifier={hasModifier}
+          modifier={modifier}
+        />
       )}
 
       {!autoResult && !rolling && (

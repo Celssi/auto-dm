@@ -19,8 +19,7 @@ export interface AdventuresState {
 }
 
 export type AdventuresAction =
-  | { type: 'set'; patch: Partial<AdventuresState> }
-  | { type: 'patchForm'; patch: Partial<AdventuresState['form']> };
+  { type: 'set'; patch: Partial<AdventuresState> } | { type: 'patchForm'; patch: Partial<AdventuresState['form']> };
 
 export const initialAdventuresState: AdventuresState = {
   adventures: [],

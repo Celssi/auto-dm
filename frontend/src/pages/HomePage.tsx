@@ -87,7 +87,7 @@ export default function HomePage({ indexed, claudeOk, recentSession, sessionsLoa
           <m.div key={to} variants={fadeUp}>
             <Link
               to={to}
-              className="panel-glow block p-6 h-full group hover:border-accent/40 hover:shadow-glow transition-all duration-300"
+              className="panel-glow block p-6 h-full group hover:border-accent/40 hover:shadow-glow transition-[border-color,box-shadow] duration-300"
             >
               <Icon className="text-accent mb-4 group-hover:scale-110 transition-transform duration-300" size={28} />
               <h2 className="display-title text-lg group-hover:text-yellow-300 transition-colors">{title}</h2>

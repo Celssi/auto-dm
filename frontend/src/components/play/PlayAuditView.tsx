@@ -2,8 +2,22 @@ import { useMemo } from 'react';
 import type { AuditEvent } from '../../api/client';
 import { formatAuditSummary, formatAuditTime, isInferredAudit } from '../../pages/play/auditSummary';
 
+function auditEventKey(event: AuditEvent): string {
+  return [event.ts ?? '', event.turn_id ?? '', event.event, event.source ?? '', formatAuditSummary(event)].join('|');
+}
+
+function keyedAuditEvents(events: AuditEvent[]): Array<{ event: AuditEvent; key: string }> {
+  const seen = new Map<string, number>();
+  return events.map((event) => {
+    const base = auditEventKey(event);
+    const count = (seen.get(base) ?? 0) + 1;
+    seen.set(base, count);
+    return { event, key: count === 1 ? base : `${base}#${count}` };
+  });
+}
+
 export default function PlayAuditView({ auditEvents }: { auditEvents: AuditEvent[] }) {
-  const visibleAudit = useMemo(() => auditEvents.slice(-30).reverse(), [auditEvents]);
+  const visibleAudit = useMemo(() => keyedAuditEvents(auditEvents.slice(-30).toReversed()), [auditEvents]);
 
   if (visibleAudit.length === 0) {
     return <p className="text-xs text-muted italic">Mechanical audit events will appear here.</p>;
@@ -11,9 +25,9 @@ export default function PlayAuditView({ auditEvents }: { auditEvents: AuditEvent
 
   return (
     <div className="space-y-1.5">
-      {visibleAudit.map((event, idx) => (
+      {visibleAudit.map(({ event, key }) => (
         <div
-          key={`audit-${event.ts ?? idx}-${event.event}-${idx}`}
+          key={key}
           className="text-xs leading-relaxed text-gray-400 border-b border-border/40 pb-1.5 last:border-0 last:pb-0"
         >
           <div className="flex items-center gap-1.5 flex-wrap">

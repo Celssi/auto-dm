@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useReducer, useState } from 'react';
-import { useMatch, useNavigate, useParams } from 'react-router-dom';
+import { useEffect, useReducer, useState, type ComponentProps, type Dispatch } from 'react';
+import { useMatch, useNavigate, useParams, type NavigateFunction } from 'react-router-dom';
 import { m } from '../lib/framer';
 import { UserPlus, Users } from 'lucide-react';
 import { api } from '../api/client';
@@ -15,42 +15,36 @@ import AnimatedPage from '../components/ui/AnimatedPage';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { fadeUp, staggerContainer } from '../components/ui/motion';
 import CharacterDetailPanel from './characters/CharacterDetailPanel';
-import { charactersReducer, initialCharactersState } from './characters/charactersState';
-import { useToast } from '../components/ui/toast';
+import {
+  charactersReducer,
+  initialCharactersState,
+  type CharactersAction,
+  type CharactersState,
+} from './characters/charactersState';
+import { useCharactersPageActions, type SaveCharOptions } from './characters/useCharactersPageActions';
 
-type SaveCharOptions = { silentToast?: boolean; alreadyPersisted?: boolean };
-
-export default function CharactersPage() {
-  const navigate = useNavigate();
-  const toast = useToast();
-  const { characterId } = useParams();
-  const isNew = useMatch('/characters/new');
-  const isEdit = useMatch('/characters/:characterId/edit');
-  const mode = isNew || isEdit ? 'wizard' : characterId ? 'view' : 'list';
-
-  const [state, dispatch] = useReducer(charactersReducer, initialCharactersState);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-  const [deleting, setDeleting] = useState(false);
-  const [charOptions, setCharOptions] = useState<Record<string, unknown>>({});
-  const [newGameId, setNewGameId] = useState<string | null>(null);
-  const [creatingImmediate, setCreatingImmediate] = useState(false);
-
-  const load = useCallback(async () => {
-    const { characters } = await api.listCharacters();
-    dispatch({ type: 'set', patch: { roster: characters, rosterLoaded: true } });
-  }, []);
-
-  const loadCharacter = useCallback(async (id: string) => {
-    const [{ character: c }, sum] = await Promise.all([api.getCharacter(id), api.getCharacterSummary(id)]);
-    dispatch({
-      type: 'set',
-      patch: { character: c as Character, summary: sum.summary, activeId: id, error: null },
-    });
-  }, []);
-
+function useCharactersPageData({
+  mode,
+  characterId,
+  isNew,
+  gameId,
+  load,
+  loadCharacter,
+  dispatch,
+  setCharOptions,
+}: {
+  mode: 'list' | 'wizard' | 'view';
+  characterId: string | undefined;
+  isNew: boolean;
+  gameId: string | undefined;
+  load: () => Promise<void>;
+  loadCharacter: (id: string) => Promise<void>;
+  dispatch: Dispatch<CharactersAction>;
+  setCharOptions: Dispatch<Record<string, unknown>>;
+}) {
   useEffect(() => {
     load().catch((e) => dispatch({ type: 'set', patch: { error: String(e) } }));
-  }, [load]);
+  }, [load, dispatch]);
 
   useEffect(() => {
     if (mode !== 'view' && mode !== 'wizard') {
@@ -61,120 +55,142 @@ export default function CharactersPage() {
     loadCharacter(characterId).catch(() => {
       dispatch({ type: 'set', patch: { error: 'Character not found.', character: null, activeId: null } });
     });
-  }, [characterId, isNew, mode, loadCharacter]);
+  }, [characterId, isNew, mode, loadCharacter, dispatch]);
 
   useEffect(() => {
     if (mode !== 'view' && mode !== 'wizard') return;
     if (!characterId || isNew) return;
-    const gid = state.character?.game_id || DEFAULT_GAME_ID;
     api
-      .getCharacterOptions(false, gid)
+      .getCharacterOptions(false, gameId || DEFAULT_GAME_ID)
       .then(setCharOptions)
       .catch(() => setCharOptions({}));
-  }, [mode, characterId, isNew, state.character?.game_id]);
+  }, [mode, characterId, isNew, gameId, setCharOptions]);
+}
 
-  const saveChar = async (c: Character, opts?: SaveCharOptions) => {
-    let id = state.activeId || characterId || null;
-    try {
-      if (!opts?.alreadyPersisted) {
-        if (id) {
-          await api.updateCharacter(id, c as Record<string, unknown>);
-        } else {
-          const res = await api.createCharacter({
-            ...(c as Record<string, unknown>),
-            game_id: c.game_id || newGameId || DEFAULT_GAME_ID,
-          });
-          id = res.id;
-          dispatch({ type: 'set', patch: { activeId: res.id, character: res.character as Character } });
-        }
-      }
-      await load();
-      if (id) {
-        const sum = await api.getCharacterSummary(id);
-        dispatch({ type: 'set', patch: { summary: sum.summary, character: sum.character as Character } });
-        if (!opts?.silentToast) {
-          const name = String(c.name || sum.character?.name || '').trim() || 'Character';
-          toast.success(`Saved ${name}`);
-        }
-        navigate(`/characters/${id}`);
-      }
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Save failed';
-      toast.error(msg);
-      dispatch({ type: 'set', patch: { error: msg } });
-      throw e;
-    }
-  };
+function CharactersWorkspace({
+  mode,
+  isNew,
+  state,
+  character,
+  summary,
+  activeId,
+  gameId,
+  supportedGame,
+  charOptions,
+  newGameId,
+  creatingImmediate,
+  saveChar,
+  startImmediateCharacter,
+  onPickGame,
+  onConfirmDelete,
+  dispatch,
+  navigate,
+}: {
+  mode: 'list' | 'wizard' | 'view';
+  isNew: boolean;
+  state: CharactersState;
+  character: Character | null;
+  summary: Record<string, unknown>;
+  activeId: string | null;
+  gameId: string;
+  supportedGame: boolean;
+  charOptions: Record<string, unknown>;
+  newGameId: string | null;
+  creatingImmediate: boolean;
+  saveChar: (c: Character, opts?: SaveCharOptions) => Promise<void>;
+  startImmediateCharacter: (id: string) => Promise<void>;
+  onPickGame: (id: string) => void;
+  onConfirmDelete: () => void;
+  dispatch: Dispatch<CharactersAction>;
+  navigate: NavigateFunction;
+}) {
+  return (
+    <>
+      <CharactersErrorBanner error={state.error} showBack={mode === 'view'} onBack={() => navigate('/characters')} />
+      {mode === 'list' && (
+        <CharactersRoster
+          roster={state.roster}
+          loaded={state.rosterLoaded}
+          onOpen={(id) => navigate(`/characters/${id}`)}
+          onCreate={() => navigate('/characters/new')}
+        />
+      )}
+      {mode === 'wizard' && (
+        <CharactersWizardViews
+          isNew={isNew}
+          newGameId={newGameId}
+          gameId={gameId}
+          character={character}
+          activeId={activeId}
+          creatingImmediate={creatingImmediate}
+          onPickGame={onPickGame}
+          onImmediate={startImmediateCharacter}
+          onSave={saveChar}
+          onChange={(c) => dispatch({ type: 'set', patch: { character: c } })}
+          onCancel={() => navigate(activeId ? `/characters/${activeId}` : '/characters')}
+        />
+      )}
+      {mode === 'view' && character && (
+        <CharactersView
+          character={character}
+          supportedGame={supportedGame}
+          gameId={gameId}
+          activeId={activeId}
+          summary={summary}
+          charOptions={charOptions}
+          onSave={saveChar}
+          onBack={() => navigate('/characters')}
+          onEdit={() => navigate(`/characters/${activeId}/edit`)}
+          onLevelUp={() => dispatch({ type: 'set', patch: { levelUpOpen: true } })}
+          onDelete={onConfirmDelete}
+          onChange={(c) => dispatch({ type: 'set', patch: { character: c } })}
+        />
+      )}
+    </>
+  );
+}
 
-  const startImmediateCharacter = async (targetGameId: string) => {
-    setCreatingImmediate(true);
-    dispatch({ type: 'set', patch: { error: null } });
-    try {
-      const res = await api.createCharacter({ game_id: targetGameId, name: '' });
-      await load();
-      navigate(`/characters/${res.id}/edit`, { replace: true });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to create character';
-      toast.error(msg);
-      dispatch({ type: 'set', patch: { error: msg } });
-    } finally {
-      setCreatingImmediate(false);
-    }
-  };
+function charactersPageMode(isNew: boolean, isEdit: boolean, characterId: string | undefined) {
+  if (isNew || isEdit) return 'wizard' as const;
+  if (characterId) return 'view' as const;
+  return 'list' as const;
+}
 
-  const levelUp = async (
-    hpRoll: number | undefined,
-    asiChoices: Record<string, unknown>[],
-    className?: string,
-    spells?: { cantrips?: string[]; prepared_spells?: string[]; known_spells?: string[] },
-    choices?: Partial<Character>,
-  ) => {
-    const id = state.activeId || characterId;
-    if (!id) return;
-    try {
-      const res = await api.levelUpCharacter(id, {
-      hp_roll: hpRoll,
-      asi_choices: asiChoices,
-      class_name: className,
-      ...spells,
-      ...(choices?.feature_choices ? { feature_choices: choices.feature_choices as Record<string, unknown> } : {}),
-      ...(choices?.fighting_style_feat ? { fighting_style_feat: choices.fighting_style_feat } : {}),
-      ...(choices?.weapon_mastery ? { weapon_mastery: choices.weapon_mastery } : {}),
-      ...(typeof choices?.human_skill === 'string' && choices.human_skill ? { human_skill: choices.human_skill } : {}),
-      ...(choices?.versatile_origin_feat ? { versatile_origin_feat: choices.versatile_origin_feat } : {}),
-    });
-      dispatch({
-        type: 'set',
-        patch: { character: res.character as Character, summary: res.summary, levelUpOpen: false },
-      });
-      toast.success('Character leveled up');
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Level up failed';
-      toast.error(msg);
-      dispatch({ type: 'set', patch: { error: msg } });
-    }
-  };
+export default function CharactersPage() {
+  const navigate = useNavigate();
+  const { characterId } = useParams();
+  const isNew = Boolean(useMatch('/characters/new'));
+  const isEdit = Boolean(useMatch('/characters/:characterId/edit'));
+  const mode = charactersPageMode(isNew, isEdit, characterId);
 
-  const deleteCharacter = async () => {
-    const id = state.activeId || characterId;
-    if (!id || !character) return;
-    setDeleting(true);
-    dispatch({ type: 'set', patch: { error: null } });
-    try {
-      await api.deleteCharacter(id);
-      setConfirmDelete(false);
-      dispatch({ type: 'set', patch: { activeId: null, character: null } });
-      await load();
-      navigate('/characters');
-      toast.success(`Deleted ${character.name || 'character'}`);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Delete failed';
-      toast.error(msg);
-      dispatch({ type: 'set', patch: { error: msg } });
-    } finally {
-      setDeleting(false);
-    }
-  };
+  const [state, dispatch] = useReducer(charactersReducer, initialCharactersState);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [charOptions, setCharOptions] = useState<Record<string, unknown>>({});
+  const [newGameId, setNewGameId] = useState<string | null>(null);
+  const [creatingImmediate, setCreatingImmediate] = useState(false);
+
+  const { load, loadCharacter, saveChar, startImmediateCharacter, levelUp, deleteCharacter } = useCharactersPageActions(
+    state,
+    dispatch,
+    characterId,
+    newGameId,
+    navigate,
+    setDeleting,
+    setConfirmDelete,
+    setCreatingImmediate,
+  );
+
+  useCharactersPageData({
+    mode,
+    characterId,
+    isNew,
+    gameId: state.character?.game_id,
+    load,
+    loadCharacter,
+    dispatch,
+    setCharOptions,
+  });
 
   const { character, summary } = state;
   const activeId = state.activeId || characterId || null;
@@ -183,66 +199,198 @@ export default function CharactersPage() {
 
   return (
     <AnimatedPage className="space-y-6">
-      <PageHeader
-        title="Characters"
-        subtitle={
-          mode === 'view' && character
-            ? character.name
-            : `Create and manage ${gameLabel(DEFAULT_GAME_ID)} character sheets.`
-        }
-        actions={
-          mode === 'list' ? (
-            <button
-              type="button"
-              className="btn-primary shrink-0 inline-flex items-center gap-2"
-              onClick={() => navigate('/characters/new')}
-            >
-              <UserPlus size={16} /> New character
-            </button>
-          ) : undefined
-        }
+      <CharactersHeader mode={mode} character={character} onCreate={() => navigate('/characters/new')} />
+      <CharactersWorkspace
+        mode={mode}
+        isNew={isNew}
+        state={state}
+        character={character}
+        summary={summary}
+        activeId={activeId}
+        gameId={gameId}
+        supportedGame={supportedGame}
+        charOptions={charOptions}
+        newGameId={newGameId}
+        creatingImmediate={creatingImmediate}
+        saveChar={saveChar}
+        startImmediateCharacter={startImmediateCharacter}
+        onPickGame={setNewGameId}
+        onConfirmDelete={() => setConfirmDelete(true)}
+        dispatch={dispatch}
+        navigate={navigate}
+      />
+      <CharactersLevelUp
+        open={state.levelUpOpen}
+        character={character}
+        activeId={activeId}
+        gameId={gameId}
+        summary={summary}
+        onConfirm={levelUp}
+        onCancel={() => dispatch({ type: 'set', patch: { levelUpOpen: false } })}
       />
 
-      {state.error && (
-        <m.div
-          variants={fadeUp}
-          className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger"
-        >
-          {state.error}
-          {mode === 'view' && (
-            <button type="button" className="ml-3 underline" onClick={() => navigate('/characters')}>
-              Back to list
-            </button>
-          )}
-        </m.div>
-      )}
+      <ConfirmDialog
+        open={confirmDelete}
+        title="Delete character"
+        message={
+          character
+            ? `Delete "${character.name}"? This also deletes linked adventures and play sessions, and removes the character from campaigns.`
+            : ''
+        }
+        onConfirm={() => deleteCharacter(character)}
+        onCancel={() => setConfirmDelete(false)}
+        busy={deleting}
+      />
+    </AnimatedPage>
+  );
+}
 
-      {mode === 'list' && (
-        <m.div variants={staggerContainer} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {!state.rosterLoaded ? (
-            <ListLoading className="sm:col-span-2 lg:col-span-3" />
-          ) : state.roster.length === 0 ? (
-            <div className="sm:col-span-2 lg:col-span-3">
-              <EmptyState
-                icon={<Users size={32} />}
-                title="No characters yet"
-                description="Build a PHB 2024 character with guided creation."
-                action={
-                  <button type="button" className="btn-primary" onClick={() => navigate('/characters/new')}>
-                    Create your first character
-                  </button>
-                }
-              />
-            </div>
-          ) : (
-            state.roster.map((r) => (
-              <ListCard key={r.id} title={r.name} onClick={() => navigate(`/characters/${r.id}`)} />
-            ))
-          )}
-        </m.div>
-      )}
+function CharactersHeader({
+  mode,
+  character,
+  onCreate,
+}: {
+  mode: 'wizard' | 'view' | 'list';
+  character: Character | null;
+  onCreate: () => void;
+}) {
+  return (
+    <PageHeader
+      title="Characters"
+      subtitle={
+        mode === 'view' && character
+          ? character.name
+          : `Create and manage ${gameLabel(DEFAULT_GAME_ID)} character sheets.`
+      }
+      actions={
+        mode === 'list' ? (
+          <button type="button" className="btn-primary shrink-0 inline-flex items-center gap-2" onClick={onCreate}>
+            <UserPlus size={16} /> New character
+          </button>
+        ) : undefined
+      }
+    />
+  );
+}
 
-      {mode === 'wizard' && isNew && !newGameId && (
+function CharactersLevelUp({
+  open,
+  character,
+  activeId,
+  gameId,
+  summary,
+  onConfirm,
+  onCancel,
+}: {
+  open: boolean;
+  character: Character | null;
+  activeId: string | null;
+  gameId: string;
+  summary: Record<string, unknown>;
+  onConfirm: ComponentProps<typeof LevelUpDialog>['onConfirm'];
+  onCancel: () => void;
+}) {
+  if (!open || !character || !activeId || !getGameCharacterConfig(gameId).supportsLevelUp) return null;
+  return (
+    <LevelUpDialog
+      characterId={activeId}
+      character={character}
+      summary={summary}
+      onConfirm={onConfirm}
+      onCancel={onCancel}
+    />
+  );
+}
+
+function CharactersErrorBanner({
+  error,
+  showBack,
+  onBack,
+}: {
+  error: string | null;
+  showBack: boolean;
+  onBack: () => void;
+}) {
+  if (!error) return null;
+  return (
+    <m.div variants={fadeUp} className="rounded-lg border border-danger/30 bg-danger/10 px-4 py-2 text-sm text-danger">
+      {error}
+      {showBack && (
+        <button type="button" className="ml-3 underline" onClick={onBack}>
+          Back to list
+        </button>
+      )}
+    </m.div>
+  );
+}
+
+function CharactersRoster({
+  roster,
+  loaded,
+  onOpen,
+  onCreate,
+}: {
+  roster: { id: string; name: string }[];
+  loaded: boolean;
+  onOpen: (id: string) => void;
+  onCreate: () => void;
+}) {
+  return (
+    <m.div variants={staggerContainer} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      {!loaded ? (
+        <ListLoading className="sm:col-span-2 lg:col-span-3" />
+      ) : roster.length === 0 ? (
+        <div className="sm:col-span-2 lg:col-span-3">
+          <EmptyState
+            icon={<Users size={32} />}
+            title="No characters yet"
+            description="Build a PHB 2024 character with guided creation."
+            action={
+              <button type="button" className="btn-primary" onClick={onCreate}>
+                Create your first character
+              </button>
+            }
+          />
+        </div>
+      ) : (
+        roster.map((r) => <ListCard key={r.id} title={r.name} onClick={() => onOpen(r.id)} />)
+      )}
+    </m.div>
+  );
+}
+
+function CharactersWizardViews({
+  isNew,
+  newGameId,
+  gameId,
+  character,
+  activeId,
+  creatingImmediate,
+  onPickGame,
+  onImmediate,
+  onSave,
+  onChange,
+  onCancel,
+}: {
+  isNew: boolean;
+  newGameId: string | null;
+  gameId: string;
+  character: Character | null;
+  activeId: string | null;
+  creatingImmediate: boolean;
+  onPickGame: (id: string) => void;
+  onImmediate: (id: string) => void;
+  onSave: (c: Character, opts?: SaveCharOptions) => Promise<void>;
+  onChange: (c: Character) => void;
+  onCancel: () => void;
+}) {
+  const wizardGameId = newGameId ?? gameId;
+  const showPicker = isNew && !newGameId;
+  const showWizard = getGameCharacterConfig(wizardGameId).creationFlow === 'wizard';
+  const showImmediate = getGameCharacterConfig(gameId).creationFlow === 'immediate' && Boolean(character);
+  return (
+    <>
+      {showPicker && (
         <m.div variants={fadeUp} className="panel-glow p-6 space-y-4 max-w-lg">
           <h2 className="display-title text-lg">Choose game</h2>
           <p className="text-sm text-muted">Pick which ruleset this character uses.</p>
@@ -257,10 +405,10 @@ export default function CharactersPage() {
                   disabled={config.creationFlow === 'immediate' && creatingImmediate}
                   onClick={() => {
                     if (config.creationFlow === 'immediate') {
-                      void startImmediateCharacter(g.id);
+                      void onImmediate(g.id);
                       return;
                     }
-                    setNewGameId(g.id);
+                    onPickGame(g.id);
                   }}
                 >
                   {g.label}
@@ -268,94 +416,94 @@ export default function CharactersPage() {
               );
             })}
           </div>
-          <button type="button" className="btn-ghost text-sm" onClick={() => navigate('/characters')}>
+          <button type="button" className="btn-ghost text-sm" onClick={onCancel}>
             Cancel
           </button>
         </m.div>
       )}
-
-      {mode === 'wizard' && getGameCharacterConfig(newGameId ?? gameId).creationFlow === 'wizard' && (
+      {showWizard && (
         <m.div variants={fadeUp}>
           <GameCharacterWizard
-            gameId={newGameId ?? gameId}
+            gameId={wizardGameId}
             initial={character || undefined}
-            onSave={saveChar}
-            onCancel={() => navigate(activeId ? `/characters/${activeId}` : '/characters')}
+            onSave={onSave}
+            onCancel={onCancel}
           />
         </m.div>
       )}
-
-      {mode === 'wizard' && getGameCharacterConfig(gameId).creationFlow === 'immediate' && character && (
+      {showImmediate && character && (
         <m.div variants={fadeUp}>
           <GameCharacterSetup
             gameId={gameId}
             characterId={activeId}
             entity={character as Record<string, unknown>}
-            onChange={(entity) => dispatch({ type: 'set', patch: { character: entity as Character } })}
+            onChange={(entity) => onChange(entity as Character)}
             onSaved={async (entity) => {
-              await saveChar(entity as Character, { silentToast: true, alreadyPersisted: true });
+              await onSave(entity as Character, { silentToast: true, alreadyPersisted: true });
             }}
           />
-          <button
-            type="button"
-            className="btn-ghost mt-3 text-sm"
-            onClick={() => navigate(activeId ? `/characters/${activeId}` : '/characters')}
-          >
+          <button type="button" className="btn-ghost mt-3 text-sm" onClick={onCancel}>
             {activeId ? 'Done' : 'Cancel'}
           </button>
         </m.div>
       )}
+    </>
+  );
+}
 
-      {mode === 'view' && character && !supportedGame && (
-        <EmptyState
-          icon={<Users size={32} />}
-          title="Game not supported yet"
-          description={`This character uses "${gameLabel(gameId)}", which is not available in the UI yet.`}
-          action={
-            <button type="button" className="btn-ghost" onClick={() => navigate('/characters')}>
-              Back to list
-            </button>
-          }
-        />
-      )}
-
-      {mode === 'view' && character && supportedGame && (
-        <CharacterDetailPanel
-          character={character}
-          activeId={activeId}
-          summary={summary}
-          charOptions={charOptions}
-          onBack={() => navigate('/characters')}
-          onEdit={() => navigate(`/characters/${activeId}/edit`)}
-          onLevelUp={() => dispatch({ type: 'set', patch: { levelUpOpen: true } })}
-          onSave={saveChar}
-          onDelete={() => setConfirmDelete(true)}
-          onChange={(c) => dispatch({ type: 'set', patch: { character: c } })}
-        />
-      )}
-
-      {state.levelUpOpen && character && activeId && getGameCharacterConfig(gameId).supportsLevelUp && (
-        <LevelUpDialog
-          characterId={activeId}
-          character={character}
-          summary={summary}
-          onConfirm={levelUp}
-          onCancel={() => dispatch({ type: 'set', patch: { levelUpOpen: false } })}
-        />
-      )}
-
-      <ConfirmDialog
-        open={confirmDelete}
-        title="Delete character"
-        message={
-          character
-            ? `Delete "${character.name}"? This also deletes linked adventures and play sessions, and removes the character from campaigns.`
-            : ''
+function CharactersView({
+  character,
+  supportedGame,
+  gameId,
+  activeId,
+  summary,
+  charOptions,
+  onSave,
+  onBack,
+  onEdit,
+  onLevelUp,
+  onDelete,
+  onChange,
+}: {
+  character: Character;
+  supportedGame: boolean;
+  gameId: string;
+  activeId: string | null;
+  summary: Record<string, unknown>;
+  charOptions: Record<string, unknown>;
+  onSave: (c: Character, opts?: SaveCharOptions) => void | Promise<void>;
+  onBack: () => void;
+  onEdit: () => void;
+  onLevelUp: () => void;
+  onDelete: () => void;
+  onChange: (c: Character) => void;
+}) {
+  if (!supportedGame) {
+    return (
+      <EmptyState
+        icon={<Users size={32} />}
+        title="Game not supported yet"
+        description={`This character uses "${gameLabel(gameId)}", which is not available in the UI yet.`}
+        action={
+          <button type="button" className="btn-ghost" onClick={onBack}>
+            Back to list
+          </button>
         }
-        onConfirm={deleteCharacter}
-        onCancel={() => setConfirmDelete(false)}
-        busy={deleting}
       />
-    </AnimatedPage>
+    );
+  }
+  return (
+    <CharacterDetailPanel
+      character={character}
+      activeId={activeId}
+      summary={summary}
+      charOptions={charOptions}
+      onBack={onBack}
+      onEdit={onEdit}
+      onLevelUp={onLevelUp}
+      onSave={onSave}
+      onDelete={onDelete}
+      onChange={onChange}
+    />
   );
 }

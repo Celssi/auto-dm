@@ -133,30 +133,91 @@ export default function PlayToolsPanel({
         shortcutLoading={shortcutLoading}
       />
       <PlayLogTabs tabs={tabs} active={activeLogTab} onChange={setLogTab}>
-        {activeLogTab === 'dragonkeep' && (
-          <DragonkeepPanel state={dragonkeep} onAction={onDragonkeepAction} onInit={onDragonkeepInit} embedded />
-        )}
-        {activeLogTab === 'journey' && (
-          <JourneyPanel
-            journey={pendingJourney}
-            onApply={onJourneyApply}
-            onDrawItem={onJourneyDrawItem}
-            onFinish={onJourneyFinish}
-            onDiscard={onJourneyDiscard}
-            onStartCombat={onJourneyStartCombat}
-            embedded
-          />
-        )}
-        {activeLogTab === 'deck' && characterId && (
-          <DeckPanel characterId={characterId} remaining={deckRemaining} onAction={() => refreshDeck()} embedded />
-        )}
-        {activeLogTab === 'combat' && brambletrekCombat && (
-          <BrambletrekCombatPanel combat={brambletrekCombat} onAction={onBrambletrekCombatAction} embedded />
-        )}
-        {activeLogTab === 'lonelog' && <PlayLonelogView lonelog={lonelog} />}
-        {activeLogTab === 'audit' && <PlayAuditView auditEvents={auditEvents} />}
+        <PlayToolTabContent
+          activeLogTab={activeLogTab}
+          dragonkeep={dragonkeep}
+          pendingJourney={pendingJourney}
+          characterId={characterId}
+          deckRemaining={deckRemaining}
+          brambletrekCombat={brambletrekCombat}
+          lonelog={lonelog}
+          auditEvents={auditEvents}
+          onDragonkeepAction={onDragonkeepAction}
+          onDragonkeepInit={onDragonkeepInit}
+          onJourneyApply={onJourneyApply}
+          onJourneyDrawItem={onJourneyDrawItem}
+          onJourneyFinish={onJourneyFinish}
+          onJourneyDiscard={onJourneyDiscard}
+          onJourneyStartCombat={onJourneyStartCombat}
+          onRefreshDeck={refreshDeck}
+          onBrambletrekCombatAction={onBrambletrekCombatAction}
+        />
       </PlayLogTabs>
       <PlaySourcesList sources={sources} />
     </PlayToolsShell>
   );
+}
+
+function PlayToolTabContent({
+  activeLogTab,
+  dragonkeep,
+  pendingJourney,
+  characterId,
+  deckRemaining,
+  brambletrekCombat,
+  lonelog,
+  auditEvents,
+  onDragonkeepAction,
+  onDragonkeepInit,
+  onJourneyApply,
+  onJourneyDrawItem,
+  onJourneyFinish,
+  onJourneyDiscard,
+  onJourneyStartCombat,
+  onRefreshDeck,
+  onBrambletrekCombatAction,
+}: {
+  activeLogTab: PlayLogTab;
+  dragonkeep: DragonkeepState | null;
+  pendingJourney: PendingJourney | null;
+  characterId: string;
+  deckRemaining: number;
+  brambletrekCombat: BrambletrekCombatState | null;
+  lonelog: string[];
+  auditEvents: AuditEvent[];
+  onDragonkeepAction: (action: string) => Promise<void>;
+  onDragonkeepInit: () => Promise<void>;
+  onJourneyApply: (index: number) => Promise<{ summary?: string; item_error?: string | null }>;
+  onJourneyDrawItem: (index: number) => Promise<{ item_error?: string | null }>;
+  onJourneyFinish: () => Promise<void>;
+  onJourneyDiscard: () => Promise<void>;
+  onJourneyStartCombat: (index: number) => Promise<void>;
+  onRefreshDeck: () => void;
+  onBrambletrekCombatAction: (action: string, handIndex?: number) => Promise<void>;
+}) {
+  if (activeLogTab === 'dragonkeep') {
+    return <DragonkeepPanel state={dragonkeep} onAction={onDragonkeepAction} onInit={onDragonkeepInit} embedded />;
+  }
+  if (activeLogTab === 'journey') {
+    return (
+      <JourneyPanel
+        journey={pendingJourney}
+        onApply={onJourneyApply}
+        onDrawItem={onJourneyDrawItem}
+        onFinish={onJourneyFinish}
+        onDiscard={onJourneyDiscard}
+        onStartCombat={onJourneyStartCombat}
+        embedded
+      />
+    );
+  }
+  if (activeLogTab === 'deck' && characterId) {
+    return <DeckPanel characterId={characterId} remaining={deckRemaining} onAction={onRefreshDeck} embedded />;
+  }
+  if (activeLogTab === 'combat' && brambletrekCombat) {
+    return <BrambletrekCombatPanel combat={brambletrekCombat} onAction={onBrambletrekCombatAction} embedded />;
+  }
+  if (activeLogTab === 'lonelog') return <PlayLonelogView lonelog={lonelog} />;
+  if (activeLogTab === 'audit') return <PlayAuditView auditEvents={auditEvents} />;
+  return null;
 }

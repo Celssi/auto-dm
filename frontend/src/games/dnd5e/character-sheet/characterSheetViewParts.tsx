@@ -21,6 +21,73 @@ export function SheetSection({
   );
 }
 
+function sheetFieldClasses(options: { className: string; mono?: boolean; fill?: boolean; plain?: boolean }) {
+  const { className, mono, fill, plain } = options;
+  const wrapperClass = plain
+    ? `flex flex-col min-h-0 ${fill ? 'flex-1' : ''} ${className}`.trim()
+    : `sheet-field ${fill ? 'flex flex-col flex-1 min-h-0' : ''} ${className}`.trim();
+  const textareaClass =
+    `sheet-value-textarea ${fill ? 'sheet-value-textarea-tall' : ''} ${mono ? 'font-mono' : ''}`.trim();
+  const multilineClass =
+    `sheet-value-multiline ${fill ? 'sheet-value-multiline-tall' : ''} ${mono ? 'font-mono' : ''}`.trim();
+  return { wrapperClass, textareaClass, multilineClass };
+}
+
+function SheetFieldEditor({
+  label,
+  value,
+  onChange,
+  multiline,
+  fill,
+  mono,
+  textareaClass,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  multiline?: boolean;
+  fill?: boolean;
+  mono?: boolean;
+  textareaClass: string;
+}) {
+  if (multiline) {
+    return (
+      <textarea
+        className={textareaClass}
+        value={value}
+        rows={fill ? undefined : 6}
+        onChange={(e) => onChange(e.target.value)}
+        aria-label={label || 'Field'}
+      />
+    );
+  }
+  return (
+    <input
+      className={`sheet-value-input ${mono ? 'font-mono' : ''}`}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label={label || 'Field'}
+    />
+  );
+}
+
+function SheetFieldReadout({
+  value,
+  multiline,
+  mono,
+  multilineClass,
+}: {
+  value: string;
+  multiline?: boolean;
+  mono?: boolean;
+  multilineClass: string;
+}) {
+  if (multiline) {
+    return <div className={multilineClass}>{value ? <MarkdownContent content={value} /> : EMPTY_FIELD}</div>;
+  }
+  return <div className={`sheet-value ${mono ? 'font-mono' : ''}`}>{value ? displayLabel(value) : EMPTY_FIELD}</div>;
+}
+
 export function SheetField({
   label,
   value,
@@ -44,44 +111,22 @@ export function SheetField({
   hideLabel?: boolean;
   plain?: boolean;
 }) {
-  const wrapperClass = plain
-    ? `flex flex-col min-h-0 ${fill ? 'flex-1' : ''} ${className}`.trim()
-    : `sheet-field ${fill ? 'flex flex-col flex-1 min-h-0' : ''} ${className}`.trim();
-  const textareaClass =
-    `sheet-value-textarea ${fill ? 'sheet-value-textarea-tall' : ''} ${mono ? 'font-mono' : ''}`.trim();
-  const multilineClass =
-    `sheet-value-multiline ${fill ? 'sheet-value-multiline-tall' : ''} ${mono ? 'font-mono' : ''}`.trim();
-
+  const { wrapperClass, textareaClass, multilineClass } = sheetFieldClasses({ className, mono, fill, plain });
   return (
     <div className={wrapperClass}>
       {!hideLabel && label ? <div className="sheet-label shrink-0">{label}</div> : null}
       {editable && onChange ? (
-        multiline ? (
-          <textarea
-            className={textareaClass}
-            value={value}
-            rows={fill ? undefined : 6}
-            onChange={(e) => onChange(e.target.value)}
-            aria-label={label || 'Field'}
-          />
-        ) : (
-          <input
-            className={`sheet-value-input ${mono ? 'font-mono' : ''}`}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            aria-label={label || 'Field'}
-          />
-        )
-      ) : multiline ? (
-        value ? (
-          <div className={multilineClass}>
-            <MarkdownContent content={value} />
-          </div>
-        ) : (
-          <div className={multilineClass}>{EMPTY_FIELD}</div>
-        )
+        <SheetFieldEditor
+          label={label}
+          value={value}
+          onChange={onChange}
+          multiline={multiline}
+          fill={fill}
+          mono={mono}
+          textareaClass={textareaClass}
+        />
       ) : (
-        <div className={`sheet-value ${mono ? 'font-mono' : ''}`}>{value ? displayLabel(value) : EMPTY_FIELD}</div>
+        <SheetFieldReadout value={value} multiline={multiline} mono={mono} multilineClass={multilineClass} />
       )}
     </div>
   );

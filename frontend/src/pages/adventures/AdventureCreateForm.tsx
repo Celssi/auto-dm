@@ -1,4 +1,5 @@
 import { m } from '../../lib/framer';
+import { revealPanel } from '../../components/ui/motion';
 import { Field } from '../../components/ui/forms/Field';
 import TextInput from '../../components/ui/forms/TextInput';
 import TextArea from '../../components/ui/forms/TextArea';
@@ -17,12 +18,7 @@ interface Props {
 
 export default function AdventureCreateForm({ form, characters, campaigns, onPatchForm, onCreate, onCancel }: Props) {
   return (
-    <m.div
-      initial={{ opacity: 0, height: 0 }}
-      animate={{ opacity: 1, height: 'auto' }}
-      exit={{ opacity: 0, height: 0 }}
-      className="panel-glow p-5 space-y-4 overflow-hidden"
-    >
+    <m.div {...revealPanel} className="panel-glow p-5 space-y-4 overflow-hidden">
       <h2 className="section-heading">Generate adventure</h2>
       <Field label="Adventure name">
         <TextInput

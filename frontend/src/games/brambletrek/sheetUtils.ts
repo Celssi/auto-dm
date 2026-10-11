@@ -20,5 +20,5 @@ export function brambletrekSummaryLine(char: BrambletrekCharacter, summary?: Rec
   const line = summary?.summary_line;
   if (typeof line === 'string' && line.trim()) return line;
   const name = char.name?.trim() || 'Unnamed Gnawborn';
-  return `${name} — ${formatResources(char)}`;
+  return `${name} | ${formatResources(char)}`;
 }
