@@ -1,6 +1,7 @@
+import { useState, type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { m, AnimatePresence } from '../../lib/framer';
-import { Swords } from 'lucide-react';
+import { MessageSquare, Swords, UserRound, Wrench } from 'lucide-react';
 import type { ChatMessage, PlayerProgress, SpellConfirmation } from '../../api/client';
 import type { Character } from '../../types';
 import PlayCharacterSidebar from '../../components/play/PlayCharacterSidebar';
@@ -14,6 +15,11 @@ import { getGamePlayConfig } from '../../games/play/registry';
 import type { PlayState, DiceModalState } from './playState';
 import type { JournalEntity } from '../../api/client';
 import DiceRollModal from '../../components/play/DiceRollModal';
+import SegmentedControl from '../../components/ui/forms/SegmentedControl';
+import { useViewport } from '../../hooks/useViewport';
+
+type PlayPane = 'chat' | 'sheet' | 'tools';
+type TabletSide = 'sheet' | 'tools';
 
 interface Props {
   state: PlayState;
@@ -100,72 +106,87 @@ export default function PlaySessionView({
 
   const gameId = character?.game_id ?? 'dnd5e';
   const playConfig = getGamePlayConfig(gameId);
+  const panes = usePlayPanes();
 
   return (
-    <AnimatedPage className="lg:flex-1 lg:min-h-0 lg:h-full grid grid-cols-1 lg:grid-cols-12 lg:grid-rows-1 gap-3 lg:overflow-hidden">
-      <PlayCharacterPanel
-        character={character}
-        characterId={characterId}
-        characterSummary={characterSummary}
-        playerProgress={playerProgress}
-      />
-
-      <main className="lg:col-span-6 panel-glow flex flex-col min-h-0 overflow-hidden">
-        <PlayChatArea
-          sessionLoaded={sessionLoaded}
-          loadError={loadError}
-          messages={messages}
-          loading={loading}
-          beginning={beginning}
-          beginError={beginError}
-          onBegin={onBegin}
-          journalEntities={journalEntities}
-          bottomRef={bottomRef}
-          adventureComplete={adventureComplete}
-          nextAdventure={nextAdventure}
-          playerProgress={playerProgress}
-          startingNext={startingNext}
-          campaignId={campaignId}
-          onStartNextAdventure={onStartNextAdventure}
-        />
-        <PlayChatInput
-          input={input}
-          loading={loading}
-          chatError={chatError}
-          spellConfirm={spellConfirm}
-          onInputChange={onInputChange}
-          onSend={onSend}
-          onConfirmSpellCast={onConfirmSpellCast}
-          onCancelSpellCast={onCancelSpellCast}
-        />
-      </main>
-
-      <PlayToolsPanel
-        gameId={gameId}
-        sessionId={sessionId}
-        characterId={characterId}
-        pendingJourney={pendingJourney}
-        dragonkeep={dragonkeep}
-        activeAdventure={activeAdventure}
-        oracles={oracles}
-        shortcuts={shortcuts}
-        lonelog={lonelog}
-        auditEvents={auditEvents}
-        sources={sources}
-        loading={loading}
-        combatState={combatState}
-        brambletrekCombat={brambletrekCombat}
-        onRunOracle={onRunOracle}
-        onRunShortcut={onRunShortcut}
-        onJourneyApply={onJourneyApply}
-        onJourneyDrawItem={onJourneyDrawItem}
-        onJourneyFinish={onJourneyFinish}
-        onJourneyDiscard={onJourneyDiscard}
-        onJourneyStartCombat={onJourneyStartCombat}
-        onDragonkeepAction={onDragonkeepAction}
-        onDragonkeepInit={onDragonkeepInit}
-        onBrambletrekCombatAction={onBrambletrekCombatAction}
-        onCombatAction={onCombatAction}
+    <AnimatedPage className="flex-1 min-h-0 h-full flex flex-col gap-2 overflow-hidden">
+      <PlaySessionLayout
+        viewport={panes.viewport}
+        showSheet={panes.showSheet}
+        showChat={panes.showChat}
+        showTools={panes.showTools}
+        tabletSide={panes.tabletSide}
+        phonePane={panes.phonePane}
+        onTabletSide={panes.setTabletSide}
+        onPhonePane={panes.setPhonePane}
+        sheet={
+          <PlayCharacterPanel
+            character={character}
+            characterId={characterId}
+            characterSummary={characterSummary}
+            playerProgress={playerProgress}
+          />
+        }
+        chat={
+          <main className="panel-glow flex flex-col min-h-0 overflow-hidden flex-1">
+            <PlayChatArea
+              sessionLoaded={sessionLoaded}
+              loadError={loadError}
+              messages={messages}
+              loading={loading}
+              beginning={beginning}
+              beginError={beginError}
+              onBegin={onBegin}
+              journalEntities={journalEntities}
+              bottomRef={bottomRef}
+              adventureComplete={adventureComplete}
+              nextAdventure={nextAdventure}
+              playerProgress={playerProgress}
+              startingNext={startingNext}
+              campaignId={campaignId}
+              onStartNextAdventure={onStartNextAdventure}
+            />
+            <PlayChatInput
+              input={input}
+              loading={loading}
+              chatError={chatError}
+              spellConfirm={spellConfirm}
+              onInputChange={onInputChange}
+              onSend={onSend}
+              onConfirmSpellCast={onConfirmSpellCast}
+              onCancelSpellCast={onCancelSpellCast}
+            />
+          </main>
+        }
+        tools={
+          <PlayToolsPanel
+            gameId={gameId}
+            sessionId={sessionId}
+            characterId={characterId}
+            pendingJourney={pendingJourney}
+            dragonkeep={dragonkeep}
+            activeAdventure={activeAdventure}
+            oracles={oracles}
+            shortcuts={shortcuts}
+            lonelog={lonelog}
+            auditEvents={auditEvents}
+            sources={sources}
+            loading={loading}
+            combatState={combatState}
+            brambletrekCombat={brambletrekCombat}
+            onRunOracle={onRunOracle}
+            onRunShortcut={onRunShortcut}
+            onJourneyApply={onJourneyApply}
+            onJourneyDrawItem={onJourneyDrawItem}
+            onJourneyFinish={onJourneyFinish}
+            onJourneyDiscard={onJourneyDiscard}
+            onJourneyStartCombat={onJourneyStartCombat}
+            onDragonkeepAction={onDragonkeepAction}
+            onDragonkeepInit={onDragonkeepInit}
+            onBrambletrekCombatAction={onBrambletrekCombatAction}
+            onCombatAction={onCombatAction}
+          />
+        }
       />
 
       <AnimatePresence>
@@ -185,6 +206,109 @@ export default function PlaySessionView({
   );
 }
 
+function usePlayPanes() {
+  const viewport = useViewport();
+  const [phonePane, setPhonePane] = useState<PlayPane>('chat');
+  const [tabletSide, setTabletSide] = useState<TabletSide>('tools');
+  return {
+    viewport,
+    phonePane,
+    tabletSide,
+    setPhonePane,
+    setTabletSide,
+    showSheet:
+      viewport === 'desktop' ||
+      (viewport === 'tablet' && tabletSide === 'sheet') ||
+      (viewport === 'phone' && phonePane === 'sheet'),
+    showChat: viewport !== 'phone' || phonePane === 'chat',
+    showTools:
+      viewport === 'desktop' ||
+      (viewport === 'tablet' && tabletSide === 'tools') ||
+      (viewport === 'phone' && phonePane === 'tools'),
+  };
+}
+
+function PlaySessionLayout({
+  viewport,
+  showSheet,
+  showChat,
+  showTools,
+  tabletSide,
+  phonePane,
+  onTabletSide,
+  onPhonePane,
+  sheet,
+  chat,
+  tools,
+}: {
+  viewport: ReturnType<typeof useViewport>;
+  showSheet: boolean;
+  showChat: boolean;
+  showTools: boolean;
+  tabletSide: TabletSide;
+  phonePane: PlayPane;
+  onTabletSide: (value: TabletSide) => void;
+  onPhonePane: (value: PlayPane) => void;
+  sheet: ReactNode;
+  chat: ReactNode;
+  tools: ReactNode;
+}) {
+  const columns = viewport === 'desktop' ? 'grid-cols-12' : viewport === 'tablet' ? 'grid-cols-2' : 'grid-cols-1';
+  return (
+    <>
+      <div className={`flex-1 min-h-0 grid gap-3 overflow-hidden ${columns}`}>
+        {viewport === 'desktop' && showSheet && <div className="col-span-3 min-h-0 flex flex-col">{sheet}</div>}
+        {viewport === 'phone' && showSheet && <div className="min-h-0 flex flex-col">{sheet}</div>}
+        {showChat && (
+          <div className={`min-h-0 flex flex-col ${viewport === 'desktop' ? 'col-span-6' : ''}`}>{chat}</div>
+        )}
+        {viewport === 'tablet' && (
+          <div className="min-h-0 flex flex-col gap-2">
+            <SegmentedControl
+              value={tabletSide}
+              onChange={(value) => onTabletSide(value as TabletSide)}
+              options={[
+                { value: 'sheet', label: 'Sheet' },
+                { value: 'tools', label: 'Tools' },
+              ]}
+            />
+            <div className="flex-1 min-h-0 flex flex-col">{tabletSide === 'sheet' ? sheet : tools}</div>
+          </div>
+        )}
+        {viewport !== 'tablet' && showTools && (
+          <div className={`min-h-0 flex flex-col ${viewport === 'desktop' ? 'col-span-3' : ''}`}>{tools}</div>
+        )}
+      </div>
+      {viewport === 'phone' && <PlayPaneBar active={phonePane} onChange={onPhonePane} />}
+    </>
+  );
+}
+
+function PlayPaneBar({ active, onChange }: { active: PlayPane; onChange: (pane: PlayPane) => void }) {
+  const panes: { id: PlayPane; label: string; icon: typeof MessageSquare }[] = [
+    { id: 'chat', label: 'Chat', icon: MessageSquare },
+    { id: 'sheet', label: 'Sheet', icon: UserRound },
+    { id: 'tools', label: 'Tools', icon: Wrench },
+  ];
+  return (
+    <div className="shrink-0 grid grid-cols-3 rounded-xl border border-border bg-panel/80">
+      {panes.map(({ id, label, icon: Icon }) => (
+        <button
+          key={id}
+          type="button"
+          className={`min-h-12 inline-flex flex-col items-center justify-center gap-0.5 text-[11px] ${
+            active === id ? 'text-accent' : 'text-muted'
+          }`}
+          onClick={() => onChange(id)}
+        >
+          <Icon size={18} />
+          {label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 function PlayCharacterPanel({
   character,
   characterId,
@@ -198,7 +322,7 @@ function PlayCharacterPanel({
 }) {
   const completed = playerProgress?.completed_beats ?? [];
   return (
-    <aside className="lg:col-span-3 panel-glow overflow-y-auto p-3 flex flex-col gap-3 min-h-0">
+    <aside className="panel-glow overflow-y-auto p-3 flex flex-col gap-3 min-h-0 flex-1">
       <div className="flex items-center justify-between gap-2 shrink-0">
         <h2 className="section-heading">Character</h2>
         {character && characterId && (

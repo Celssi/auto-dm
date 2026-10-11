@@ -1,8 +1,9 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { LogOut } from 'lucide-react';
+import { Dices, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { m } from '../lib/framer';
-import { Dices } from 'lucide-react';
+import GameSwitcher from './GameSwitcher';
+import BottomNav from './BottomNav';
 
 const links = [
   { to: '/', label: 'Home', exact: true },
@@ -24,49 +25,54 @@ export default function Layout() {
   const isPlaySession = /^\/play\/[^/]+/.test(loc.pathname);
 
   return (
-    <div className={`flex flex-col ${isPlaySession ? 'min-h-screen lg:h-screen lg:overflow-hidden' : 'min-h-screen'}`}>
+    <div className={`flex flex-col ${isPlaySession ? 'h-dvh overflow-hidden' : 'min-h-screen'}`}>
       <nav className="border-b border-border/80 bg-panel/70 backdrop-blur-md shrink-0 z-20">
         <div
-          className={`mx-auto px-4 py-3 flex items-center gap-4 md:gap-6 ${isPlaySession ? 'max-w-[1600px]' : 'max-w-7xl'}`}
+          className={`mx-auto px-4 py-2.5 flex items-center gap-3 md:gap-6 ${
+            isPlaySession ? 'max-w-[1600px]' : 'max-w-7xl'
+          }`}
         >
           <Link to="/" className="flex items-center gap-2 group shrink-0">
             <m.span whileHover={{ rotate: 12 }} transition={{ type: 'spring', stiffness: 300 }} className="text-accent">
               <Dices size={22} />
             </m.span>
-            <span className="font-display font-semibold text-accent group-hover:text-yellow-300 transition-colors">
+            <span className="font-display font-semibold text-accent group-hover:opacity-80 transition-opacity">
               Auto-DM
             </span>
           </Link>
 
-          <div className="flex items-center gap-1 overflow-x-auto scrollbar-none">
-            {links.map((l) => {
-              const active = isActive(loc.pathname, l.to, l.exact);
-              return (
-                <Link
-                  key={l.to}
-                  to={l.to}
-                  className={`relative text-sm px-3 py-1.5 rounded-lg whitespace-nowrap transition-colors ${
-                    active ? 'text-accent' : 'text-muted hover:text-gray-200'
-                  }`}
-                >
-                  {active && (
-                    <m.span
-                      layoutId="nav-indicator"
-                      className="absolute inset-0 bg-accent/10 border border-accent/20 rounded-lg"
-                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                    />
-                  )}
-                  <span className="relative z-10">{l.label}</span>
-                </Link>
-              );
-            })}
-          </div>
+          {!isPlaySession && (
+            <div className="hidden md:flex items-center gap-1 overflow-x-auto scrollbar-none">
+              {links.map((l) => {
+                const active = isActive(loc.pathname, l.to, l.exact);
+                return (
+                  <Link
+                    key={l.to}
+                    to={l.to}
+                    className={`relative text-sm min-h-11 px-3 inline-flex items-center rounded-xl whitespace-nowrap transition-colors ${
+                      active ? 'text-accent' : 'text-muted hover:text-gray-200'
+                    }`}
+                  >
+                    {active && (
+                      <m.span
+                        layoutId="nav-indicator"
+                        className="absolute inset-0 bg-accent/10 border border-accent/20 rounded-xl"
+                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                      />
+                    )}
+                    <span className="relative z-10">{l.label}</span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
 
           <div className="ml-auto flex items-center gap-2 shrink-0">
-            {user?.email && <span className="hidden sm:block text-xs text-muted">{user.email}</span>}
+            <GameSwitcher />
+            {user?.email && <span className="hidden lg:block text-xs text-muted">{user.email}</span>}
             <button type="button" className="btn-ghost inline-flex items-center gap-1.5" onClick={() => void signOut()}>
               <LogOut size={14} />
-              Sign out
+              <span className="hidden sm:inline">Sign out</span>
             </button>
           </div>
         </div>
@@ -75,12 +81,14 @@ export default function Layout() {
       <main
         className={`flex-1 w-full mx-auto px-4 min-h-0 ${
           isPlaySession
-            ? 'py-2 max-w-[1600px] lg:overflow-hidden lg:flex lg:flex-col lg:flex-1'
-            : 'py-6 md:py-8 max-w-7xl'
+            ? 'py-2 max-w-[1600px] overflow-hidden flex flex-col flex-1'
+            : 'py-6 md:py-8 max-w-7xl pb-24 md:pb-8'
         }`}
       >
         <Outlet key={loc.pathname} />
       </main>
+
+      {!isPlaySession && <BottomNav />}
     </div>
   );
 }

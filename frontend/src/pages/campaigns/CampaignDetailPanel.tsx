@@ -88,11 +88,7 @@ export default function CampaignDetailPanel({
   ];
 
   return (
-    <m.div
-      initial={{ opacity: 0, x: 12 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="lg:col-span-2 panel-glow p-5 space-y-5"
-    >
+    <m.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} className="panel-glow p-5 space-y-5">
       <LongJobOverlay
         active={state.bootstrapping}
         title="Generating adventure"

@@ -6,6 +6,8 @@ import TextArea from '../../components/ui/forms/TextArea';
 import ChoiceGroup from '../../components/ui/forms/ChoiceGroup';
 import Toggle from '../../components/ui/forms/Toggle';
 import type { AdventuresState } from './adventuresState';
+import { useGame } from '../../context/GameContext';
+import { getGamePlayConfig } from '../../games/play/registry';
 
 interface Props {
   form: AdventuresState['form'];
@@ -17,6 +19,8 @@ interface Props {
 }
 
 export default function AdventureCreateForm({ form, characters, campaigns, onPatchForm, onCreate, onCancel }: Props) {
+  const { gameId } = useGame();
+  const playConfig = getGamePlayConfig(gameId);
   return (
     <m.div {...revealPanel} className="panel-glow p-5 space-y-4 overflow-hidden">
       <h2 className="section-heading">Generate adventure</h2>
@@ -31,11 +35,15 @@ export default function AdventureCreateForm({ form, characters, campaigns, onPat
         <ChoiceGroup
           value={form.mode}
           onChange={(mode) => onPatchForm({ mode })}
-          options={[
-            { value: 'freeform', label: 'Freeform (AI generates)' },
-            { value: 'module', label: 'Module (Faerûn books)' },
-            { value: 'hybrid', label: 'Hybrid' },
-          ]}
+          options={
+            playConfig.showFaerunToggle
+              ? [
+                  { value: 'freeform', label: 'Freeform (AI generates)' },
+                  { value: 'module', label: 'Module (Faerûn books)' },
+                  { value: 'hybrid', label: 'Hybrid' },
+                ]
+              : [{ value: 'freeform', label: 'Freeform (AI generates)' }]
+          }
           columns={2}
         />
       </Field>
@@ -66,11 +74,13 @@ export default function AdventureCreateForm({ form, characters, campaigns, onPat
           columns={2}
         />
       </Field>
-      <Toggle
-        checked={form.include_faerun}
-        onChange={(include_faerun) => onPatchForm({ include_faerun })}
-        label="Include Faerûn supplements in outline generation"
-      />
+      {playConfig.showFaerunToggle && (
+        <Toggle
+          checked={form.include_faerun}
+          onChange={(include_faerun) => onPatchForm({ include_faerun })}
+          label="Include Faerûn supplements in outline generation"
+        />
+      )}
       <div className="flex gap-2">
         <button type="button" className="btn-primary" onClick={onCreate}>
           Generate & save

@@ -5,7 +5,7 @@ import PageHeader from '../components/ui/PageHeader';
 import StatusBadge from '../components/ui/StatusBadge';
 import AnimatedPage from '../components/ui/AnimatedPage';
 import { fadeUp, staggerContainer } from '../components/ui/motion';
-import { DEFAULT_GAME_ID, gameLabel } from '../games/registry';
+import { useGame } from '../context/GameContext';
 
 interface Props {
   indexed: boolean;
@@ -14,34 +14,36 @@ interface Props {
   sessionsLoaded?: boolean;
 }
 
-const cards = [
-  {
-    to: '/characters',
-    icon: Users,
-    title: 'Characters',
-    desc: 'Create and manage PHB 2024 character sheets.',
-  },
-  {
-    to: '/adventures',
-    icon: BookOpen,
-    title: 'Adventures',
-    desc: 'Freeform or Faerûn module adventures.',
-  },
-  {
-    to: '/play',
-    icon: Swords,
-    title: 'Play',
-    desc: 'Start or resume a solo session.',
-  },
-];
-
 export default function HomePage({ indexed, claudeOk, recentSession, sessionsLoaded = false }: Props) {
+  const { game, gameId } = useGame();
+  const cards = [
+    {
+      to: '/characters',
+      icon: Users,
+      title: 'Characters',
+      desc:
+        gameId === 'brambletrek'
+          ? 'Create and manage Gnawborn characters.'
+          : 'Create and manage PHB 2024 character sheets.',
+    },
+    {
+      to: '/adventures',
+      icon: BookOpen,
+      title: 'Adventures',
+      desc:
+        gameId === 'brambletrek' ? 'Browse rulebook and module adventures.' : 'Freeform or Faerûn module adventures.',
+    },
+    {
+      to: '/play',
+      icon: Swords,
+      title: 'Play',
+      desc: 'Start or resume a solo session.',
+    },
+  ];
+
   return (
     <AnimatedPage className="max-w-4xl mx-auto space-y-10">
-      <PageHeader
-        title="Auto-DM"
-        subtitle={`${gameLabel(DEFAULT_GAME_ID)} solo play with Claude as your Dungeon Master: rules lookup, oracles, and a living journal.`}
-      />
+      <PageHeader title="Auto-DM" subtitle={`${game.label}. ${game.description}`} />
 
       <m.div variants={fadeUp} className="flex flex-wrap gap-2">
         <StatusBadge status={indexed ? 'ok' : 'warn'} label={indexed ? 'Rules index ready' : 'Rules not indexed'} />
@@ -90,7 +92,7 @@ export default function HomePage({ indexed, claudeOk, recentSession, sessionsLoa
               className="panel-glow block p-6 h-full group hover:border-accent/40 hover:shadow-glow transition-[border-color,box-shadow] duration-300"
             >
               <Icon className="text-accent mb-4 group-hover:scale-110 transition-transform duration-300" size={28} />
-              <h2 className="display-title text-lg group-hover:text-yellow-300 transition-colors">{title}</h2>
+              <h2 className="display-title text-lg group-hover:opacity-80 transition-opacity">{title}</h2>
               <p className="text-sm text-muted mt-2 leading-relaxed">{desc}</p>
             </Link>
           </m.div>

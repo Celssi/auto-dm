@@ -1,4 +1,4 @@
-const CACHE_NAME = 'auto-dm-20261011T191';
+const CACHE_NAME = 'auto-dm-20261011T213';
 const urlsToCache = ['/', '/manifest.json', '/icons/icon-192x192.png', '/icons/icon-512x512.png'];
 
 self.addEventListener('install', (event) => {
@@ -52,7 +52,7 @@ self.addEventListener('fetch', (event) => {
     caches.match(request).then((cached) => {
       if (cached) return cached;
       return fetch(request).then((response) => {
-        if (!response || response.status !== 200 || response.type !== 'basic') {
+        if (!response.ok || response.status !== 200 || response.type !== 'basic') {
           return response;
         }
         const copy = response.clone();

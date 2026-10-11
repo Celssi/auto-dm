@@ -1,4 +1,4 @@
-import { useEffect, useReducer, useState, type ComponentProps, type Dispatch } from 'react';
+import { useEffect, useReducer, useRef, useState, type ComponentProps, type Dispatch } from 'react';
 import { useMatch, useNavigate, useParams, type NavigateFunction } from 'react-router-dom';
 import { m } from '../lib/framer';
 import { UserPlus, Users } from 'lucide-react';
@@ -14,6 +14,8 @@ import ListLoading from '../components/ui/ListLoading';
 import AnimatedPage from '../components/ui/AnimatedPage';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
 import { fadeUp, staggerContainer } from '../components/ui/motion';
+import { useGame } from '../context/GameContext';
+import { filterByGame } from '../lib/gameScope';
 import CharacterDetailPanel from './characters/CharacterDetailPanel';
 import {
   charactersReducer,
@@ -77,11 +79,8 @@ function CharactersWorkspace({
   gameId,
   supportedGame,
   charOptions,
-  newGameId,
   creatingImmediate,
   saveChar,
-  startImmediateCharacter,
-  onPickGame,
   onConfirmDelete,
   dispatch,
   navigate,
@@ -95,11 +94,8 @@ function CharactersWorkspace({
   gameId: string;
   supportedGame: boolean;
   charOptions: Record<string, unknown>;
-  newGameId: string | null;
   creatingImmediate: boolean;
   saveChar: (c: Character, opts?: SaveCharOptions) => Promise<void>;
-  startImmediateCharacter: (id: string) => Promise<void>;
-  onPickGame: (id: string) => void;
   onConfirmDelete: () => void;
   dispatch: Dispatch<CharactersAction>;
   navigate: NavigateFunction;
@@ -118,13 +114,10 @@ function CharactersWorkspace({
       {mode === 'wizard' && (
         <CharactersWizardViews
           isNew={isNew}
-          newGameId={newGameId}
           gameId={gameId}
           character={character}
           activeId={activeId}
           creatingImmediate={creatingImmediate}
-          onPickGame={onPickGame}
-          onImmediate={startImmediateCharacter}
           onSave={saveChar}
           onChange={(c) => dispatch({ type: 'set', patch: { character: c } })}
           onCancel={() => navigate(activeId ? `/characters/${activeId}` : '/characters')}
@@ -150,6 +143,8 @@ function CharactersWorkspace({
   );
 }
 
+let immediateCreateInFlight = false;
+
 function charactersPageMode(isNew: boolean, isEdit: boolean, characterId: string | undefined) {
   if (isNew || isEdit) return 'wizard' as const;
   if (characterId) return 'view' as const;
@@ -158,6 +153,7 @@ function charactersPageMode(isNew: boolean, isEdit: boolean, characterId: string
 
 export default function CharactersPage() {
   const navigate = useNavigate();
+  const { gameId: activeGameId, game } = useGame();
   const { characterId } = useParams();
   const isNew = Boolean(useMatch('/characters/new'));
   const isEdit = Boolean(useMatch('/characters/:characterId/edit'));
@@ -167,14 +163,13 @@ export default function CharactersPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [charOptions, setCharOptions] = useState<Record<string, unknown>>({});
-  const [newGameId, setNewGameId] = useState<string | null>(null);
   const [creatingImmediate, setCreatingImmediate] = useState(false);
 
   const { load, loadCharacter, saveChar, startImmediateCharacter, levelUp, deleteCharacter } = useCharactersPageActions(
     state,
     dispatch,
     characterId,
-    newGameId,
+    activeGameId,
     navigate,
     setDeleting,
     setConfirmDelete,
@@ -185,36 +180,54 @@ export default function CharactersPage() {
     mode,
     characterId,
     isNew,
-    gameId: state.character?.game_id,
+    gameId: state.character?.game_id || activeGameId,
     load,
     loadCharacter,
     dispatch,
     setCharOptions,
   });
 
+  const startImmediateRef = useRef(startImmediateCharacter);
+  useEffect(() => {
+    startImmediateRef.current = startImmediateCharacter;
+  });
+
+  useEffect(() => {
+    if (!isNew) return;
+    if (getGameCharacterConfig(activeGameId).creationFlow !== 'immediate') return;
+    if (immediateCreateInFlight) return;
+    immediateCreateInFlight = true;
+    void startImmediateRef.current(activeGameId).finally(() => {
+      immediateCreateInFlight = false;
+    });
+  }, [isNew, activeGameId]);
+
   const { character, summary } = state;
   const activeId = state.activeId || characterId || null;
-  const gameId = character?.game_id || DEFAULT_GAME_ID;
+  const gameId = character?.game_id || activeGameId;
   const supportedGame = GAMES.some((g) => g.id === gameId);
+  const scopedRoster = filterByGame(state.roster, activeGameId);
 
   return (
     <AnimatedPage className="space-y-6">
-      <CharactersHeader mode={mode} character={character} onCreate={() => navigate('/characters/new')} />
+      <CharactersHeader
+        mode={mode}
+        character={character}
+        gameLabel={game.label}
+        onCreate={() => navigate('/characters/new')}
+      />
       <CharactersWorkspace
         mode={mode}
         isNew={isNew}
-        state={state}
+        state={{ ...state, roster: scopedRoster }}
         character={character}
         summary={summary}
         activeId={activeId}
         gameId={gameId}
         supportedGame={supportedGame}
         charOptions={charOptions}
-        newGameId={newGameId}
         creatingImmediate={creatingImmediate}
         saveChar={saveChar}
-        startImmediateCharacter={startImmediateCharacter}
-        onPickGame={setNewGameId}
         onConfirmDelete={() => setConfirmDelete(true)}
         dispatch={dispatch}
         navigate={navigate}
@@ -248,20 +261,18 @@ export default function CharactersPage() {
 function CharactersHeader({
   mode,
   character,
+  gameLabel: activeLabel,
   onCreate,
 }: {
   mode: 'wizard' | 'view' | 'list';
   character: Character | null;
+  gameLabel: string;
   onCreate: () => void;
 }) {
   return (
     <PageHeader
       title="Characters"
-      subtitle={
-        mode === 'view' && character
-          ? character.name
-          : `Create and manage ${gameLabel(DEFAULT_GAME_ID)} character sheets.`
-      }
+      subtitle={mode === 'view' && character ? character.name : `Create and manage ${activeLabel} character sheets.`}
       actions={
         mode === 'list' ? (
           <button type="button" className="btn-primary shrink-0 inline-flex items-center gap-2" onClick={onCreate}>
@@ -330,11 +341,12 @@ function CharactersRoster({
   onOpen,
   onCreate,
 }: {
-  roster: { id: string; name: string }[];
+  roster: { id: string; name: string; game_id?: string }[];
   loaded: boolean;
   onOpen: (id: string) => void;
   onCreate: () => void;
 }) {
+  const { game } = useGame();
   return (
     <m.div variants={staggerContainer} className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       {!loaded ? (
@@ -344,7 +356,7 @@ function CharactersRoster({
           <EmptyState
             icon={<Users size={32} />}
             title="No characters yet"
-            description="Build a PHB 2024 character with guided creation."
+            description={`Create a ${game.label} character to start playing.`}
             action={
               <button type="button" className="btn-primary" onClick={onCreate}>
                 Create your first character
@@ -361,74 +373,31 @@ function CharactersRoster({
 
 function CharactersWizardViews({
   isNew,
-  newGameId,
   gameId,
   character,
   activeId,
   creatingImmediate,
-  onPickGame,
-  onImmediate,
   onSave,
   onChange,
   onCancel,
 }: {
   isNew: boolean;
-  newGameId: string | null;
   gameId: string;
   character: Character | null;
   activeId: string | null;
   creatingImmediate: boolean;
-  onPickGame: (id: string) => void;
-  onImmediate: (id: string) => void;
   onSave: (c: Character, opts?: SaveCharOptions) => Promise<void>;
   onChange: (c: Character) => void;
   onCancel: () => void;
 }) {
-  const wizardGameId = newGameId ?? gameId;
-  const showPicker = isNew && !newGameId;
-  const showWizard = getGameCharacterConfig(wizardGameId).creationFlow === 'wizard';
+  const showWizard = getGameCharacterConfig(gameId).creationFlow === 'wizard';
   const showImmediate = getGameCharacterConfig(gameId).creationFlow === 'immediate' && Boolean(character);
   return (
     <>
-      {showPicker && (
-        <m.div variants={fadeUp} className="panel-glow p-6 space-y-4 max-w-lg">
-          <h2 className="display-title text-lg">Choose game</h2>
-          <p className="text-sm text-muted">Pick which ruleset this character uses.</p>
-          <div className="grid gap-2">
-            {GAMES.map((g) => {
-              const config = getGameCharacterConfig(g.id);
-              return (
-                <button
-                  key={g.id}
-                  type="button"
-                  className="play-chip text-left px-4 py-3 w-full"
-                  disabled={config.creationFlow === 'immediate' && creatingImmediate}
-                  onClick={() => {
-                    if (config.creationFlow === 'immediate') {
-                      void onImmediate(g.id);
-                      return;
-                    }
-                    onPickGame(g.id);
-                  }}
-                >
-                  {g.label}
-                </button>
-              );
-            })}
-          </div>
-          <button type="button" className="btn-ghost text-sm" onClick={onCancel}>
-            Cancel
-          </button>
-        </m.div>
-      )}
+      {isNew && creatingImmediate && <p className="text-sm text-muted">Creating character…</p>}
       {showWizard && (
         <m.div variants={fadeUp}>
-          <GameCharacterWizard
-            gameId={wizardGameId}
-            initial={character || undefined}
-            onSave={onSave}
-            onCancel={onCancel}
-          />
+          <GameCharacterWizard gameId={gameId} initial={character || undefined} onSave={onSave} onCancel={onCancel} />
         </m.div>
       )}
       {showImmediate && character && (

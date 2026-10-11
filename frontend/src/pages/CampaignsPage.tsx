@@ -17,11 +17,15 @@ import {
 } from './campaigns/campaignsState';
 import { useCampaignsPageActions } from './campaigns/useCampaignsPageActions';
 import { useLoadedCharacterAdventure } from '../games/brambletrek/CampaignStartFields';
+import { useGame } from '../context/GameContext';
+import { campaignMatchesGame, filterByGame } from '../lib/gameScope';
+import { useViewport } from '../hooks/useViewport';
 
 const CAMPAIGN_TABS = new Set<CampaignTab>(['story', 'adventures', 'npcs', 'locations']);
 
 export default function CampaignsPage() {
   const navigate = useNavigate();
+  const { gameId } = useGame();
   const { campaignId, tab: tabParam } = useParams();
   const isNew = Boolean(useMatch('/campaigns/new'));
   const tab = tabParam && CAMPAIGN_TABS.has(tabParam as CampaignTab) ? (tabParam as CampaignTab) : 'story';
@@ -100,6 +104,12 @@ export default function CampaignsPage() {
     navigate(`/campaigns/${campaignId}/${nextTab}`);
   };
 
+  const scopedCharacters = filterByGame(state.characters, gameId);
+  const scopedCampaigns = state.campaigns.filter((c) =>
+    campaignMatchesGame(c, state.characters, state.allAdventures, gameId),
+  );
+  const viewState = { ...state, characters: scopedCharacters, campaigns: scopedCampaigns };
+
   const handleOpenCreateForm = () => {
     openCreateForm();
     navigate('/campaigns/new');
@@ -151,10 +161,11 @@ export default function CampaignsPage() {
       <AnimatePresence>
         {(isNew || state.creating) && (
           <CampaignCreateForm
+            gameId={gameId}
             createMode={state.createMode}
             form={state.form}
             generateForm={state.generateForm}
-            characters={state.characters}
+            characters={scopedCharacters}
             generating={state.generating}
             onCreateModeChange={(createMode) => dispatch({ type: 'set', patch: { createMode } })}
             onPatchForm={(patch) => dispatch({ type: 'patchForm', patch })}
@@ -169,7 +180,7 @@ export default function CampaignsPage() {
 
       {!isNew && (
         <CampaignBrowser
-          state={state}
+          state={viewState}
           campaignId={campaignId}
           navigate={navigate}
           dispatch={dispatch}
@@ -198,8 +209,9 @@ export default function CampaignsPage() {
 }
 
 function useGenerateAdventureSync(state: CampaignsState, dispatch: Dispatch<CampaignsAction>, isNew: boolean) {
+  const { gameId } = useGame();
   const generateCharacter = state.characters.find((c) => c.id === state.generateForm.character_id);
-  const syncGenerateAdventure = (isNew || state.creating) && generateCharacter?.game_id === 'brambletrek';
+  const syncGenerateAdventure = (isNew || state.creating) && (generateCharacter?.game_id || gameId) === 'brambletrek';
   const loadedGenerateAdventure = useLoadedCharacterAdventure(state.generateForm.character_id, syncGenerateAdventure);
   const [syncedGenerateCharacterId, setSyncedGenerateCharacterId] = useState('');
   if (!syncGenerateAdventure || !state.generateForm.character_id) {
@@ -276,45 +288,58 @@ function CampaignBrowser({
     value: { kind: 'campaign'; id: string; name: string } | { kind: 'adventure'; id: string; name: string } | null,
   ) => void;
 }) {
+  const viewport = useViewport();
+  const showList = viewport !== 'phone' || !campaignId;
+  const showDetail = Boolean(state.selected && campaignId);
+
   return (
-    <m.div variants={fadeUp} className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-      <div className="space-y-2">
-        <CampaignListPanel
-          state={state}
-          onOpen={(id) => navigate(`/campaigns/${id}`)}
-          onOpenCreateForm={handleOpenCreateForm}
-        />
-      </div>
-      {state.selected && campaignId && (
-        <CampaignDetailPanel
-          campaign={state.selected}
-          state={state}
-          onTabChange={handleTabChange}
-          onOpenEntry={openEntry}
-          onSaveEntry={saveEntry}
-          onSetEntry={(entry) => dispatch({ type: 'set', patch: { entry } })}
-          onToggleNewAdventure={() => dispatch({ type: 'set', patch: { newAdventureOpen: !state.newAdventureOpen } })}
-          onToggleCopy={() =>
-            dispatch({
-              type: 'set',
-              patch: {
-                copyOpen: !state.copyOpen,
-                copyForm: state.copyOpen ? state.copyForm : { character_id: state.characters[0]?.id ?? '', name: '' },
-              },
-            })
-          }
-          onPatchCopyForm={(patch) => dispatch({ type: 'patchCopyForm', patch })}
-          onPatchAdventureForm={(patch) => dispatch({ type: 'patchAdventureForm', patch })}
-          onStartNewAdventure={startNewAdventure}
-          onPlayAdventure={playAdventure}
-          onLinkCharacter={linkCharacter}
-          onCopyCampaign={handleCopyCampaign}
-          onDelete={() => setConfirm({ kind: 'campaign', id: state.selected!.id, name: state.selected!.name })}
-          onDeleteAdventure={(id) => {
-            const adv = state.campaignAdventures.find((a) => a.id === id);
-            setConfirm({ kind: 'adventure', id, name: adv?.name || id });
-          }}
-        />
+    <m.div variants={fadeUp} className="grid grid-cols-1 md:grid-cols-3 gap-5">
+      {showList && (
+        <div className="space-y-2">
+          <CampaignListPanel
+            state={state}
+            onOpen={(id) => navigate(`/campaigns/${id}`)}
+            onOpenCreateForm={handleOpenCreateForm}
+          />
+        </div>
+      )}
+      {showDetail && (
+        <div className="md:col-span-2 space-y-3">
+          {viewport === 'phone' && (
+            <button type="button" className="btn-ghost" onClick={() => navigate('/campaigns')}>
+              Back to list
+            </button>
+          )}
+          <CampaignDetailPanel
+            campaign={state.selected!}
+            state={state}
+            onTabChange={handleTabChange}
+            onOpenEntry={openEntry}
+            onSaveEntry={saveEntry}
+            onSetEntry={(entry) => dispatch({ type: 'set', patch: { entry } })}
+            onToggleNewAdventure={() => dispatch({ type: 'set', patch: { newAdventureOpen: !state.newAdventureOpen } })}
+            onToggleCopy={() =>
+              dispatch({
+                type: 'set',
+                patch: {
+                  copyOpen: !state.copyOpen,
+                  copyForm: state.copyOpen ? state.copyForm : { character_id: state.characters[0]?.id ?? '', name: '' },
+                },
+              })
+            }
+            onPatchCopyForm={(patch) => dispatch({ type: 'patchCopyForm', patch })}
+            onPatchAdventureForm={(patch) => dispatch({ type: 'patchAdventureForm', patch })}
+            onStartNewAdventure={startNewAdventure}
+            onPlayAdventure={playAdventure}
+            onLinkCharacter={linkCharacter}
+            onCopyCampaign={handleCopyCampaign}
+            onDelete={() => setConfirm({ kind: 'campaign', id: state.selected!.id, name: state.selected!.name })}
+            onDeleteAdventure={(id) => {
+              const adv = state.campaignAdventures.find((a) => a.id === id);
+              setConfirm({ kind: 'adventure', id, name: adv?.name || id });
+            }}
+          />
+        </div>
       )}
     </m.div>
   );

@@ -15,7 +15,9 @@ import SegmentedControl from '../../components/ui/forms/SegmentedControl';
 import type { PlayMode, PlayState } from './playState';
 import { getGamePlayConfig } from '../../games/play/registry';
 import BrambletrekCampaignStartFields from '../../games/brambletrek/CampaignStartFields';
-import { DEFAULT_GAME_ID, gameShortLabel } from '../../games/registry';
+import { useGame } from '../../context/GameContext';
+import { filterByGame, sessionMatchesGame } from '../../lib/gameScope';
+import type { GameId } from '../../games/registry';
 import LongJobOverlay from '../../components/LongJobOverlay';
 
 interface Props {
@@ -29,17 +31,11 @@ interface Props {
   onBootstrapAndPlay: () => void;
 }
 
-function playWizardContext(state: PlayState) {
-  const selectedChar = state.characters.find((c) => c.id === state.newSession.character_id);
-  const selectedGameId = selectedChar?.game_id || DEFAULT_GAME_ID;
-  const gameAdventures = state.adventures.filter((a) => !a.game_id || a.game_id === selectedGameId);
-  const campaignChar = state.characters.find((c) => c.id === state.newCampaign.character_id);
-  const brambletrekOnly =
-    state.metaLoaded &&
-    state.characters.length > 0 &&
-    state.characters.every((c) => (c.game_id || DEFAULT_GAME_ID) === 'brambletrek');
-  const campaignGameId = campaignChar?.game_id || (brambletrekOnly ? 'brambletrek' : DEFAULT_GAME_ID);
-  return { gameAdventures, campaignPlay: getGamePlayConfig(campaignGameId) };
+function playWizardContext(state: PlayState, gameId: GameId) {
+  const characters = filterByGame(state.characters, gameId);
+  const gameAdventures = filterByGame(state.adventures, gameId);
+  const sessions = state.sessions.filter((session) => sessionMatchesGame(session, state.characters, gameId));
+  return { characters, gameAdventures, sessions, campaignPlay: getGamePlayConfig(gameId) };
 }
 
 export default function PlayWizard({
@@ -52,19 +48,10 @@ export default function PlayWizard({
   onStartSession,
   onBootstrapAndPlay,
 }: Props) {
-  const {
-    metaLoaded,
-    sessions,
-    characters,
-    wizardTab,
-    newSession,
-    newCampaign,
-    includeFaerun,
-    bootstrapError,
-    bootstrapping,
-  } = state;
+  const { gameId } = useGame();
+  const { metaLoaded, wizardTab, newSession, newCampaign, includeFaerun, bootstrapError, bootstrapping } = state;
 
-  const { gameAdventures, campaignPlay } = playWizardContext(state);
+  const { characters, gameAdventures, sessions, campaignPlay } = playWizardContext(state, gameId);
 
   return (
     <AnimatedPage className="max-w-xl mx-auto space-y-6">
@@ -93,6 +80,7 @@ export default function PlayWizard({
             gameAdventures={gameAdventures}
             newSession={newSession}
             includeFaerun={includeFaerun}
+            showFaerun={campaignPlay.showFaerunToggle}
             onNavigateSession={onNavigateSession}
             onPatchNewSession={onPatchNewSession}
             onIncludeFaerunChange={onIncludeFaerunChange}
@@ -123,6 +111,7 @@ function PlayContinueTab({
   gameAdventures,
   newSession,
   includeFaerun,
+  showFaerun,
   onNavigateSession,
   onPatchNewSession,
   onIncludeFaerunChange,
@@ -134,6 +123,7 @@ function PlayContinueTab({
   gameAdventures: PlayState['adventures'];
   newSession: PlayState['newSession'];
   includeFaerun: boolean;
+  showFaerun: boolean;
   onNavigateSession: (id: string) => void;
   onPatchNewSession: (patch: Partial<PlayState['newSession']>) => void;
   onIncludeFaerunChange: (value: boolean) => void;
@@ -159,7 +149,7 @@ function PlayContinueTab({
               onChange={(character_id) => onPatchNewSession({ character_id, adventure_id: '' })}
               options={characters.map((c) => ({
                 value: c.id,
-                label: `${c.name} (${gameShortLabel(c.game_id)})`,
+                label: c.name,
               }))}
               allowEmpty
               emptyLabel="Select character"
@@ -183,11 +173,13 @@ function PlayContinueTab({
               onChange={(e) => onPatchNewSession({ name: e.target.value })}
             />
           </Field>
-          <Toggle
-            checked={includeFaerun}
-            onChange={onIncludeFaerunChange}
-            label="Include Faerûn supplements in rules search"
-          />
+          {showFaerun && (
+            <Toggle
+              checked={includeFaerun}
+              onChange={onIncludeFaerunChange}
+              label="Include Faerûn supplements in rules search"
+            />
+          )}
           <button
             type="button"
             className="btn-primary w-full"
@@ -313,7 +305,7 @@ function PlayNewCampaignTab({
           onChange={(character_id) => onPatchNewCampaign({ character_id })}
           options={characters.map((c) => ({
             value: c.id,
-            label: `${c.name} (${gameShortLabel(c.game_id)})`,
+            label: c.name,
           }))}
           allowEmpty
           emptyLabel="Select character"

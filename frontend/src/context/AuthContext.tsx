@@ -1,13 +1,12 @@
+import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
-  createContext,
-  use,
-  useCallback,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react';
-import { onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut, type User } from 'firebase/auth';
+  getRedirectResult,
+  onAuthStateChanged,
+  signInWithPopup,
+  signInWithRedirect,
+  signOut as firebaseSignOut,
+  type User,
+} from 'firebase/auth';
 import { ALLOWED_EMAILS, auth, firebaseReady, googleProvider, isAllowedEmail } from '../lib/firebase';
 import { setAuthTokenProvider } from '../lib/authToken';
 
@@ -42,6 +41,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return firebaseAuth.currentUser.getIdToken();
     });
 
+    void getRedirectResult(firebaseAuth)
+      .then(async (result) => {
+        if (result?.user && !isAllowedUser(result.user.email)) {
+          await firebaseSignOut(firebaseAuth);
+        }
+      })
+      .catch(() => {
+        /* popup fallback may leave a stale redirect */
+      });
+
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
       if (firebaseUser && !isAllowedUser(firebaseUser.email)) {
         await firebaseSignOut(firebaseAuth);
@@ -63,10 +72,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!auth) {
       throw new Error('Firebase is not configured.');
     }
-    const result = await signInWithPopup(auth, googleProvider);
-    if (!isAllowedUser(result.user.email)) {
-      await firebaseSignOut(auth);
-      throw new Error(`Access denied. Only ${ALLOWED_EMAILS.join(', ')} may sign in.`);
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      if (!isAllowedUser(result.user.email)) {
+        await firebaseSignOut(auth);
+        throw new Error(`Access denied. Only ${ALLOWED_EMAILS.join(', ')} may sign in.`);
+      }
+    } catch (error) {
+      const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
+      if (code === 'auth/popup-blocked' || code === 'auth/cancelled-popup-request') {
+        await signInWithRedirect(auth, googleProvider);
+        return;
+      }
+      throw error;
     }
   }, [isAllowedUser]);
 

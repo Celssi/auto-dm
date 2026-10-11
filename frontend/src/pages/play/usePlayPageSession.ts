@@ -7,6 +7,7 @@ import { type DiceModalState, type PlayAction, type PlayState } from './playStat
 import { getPlaySessionExtensions } from '../../games/brambletrek/playSession';
 import { DEFAULT_GAME_ID } from '../../games/registry';
 import { getGamePlayConfig } from '../../games/play/registry';
+import { useGame } from '../../context/GameContext';
 import { bootstrapBrambletrekSession } from '../../games/brambletrek/bootstrapCampaign';
 
 import { initiativeMod } from '../../games/dnd5e/character-sheet/sheetUtils';
@@ -47,6 +48,7 @@ export function usePlayPageSession(
   campaignIdRef: MutableRefObject<string>,
 ) {
   const navigate = useNavigate();
+  const { setGameId } = useGame();
   useKeepAlive(state.loading || state.bootstrapping);
 
   const refreshSessionLogs = useCallback(
@@ -107,6 +109,7 @@ export function usePlayPageSession(
           if (seq !== loadSeqRef.current) return;
           const [{ character: ch }, { summary }, log, audit] = await fetchCore();
           const gameId = String((ch as Character).game_id || 'dnd5e');
+          setGameId(gameId);
           const { shortcuts: sessionShortcuts } = await api.getShortcuts(gameId, session.character_id);
           campaignIdRef.current = '';
           dispatch({
@@ -184,6 +187,7 @@ export function usePlayPageSession(
           },
         });
         const loadedGameId = String((ch as Character).game_id || 'dnd5e');
+        setGameId(loadedGameId);
         if (loadedGameId) await refreshJourney(id, loadedGameId);
       } catch (e) {
         if (seq !== loadSeqRef.current) return;
@@ -196,7 +200,7 @@ export function usePlayPageSession(
         });
       }
     },
-    [dispatch, loadSeqRef, campaignIdRef, refreshJourney],
+    [dispatch, loadSeqRef, campaignIdRef, refreshJourney, setGameId],
   );
 
   const startSession = async () => {

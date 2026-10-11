@@ -1,10 +1,10 @@
 import type { AdventureFull } from '../../api/client';
 
 export interface AdventuresState {
-  adventures: { id: string; name: string; mode: string }[];
+  adventures: { id: string; name: string; mode: string; game_id?: string; campaign_id?: string }[];
   adventuresLoaded: boolean;
-  characters: { id: string; name: string }[];
-  campaigns: { id: string; name: string }[];
+  characters: { id: string; name: string; game_id?: string }[];
+  campaigns: { id: string; name: string; character_ids?: string[] }[];
   selected: AdventureFull | null;
   creating: boolean;
   form: {

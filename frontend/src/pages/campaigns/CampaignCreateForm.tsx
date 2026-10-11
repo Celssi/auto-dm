@@ -1,7 +1,7 @@
 import { m } from '../../lib/framer';
 import { revealPanel } from '../../components/ui/motion';
-import { DEFAULT_GAME_ID } from '../../games/registry';
 import { getGamePlayConfig } from '../../games/play/registry';
+import type { GameId } from '../../games/registry';
 import BrambletrekCampaignStartFields from '../../games/brambletrek/CampaignStartFields';
 import { Field } from '../../components/ui/forms/Field';
 import TextInput from '../../components/ui/forms/TextInput';
@@ -13,6 +13,7 @@ import type { CampaignsState } from './campaignsState';
 import LongJobOverlay from '../../components/LongJobOverlay';
 
 interface Props {
+  gameId: GameId;
   createMode: 'manual' | 'ai';
   form: CampaignsState['form'];
   generateForm: CampaignsState['generateForm'];
@@ -28,6 +29,7 @@ interface Props {
 }
 
 export default function CampaignCreateForm({
+  gameId,
   createMode,
   form,
   generateForm,
@@ -41,11 +43,7 @@ export default function CampaignCreateForm({
   onBootstrapBrambletrek,
   onCancel,
 }: Props) {
-  const selectedChar = characters.find((c) => c.id === generateForm.character_id);
-  const brambletrekOnly =
-    characters.length > 0 && characters.every((c) => (c.game_id || DEFAULT_GAME_ID) === 'brambletrek');
-  const selectedGameId = selectedChar?.game_id || (brambletrekOnly ? 'brambletrek' : DEFAULT_GAME_ID);
-  const playConfig = getGamePlayConfig(selectedGameId);
+  const playConfig = getGamePlayConfig(gameId);
   const showBrambletrekFlow = !playConfig.usesAiCampaignGeneration;
   const canGenerate = generateForm.character_id && generateForm.theme.trim();
 
@@ -99,6 +97,7 @@ export default function CampaignCreateForm({
           generateForm={generateForm}
           generating={generating}
           canGenerate={Boolean(canGenerate)}
+          showFaerun={playConfig.showFaerunToggle}
           onPatchGenerateForm={onPatchGenerateForm}
           onGenerate={onGenerate}
           onCancel={onCancel}
@@ -153,6 +152,7 @@ function AiCampaignFields({
   generateForm,
   generating,
   canGenerate,
+  showFaerun,
   onPatchGenerateForm,
   onGenerate,
   onCancel,
@@ -161,6 +161,7 @@ function AiCampaignFields({
   generateForm: CampaignsState['generateForm'];
   generating: boolean;
   canGenerate: boolean;
+  showFaerun: boolean;
   onPatchGenerateForm: (patch: Partial<CampaignsState['generateForm']>) => void;
   onGenerate: () => void;
   onCancel: () => void;
@@ -228,11 +229,13 @@ function AiCampaignFields({
           />
         </Field>
       </div>
-      <Toggle
-        checked={generateForm.include_faerun}
-        onChange={(include_faerun) => onPatchGenerateForm({ include_faerun })}
-        label="Use Faerûn supplements in rules search"
-      />
+      {showFaerun && (
+        <Toggle
+          checked={generateForm.include_faerun}
+          onChange={(include_faerun) => onPatchGenerateForm({ include_faerun })}
+          label="Use Faerûn supplements in rules search"
+        />
+      )}
       <Toggle
         checked={generateForm.bootstrap_first}
         onChange={(bootstrap_first) => onPatchGenerateForm({ bootstrap_first })}

@@ -21,11 +21,11 @@
 }
 
 @utility shadow-glow {
-  box-shadow: 0 0 24px rgba(212, 175, 55, 0.12);
+  box-shadow: 0 0 24px rgb(var(--accent-rgb) / 0.14);
 }
 
 @utility shadow-glow-sm {
-  box-shadow: 0 0 12px rgba(212, 175, 55, 0.08);
+  box-shadow: 0 0 12px rgb(var(--accent-rgb) / 0.1);
 }
 
 @utility shadow-panel {
@@ -42,11 +42,18 @@
 
 @layer base {
   :root {
+    --accent-rgb: 212 175 55;
     --scrollbar-size: 8px;
     --scrollbar-track: rgba(20, 28, 40, 0.45);
-    --scrollbar-thumb: rgba(212, 175, 55, 0.22);
-    --scrollbar-thumb-hover: rgba(212, 175, 55, 0.42);
-    --scrollbar-thumb-active: rgba(212, 175, 55, 0.55);
+    --scrollbar-thumb: rgb(var(--accent-rgb) / 0.22);
+    --scrollbar-thumb-hover: rgb(var(--accent-rgb) / 0.42);
+    --scrollbar-thumb-active: rgb(var(--accent-rgb) / 0.55);
+  }
+
+  html[data-game='brambletrek'] {
+    --color-accent: #6b8f4e;
+    --color-accent-dim: #55723d;
+    --accent-rgb: 107 143 78;
   }
 
   html {
@@ -93,9 +100,9 @@
   }
 
   body {
-    @apply bg-bg text-gray-100 antialiased font-sans;
+    @apply bg-bg text-gray-100 antialiased font-sans text-[15px] md:text-base;
     background-image:
-      radial-gradient(ellipse 80% 50% at 50% -20%, rgba(212, 175, 55, 0.07), transparent),
+      radial-gradient(ellipse 80% 50% at 50% -20%, rgb(var(--accent-rgb) / 0.08), transparent),
       radial-gradient(ellipse 60% 40% at 100% 100%, rgba(38, 48, 68, 0.4), transparent);
     background-attachment: fixed;
   }
@@ -127,35 +134,35 @@
 
 @layer components {
   .text-gradient {
-    @apply bg-gradient-to-r from-accent via-yellow-200 to-accent bg-clip-text text-transparent;
+    @apply bg-gradient-to-r from-accent via-accent/70 to-accent bg-clip-text text-transparent;
   }
 
   .panel {
-    @apply bg-panel/90 border border-border rounded-xl backdrop-blur-sm;
+    @apply bg-panel/90 border border-border rounded-2xl backdrop-blur-sm;
   }
 
   .panel-glow {
-    @apply bg-panel/90 border border-border rounded-xl backdrop-blur-sm shadow-panel;
+    @apply bg-panel/90 border border-border rounded-2xl backdrop-blur-sm shadow-panel;
   }
 
   .btn {
-    @apply px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200;
+    @apply min-h-11 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200;
   }
 
   .btn-primary {
-    @apply px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 bg-accent text-bg hover:bg-yellow-400 hover:shadow-glow-sm active:scale-[0.98];
+    @apply min-h-11 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-accent text-bg hover:bg-accent-dim hover:shadow-glow-sm active:scale-[0.98];
   }
 
   .btn-ghost {
-    @apply px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 bg-transparent border border-border hover:bg-panel-hover hover:border-accent/30 active:scale-[0.98];
+    @apply min-h-11 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-transparent border border-border hover:bg-panel-hover hover:border-accent/30 active:scale-[0.98];
   }
 
   .btn-danger {
-    @apply px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200 bg-danger/15 text-danger border border-danger/30 hover:bg-danger/25 active:scale-[0.98];
+    @apply min-h-11 px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 bg-danger/15 text-danger border border-danger/30 hover:bg-danger/25 active:scale-[0.98];
   }
 
   .input {
-    @apply w-full bg-bg/80 border border-border rounded-lg px-3 py-2 text-sm text-gray-100
+    @apply w-full bg-bg/80 border border-border rounded-xl px-3 py-2.5 text-sm md:text-base text-gray-100
       placeholder:text-muted/70
       focus:outline-none focus:border-accent/60 focus:ring-1 focus:ring-accent/20 transition-colors;
   }
@@ -184,12 +191,12 @@
 }
 
 .play-chip {
-  @apply px-2 py-1 rounded-md text-xs border border-border bg-bg/50 text-gray-200
+  @apply min-h-11 px-3 py-2 rounded-xl text-sm border border-border bg-bg/50 text-gray-200
     hover:border-accent/40 hover:bg-accent/10 transition-colors disabled:opacity-50;
 }
 
 .chat-markdown {
-  @apply text-sm leading-relaxed text-gray-200;
+  @apply text-sm md:text-base leading-relaxed text-gray-200;
 }
 
 .chat-markdown p {

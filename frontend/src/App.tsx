@@ -3,6 +3,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Layout from './components/Layout';
 import { AuthProvider, useAuth } from './context/AuthContext';
+import { GameProvider, useGame } from './context/GameContext';
 import { GlossaryProvider } from './context/GlossaryContext';
 import { ToastProvider } from './components/ui/toast';
 import { usePWA } from './hooks/usePWA';
@@ -14,6 +15,7 @@ import AdventuresPage from './pages/AdventuresPage';
 import PlayPage from './pages/PlayPage';
 import SettingsPage from './pages/SettingsPage';
 import { api } from './api/client';
+import { sessionMatchesGame } from './lib/gameScope';
 
 import { LazyMotion, domAnimation } from './lib/framer';
 
@@ -28,6 +30,7 @@ function MotionProvider({ children }: { children: ReactNode }) {
 }
 
 function HomeWrapper() {
+  const { gameId } = useGame();
   const [indexed, setIndexed] = useState(false);
   const [claudeOk, setClaudeOk] = useState(false);
   const [recent, setRecent] = useState<{ id: string; name: string } | null>(null);
@@ -38,13 +41,23 @@ function HomeWrapper() {
       setIndexed(h.indexed);
       setClaudeOk(h.claude_configured);
     });
-    api
-      .listSessions()
-      .then((s) => {
-        if (s.sessions[0]) setRecent(s.sessions[0]);
-      })
-      .finally(() => setSessionsLoaded(true));
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([api.listSessions(), api.listCharacters()])
+      .then(([s, c]) => {
+        if (cancelled) return;
+        const match = s.sessions.find((session) => sessionMatchesGame(session, c.characters, gameId));
+        setRecent(match ? { id: match.id, name: match.name } : null);
+      })
+      .finally(() => {
+        if (!cancelled) setSessionsLoaded(true);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [gameId]);
 
   return <HomePage indexed={indexed} claudeOk={claudeOk} recentSession={recent} sessionsLoaded={sessionsLoaded} />;
 }
@@ -54,11 +67,7 @@ function AuthGate({ children }: { children: ReactNode }) {
   usePWA();
 
   if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center text-sm text-muted">
-        Loading…
-      </div>
-    );
+    return <div className="min-h-screen flex items-center justify-center text-sm text-muted">Loading…</div>;
   }
   if (!user) {
     return <LoginPage />;
@@ -75,25 +84,27 @@ export default function App() {
             <AuthGate>
               <GlossaryProvider>
                 <BrowserRouter useTransitions={false}>
-                  <Routes>
-                    <Route element={<Layout />}>
-                      <Route index element={<HomeWrapper />} />
-                      <Route path="characters" element={<CharactersPage />} />
-                      <Route path="characters/new" element={<CharactersPage />} />
-                      <Route path="characters/:characterId/edit" element={<CharactersPage />} />
-                      <Route path="characters/:characterId" element={<CharactersPage />} />
-                      <Route path="campaigns" element={<CampaignsPage />} />
-                      <Route path="campaigns/new" element={<CampaignsPage />} />
-                      <Route path="campaigns/:campaignId/:tab" element={<CampaignsPage />} />
-                      <Route path="campaigns/:campaignId" element={<CampaignsPage />} />
-                      <Route path="adventures" element={<AdventuresPage />} />
-                      <Route path="adventures/new" element={<AdventuresPage />} />
-                      <Route path="adventures/:adventureId" element={<AdventuresPage />} />
-                      <Route path="play" element={<PlayPage />} />
-                      <Route path="play/:sessionId" element={<PlayPage />} />
-                      <Route path="settings" element={<SettingsPage />} />
-                    </Route>
-                  </Routes>
+                  <GameProvider>
+                    <Routes>
+                      <Route element={<Layout />}>
+                        <Route index element={<HomeWrapper />} />
+                        <Route path="characters" element={<CharactersPage />} />
+                        <Route path="characters/new" element={<CharactersPage />} />
+                        <Route path="characters/:characterId/edit" element={<CharactersPage />} />
+                        <Route path="characters/:characterId" element={<CharactersPage />} />
+                        <Route path="campaigns" element={<CampaignsPage />} />
+                        <Route path="campaigns/new" element={<CampaignsPage />} />
+                        <Route path="campaigns/:campaignId/:tab" element={<CampaignsPage />} />
+                        <Route path="campaigns/:campaignId" element={<CampaignsPage />} />
+                        <Route path="adventures" element={<AdventuresPage />} />
+                        <Route path="adventures/new" element={<AdventuresPage />} />
+                        <Route path="adventures/:adventureId" element={<AdventuresPage />} />
+                        <Route path="play" element={<PlayPage />} />
+                        <Route path="play/:sessionId" element={<PlayPage />} />
+                        <Route path="settings" element={<SettingsPage />} />
+                      </Route>
+                    </Routes>
+                  </GameProvider>
                 </BrowserRouter>
               </GlossaryProvider>
             </AuthGate>

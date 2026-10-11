@@ -10,8 +10,10 @@ import AnimatedPage from '../components/ui/AnimatedPage';
 import { fadeUp } from '../components/ui/motion';
 import { useToast } from '../components/ui/toast';
 import LongJobOverlay from '../components/LongJobOverlay';
+import { useGame } from '../context/GameContext';
 
 export default function SettingsPage() {
+  const { gameId } = useGame();
   const toast = useToast();
   const { isInstallable, isInstalled, installPWA } = usePWA();
   const [settings, setSettings] = useState({ include_faerun: false, use_rerank: true });
@@ -110,11 +112,13 @@ export default function SettingsPage() {
           <Settings2 size={18} className="text-accent" />
           <h2 className="display-title text-base">Rules search</h2>
         </div>
-        <Toggle
-          checked={settings.include_faerun}
-          onChange={(include_faerun) => setSettings({ ...settings, include_faerun })}
-          label="Include Heroes of Faerûn & Adventures in Faerûn in rules search"
-        />
+        {gameId === 'dnd5e' && (
+          <Toggle
+            checked={settings.include_faerun}
+            onChange={(include_faerun) => setSettings({ ...settings, include_faerun })}
+            label="Include Heroes of Faerûn & Adventures in Faerûn in rules search"
+          />
+        )}
         <Toggle
           checked={settings.use_rerank}
           onChange={(use_rerank) => setSettings({ ...settings, use_rerank })}
@@ -131,16 +135,18 @@ export default function SettingsPage() {
           <h2 className="display-title text-base">Index rulebooks</h2>
         </div>
         <p className="text-sm text-muted leading-relaxed">
-          Uses the rulebooks in Cloud Storage. Keep this tab open during a long index so the
-          connection stays alive and Cloud Run does not scale to zero.
+          Uses the rulebooks in Cloud Storage. Keep this tab open during a long index so the connection stays alive and
+          Cloud Run does not scale to zero.
         </p>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-ghost" disabled={indexing} onClick={() => reindex(false)}>
             {indexing ? 'Indexing…' : 'Index core (PHB, DMG, MM)'}
           </button>
-          <button type="button" className="btn-ghost" disabled={indexing} onClick={() => reindex(true)}>
-            {indexing ? 'Indexing…' : 'Index core + Faerûn'}
-          </button>
+          {gameId === 'dnd5e' && (
+            <button type="button" className="btn-ghost" disabled={indexing} onClick={() => reindex(true)}>
+              {indexing ? 'Indexing…' : 'Index core + Faerûn'}
+            </button>
+          )}
         </div>
       </m.div>
 

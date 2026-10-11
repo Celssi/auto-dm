@@ -27,7 +27,7 @@ export default function PlayLogTabs({ tabs, active, onChange, children }: Props)
             {i > 0 && <span className="text-muted text-xs">|</span>}
             <button
               type="button"
-              className={`text-xs font-semibold uppercase tracking-wider ${
+              className={`min-h-11 px-2 text-xs font-semibold uppercase tracking-wider ${
                 active === tab ? 'text-accent' : 'text-muted hover:text-accent/70'
               }`}
               onClick={() => onChange(tab)}

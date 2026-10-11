@@ -13,10 +13,15 @@ import { fadeUp } from '../components/ui/motion';
 import { useToast } from '../components/ui/toast';
 import AdventureCreateForm from './adventures/AdventureCreateForm';
 import AdventureDetailPanel from './adventures/AdventureDetailPanel';
-import { adventuresReducer, initialAdventuresState } from './adventures/adventuresState';
+import { adventuresReducer, initialAdventuresState, type AdventuresState } from './adventures/adventuresState';
+import { useGame } from '../context/GameContext';
+import { campaignMatchesGame, filterByGame } from '../lib/gameScope';
+import { useViewport } from '../hooks/useViewport';
 
 export default function AdventuresPage() {
   const navigate = useNavigate();
+  const { gameId, game } = useGame();
+  const viewport = useViewport();
   const toast = useToast();
   const { adventureId } = useParams();
   const isNew = Boolean(useMatch('/adventures/new'));
@@ -93,11 +98,23 @@ export default function AdventuresPage() {
     }
   };
 
+  const scopedAdventures = filterByGame(state.adventures, gameId);
+  const scopedCharacters = filterByGame(state.characters, gameId);
+  const scopedCampaigns = state.campaigns.filter((c) =>
+    campaignMatchesGame(c, state.characters, state.adventures, gameId),
+  );
+  const showList = viewport !== 'phone' || !adventureId;
+  const showDetail = Boolean(state.selected && adventureId);
+
   return (
     <AnimatedPage className="space-y-6">
       <PageHeader
         title="Adventures"
-        subtitle="Generate and browse adventure outlines: freeform hooks or Faerûn module content."
+        subtitle={
+          gameId === 'brambletrek'
+            ? 'Browse Brambletrek adventures and outlines.'
+            : 'Generate and browse adventure outlines: freeform hooks or Faerûn module content.'
+        }
         actions={
           !isNew && !adventureId ? (
             <button type="button" className="btn-primary" onClick={() => navigate('/adventures/new')}>
@@ -125,8 +142,8 @@ export default function AdventuresPage() {
         {(isNew || state.creating) && (
           <AdventureCreateForm
             form={state.form}
-            characters={state.characters}
-            campaigns={state.campaigns}
+            characters={scopedCharacters}
+            campaigns={scopedCampaigns}
             onPatchForm={(patch) => dispatch({ type: 'patchForm', patch })}
             onCreate={create}
             onCancel={() => navigate('/adventures')}
@@ -135,46 +152,25 @@ export default function AdventuresPage() {
       </AnimatePresence>
 
       {!isNew && (
-        <m.div variants={fadeUp} className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          <div className="space-y-2">
-            {!state.adventuresLoaded ? (
-              <ListLoading />
-            ) : state.adventures.length === 0 ? (
-              <EmptyState
-                icon={<Compass size={32} />}
-                title="No adventures yet"
-                description="Generate an adventure outline from a theme or Faerûn module."
-                action={
-                  <button type="button" className="btn-primary" onClick={() => navigate('/adventures/new')}>
-                    New adventure
-                  </button>
-                }
-              />
-            ) : (
-              state.adventures.map((a) => {
-                const camp = state.campaigns.find((c) => c.id === (a as { campaign_id?: string }).campaign_id);
-                const subtitle = camp ? `${a.mode} · ${camp.name}` : a.mode;
-                return (
-                  <ListCard
-                    key={a.id}
-                    title={a.name}
-                    subtitle={subtitle}
-                    selected={state.selected?.id === a.id}
-                    onClick={() => navigate(`/adventures/${a.id}`)}
-                  />
-                );
-              })
-            )}
-          </div>
-
-          {state.selected && adventureId && (
-            <AdventureDetailPanel
-              adventure={state.selected}
-              campaignName={state.campaigns.find((c) => c.id === state.selected?.campaign_id)?.name}
-              onDelete={() => setConfirmDelete({ id: state.selected!.id, name: state.selected!.name })}
-            />
-          )}
-        </m.div>
+        <AdventureBrowser
+          loaded={state.adventuresLoaded}
+          adventures={scopedAdventures}
+          campaigns={scopedCampaigns}
+          selectedId={state.selected?.id}
+          selected={state.selected}
+          showList={showList}
+          showDetail={showDetail}
+          isPhone={viewport === 'phone'}
+          emptyDescription={
+            gameId === 'brambletrek'
+              ? `Start a ${game.label} campaign to add adventures.`
+              : 'Generate an adventure outline from a theme or Faerûn module.'
+          }
+          onOpen={(id) => navigate(`/adventures/${id}`)}
+          onCreate={() => navigate('/adventures/new')}
+          onBack={() => navigate('/adventures')}
+          onDelete={() => setConfirmDelete({ id: state.selected!.id, name: state.selected!.name })}
+        />
       )}
 
       <ConfirmDialog
@@ -188,5 +184,86 @@ export default function AdventuresPage() {
         busy={deleting}
       />
     </AnimatedPage>
+  );
+}
+
+function AdventureBrowser({
+  loaded,
+  adventures,
+  campaigns,
+  selectedId,
+  selected,
+  showList,
+  showDetail,
+  isPhone,
+  emptyDescription,
+  onOpen,
+  onCreate,
+  onBack,
+  onDelete,
+}: {
+  loaded: boolean;
+  adventures: { id: string; name: string; mode: string; campaign_id?: string }[];
+  campaigns: { id: string; name: string }[];
+  selectedId?: string;
+  selected: AdventuresState['selected'];
+  showList: boolean;
+  showDetail: boolean;
+  isPhone: boolean;
+  emptyDescription: string;
+  onOpen: (id: string) => void;
+  onCreate: () => void;
+  onBack: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <m.div variants={fadeUp} className="grid grid-cols-1 md:grid-cols-2 gap-5">
+      {showList && (
+        <div className="space-y-2">
+          {!loaded ? (
+            <ListLoading />
+          ) : adventures.length === 0 ? (
+            <EmptyState
+              icon={<Compass size={32} />}
+              title="No adventures yet"
+              description={emptyDescription}
+              action={
+                <button type="button" className="btn-primary" onClick={onCreate}>
+                  New adventure
+                </button>
+              }
+            />
+          ) : (
+            adventures.map((a) => {
+              const camp = campaigns.find((c) => c.id === a.campaign_id);
+              const subtitle = camp ? `${a.mode} · ${camp.name}` : a.mode;
+              return (
+                <ListCard
+                  key={a.id}
+                  title={a.name}
+                  subtitle={subtitle}
+                  selected={selectedId === a.id}
+                  onClick={() => onOpen(a.id)}
+                />
+              );
+            })
+          )}
+        </div>
+      )}
+      {showDetail && selected && (
+        <div className="space-y-3">
+          {isPhone && (
+            <button type="button" className="btn-ghost" onClick={onBack}>
+              Back to list
+            </button>
+          )}
+          <AdventureDetailPanel
+            adventure={selected}
+            campaignName={campaigns.find((c) => c.id === selected.campaign_id)?.name}
+            onDelete={onDelete}
+          />
+        </div>
+      )}
+    </m.div>
   );
 }

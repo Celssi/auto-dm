@@ -13,13 +13,13 @@ interface Props {
 
 export default function TabBar({ tabs, active, onChange }: Props) {
   return (
-    <div className="flex gap-1 p-1 rounded-lg bg-bg/60 border border-border/60 w-fit">
+    <div className="flex gap-1 p-1 rounded-xl bg-bg/60 border border-border/60 w-fit">
       {tabs.map((tab) => (
         <button
           key={tab.id}
           type="button"
           onClick={() => onChange(tab.id)}
-          className={`relative text-sm px-4 py-1.5 rounded-md transition-colors ${
+          className={`relative text-sm min-h-11 px-4 rounded-lg transition-colors ${
             active === tab.id ? 'text-accent' : 'text-muted hover:text-gray-200'
           }`}
         >

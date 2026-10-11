@@ -5,6 +5,7 @@ import PlaySessionView from './play/PlaySessionView';
 import { createInitialPlayState, playReducer } from './play/playState';
 import { usePlayPageSession } from './play/usePlayPageSession';
 import { useLoadedCharacterAdventure } from '../games/brambletrek/CampaignStartFields';
+import { useGame } from '../context/GameContext';
 
 export default function PlayPage() {
   const { sessionId: paramId } = useParams();
@@ -42,8 +43,9 @@ export default function PlayPage() {
     handleCombatAction,
   } = usePlayPageSession(state, dispatch, loadSeqRef, campaignIdRef);
 
+  const { gameId } = useGame();
   const campaignCharacter = state.characters.find((c) => c.id === state.newCampaign.character_id);
-  const syncAdventure = !state.sessionId && campaignCharacter?.game_id === 'brambletrek';
+  const syncAdventure = !state.sessionId && (campaignCharacter?.game_id || gameId) === 'brambletrek';
   const loadedAdventure = useLoadedCharacterAdventure(state.newCampaign.character_id, syncAdventure);
   const [syncedAdventureCharacterId, setSyncedAdventureCharacterId] = useState('');
   if (!syncAdventure || !state.newCampaign.character_id) {

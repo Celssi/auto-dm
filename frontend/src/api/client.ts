@@ -117,7 +117,7 @@ export const api = {
 
   getGames: () => request<{ games: { id: string; label: string }[] }>('/games'),
 
-  listCharacters: () => request<{ characters: { id: string; name: string }[] }>('/characters'),
+  listCharacters: () => request<{ characters: { id: string; name: string; game_id?: string }[] }>('/characters'),
   getCharacter: (id: string) => request<{ character: Record<string, unknown> }>(`/characters/${id}`),
   getCharacterOptions: (includeFaerun = false, gameId = 'dnd5e') =>
     request<Record<string, unknown>>(
@@ -487,6 +487,7 @@ export interface AdventureMeta {
   status?: string;
   campaign_id?: string;
   character_id?: string;
+  game_id?: string;
   sequence?: number;
   source_module?: ModuleSource;
 }
