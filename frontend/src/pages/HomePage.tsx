@@ -52,36 +52,41 @@ export default function HomePage({ indexed, claudeOk, recentSession, sessionsLoa
 
       <m.div variants={fadeUp} className="grid sm:grid-cols-2 gap-4">
         {recentSession && (
-          <div className="panel-glow p-5 sm:col-span-2 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="panel-glow p-5 flex flex-col justify-between gap-4 min-h-[10.5rem]">
             <div>
               <p className="label-text mb-1">Continue playing</p>
               <p className="display-title text-lg">{recentSession.name}</p>
             </div>
-            <Link to={`/play/${recentSession.id}`} className="btn-primary inline-flex items-center gap-2 shrink-0">
+            <Link
+              to={`/play/${recentSession.id}`}
+              className="btn-primary inline-flex items-center justify-center gap-2 w-full sm:w-fit"
+            >
               <Play size={16} /> Resume session
             </Link>
           </div>
         )}
 
-        <div className="panel-glow p-5 flex flex-col justify-between gap-4">
+        <div
+          className={`panel-glow p-5 flex flex-col justify-between gap-4 min-h-[10.5rem] ${
+            !recentSession && !sessionsLoaded ? 'sm:col-span-2' : ''
+          }`}
+        >
           <div>
             <p className="label-text mb-1">New story</p>
             <p className="text-sm text-muted">Generate a campaign, adventure, and opening scene in one step.</p>
           </div>
-          <Link to="/play?new=1" className="btn-primary inline-flex items-center gap-2 w-fit">
+          <Link to="/play?new=1" className="btn-primary inline-flex items-center justify-center gap-2 w-full sm:w-fit">
             <Sparkles size={16} /> Start new campaign
           </Link>
         </div>
 
-        {!sessionsLoaded
-          ? null
-          : !recentSession && (
-              <div className="panel p-5 flex items-center">
-                <p className="text-sm text-muted">
-                  No active sessions yet. Start a new campaign or create a character first.
-                </p>
-              </div>
-            )}
+        {sessionsLoaded && !recentSession && (
+          <div className="panel p-5 flex items-center min-h-[10.5rem]">
+            <p className="text-sm text-muted">
+              No active sessions yet. Start a new campaign or create a character first.
+            </p>
+          </div>
+        )}
       </m.div>
 
       <m.div variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -1,4 +1,4 @@
-import type { Dispatch, SetStateAction } from 'react';
+import { useCallback, useEffect, useRef, type Dispatch, type SetStateAction } from 'react';
 import type { NavigateFunction } from 'react-router-dom';
 import { api } from '../../api/client';
 import type { Character } from '../../types';
@@ -19,87 +19,106 @@ export function useCharactersPageActions(
   setCreatingImmediate: Dispatch<SetStateAction<boolean>>,
 ) {
   const toast = useToast();
+  const activeIdRef = useRef(state.activeId);
+  useEffect(() => {
+    activeIdRef.current = state.activeId;
+  }, [state.activeId]);
 
-  const load = async () => {
+  const load = useCallback(async () => {
     const { characters } = await api.listCharacters();
-    dispatch({ type: 'set', patch: { roster: characters, rosterLoaded: true } });
-  };
+    dispatch({ type: 'set', patch: { roster: characters, rosterLoaded: true, error: null } });
+  }, [dispatch]);
 
-  const loadCharacter = async (id: string) => {
-    const [{ character: c }, sum] = await Promise.all([api.getCharacter(id), api.getCharacterSummary(id)]);
-    dispatch({
-      type: 'set',
-      patch: { character: c as Character, summary: sum.summary, activeId: id, error: null },
-    });
-  };
-
-  const saveChar = async (c: Character, opts?: SaveCharOptions) => {
-    await persistCharacter({
-      character: c,
-      opts,
-      activeId: state.activeId,
-      characterId,
-      newGameId: activeGameId,
-      dispatch,
-      load,
-      navigate,
-      toast,
-    });
-  };
-
-  const startImmediateCharacter = async (targetGameId: string) => {
-    setCreatingImmediate(true);
-    dispatch({ type: 'set', patch: { error: null } });
-    try {
-      const res = await api.createCharacter({ game_id: targetGameId, name: '' });
-      await load();
-      navigate(`/characters/${res.id}/edit`, { replace: true });
-    } catch (e) {
-      reportError(e, 'Failed to create character', dispatch, toast);
-    } finally {
-      setCreatingImmediate(false);
-    }
-  };
-
-  const levelUp = async (
-    hpRoll: number | undefined,
-    asiChoices: Record<string, unknown>[],
-    className?: string,
-    spells?: { cantrips?: string[]; prepared_spells?: string[]; known_spells?: string[] },
-    choices?: Partial<Character>,
-  ) => {
-    const id = state.activeId || characterId;
-    if (!id) return;
-    try {
-      const res = await api.levelUpCharacter(id, levelUpPayload(hpRoll, asiChoices, className, spells, choices));
+  const loadCharacter = useCallback(
+    async (id: string) => {
+      const [{ character: c }, sum] = await Promise.all([api.getCharacter(id), api.getCharacterSummary(id)]);
       dispatch({
         type: 'set',
-        patch: { character: res.character as Character, summary: res.summary, levelUpOpen: false },
+        patch: { character: c as Character, summary: sum.summary, activeId: id, error: null },
       });
-      toast.success('Character leveled up');
-    } catch (e) {
-      reportError(e, 'Level up failed', dispatch, toast);
-    }
-  };
+    },
+    [dispatch],
+  );
 
-  const deleteCharacter = async (character: Character | null) => {
-    const id = state.activeId || characterId;
-    if (!id || !character) return;
-    setDeleting(true);
-    dispatch({ type: 'set', patch: { error: null } });
-    try {
-      await api.deleteCharacter(id);
-      setConfirmDelete(false);
-      dispatch({ type: 'set', patch: { activeId: null, character: null } });
-      await load();
-      navigate('/characters');
-      toast.success(`Deleted ${character.name || 'character'}`);
-    } catch (e) {
-      reportError(e, 'Delete failed', dispatch, toast);
-    } finally {
-      setDeleting(false);
-    }
-  };
+  const saveChar = useCallback(
+    async (c: Character, opts?: SaveCharOptions) => {
+      await persistCharacter({
+        character: c,
+        opts,
+        activeId: activeIdRef.current,
+        characterId,
+        newGameId: activeGameId,
+        dispatch,
+        load,
+        navigate,
+        toast,
+      });
+    },
+    [characterId, activeGameId, dispatch, load, navigate, toast],
+  );
+
+  const startImmediateCharacter = useCallback(
+    async (targetGameId: string) => {
+      setCreatingImmediate(true);
+      dispatch({ type: 'set', patch: { error: null } });
+      try {
+        const res = await api.createCharacter({ game_id: targetGameId, name: '' });
+        await load();
+        navigate(`/characters/${res.id}/edit`, { replace: true });
+      } catch (e) {
+        reportError(e, 'Failed to create character', dispatch, toast);
+      } finally {
+        setCreatingImmediate(false);
+      }
+    },
+    [dispatch, load, navigate, setCreatingImmediate, toast],
+  );
+
+  const levelUp = useCallback(
+    async (
+      hpRoll: number | undefined,
+      asiChoices: Record<string, unknown>[],
+      className?: string,
+      spells?: { cantrips?: string[]; prepared_spells?: string[]; known_spells?: string[] },
+      choices?: Partial<Character>,
+    ) => {
+      const id = activeIdRef.current || characterId;
+      if (!id) return;
+      try {
+        const res = await api.levelUpCharacter(id, levelUpPayload(hpRoll, asiChoices, className, spells, choices));
+        dispatch({
+          type: 'set',
+          patch: { character: res.character as Character, summary: res.summary, levelUpOpen: false },
+        });
+        toast.success('Character leveled up');
+      } catch (e) {
+        reportError(e, 'Level up failed', dispatch, toast);
+      }
+    },
+    [characterId, dispatch, toast],
+  );
+
+  const deleteCharacter = useCallback(
+    async (character: Character | null) => {
+      const id = activeIdRef.current || characterId;
+      if (!id || !character) return;
+      setDeleting(true);
+      dispatch({ type: 'set', patch: { error: null } });
+      try {
+        await api.deleteCharacter(id);
+        setConfirmDelete(false);
+        dispatch({ type: 'set', patch: { activeId: null, character: null } });
+        await load();
+        navigate('/characters');
+        toast.success(`Deleted ${character.name || 'character'}`);
+      } catch (e) {
+        reportError(e, 'Delete failed', dispatch, toast);
+      } finally {
+        setDeleting(false);
+      }
+    },
+    [characterId, dispatch, load, navigate, setConfirmDelete, setDeleting, toast],
+  );
 
   return { load, loadCharacter, saveChar, startImmediateCharacter, levelUp, deleteCharacter };
 }

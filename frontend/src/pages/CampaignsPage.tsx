@@ -66,7 +66,9 @@ export default function CampaignsPage() {
   }, [open, openCreateForm]);
 
   useEffect(() => {
-    load().catch((e) => dispatch({ type: 'set', patch: { error: String(e) } }));
+    load().catch((e) =>
+      dispatch({ type: 'set', patch: { error: e instanceof Error ? e.message : 'Could not load campaigns.' } }),
+    );
   }, [load]);
 
   useEffect(() => {

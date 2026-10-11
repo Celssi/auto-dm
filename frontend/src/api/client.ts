@@ -2,37 +2,79 @@ import { getAuthToken } from '../lib/authToken';
 import type { LevelUpPreview } from '../types';
 
 const BASE = '/api';
+const NETWORK_ERROR = 'Could not reach the server. It may be waking up. Try again in a moment.';
 
 async function authHeaders(): Promise<Record<string, string>> {
-  const token = await getAuthToken();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+  try {
+    const token = await getAuthToken();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch (error) {
+    if (isNetworkError(error)) {
+      throw new TypeError(NETWORK_ERROR, { cause: error });
+    }
+    throw error;
+  }
+}
+
+function isNetworkError(error: unknown): boolean {
+  return error instanceof TypeError && /fetch|network|load failed/i.test(error.message);
+}
+
+function parseErrorBody(err: string, statusText: string): Error {
+  try {
+    const parsed = JSON.parse(err) as { detail?: string | { msg?: string }[] };
+    if (typeof parsed.detail === 'string') {
+      return new Error(parsed.detail);
+    }
+    if (Array.isArray(parsed.detail)) {
+      return new Error(parsed.detail.map((d) => d.msg || JSON.stringify(d)).join('; '));
+    }
+  } catch {
+    /* keep raw body */
+  }
+  return new Error(err || statusText);
+}
+
+async function requestOnce<T>(path: string, init?: RequestInit): Promise<T> {
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`, {
+      ...init,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(await authHeaders()),
+        ...init?.headers,
+      },
+    });
+  } catch (error) {
+    if (isNetworkError(error)) {
+      throw new TypeError(NETWORK_ERROR, { cause: error });
+    }
+    throw error;
+  }
+  if (!res.ok) {
+    throw parseErrorBody(await res.text(), res.statusText);
+  }
+  return res.json();
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${path}`, {
-    ...init,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(await authHeaders()),
-      ...init?.headers,
-    },
-  });
-  if (!res.ok) {
-    const err = await res.text();
+  const method = (init?.method || 'GET').toUpperCase();
+  const retries = method === 'GET' || method === 'HEAD' ? 2 : 0;
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= retries; attempt += 1) {
     try {
-      const parsed = JSON.parse(err) as { detail?: string | { msg?: string }[] };
-      if (typeof parsed.detail === 'string') {
-        throw new Error(parsed.detail);
+      return await requestOnce<T>(path, init);
+    } catch (error) {
+      lastError = error;
+      const retryable = error instanceof TypeError && error.message === NETWORK_ERROR;
+      if (!retryable || attempt === retries) {
+        throw error;
       }
-      if (Array.isArray(parsed.detail)) {
-        throw new Error(parsed.detail.map((d) => d.msg || JSON.stringify(d)).join('; '));
-      }
-    } catch (e) {
-      if (e instanceof Error && e.message !== err) throw e;
+      await new Promise((resolve) => setTimeout(resolve, 400 * (attempt + 1)));
     }
-    throw new Error(err || res.statusText);
   }
-  return res.json();
+  throw lastError;
 }
 
 export type StreamHandler = (event: string, data: unknown) => void;

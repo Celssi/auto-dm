@@ -2,6 +2,7 @@ import { createContext, use, useCallback, useEffect, useMemo, useState, type Rea
 import {
   getRedirectResult,
   onAuthStateChanged,
+  signInWithPopup,
   signInWithRedirect,
   signOut as firebaseSignOut,
   type User,
@@ -22,10 +23,21 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function isLocalHost(hostname = window.location.hostname): boolean {
+  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
+}
+
+function authErrorCode(error: unknown): string {
+  return error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
+}
+
 function authErrorMessage(error: unknown): string {
-  const code = error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
+  const code = authErrorCode(error);
   if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
     return 'Sign-in was interrupted. Try Continue with Google again.';
+  }
+  if (code === 'auth/unauthorized-domain') {
+    return 'This domain is not authorized for Google sign-in.';
   }
   if (error instanceof Error && error.message) return error.message;
   return 'Sign-in failed.';
@@ -89,9 +101,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Firebase is not configured.');
     }
     setSignInError(null);
+
+    if (isLocalHost()) {
+      try {
+        const result = await signInWithPopup(auth, googleProvider);
+        if (result.user && !isAllowedUser(result.user.email)) {
+          await firebaseSignOut(auth);
+          throw new Error(`Access denied. Only ${ALLOWED_EMAILS.join(', ')} may sign in.`);
+        }
+        return;
+      } catch (error) {
+        const code = authErrorCode(error);
+        if (code !== 'auth/popup-blocked' && code !== 'auth/cancelled-popup-request') {
+          throw error;
+        }
+      }
+    }
+
     markAuthRedirect();
     await signInWithRedirect(auth, googleProvider);
-  }, []);
+  }, [isAllowedUser]);
 
   const signOut = useCallback(async () => {
     if (!auth) return;

@@ -49,7 +49,9 @@ export default function AdventuresPage() {
   }, []);
 
   useEffect(() => {
-    load().catch((e) => dispatch({ type: 'set', patch: { error: String(e) } }));
+    load().catch((e) =>
+      dispatch({ type: 'set', patch: { error: e instanceof Error ? e.message : 'Could not load adventures.' } }),
+    );
   }, [load]);
 
   useEffect(() => {
@@ -92,7 +94,7 @@ export default function AdventuresPage() {
       await load();
       navigate('/adventures');
     } catch (e) {
-      dispatch({ type: 'set', patch: { error: String(e) } });
+      dispatch({ type: 'set', patch: { error: e instanceof Error ? e.message : 'Delete failed' } });
     } finally {
       setDeleting(false);
     }

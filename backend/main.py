@@ -9,7 +9,8 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from fastapi.staticfiles import StaticFiles
+from starlette.exceptions import HTTPException as StarletteHTTPException
+from starlette.staticfiles import StaticFiles as StarletteStaticFiles
 
 from backend.auth import is_public_api_path, require_allowed_user
 from backend.config import LANGSMITH_ENABLED, LANGSMITH_ENDPOINT, LANGSMITH_PROJECT
@@ -46,7 +47,12 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://127.0.0.1:5173", "http://localhost:5174"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:5174",
+        "https://autodm.celssi.fi",
+    ],
     allow_origin_regex=r"https://.*\.run\.app",
     allow_credentials=True,
     allow_methods=["*"],
@@ -74,6 +80,19 @@ app.include_router(play.router)
 app.include_router(brambletrek.router)
 app.include_router(sessions.router)
 
+class SPAStaticFiles(StarletteStaticFiles):
+    """Serve index.html for client-side routes such as /characters."""
+
+    async def get_response(self, path: str, scope):
+        try:
+            return await super().get_response(path, scope)
+        except StarletteHTTPException as exc:
+            name = path.rsplit("/", 1)[-1]
+            if exc.status_code == 404 and path != "index.html" and "." not in name:
+                return await super().get_response("index.html", scope)
+            raise
+
+
 frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 if frontend_dist.exists():
-    app.mount("/", StaticFiles(directory=str(frontend_dist), html=True), name="frontend")
+    app.mount("/", SPAStaticFiles(directory=str(frontend_dist), html=True), name="frontend")

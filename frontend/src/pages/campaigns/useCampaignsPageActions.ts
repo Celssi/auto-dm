@@ -341,7 +341,7 @@ export function useCampaignsPageActions(
       }
       setConfirm(null);
     } catch (e) {
-      dispatch({ type: 'set', patch: { error: String(e) } });
+      dispatch({ type: 'set', patch: { error: e instanceof Error ? e.message : 'Delete failed' } });
     } finally {
       setDeleting(false);
     }

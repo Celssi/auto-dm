@@ -44,7 +44,10 @@ export default function GameSwitcher() {
         <ChevronDown size={14} className={`shrink-0 transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
       {open && (
-        <ul role="listbox" className="absolute right-0 mt-1 z-30 min-w-[14rem] panel-glow p-1">
+        <ul
+          role="listbox"
+          className="absolute right-0 mt-1 z-30 min-w-[14rem] rounded-2xl border border-border bg-panel p-1 shadow-panel"
+        >
           {GAMES.map((item) => (
             <li key={item.id}>
               <button
