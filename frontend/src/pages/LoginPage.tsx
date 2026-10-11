@@ -1,11 +1,14 @@
 import { useState } from 'react';
 import { Dices } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { isAuthRedirectPending } from '../lib/authRedirect';
 
 export default function LoginPage() {
-  const { signInWithGoogle, firebaseReady } = useAuth();
+  const { signInWithGoogle, firebaseReady, signInError, loading } = useAuth();
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const returning = isAuthRedirectPending();
+  const message = error || signInError;
 
   const signIn = async () => {
     setError(null);
@@ -14,7 +17,6 @@ export default function LoginPage() {
       await signInWithGoogle();
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Sign-in failed.');
-    } finally {
       setBusy(false);
     }
   };
@@ -31,11 +33,16 @@ export default function LoginPage() {
             Sign in with Google to continue. Only the allowed account can open this app.
           </p>
         </div>
-        <button type="button" className="btn-primary w-full" onClick={signIn} disabled={busy || !firebaseReady}>
-          {busy ? 'Signing in…' : 'Continue with Google'}
+        <button
+          type="button"
+          className="btn-primary w-full"
+          onClick={() => void signIn()}
+          disabled={busy || returning || loading || !firebaseReady}
+        >
+          {busy || returning || loading ? 'Signing in…' : 'Continue with Google'}
         </button>
         {!firebaseReady && <p className="text-sm text-danger">Firebase is not configured on this build.</p>}
-        {error && <p className="text-sm text-danger">{error}</p>}
+        {message && <p className="text-sm text-danger">{message}</p>}
       </div>
     </div>
   );
