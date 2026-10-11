@@ -9,6 +9,7 @@ import Toggle from '../components/ui/forms/Toggle';
 import AnimatedPage from '../components/ui/AnimatedPage';
 import { fadeUp } from '../components/ui/motion';
 import { useToast } from '../components/ui/toast';
+import LongJobOverlay from '../components/LongJobOverlay';
 
 export default function SettingsPage() {
   const toast = useToast();
@@ -20,6 +21,7 @@ export default function SettingsPage() {
     claude_model?: string;
   } | null>(null);
   const [indexing, setIndexing] = useState(false);
+  const [indexStatus, setIndexStatus] = useState('Indexing rulebooks.');
   const [message, setMessage] = useState<string | null>(null);
 
   useEffect(() => {
@@ -42,15 +44,32 @@ export default function SettingsPage() {
 
   const reindex = async (includeFaerun: boolean) => {
     setIndexing(true);
+    setIndexStatus('Indexing rulebooks. This window keeps the Cloud Run instance awake.');
     setMessage(null);
     try {
-      const r = await api.reindex(includeFaerun);
-      const msg = r.ok ? `Indexed ${r.chunk_count} chunks` : 'Indexing failed';
-      if (r.ok) toast.success(msg);
+      const result: { ok?: boolean; chunk_count?: number } = {};
+      let streamError = '';
+      await api.reindex(includeFaerun, (event, data) => {
+        if (event === 'progress' && data && typeof data === 'object' && 'message' in data) {
+          setIndexStatus(String((data as { message: string }).message));
+        } else if (event === 'done' && data && typeof data === 'object') {
+          Object.assign(result, data);
+        } else if (event === 'error' && data && typeof data === 'object' && 'detail' in data) {
+          streamError = String((data as { detail: string }).detail);
+        }
+      });
+      if (streamError) throw new Error(streamError);
+      const ok = Boolean(result.ok);
+      const msg = ok ? `Indexed ${result.chunk_count ?? 0} chunks` : 'Indexing failed';
+      if (ok) toast.success(msg);
       else toast.error(msg);
-      setMessage(r.ok ? `${msg}.` : msg);
+      setMessage(ok ? `${msg}.` : msg);
       const h = await api.health();
       setHealth(h);
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : 'Indexing failed';
+      toast.error(msg);
+      setMessage(msg);
     } finally {
       setIndexing(false);
     }
@@ -112,7 +131,8 @@ export default function SettingsPage() {
           <h2 className="display-title text-base">Index rulebooks</h2>
         </div>
         <p className="text-sm text-muted leading-relaxed">
-          Uses the rulebooks in Cloud Storage. The first run can take a long time if OCR is needed.
+          Uses the rulebooks in Cloud Storage. Keep this tab open during a long index so the
+          connection stays alive and Cloud Run does not scale to zero.
         </p>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-ghost" disabled={indexing} onClick={() => reindex(false)}>
@@ -123,6 +143,8 @@ export default function SettingsPage() {
           </button>
         </div>
       </m.div>
+
+      <LongJobOverlay active={indexing} title="Indexing rulebooks" message={indexStatus} />
 
       {message && (
         <m.p

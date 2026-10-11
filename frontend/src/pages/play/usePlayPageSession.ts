@@ -1,4 +1,5 @@
 import { useCallback, type Dispatch, type MutableRefObject } from 'react';
+import { useKeepAlive } from '../../hooks/useKeepAlive';
 import { useNavigate } from 'react-router-dom';
 import { api, type ChatResult } from '../../api/client';
 import type { Character } from '../../types';
@@ -46,6 +47,7 @@ export function usePlayPageSession(
   campaignIdRef: MutableRefObject<string>,
 ) {
   const navigate = useNavigate();
+  useKeepAlive(state.loading || state.bootstrapping);
 
   const refreshSessionLogs = useCallback(
     async (sessionId: string) => {

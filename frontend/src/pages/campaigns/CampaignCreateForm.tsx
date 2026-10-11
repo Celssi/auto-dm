@@ -10,6 +10,7 @@ import ChoiceGroup from '../../components/ui/forms/ChoiceGroup';
 import SegmentedControl from '../../components/ui/forms/SegmentedControl';
 import Toggle from '../../components/ui/forms/Toggle';
 import type { CampaignsState } from './campaignsState';
+import LongJobOverlay from '../../components/LongJobOverlay';
 
 interface Props {
   createMode: 'manual' | 'ai';
@@ -50,6 +51,11 @@ export default function CampaignCreateForm({
 
   return (
     <m.div {...revealPanel} className="panel-glow p-5 space-y-4 overflow-hidden">
+      <LongJobOverlay
+        active={generating}
+        title="Generating campaign"
+        message="Keep this tab open. Heartbeats keep Cloud Run from scaling to zero."
+      />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="section-heading">{showBrambletrekFlow ? 'Start Brambletrek adventure' : 'Create campaign'}</h2>
         {!showBrambletrekFlow && (

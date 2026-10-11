@@ -16,6 +16,7 @@ import type { PlayMode, PlayState } from './playState';
 import { getGamePlayConfig } from '../../games/play/registry';
 import BrambletrekCampaignStartFields from '../../games/brambletrek/CampaignStartFields';
 import { DEFAULT_GAME_ID, gameShortLabel } from '../../games/registry';
+import LongJobOverlay from '../../components/LongJobOverlay';
 
 interface Props {
   state: PlayState;
@@ -67,6 +68,11 @@ export default function PlayWizard({
 
   return (
     <AnimatedPage className="max-w-xl mx-auto space-y-6">
+      <LongJobOverlay
+        active={bootstrapping}
+        title="Generating campaign"
+        message="Keep this tab open. Heartbeats keep Cloud Run from scaling to zero."
+      />
       <PageHeader title="Play" subtitle="Continue an existing session or generate a new campaign." />
 
       <TabBar

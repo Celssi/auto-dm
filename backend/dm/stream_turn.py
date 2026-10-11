@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import queue
 import threading
+import time
 from collections.abc import Iterator
 from typing import Any
 
@@ -47,7 +48,11 @@ def stream_dm_turn(
     def generate() -> Iterator[dict[str, str]]:
         threading.Thread(target=worker, daemon=True).start()
         while True:
-            item = pending.get()
+            try:
+                item = pending.get(timeout=15)
+            except queue.Empty:
+                yield {"event": "keepalive", "data": json.dumps({"ts": int(time.time())})}
+                continue
             if item is None:
                 break
             event, data = item

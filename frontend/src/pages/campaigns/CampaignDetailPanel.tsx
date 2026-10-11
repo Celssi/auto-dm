@@ -16,6 +16,7 @@ import Toggle from '../../components/ui/forms/Toggle';
 import MarkdownContent from '../../components/ui/MarkdownContent';
 import { campaignCharacterLabel, resolvedCampaignCharacterIds } from '../../lib/displayText';
 import type { CampaignTab, CampaignsState } from './campaignsState';
+import LongJobOverlay from '../../components/LongJobOverlay';
 
 interface Props {
   campaign: CampaignFull;
@@ -92,6 +93,11 @@ export default function CampaignDetailPanel({
       animate={{ opacity: 1, x: 0 }}
       className="lg:col-span-2 panel-glow p-5 space-y-5"
     >
+      <LongJobOverlay
+        active={state.bootstrapping}
+        title="Generating adventure"
+        message="Keep this tab open. Heartbeats keep Cloud Run from scaling to zero."
+      />
       <CampaignDetailHeader
         campaign={campaign}
         state={state}

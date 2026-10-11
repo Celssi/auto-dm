@@ -72,4 +72,4 @@ When editing frontend empty-value placeholders, use `EMPTY_FIELD` from `frontend
 
 ## Running
 
-Cloud Run service `auto-dm` in project `celssi`, region `europe-north1`. Push to `main` deploys via the GCP Cloud Build trigger. Bucket: `gs://celssi-auto-dm`. Google sign-in is limited to `lauri.mukkala.fi@gmail.com`.
+Cloud Run service `auto-dm` in project `celssi`, region `europe-north1`. Push to `main` deploys via the GCP Cloud Build trigger. Bucket: `gs://celssi-auto-dm`. Google sign-in is limited to `lauri.mukkala.fi@gmail.com`. The service scales to zero when idle. Long jobs keep an SSE or keepalive request open so the instance stays up.

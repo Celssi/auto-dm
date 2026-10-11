@@ -2,8 +2,15 @@
 
 from __future__ import annotations
 
+import json
+import queue
+import threading
+import time
+from collections.abc import Iterator
+
 from fastapi import APIRouter
 from pydantic import BaseModel
+from sse_starlette.sse import EventSourceResponse
 
 from backend.config import (
     ANTHROPIC_API_KEY,
@@ -59,6 +66,11 @@ def update_settings(body: SettingsBody):
     return {"settings": save_settings(updates)}
 
 
+@router.get("/keepalive")
+def keepalive():
+    return {"ok": True, "ts": int(time.time())}
+
+
 @router.get("/health")
 def health():
     collection = get_collection()
@@ -77,15 +89,42 @@ def health():
 
 @router.post("/index/reindex")
 def reindex(body: IngestBody):
-    code = run_ingest(
-        core_only=not body.include_faerun,
-        include_faerun=body.include_faerun,
-        reset=True,
-        force_ocr=body.force_ocr,
-    )
-    collection = get_collection()
-    count = collection.count() if collection else 0
-    return {"ok": code == 0, "chunk_count": count}
+    pending: queue.Queue[tuple[str, dict] | None] = queue.Queue()
+
+    def emit(event: str, data: dict) -> None:
+        pending.put((event, data))
+
+    def worker() -> None:
+        try:
+            emit("progress", {"message": "Indexing rulebooks. This can take a long time."})
+            code = run_ingest(
+                core_only=not body.include_faerun,
+                include_faerun=body.include_faerun,
+                reset=True,
+                force_ocr=body.force_ocr,
+            )
+            collection = get_collection()
+            count = collection.count() if collection else 0
+            emit("done", {"ok": code == 0, "chunk_count": count})
+        except Exception as exc:
+            emit("error", {"detail": str(exc)})
+        finally:
+            pending.put(None)
+
+    def generate() -> Iterator[dict[str, str]]:
+        threading.Thread(target=worker, daemon=True).start()
+        while True:
+            try:
+                item = pending.get(timeout=15)
+            except queue.Empty:
+                yield {"event": "keepalive", "data": json.dumps({"ts": int(time.time())})}
+                continue
+            if item is None:
+                break
+            event, data = item
+            yield {"event": event, "data": json.dumps(data)}
+
+    return EventSourceResponse(generate())
 
 
 @router.get("/glossary")

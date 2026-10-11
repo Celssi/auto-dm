@@ -106,6 +106,7 @@ async function readSse(path: string, body: unknown, onEvent: StreamHandler): Pro
 
 export const api = {
   health: () => request<{ indexed: boolean; claude_configured: boolean; claude_model: string }>('/health'),
+  keepalive: () => request<{ ok: boolean; ts: number }>('/keepalive'),
 
   getSettings: () => request<{ settings: { include_faerun: boolean; use_rerank: boolean } }>('/settings'),
   updateSettings: (settings: Partial<{ include_faerun: boolean; use_rerank: boolean }>) =>
@@ -280,11 +281,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ question, include_faerun }),
     }),
-  reindex: (include_faerun = false) =>
-    request<{ ok: boolean; chunk_count: number }>('/index/reindex', {
-      method: 'POST',
-      body: JSON.stringify({ include_faerun }),
-    }),
+  reindex: (include_faerun = false, onEvent?: StreamHandler) =>
+    readSse('/index/reindex', { include_faerun }, onEvent ?? (() => undefined)),
   getGlossary: () => request<{ count: number; entries: Record<string, unknown> }>('/glossary'),
   lookupGlossary: (names: string[], use_rag = true) =>
     request<{
