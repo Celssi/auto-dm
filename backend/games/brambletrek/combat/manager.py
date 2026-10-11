@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from backend.dm.prose_style import sanitize_narration_dashes
 from backend.games.brambletrek.characters.entity import BrambletrekCharacter
 from backend.games.brambletrek.combat.effects import apply_tactic_effects, tick_turn_buffs
 from backend.games.brambletrek.combat.state import default_combat_state
@@ -176,7 +177,9 @@ def _maybe_auto_advance_aerith_phase(
         return
     if not _aerith_phase_complete(state):
         return
-    _advance_aerith_phase(state, char_id, lines, reason=f"Phase {state.get('finale_phase')} complete.")
+    _advance_aerith_phase(
+        state, char_id, lines, reason=f"Phase {state.get('finale_phase')} complete."
+    )
 
 
 def _resolve_opponent_tactic(state: dict[str, Any], card: str) -> dict[str, Any] | None:
@@ -476,7 +479,7 @@ def combat_payload(state: dict[str, Any] | None) -> dict[str, Any] | None:
             and state.get("status") == "active"
             and phase_complete
         ),
-        "log": (state.get("log") or [])[-12:],
+        "log": [sanitize_narration_dashes(line) for line in (state.get("log") or [])[-12:]],
         "combat_preview": (state.get("opponent") or {}).get("label", ""),
         "item_used_this_phase": bool(state.get("item_used_this_phase")),
         "can_search_item": bool(state.get("can_search_item")),

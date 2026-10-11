@@ -83,6 +83,9 @@ def save_adventure_encounters(adventure_id: str, encounters: list[EncounterSpec]
     path.parent.mkdir(parents=True, exist_ok=True)
     payload = {"encounters": [e.model_dump() for e in encounters]}
     path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+    from backend.persist import after_write
+
+    after_write(path)
 
 
 def load_combat_state(session_id: str) -> CombatState | None:
@@ -100,12 +103,18 @@ def save_combat_state(session_id: str, state: CombatState) -> None:
     path = _combat_path(session_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(state.model_dump_json(indent=2), encoding="utf-8")
+    from backend.persist import after_write
+
+    after_write(path)
 
 
 def clear_combat_state(session_id: str) -> None:
     path = _combat_path(session_id)
     if path.is_file():
         path.unlink()
+        from backend.persist import after_delete
+
+        after_delete(path)
 
 
 def _completed_encounters_path(session_id: str) -> Path:
@@ -134,6 +143,9 @@ def mark_encounter_completed(session_id: str, encounter_id: str) -> None:
     path = _completed_encounters_path(session_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(json.dumps(sorted(completed), indent=2), encoding="utf-8")
+    from backend.persist import after_write
+
+    after_write(path)
 
 
 def new_encounter_id(name: str) -> str:

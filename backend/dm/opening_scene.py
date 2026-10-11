@@ -20,7 +20,7 @@ from backend.dm.world_context import world_context_for_campaign
 from backend.games.dnd5e.characters.entity import character_from_dict, format_for_prompt
 from backend.games.registry import get_game, resolve_game_id
 from backend.journal_storage import get_campaign, save_campaign_location, save_campaign_npc, slugify
-from backend.llm import get_langchain_chat_llm
+from backend.llm import structured_llm
 from backend.storage import (
     append_adventure_log,
     get_adventure,
@@ -56,7 +56,7 @@ def _generate_opening_from_outline(
 ) -> str:
     char_obj = character_from_dict(char)
     world = world_context_for_campaign(campaign_id) if campaign_id else ""
-    llm = get_langchain_chat_llm("claude").with_structured_output(OpeningScenePackage)
+    llm = structured_llm(OpeningScenePackage)
     pkg = llm.invoke(
         [
             HumanMessage(
@@ -96,7 +96,7 @@ def _generate_standalone_opening(
         character_id=character_id,
         include_faerun=include_faerun,
     )
-    llm = get_langchain_chat_llm("claude").with_structured_output(OpeningScenePackage)
+    llm = structured_llm(OpeningScenePackage)
     prompt = f"""Write the opening scene for a D&D 5e solo adventure.
 
 Adventure: {adventure_name or spec.adventure_name}

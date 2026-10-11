@@ -12,6 +12,25 @@ import { initiativeMod } from '../../games/dnd5e/character-sheet/sheetUtils';
 
 const DICE_SHORTCUTS = new Set(['ability_check', 'saving_throw', 'attack_roll', 'initiative', 'death_save']);
 
+function streamErrorDetail(data: unknown): string {
+  if (data && typeof data === 'object' && 'detail' in data && typeof data.detail === 'string') {
+    return data.detail;
+  }
+  return 'Something went wrong talking to the DM.';
+}
+
+function applyChatResultPatch(result: ChatResult) {
+  return {
+    character: result.character as Character,
+    sources: result.sources || [],
+    spellConfirm: result.spell_confirmation ?? null,
+    ...(result.player_progress ? { playerProgress: result.player_progress } : {}),
+    adventureComplete: !!result.adventure_complete,
+    nextAdventure: result.next_adventure ?? null,
+    combatState: result.combat_state && result.combat_state.status === 'active' ? result.combat_state : null,
+  };
+}
+
 const SHORTCUT_LABELS: Record<string, string> = {
   ability_check: 'Ability Check',
   saving_throw: 'Saving Throw',
@@ -257,24 +276,27 @@ export function usePlayPageSession(
     dispatch({ type: 'set', patch: { input: '', spellConfirm: null, chatError: '' } });
     dispatch({ type: 'appendMessages', messages: [{ role: 'user', content: text }] });
     dispatch({ type: 'set', patch: { loading: true } });
+    dispatch({ type: 'appendMessages', messages: [{ role: 'assistant', content: '' }] });
     try {
-      const result: ChatResult = await api.chat(sessionId, text);
-      dispatch({
-        type: 'appendMessages',
-        messages: [{ role: 'assistant', content: result.response }],
+      const done: ChatResult[] = [];
+      let streamError = '';
+      await api.chatStream(sessionId, text, (event, data) => {
+        if (event === 'narration' && typeof data === 'string') {
+          dispatch({ type: 'appendAssistantDelta', delta: data });
+        } else if (event === 'narration_replace' && typeof data === 'string') {
+          dispatch({ type: 'replaceLastAssistant', content: data });
+        } else if (event === 'done') {
+          const result = data as ChatResult;
+          done[0] = result;
+          dispatch({ type: 'replaceLastAssistant', content: result.response });
+          dispatch({ type: 'set', patch: applyChatResultPatch(result) });
+        } else if (event === 'error') {
+          streamError = streamErrorDetail(data);
+        }
       });
-      dispatch({
-        type: 'set',
-        patch: {
-          character: result.character as Character,
-          sources: result.sources || [],
-          spellConfirm: result.spell_confirmation ?? null,
-          ...(result.player_progress ? { playerProgress: result.player_progress } : {}),
-          adventureComplete: !!result.adventure_complete,
-          nextAdventure: result.next_adventure ?? null,
-          combatState: result.combat_state && result.combat_state.status === 'active' ? result.combat_state : null,
-        },
-      });
+      if (streamError) throw new Error(streamError);
+      const result = done[0];
+      if (!result) throw new Error('The DM closed the stream without a reply.');
       await refreshSessionLogs(sessionId);
       const chatGameId = String((result.character as Character)?.game_id || state.character?.game_id || 'dnd5e');
       await getPlaySessionExtensions(chatGameId).afterChat(sessionId, dispatch);
@@ -377,10 +399,62 @@ export function usePlayPageSession(
         advantage: modal.advantage,
         proficient: modal.proficient,
       };
-      const result = await api.rollShortcut(state.sessionId, modal.shortcutId, params, preRolled);
+      type ShortcutPayload = { dice?: { rolls?: number[]; total?: number }; user_message?: string };
+      const shortcutBox: ShortcutPayload[] = [];
+      const done: ChatResult[] = [];
+      let streamError = '';
+      let resolveShortcut: (value: ShortcutPayload) => void = () => undefined;
+      const shortcutReady = new Promise<ShortcutPayload>((resolve) => {
+        resolveShortcut = resolve;
+      });
+      const pending: { event: string; data: unknown }[] = [];
+      let uiReady = false;
 
-      const rolls = result.shortcut?.dice?.rolls;
+      const applyEvent = (event: string, data: unknown) => {
+        if (event === 'narration' && typeof data === 'string') {
+          dispatch({ type: 'appendAssistantDelta', delta: data });
+        } else if (event === 'narration_replace' && typeof data === 'string') {
+          dispatch({ type: 'replaceLastAssistant', content: data });
+        } else if (event === 'done') {
+          const result = data as ChatResult;
+          done[0] = result;
+          dispatch({ type: 'replaceLastAssistant', content: result.response });
+          dispatch({ type: 'set', patch: { diceModal: null, ...applyChatResultPatch(result) } });
+        } else if (event === 'error') {
+          streamError = streamErrorDetail(data);
+        }
+      };
 
+      const streamPromise = api.rollShortcutStream(
+        state.sessionId,
+        modal.shortcutId,
+        params,
+        preRolled,
+        (event, data) => {
+          if (event === 'shortcut') {
+            const payload = data as ShortcutPayload;
+            shortcutBox[0] = payload;
+            resolveShortcut(payload);
+            return;
+          }
+          if (!uiReady) {
+            pending.push({ event, data });
+            return;
+          }
+          applyEvent(event, data);
+        },
+      );
+
+      const shortcutPayload = await Promise.race([
+        shortcutReady,
+        streamPromise.then(() => {
+          const payload = shortcutBox[0];
+          if (!payload) throw new Error('Dice shortcut stream ended before the roll.');
+          return payload;
+        }),
+      ]);
+
+      const rolls = shortcutPayload.dice?.rolls;
       if (isAutoRoll && rolls) {
         dispatch({
           type: 'set',
@@ -394,27 +468,21 @@ export function usePlayPageSession(
         await new Promise((r) => setTimeout(r, 800));
       }
 
-      const userMsg = result.shortcut?.user_message ?? `/${modal.shortcutId}`;
+      const userMsg = shortcutPayload.user_message ?? `/${modal.shortcutId}`;
       dispatch({
         type: 'appendMessages',
         messages: [
           { role: 'user', content: userMsg },
-          { role: 'assistant', content: result.response },
+          { role: 'assistant', content: '' },
         ],
       });
-      dispatch({
-        type: 'set',
-        patch: {
-          diceModal: null,
-          character: result.character as Character,
-          sources: result.sources || [],
-          spellConfirm: result.spell_confirmation ?? null,
-          ...(result.player_progress ? { playerProgress: result.player_progress } : {}),
-          adventureComplete: !!result.adventure_complete,
-          nextAdventure: result.next_adventure ?? null,
-          combatState: result.combat_state && result.combat_state.status === 'active' ? result.combat_state : null,
-        },
-      });
+      uiReady = true;
+      for (const item of pending) {
+        applyEvent(item.event, item.data);
+      }
+      await streamPromise;
+      if (streamError) throw new Error(streamError);
+      if (!done[0]) throw new Error('The DM closed the stream without a reply.');
       await refreshSessionLogs(state.sessionId);
       if (campaignIdRef.current) {
         api

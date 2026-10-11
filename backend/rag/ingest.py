@@ -1,4 +1,4 @@
-"""Ingest D&D 5e PDFs into Chroma via LlamaIndex + Ollama embeddings."""
+"""Ingest D&D 5e PDFs into Chroma via LlamaIndex embeddings."""
 
 from __future__ import annotations
 
@@ -10,7 +10,6 @@ from pathlib import Path
 
 import chromadb
 from llama_index.core import Document, StorageContext, VectorStoreIndex
-from llama_index.embeddings.ollama import OllamaEmbedding
 from llama_index.vector_stores.chroma import ChromaVectorStore
 from pypdf import PdfReader
 
@@ -20,12 +19,10 @@ from backend.config import (
     CHUNK_SIZE,
     COLLECTION_NAME,
     DOCS_DIR,
-    EMBED_DOCUMENT_PREFIX,
-    EMBED_MODEL,
-    EMBED_QUERY_PREFIX,
-    OLLAMA_BASE_URL,
+    EMBED_HF_MODEL,
     pdf_path,
 )
+from backend.embeddings import build_embed_model
 from backend.rag.ocr import (
     OcrNotAvailableError,
     extract_pages_with_ocr,
@@ -323,18 +320,6 @@ def preflight_ingest(*, pdf_names: list[str], use_ocr: bool) -> list[str]:
     """Return fatal error messages; empty list means OK to proceed."""
     errors: list[str] = []
 
-    try:
-        import ollama
-
-        models = {m.model for m in ollama.list().models}
-        # ollama may return "nomic-embed-text" or "nomic-embed-text:latest"
-        if not any(m == EMBED_MODEL or m.startswith(f"{EMBED_MODEL}:") for m in models):
-            errors.append(
-                f'Ollama embedding model "{EMBED_MODEL}" not found. Run: ollama pull {EMBED_MODEL}'
-            )
-    except Exception as e:
-        errors.append(f"Cannot reach Ollama at {OLLAMA_BASE_URL}: {e}")
-
     if use_ocr:
         ocr_needed = any(needs_ocr(pdf_path(name)) for name in pdf_names if pdf_path(name).exists())
         if ocr_needed and not tesseract_available():
@@ -427,14 +412,9 @@ def run_ingest(
     vector_store = ChromaVectorStore(chroma_collection=collection)
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
 
-    embed_model = OllamaEmbedding(
-        model_name=EMBED_MODEL,
-        base_url=OLLAMA_BASE_URL,
-        text_instruction=EMBED_DOCUMENT_PREFIX,
-        query_instruction=EMBED_QUERY_PREFIX,
-    )
+    embed_model = build_embed_model()
 
-    print(f"\nEmbedding {len(all_docs)} chunks with {EMBED_MODEL}...")
+    print(f"\nEmbedding {len(all_docs)} chunks with {EMBED_HF_MODEL}...")
     VectorStoreIndex.from_documents(
         all_docs,
         storage_context=storage_context,
@@ -442,6 +422,9 @@ def run_ingest(
         show_progress=True,
     )
     print(f"Done. Index '{COLLECTION_NAME}' stored in {CHROMA_DIR}")
+    from backend.gcs_sync import upload_chroma
+
+    upload_chroma()
     if not skip_audit:
         _build_glossary_after_ingest()
         return _audit_dnd5e_curated_after_ingest(skip_pdf=True)
@@ -535,13 +518,8 @@ def _run_brambletrek_ingest(
     collection = client.get_or_create_collection(collection_name)
     vector_store = ChromaVectorStore(chroma_collection=collection)
     storage_context = StorageContext.from_defaults(vector_store=vector_store)
-    embed_model = OllamaEmbedding(
-        model_name=EMBED_MODEL,
-        base_url=OLLAMA_BASE_URL,
-        text_instruction=EMBED_DOCUMENT_PREFIX,
-        query_instruction=EMBED_QUERY_PREFIX,
-    )
-    print(f"\nEmbedding {len(all_docs)} chunks with {EMBED_MODEL}...")
+    embed_model = build_embed_model()
+    print(f"\nEmbedding {len(all_docs)} chunks with {EMBED_HF_MODEL}...")
     VectorStoreIndex.from_documents(
         all_docs,
         storage_context=storage_context,
@@ -549,6 +527,9 @@ def _run_brambletrek_ingest(
         show_progress=True,
     )
     print(f"Done. Index '{collection_name}' stored in {CHROMA_DIR}")
+    from backend.gcs_sync import upload_chroma
+
+    upload_chroma()
     if skip_audit:
         print("Curated audit: skipped")
         return 0

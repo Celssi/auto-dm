@@ -17,7 +17,7 @@ from backend.games.dnd5e.characters.spell_resources import (
     apply_resource_updates,
     compute_wild_shape_max,
 )
-from backend.llm import get_langchain_chat_llm
+from backend.llm import structured_llm
 
 _SHORT_REST_TRIGGERS = (
     "short rest",
@@ -118,7 +118,7 @@ Player: {user_message[:1500]}
 
 DM response: {dm_response[:1500]}
 """
-    llm = get_langchain_chat_llm("claude").with_structured_output(ResourceTurnUpdates)
+    llm = structured_llm(ResourceTurnUpdates)
     return llm.invoke([HumanMessage(content=prompt)])
 
 

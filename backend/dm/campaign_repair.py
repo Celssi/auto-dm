@@ -15,7 +15,7 @@ from backend.dm.encounters import (
 )
 from backend.dm.story_director import ensure_story_progress, load_story_progress
 from backend.journal_storage import get_campaign, save_campaign_location, save_campaign_npc, slugify
-from backend.llm import get_langchain_chat_llm
+from backend.llm import structured_llm
 from backend.storage import get_adventure, list_adventures_for_campaign
 
 
@@ -215,7 +215,7 @@ Rules:
 - trigger_beat: short story beat title when encounter starts
 - enemies: use real MM names (Merrow, Sahuagin, Dragon Turtle, etc.)
 """
-    llm = get_langchain_chat_llm("claude").with_structured_output(JournalExtractSpec)
+    llm = structured_llm(JournalExtractSpec)
     return llm.invoke([HumanMessage(content=prompt)])
 
 
@@ -231,7 +231,7 @@ Outline:
 
 Use canonical Monster Manual creature names only. Include trigger_beat matching a story beat title.
 """
-    llm = get_langchain_chat_llm("claude").with_structured_output(AdventureEncountersSpec)
+    llm = structured_llm(AdventureEncountersSpec)
     spec = llm.invoke([HumanMessage(content=prompt)])
     return [
         EncounterSpec(

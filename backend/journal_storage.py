@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from backend.config import SAVES_DIR
+from backend.persist import after_delete, after_write
 
 logger = logging.getLogger(__name__)
 
@@ -34,6 +35,7 @@ def _write_json(path: Path, data: Any) -> None:
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp, path)
+        after_write(path)
     except BaseException:
         try:
             os.unlink(tmp)
@@ -263,6 +265,7 @@ def delete_campaign(campaign_id: str) -> bool:
             elif path.is_dir():
                 path.rmdir()
         camp_dir.rmdir()
+    after_delete(camp_dir)
     return True
 
 
@@ -347,6 +350,7 @@ def delete_campaign_npc(campaign_id: str, npc_id: str) -> bool:
     if not path.is_file():
         return False
     path.unlink()
+    after_delete(path)
     return True
 
 
@@ -398,6 +402,7 @@ def delete_campaign_location(campaign_id: str, location_id: str) -> bool:
     if not path.is_file():
         return False
     path.unlink()
+    after_delete(path)
     return True
 
 

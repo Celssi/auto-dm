@@ -1,10 +1,13 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { BrowserRouter, Route, Routes } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import Layout from './components/Layout';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import { GlossaryProvider } from './context/GlossaryContext';
 import { ToastProvider } from './components/ui/toast';
+import { usePWA } from './hooks/usePWA';
 import HomePage from './pages/HomePage';
+import LoginPage from './pages/LoginPage';
 import CharactersPage from './pages/CharactersPage';
 import CampaignsPage from './pages/CampaignsPage';
 import AdventuresPage from './pages/AdventuresPage';
@@ -16,7 +19,7 @@ import { LazyMotion, domAnimation } from './lib/framer';
 
 const queryClient = new QueryClient();
 
-function MotionProvider({ children }: { children: React.ReactNode }) {
+function MotionProvider({ children }: { children: ReactNode }) {
   return (
     <LazyMotion features={domAnimation} strict>
       {children}
@@ -46,34 +49,55 @@ function HomeWrapper() {
   return <HomePage indexed={indexed} claudeOk={claudeOk} recentSession={recent} sessionsLoaded={sessionsLoaded} />;
 }
 
+function AuthGate({ children }: { children: ReactNode }) {
+  const { user, loading } = useAuth();
+  usePWA();
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center text-sm text-muted">
+        Loading…
+      </div>
+    );
+  }
+  if (!user) {
+    return <LoginPage />;
+  }
+  return children;
+}
+
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <MotionProvider>
         <ToastProvider>
-          <GlossaryProvider>
-            <BrowserRouter useTransitions={false}>
-              <Routes>
-                <Route element={<Layout />}>
-                  <Route index element={<HomeWrapper />} />
-                  <Route path="characters" element={<CharactersPage />} />
-                  <Route path="characters/new" element={<CharactersPage />} />
-                  <Route path="characters/:characterId/edit" element={<CharactersPage />} />
-                  <Route path="characters/:characterId" element={<CharactersPage />} />
-                  <Route path="campaigns" element={<CampaignsPage />} />
-                  <Route path="campaigns/new" element={<CampaignsPage />} />
-                  <Route path="campaigns/:campaignId/:tab" element={<CampaignsPage />} />
-                  <Route path="campaigns/:campaignId" element={<CampaignsPage />} />
-                  <Route path="adventures" element={<AdventuresPage />} />
-                  <Route path="adventures/new" element={<AdventuresPage />} />
-                  <Route path="adventures/:adventureId" element={<AdventuresPage />} />
-                  <Route path="play" element={<PlayPage />} />
-                  <Route path="play/:sessionId" element={<PlayPage />} />
-                  <Route path="settings" element={<SettingsPage />} />
-                </Route>
-              </Routes>
-            </BrowserRouter>
-          </GlossaryProvider>
+          <AuthProvider>
+            <AuthGate>
+              <GlossaryProvider>
+                <BrowserRouter useTransitions={false}>
+                  <Routes>
+                    <Route element={<Layout />}>
+                      <Route index element={<HomeWrapper />} />
+                      <Route path="characters" element={<CharactersPage />} />
+                      <Route path="characters/new" element={<CharactersPage />} />
+                      <Route path="characters/:characterId/edit" element={<CharactersPage />} />
+                      <Route path="characters/:characterId" element={<CharactersPage />} />
+                      <Route path="campaigns" element={<CampaignsPage />} />
+                      <Route path="campaigns/new" element={<CampaignsPage />} />
+                      <Route path="campaigns/:campaignId/:tab" element={<CampaignsPage />} />
+                      <Route path="campaigns/:campaignId" element={<CampaignsPage />} />
+                      <Route path="adventures" element={<AdventuresPage />} />
+                      <Route path="adventures/new" element={<AdventuresPage />} />
+                      <Route path="adventures/:adventureId" element={<AdventuresPage />} />
+                      <Route path="play" element={<PlayPage />} />
+                      <Route path="play/:sessionId" element={<PlayPage />} />
+                      <Route path="settings" element={<SettingsPage />} />
+                    </Route>
+                  </Routes>
+                </BrowserRouter>
+              </GlossaryProvider>
+            </AuthGate>
+          </AuthProvider>
         </ToastProvider>
       </MotionProvider>
     </QueryClientProvider>

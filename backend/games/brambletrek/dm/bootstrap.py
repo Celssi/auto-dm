@@ -17,7 +17,7 @@ from backend.games.brambletrek.characters.entity import character_from_dict, for
 from backend.games.brambletrek.dm.curated import adventure_meta, format_adventure_context
 from backend.games.brambletrek.rag_config import get_all_factions
 from backend.journal_storage import save_campaign, slugify
-from backend.llm import get_langchain_chat_llm
+from backend.llm import structured_llm
 from backend.rag.engine import query_rules
 from backend.storage import create_session, get_character, save_adventure, write_adventure_summary
 
@@ -78,7 +78,7 @@ def generate_brambletrek_opening(char: dict, adv: dict | None = None) -> str:
         character=char,
         top_k=8,
     )
-    llm = get_langchain_chat_llm("claude").with_structured_output(BrambletrekOpeningPackage)
+    llm = structured_llm(BrambletrekOpeningPackage)
     pkg = llm.invoke(
         [
             HumanMessage(

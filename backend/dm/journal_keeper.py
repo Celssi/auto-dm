@@ -16,7 +16,8 @@ from backend.journal_storage import (
     save_campaign_location,
     save_campaign_npc,
 )
-from backend.llm import get_langchain_chat_llm
+from backend.games.dnd5e.prompts import dnd5e_stable_system_prompt
+from backend.llm import cached_system, structured_llm
 from backend.storage import append_adventure_log
 
 
@@ -71,8 +72,13 @@ Player: {user_message[:1500]}
 
 DM response: {dm_response[:3000]}
 """
-    llm = get_langchain_chat_llm("claude").with_structured_output(JournalTurnUpdates)
-    return llm.invoke([HumanMessage(content=prompt)])
+    llm = structured_llm(JournalTurnUpdates)
+    return llm.invoke(
+        [
+            cached_system(dnd5e_stable_system_prompt()),
+            HumanMessage(content=prompt),
+        ]
+    )
 
 
 def apply_journal_updates(

@@ -10,7 +10,9 @@ from backend.dm.lonelog import extract_narrative_snippets
 from backend.dm.world_context import world_context_for_campaign
 from backend.games.dnd5e.characters.entity import Dnd5eCharacter
 from backend.games.registry import resolve_game_id
-from backend.llm import get_langchain_chat_llm, invoke_chat_llm
+from backend.games.brambletrek.prompts import brambletrek_stable_system_prompt
+from backend.games.dnd5e.prompts import dnd5e_stable_system_prompt
+from backend.llm import cached_system, get_langchain_chat_llm, invoke_chat_llm, message_text
 
 CANON_MAX = 4000
 RECENT_MAX = 3000
@@ -46,6 +48,14 @@ _CHRONICLER_GAME: dict[str, dict[str, str]] = {
 
 def _chronicler_cfg(game_id: str) -> dict[str, str]:
     return _CHRONICLER_GAME.get(game_id) or _CHRONICLER_GAME["dnd5e"]
+
+
+def _stable_system(game_id: str) -> str:
+    if game_id == "brambletrek":
+        return brambletrek_stable_system_prompt(
+            language_instruction="Respond in the same language the player uses."
+        )
+    return dnd5e_stable_system_prompt()
 
 
 def _clip(text: str, limit: int) -> str:
@@ -183,8 +193,7 @@ Adventure log:
         agent="chronicler_opening",
         provider="claude",
     )
-    text = response.content if isinstance(response.content, str) else str(response.content)
-    return text.strip()
+    return message_text(response).strip()
 
 
 def generate_full_summary(
@@ -237,8 +246,7 @@ Adventure log:
         agent="chronicler_full",
         provider="claude",
     )
-    text = response.content if isinstance(response.content, str) else str(response.content)
-    return text.strip()
+    return message_text(response).strip()
 
 
 def increment_summary(
@@ -283,11 +291,11 @@ Log entry for this turn:
     response = invoke_chat_llm(
         llm,
         [
+            cached_system(_stable_system(resolve_game_id({"game_id": game_id}))),
             SystemMessage(content=cfg["system_increment"]),
             HumanMessage(content=prompt),
         ],
         agent="chronicler",
         provider="claude",
     )
-    text = response.content if isinstance(response.content, str) else str(response.content)
-    return text.strip()
+    return message_text(response).strip()

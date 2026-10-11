@@ -14,7 +14,7 @@ from pypdf import PdfReader
 
 from backend.config import CURATED_DIR, pdf_path
 from backend.games.dnd5e.characters.character_data import skills_data
-from backend.llm import get_langchain_chat_llm
+from backend.llm import get_langchain_chat_llm, message_text
 from backend.rag.engine import query_rules
 from backend.rag.ocr import (
     OcrNotAvailableError,
@@ -213,7 +213,7 @@ Return ONLY valid JSON with keys:
 Use only what is explicitly supported by the excerpt. Do not invent."""
     user = f"Background: {label}\n\nRulebook excerpt:\n{context[:12000]}"
     response = llm.invoke([SystemMessage(content=system), HumanMessage(content=user)])
-    content = response.content if isinstance(response.content, str) else str(response.content)
+    content = message_text(response)
     match = re.search(r"\{[\s\S]*\}", content)
     if not match:
         raise ValueError(f"No JSON in LLM response for {label}")

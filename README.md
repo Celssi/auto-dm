@@ -273,9 +273,13 @@ For a single-process setup, build the frontend (`cd frontend && npm run build`) 
 
 ---
 
-## Rulebooks (you must provide locally)
+## Deploy
 
-Place legally obtained PDFs in `dnd5e/`:
+The app runs on Cloud Run in GCP project `celssi` (`europe-north1`). Push to `main` builds the image and updates the `auto-dm` service. PDFs, the Chroma index, and save files live in `gs://celssi-auto-dm`. Sign-in is Firebase Google auth for `lauri.mukkala.fi@gmail.com`.
+
+## Rulebooks
+
+Place legally obtained PDFs in Cloud Storage under `pdfs/dnd5e/` and `pdfs/brambletrek/`:
 
 | File | Book |
 |------|------|

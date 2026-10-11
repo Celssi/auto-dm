@@ -10,20 +10,10 @@ import chromadb
 from llama_index.core import Settings, VectorStoreIndex
 from llama_index.core.schema import NodeWithScore, TextNode
 from llama_index.core.vector_stores import FilterCondition, MetadataFilters
-from llama_index.embeddings.ollama import OllamaEmbedding
-from llama_index.llms.ollama import Ollama
 from llama_index.vector_stores.chroma import ChromaVectorStore
 
-from backend.config import (
-    CHAT_MODEL,
-    CHROMA_DIR,
-    EMBED_DOCUMENT_PREFIX,
-    EMBED_MODEL,
-    EMBED_QUERY_PREFIX,
-    OLLAMA_BASE_URL,
-    OLLAMA_REQUEST_TIMEOUT,
-    RERANK_MODEL,
-)
+from backend.config import CHROMA_DIR, RERANK_MODEL
+from backend.embeddings import build_embed_model
 
 _LEXICAL_CACHE: dict[str, tuple[list[str], list[dict]]] = {}
 _settings_initialized = False
@@ -54,17 +44,7 @@ def _ensure_settings():
     global _settings_initialized
     if _settings_initialized:
         return
-    Settings.embed_model = OllamaEmbedding(
-        model_name=EMBED_MODEL,
-        base_url=OLLAMA_BASE_URL,
-        text_instruction=EMBED_DOCUMENT_PREFIX,
-        query_instruction=EMBED_QUERY_PREFIX,
-    )
-    Settings.llm = Ollama(
-        model=CHAT_MODEL,
-        base_url=OLLAMA_BASE_URL,
-        request_timeout=OLLAMA_REQUEST_TIMEOUT,
-    )
+    Settings.embed_model = build_embed_model()
     _settings_initialized = True
 
 

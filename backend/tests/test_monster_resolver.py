@@ -16,11 +16,10 @@ def test_lookup_monster_uses_llm_parsed_stats():
         attacks=[MonsterAttack(name="Harpoon", to_hit=6, damage="2d6+3")],
     )
     mock_llm = MagicMock()
-    mock_llm.with_structured_output.return_value.invoke.return_value = parsed
+    mock_llm.invoke.return_value = parsed
 
-    llm_path = "backend.games.dnd5e.dm.monster_resolver.get_langchain_chat_llm"
     with patch("backend.games.dnd5e.dm.monster_resolver.query_rules", return_value=rag_result):
-        with patch(llm_path, return_value=mock_llm):
+        with patch("backend.games.dnd5e.dm.monster_resolver.structured_llm", return_value=mock_llm):
             stats = lookup_monster("Merrow")
 
     assert stats.name == "Merrow"

@@ -2,12 +2,21 @@
 
 from __future__ import annotations
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-
+from backend.dm.narration_stream import emit_narration, narration_enabled
 from backend.dm.prose_style import sanitize_narration_dashes
 from backend.dm.state import DMState, char_from_dict, game_plugin
 from backend.dm.trace import log_agent
-from backend.llm import get_langchain_chat_llm, invoke_chat_llm
+from backend.games.brambletrek.prompts import (
+    brambletrek_stable_system_prompt,
+    brambletrek_variable_system_prompt,
+)
+from backend.llm import (
+    build_cached_chat_messages,
+    get_langchain_chat_llm,
+    invoke_chat_llm,
+    message_text,
+    stream_chat_llm,
+)
 from backend.rag.engine import query_rules
 from backend.settings_store import load_settings
 from backend.storage import get_session
@@ -102,7 +111,7 @@ def rules_facilitator_node(state: DMState) -> DMState:
         has_answer=bool(result.answer),
     )
     if shortcut.get("task") in RAG_DIRECT_TASKS and result.answer:
-        user_msg = shortcut.get("user_message", "")
+        user_msg = sanitize_narration_dashes(shortcut.get("user_message", ""))
         combined = f"{user_msg}\n\n{result.answer}" if user_msg else result.answer
         return {
             "rules_context": result.answer,
@@ -144,10 +153,15 @@ def facilitator_node(state: DMState) -> DMState:
     char = char_from_dict(char_dict)
     sess = get_session(state.get("session_id", "")) or {}
     extras = sess.get("extras") or {}
-    system = game_plugin(char_dict).system_prompt(
+    story_mode = extras.get("story_mode", "player")
+    card_source = extras.get("card_source", "virtual")
+    stable = brambletrek_stable_system_prompt(
+        language_instruction="Respond in the same language the player uses."
+    )
+    variable = brambletrek_variable_system_prompt(
         character=char,
-        story_mode=extras.get("story_mode", "player"),
-        card_source=extras.get("card_source", "virtual"),
+        story_mode=story_mode,
+        card_source=card_source,
     )
     llm = get_langchain_chat_llm("claude")
     user_parts = [state.get("user_message", "")]
@@ -155,18 +169,23 @@ def facilitator_node(state: DMState) -> DMState:
         user_parts.append(f"Mechanical result: {state['mechanics_summary']}")
     if state.get("rules_context") and not state.get("response"):
         user_parts.append(f"Relevant rules:\n{state['rules_context']}")
-    history = state.get("messages") or []
-    lc_messages = [SystemMessage(content=system)]
-    for m in history[-10:]:
-        role = m.get("role", "")
-        content = m.get("content", "")
-        if role == "user":
-            lc_messages.append(HumanMessage(content=content))
-        elif role == "assistant":
-            lc_messages.append(AIMessage(content=content))
-    lc_messages.append(HumanMessage(content="\n\n".join(user_parts)))
-    response = invoke_chat_llm(llm, lc_messages, agent="facilitator", provider="claude")
-    text = response.content if isinstance(response.content, str) else str(response.content)
+    lc_messages = build_cached_chat_messages(
+        stable,
+        variable,
+        state.get("messages") or [],
+        "\n\n".join(user_parts),
+    )
+    if narration_enabled():
+        text, _ = stream_chat_llm(
+            llm,
+            lc_messages,
+            agent="facilitator",
+            provider="claude",
+            on_text=emit_narration,
+        )
+    else:
+        response = invoke_chat_llm(llm, lc_messages, agent="facilitator", provider="claude")
+        text = message_text(response)
     text = sanitize_narration_dashes(text.strip())
     return {
         "narrative": text,

@@ -1,11 +1,21 @@
+import { getAuthToken } from '../lib/authToken';
 import type { LevelUpPreview } from '../types';
 
 const BASE = '/api';
 
+async function authHeaders(): Promise<Record<string, string>> {
+  const token = await getAuthToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${path}`, {
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
     ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(await authHeaders()),
+      ...init?.headers,
+    },
   });
   if (!res.ok) {
     const err = await res.text();
@@ -25,8 +35,77 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
   return res.json();
 }
 
+export type StreamHandler = (event: string, data: unknown) => void;
+
+async function readSse(path: string, body: unknown, onEvent: StreamHandler): Promise<void> {
+  const res = await fetch(`${BASE}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(await authHeaders()),
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.text();
+    try {
+      const parsed = JSON.parse(err) as { detail?: string | { msg?: string }[] };
+      if (typeof parsed.detail === 'string') {
+        throw new Error(parsed.detail);
+      }
+      if (Array.isArray(parsed.detail)) {
+        throw new Error(parsed.detail.map((d) => d.msg || JSON.stringify(d)).join('; '));
+      }
+    } catch (e) {
+      if (e instanceof Error && e.message !== err) throw e;
+    }
+    throw new Error(err || res.statusText);
+  }
+  if (!res.body) {
+    throw new Error('No response body');
+  }
+  const reader = res.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+  let currentEvent = '';
+  let dataLines: string[] = [];
+
+  const flush = () => {
+    if (!dataLines.length && !currentEvent) return;
+    const raw = dataLines.join('\n');
+    dataLines = [];
+    const event = currentEvent || 'message';
+    currentEvent = '';
+    let parsed: unknown = raw;
+    try {
+      parsed = JSON.parse(raw);
+    } catch {
+      /* keep raw string */
+    }
+    onEvent(event, parsed);
+  };
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+    for (const line of lines) {
+      if (line.startsWith('event:')) {
+        currentEvent = line.slice(6).trim();
+      } else if (line.startsWith('data:')) {
+        dataLines.push(line.slice(5).trimStart());
+      } else if (line === '') {
+        flush();
+      }
+    }
+  }
+  flush();
+}
+
 export const api = {
-  health: () => request<{ indexed: boolean; claude_configured: boolean }>('/health'),
+  health: () => request<{ indexed: boolean; claude_configured: boolean; claude_model: string }>('/health'),
 
   getSettings: () => request<{ settings: { include_faerun: boolean; use_rerank: boolean } }>('/settings'),
   updateSettings: (settings: Partial<{ include_faerun: boolean; use_rerank: boolean }>) =>
@@ -132,6 +211,8 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ message }),
     }),
+  chatStream: (sessionId: string, message: string, onEvent: StreamHandler) =>
+    readSse(`/sessions/${sessionId}/chat/stream`, { message }, onEvent),
   getShortcuts: (gameId = 'dnd5e', characterId?: string) => {
     const params = new URLSearchParams({ game_id: gameId });
     if (characterId) params.set('character_id', characterId);
@@ -161,16 +242,30 @@ export const api = {
         }),
       },
     ),
+  rollShortcutStream: (
+    sessionId: string,
+    shortcutId: string,
+    params: Record<string, unknown>,
+    preRolled: number[] | undefined,
+    onEvent: StreamHandler,
+  ) =>
+    readSse(
+      `/sessions/${sessionId}/shortcut/stream`,
+      {
+        shortcut_id: shortcutId,
+        params,
+        pre_rolled: preRolled ?? null,
+        narrate: true,
+      },
+      onEvent,
+    ),
   getLonelog: (sessionId: string) => request<{ lines: string[] }>(`/sessions/${sessionId}/lonelog`),
   getAudit: (sessionId: string, limit = 200) =>
     request<{ events: AuditEvent[] }>(`/sessions/${sessionId}/audit?limit=${limit}`),
   beginSession: (sessionId: string) => request<BeginSessionResult>(`/sessions/${sessionId}/begin`, { method: 'POST' }),
   getSessionCombat: (sessionId: string) =>
     request<{ combat_state: CombatStateSnapshot }>(`/sessions/${sessionId}/combat`),
-  sessionCombatAction: (
-    sessionId: string,
-    body: { action: string; target_id?: string },
-  ) =>
+  sessionCombatAction: (sessionId: string, body: { action: string; target_id?: string }) =>
     request<{
       combat_state?: CombatStateSnapshot;
       events?: string[];

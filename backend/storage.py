@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from backend.config import SAVES_DIR
+from backend.persist import after_delete, after_write
 
 logger = logging.getLogger(__name__)
 
@@ -29,6 +30,7 @@ def _write_json(path: Path, data: Any) -> None:
             f.flush()
             os.fsync(f.fileno())
         os.replace(tmp, path)
+        after_write(path)
     except BaseException:
         try:
             os.unlink(tmp)
@@ -51,11 +53,13 @@ def _append_text(path: Path, line: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as f:
         f.write(line.rstrip() + "\n")
+    after_write(path)
 
 
 def _write_text(path: Path, content: str) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(content, encoding="utf-8")
+    after_write(path)
 
 
 def _read_text(path: Path, default: str = "") -> str:
@@ -134,6 +138,7 @@ def _remove_dir(path: Path) -> None:
         elif child.is_dir():
             child.rmdir()
     path.rmdir()
+    after_delete(path)
 
 
 def list_adventure_ids_for_character(char_id: str) -> list[str]:
@@ -429,6 +434,7 @@ def append_session_audit(session_id: str, event: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(payload, ensure_ascii=False, default=str) + "\n")
+    after_write(path)
 
 
 def get_session_audit(session_id: str, *, limit: int = 200) -> list[dict]:

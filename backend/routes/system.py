@@ -7,7 +7,6 @@ from pydantic import BaseModel
 
 from backend.config import (
     ANTHROPIC_API_KEY,
-    CLAUDE_CHAT_MODEL,
     COLLECTION_NAME,
     LANGSMITH_ENABLED,
     LANGSMITH_ENDPOINT,
@@ -15,6 +14,7 @@ from backend.config import (
 )
 from backend.games.registry import get_game, list_games
 from backend.glossary import glossary_payload, lookup_entries
+from backend.llm import resolve_claude_model
 from backend.rag.engine import query_rules
 from backend.rag.ingest import run_ingest
 from backend.rag.retrieval_core import get_collection
@@ -68,7 +68,7 @@ def health():
         "indexed": indexed,
         "collection": COLLECTION_NAME,
         "claude_configured": bool(ANTHROPIC_API_KEY),
-        "claude_model": CLAUDE_CHAT_MODEL,
+        "claude_model": resolve_claude_model(),
         "langsmith_enabled": LANGSMITH_ENABLED,
         "langsmith_project": LANGSMITH_PROJECT or None,
         "langsmith_endpoint": LANGSMITH_ENDPOINT or None,

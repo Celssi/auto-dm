@@ -10,6 +10,8 @@ from backend.dm.graph import run_dm_turn
 from backend.dm.lonelog import format_mechanical
 from backend.dm.opening_scene import begin_session
 from backend.dm.oracles import ORACLE_TOOLS, run_oracle
+from backend.dm.prose_style import sanitize_narration_dashes
+from backend.dm.stream_turn import stream_dm_turn
 from backend.dm.trace import audit_session_context
 from backend.games.registry import get_game, resolve_game_id
 from backend.settings_store import load_settings
@@ -99,17 +101,7 @@ def begin(session_id: str):
         raise HTTPException(400, str(e)) from e
 
 
-@router.post("/{session_id}/chat")
-def chat(session_id: str, body: ChatBody):
-    try:
-        result = run_dm_turn(session_id, body.message)
-    except ValueError as e:
-        raise HTTPException(404, str(e)) from e
-    return result
-
-
-@router.post("/{session_id}/shortcut")
-def shortcut(session_id: str, body: ShortcutBody):
+def _execute_shortcut(session_id: str, body: ShortcutBody) -> dict:
     sess = get_session(session_id)
     if not sess:
         raise HTTPException(404, "Session not found")
@@ -133,6 +125,32 @@ def shortcut(session_id: str, body: ShortcutBody):
             result = plugin.run_shortcut(body.shortcut_id, **params)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
+    if isinstance(result.get("user_message"), str):
+        result["user_message"] = sanitize_narration_dashes(result["user_message"])
+    if isinstance(result.get("summary"), str):
+        result["summary"] = sanitize_narration_dashes(result["summary"])
+    return result
+
+
+@router.post("/{session_id}/chat")
+def chat(session_id: str, body: ChatBody):
+    try:
+        result = run_dm_turn(session_id, body.message)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+    return result
+
+
+@router.post("/{session_id}/chat/stream")
+def chat_stream(session_id: str, body: ChatBody):
+    if not get_session(session_id):
+        raise HTTPException(404, "Session not found")
+    return stream_dm_turn(session_id, body.message)
+
+
+@router.post("/{session_id}/shortcut")
+def shortcut(session_id: str, body: ShortcutBody):
+    result = _execute_shortcut(session_id, body)
     if not body.narrate:
         return result
     try:
@@ -145,6 +163,19 @@ def shortcut(session_id: str, body: ShortcutBody):
         raise HTTPException(400, str(e)) from e
     dm_result["shortcut"] = result
     return dm_result
+
+
+@router.post("/{session_id}/shortcut/stream")
+def shortcut_stream(session_id: str, body: ShortcutBody):
+    result = _execute_shortcut(session_id, body)
+    if not body.narrate:
+        raise HTTPException(400, "shortcut stream requires narrate=true")
+    return stream_dm_turn(
+        session_id,
+        result.get("user_message", ""),
+        precomputed_shortcut=result,
+        prelude=[("shortcut", result)],
+    )
 
 
 @router.post("/{session_id}/oracle")

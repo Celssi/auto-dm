@@ -87,7 +87,9 @@ export type PlayAction =
   | { type: 'set'; patch: Partial<PlayState> }
   | { type: 'patchNewSession'; patch: Partial<PlayState['newSession']> }
   | { type: 'patchNewCampaign'; patch: Partial<PlayState['newCampaign']> }
-  | { type: 'appendMessages'; messages: PlayState['messages'] };
+  | { type: 'appendMessages'; messages: PlayState['messages'] }
+  | { type: 'appendAssistantDelta'; delta: string }
+  | { type: 'replaceLastAssistant'; content: string };
 
 export function createInitialPlayState(sessionId = '', wizardTab: 'continue' | 'new' = 'continue'): PlayState {
   return {
@@ -151,6 +153,26 @@ export function playReducer(state: PlayState, action: PlayAction): PlayState {
       return { ...state, newCampaign: { ...state.newCampaign, ...action.patch } };
     case 'appendMessages':
       return { ...state, messages: [...state.messages, ...action.messages] };
+    case 'appendAssistantDelta': {
+      const messages = [...state.messages];
+      for (let i = messages.length - 1; i >= 0; i -= 1) {
+        if (messages[i].role === 'assistant') {
+          messages[i] = { ...messages[i], content: `${messages[i].content}${action.delta}` };
+          break;
+        }
+      }
+      return { ...state, messages };
+    }
+    case 'replaceLastAssistant': {
+      const messages = [...state.messages];
+      for (let i = messages.length - 1; i >= 0; i -= 1) {
+        if (messages[i].role === 'assistant') {
+          messages[i] = { ...messages[i], content: action.content };
+          break;
+        }
+      }
+      return { ...state, messages };
+    }
     default:
       return state;
   }

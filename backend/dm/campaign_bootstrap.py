@@ -25,7 +25,7 @@ from backend.journal_storage import (
     save_campaign_npc,
     slugify,
 )
-from backend.llm import get_langchain_chat_llm
+from backend.llm import structured_llm
 from backend.rag.engine import query_rules
 from backend.settings_store import load_settings
 from backend.storage import (
@@ -164,7 +164,7 @@ Requirements:
 
 {NARRATION_STYLE_RULES}
 """
-    llm = get_langchain_chat_llm("claude").with_structured_output(CampaignBootstrapSpec)
+    llm = structured_llm(CampaignBootstrapSpec)
     return llm.invoke([HumanMessage(content=prompt)])
 
 
@@ -266,7 +266,7 @@ Requirements:
 
 {NARRATION_STYLE_RULES}
 """
-    llm = get_langchain_chat_llm("claude").with_structured_output(AdventureContinuationSpec)
+    llm = structured_llm(AdventureContinuationSpec)
     try:
         return llm.invoke([HumanMessage(content=prompt)])
     except Exception:
@@ -423,7 +423,7 @@ Requirements:
 - locations: 3-6 entries with atmosphere, features, current state
 - Names must be consistent across story_arc, adventures, NPCs, and locations
 """
-    llm = get_langchain_chat_llm("claude").with_structured_output(CampaignPlanSpec)
+    llm = structured_llm(CampaignPlanSpec)
     spec = llm.invoke([HumanMessage(content=prompt)])
     if len(spec.adventures) > count:
         spec.adventures = spec.adventures[:count]
@@ -675,7 +675,7 @@ Story arc:
 Propose what happens next. Do not repeat finished plots. Advance unresolved threads
 or introduce a natural escalation.
 """
-    llm = get_langchain_chat_llm("claude").with_structured_output(NextAdventureHookSpec)
+    llm = structured_llm(NextAdventureHookSpec)
     return llm.invoke([HumanMessage(content=prompt)])
 
 

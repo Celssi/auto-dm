@@ -22,6 +22,7 @@ TESSERACT_CONFIG = "--oem 1 --psm 3"
 
 OLLAMA_BASE_URL = "http://localhost:11434"
 EMBED_MODEL = "nomic-embed-text"
+EMBED_HF_MODEL = os.environ.get("EMBED_HF_MODEL", "nomic-ai/nomic-embed-text-v1.5")
 EMBED_DOCUMENT_PREFIX = "search_document: "
 EMBED_QUERY_PREFIX = "search_query: "
 OLLAMA_REQUEST_TIMEOUT = float(os.environ.get("OLLAMA_REQUEST_TIMEOUT", "600"))
@@ -51,7 +52,7 @@ def _load_dotenv_value(name: str) -> str | None:
 
 
 ANTHROPIC_API_KEY = _load_dotenv_value("ANTHROPIC_API_KEY")
-CLAUDE_CHAT_MODEL = os.environ.get("CLAUDE_CHAT_MODEL", "claude-opus-4-6")
+CLAUDE_CHAT_MODEL = os.environ.get("CLAUDE_CHAT_MODEL", "claude-opus-5-5")
 CHAT_MODEL = os.environ.get("OLLAMA_CHAT_MODEL", "gemma3:12b")
 
 
@@ -127,10 +128,20 @@ OCR_PDFS = ["dnd5e/player.pdf", "dnd5e/monsters.pdf"]
 DOCS_DIR = ROOT
 
 
-def pdf_path(relative: str) -> Path:
-    """Resolve game PDF path (dnd5e/foo.pdf or brambletrek/foo.pdf)."""
+def local_pdf_path(relative: str) -> Path:
+    """Resolve the on-disk PDF path without downloading."""
     if relative.startswith(("dnd5e/", "brambletrek/")):
         return ROOT / relative
     if relative.startswith("brambletrek"):
         return ROOT / "brambletrek" / relative.replace("brambletrek/", "")
     return PDF_DIR / relative
+
+
+def pdf_path(relative: str) -> Path:
+    """Resolve game PDF path (dnd5e/foo.pdf or brambletrek/foo.pdf)."""
+    local = local_pdf_path(relative)
+    if local.exists():
+        return local
+    from backend.gcs_sync import download_pdf
+
+    return download_pdf(relative, local)

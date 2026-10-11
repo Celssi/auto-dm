@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from backend.dm.prose_style import sanitize_narration_dashes
 from backend.games.brambletrek.characters.entity import (
     BrambletrekCharacter,
     apply_legacy_stat_change,
@@ -694,7 +695,7 @@ def session_combat_action(
         "combat": combat_payload(state),
         "header": character_header(char_id),
         "character": get_character(char_id),
-        "log": lines,
+        "log": [sanitize_narration_dashes(line) for line in lines],
     }
     dk = extras.get(DRAGONKEEP_STATE_KEY)
     if isinstance(dk, dict):

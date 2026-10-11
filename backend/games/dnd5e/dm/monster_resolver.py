@@ -7,7 +7,7 @@ from functools import lru_cache
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 
-from backend.llm import get_langchain_chat_llm
+from backend.llm import structured_llm
 from backend.rag.engine import query_rules
 
 
@@ -65,7 +65,7 @@ def lookup_monster(monster_name: str) -> MonsterStats:
         )
     context = "\n\n".join(chunks)
 
-    llm = get_langchain_chat_llm("claude").with_structured_output(MonsterStats)
+    llm = structured_llm(MonsterStats)
     prompt = f"""Extract the D&D 5e stat block for "{name}" from these Monster Manual excerpts ONLY.
 
 Rules:

@@ -10,7 +10,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
 from backend.config import SAVES_DIR
-from backend.llm import get_langchain_chat_llm
+from backend.llm import structured_llm
 from backend.storage import get_adventure, list_adventures_for_campaign, save_adventure
 
 CheckpointStatus = Literal["pending", "active", "completed", "skipped"]
@@ -70,10 +70,13 @@ def save_story_progress(adventure_id: str, progress: StoryProgress) -> None:
     path = _progress_path(adventure_id)
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(progress.model_dump_json(indent=2), encoding="utf-8")
+    from backend.persist import after_write
+
+    after_write(path)
 
 
 def parse_outline_to_progress(outline: str) -> StoryProgress:
-    llm = get_langchain_chat_llm("claude").with_structured_output(OutlineCheckpoints)
+    llm = structured_llm(OutlineCheckpoints)
     prompt = f"""Break this D&D adventure outline into ordered story checkpoints for a solo DM.
 
 Each checkpoint is one dramatic beat the player can discover through play.
@@ -214,7 +217,7 @@ def update_progress_after_turn(
     checkpoint_summary = "\n".join(
         f"- {c.id} [{c.status}] {c.title}: {c.dm_notes[:200]}" for c in progress.checkpoints
     )
-    llm = get_langchain_chat_llm("claude").with_structured_output(ProgressTurnUpdate)
+    llm = structured_llm(ProgressTurnUpdate)
     prompt = f"""You track story checkpoint progress for a D&D solo adventure DM.
 
 Review this play turn and update checkpoint status.

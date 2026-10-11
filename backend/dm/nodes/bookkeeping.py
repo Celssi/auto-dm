@@ -9,6 +9,7 @@ from backend.dm.journal_keeper import run_journal_keeper
 from backend.dm.lonelog import format_mechanical, format_narrative
 from backend.dm.narrator import synthesize_lonelog_summary
 from backend.dm.state import DMState, char_from_dict, game_plugin
+from backend.dm.turn_kind import is_dice_only_turn
 from backend.dm.story_memory import increment_summary
 from backend.games.registry import resolve_game_id
 from backend.storage import (
@@ -62,7 +63,7 @@ def scribe_node(state: DMState) -> DMState:
     if mechanics:
         lines.append(format_mechanical(mechanics))
     task = (state.get("shortcut_result") or {}).get("task")
-    if narrative and task not in rag_tasks:
+    if narrative and task not in rag_tasks and not is_dice_only_turn(state):
         summary = synthesize_lonelog_summary(narrative, chat_provider="claude")
         log_entry = summary
         lines.append(format_narrative(summary))
@@ -82,6 +83,8 @@ def scribe_node(state: DMState) -> DMState:
 
 
 def chronicler_node(state: DMState) -> DMState:
+    if is_dice_only_turn(state):
+        return {}
     if game_plugin(state.get("character")).play.skip_chronicler:
         return {}
     if (state.get("shortcut_result") or {}).get("task") in _rag_direct_tasks(state):
@@ -125,6 +128,8 @@ def journal_keeper_node(state: DMState) -> DMState:
 
 
 def _needs_journal_keeper(state: DMState) -> bool:
+    if is_dice_only_turn(state):
+        return False
     if game_plugin(state.get("character")).play.skip_journal_keeper:
         return False
     adventure = state.get("adventure") or {}

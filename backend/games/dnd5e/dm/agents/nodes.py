@@ -2,12 +2,12 @@
 
 from __future__ import annotations
 
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
-
 from backend.dm.continuity_guard import apply_continuity_guard
 from backend.dm.encounters import CombatState, combat_state_view, load_combat_state
+from backend.dm.narration_stream import emit_narration, emit_narration_replace, narration_enabled
 from backend.dm.prose_style import sanitize_narration_dashes
 from backend.dm.state import DMState, char_from_dict, factions_for, game_plugin
+from backend.dm.turn_kind import is_dice_only_turn
 from backend.dm.story_director import (
     apply_completion_if_done,
     build_narrator_brief,
@@ -27,7 +27,14 @@ from backend.games.dnd5e.dm.combat_manager import (
     try_start_planned_encounter,
 )
 from backend.games.dnd5e.dm.resource_keeper import run_resource_keeper
-from backend.llm import get_langchain_chat_llm, invoke_chat_llm
+from backend.games.dnd5e.prompts import dnd5e_stable_system_prompt, dnd5e_variable_system_prompt
+from backend.llm import (
+    build_cached_chat_messages,
+    get_langchain_chat_llm,
+    invoke_chat_llm,
+    message_text,
+    stream_chat_llm,
+)
 from backend.rag.engine import query_rules
 from backend.settings_store import load_settings
 
@@ -127,6 +134,8 @@ def _parse_cast_spell_name(message: str) -> str:
 
 
 def _needs_continuity_guard(state: DMState) -> bool:
+    if is_dice_only_turn(state):
+        return False
     memory = state.get("narrative_context") or {}
     if not memory.get("canon_summary", "").strip() and not memory.get("recent_scenes", "").strip():
         return False
@@ -134,6 +143,8 @@ def _needs_continuity_guard(state: DMState) -> bool:
 
 
 def _needs_resource_keeper(state: DMState) -> bool:
+    if is_dice_only_turn(state):
+        return False
     rag_tasks = frozenset({"rules_help"})
     if state.get("shortcut_result", {}).get("task") in (
         *rag_tasks,
@@ -324,6 +335,8 @@ def story_director_brief_node(state: DMState) -> DMState:
 
 
 def story_director_update_node(state: DMState) -> DMState:
+    if is_dice_only_turn(state):
+        return {}
     if state.get("shortcut_result", {}).get("task") == "rules_help":
         return {}
     adventure = state.get("adventure") or {}
@@ -369,7 +382,8 @@ def narrator_dm_node(state: DMState) -> DMState:
     include_faerun = state.get("include_faerun", False) or prefs.get("include_faerun", False)
     campaign_id = adventure.get("campaign_id")
     memory = build_narrative_context(adventure, campaign_id, char)
-    system = game_plugin(char_dict).system_prompt(
+    stable = dnd5e_stable_system_prompt()
+    variable = dnd5e_variable_system_prompt(
         character=char,
         story_brief=state.get("story_brief") or "",
         canon_summary=memory["canon_summary"],
@@ -385,18 +399,23 @@ def narrator_dm_node(state: DMState) -> DMState:
         user_parts.append(f"Combat context:\n{state['combat_context']}")
     if state.get("rules_context") and not state.get("response"):
         user_parts.append(f"Relevant rules:\n{state['rules_context']}")
-    history = state.get("messages") or []
-    lc_messages = [SystemMessage(content=system)]
-    for m in history[-10:]:
-        role = m.get("role", "")
-        content = m.get("content", "")
-        if role == "user":
-            lc_messages.append(HumanMessage(content=content))
-        elif role == "assistant":
-            lc_messages.append(AIMessage(content=content))
-    lc_messages.append(HumanMessage(content="\n\n".join(user_parts)))
-    response = invoke_chat_llm(llm, lc_messages, agent="narrator_dm", provider="claude")
-    text = response.content if isinstance(response.content, str) else str(response.content)
+    lc_messages = build_cached_chat_messages(
+        stable,
+        variable,
+        state.get("messages") or [],
+        "\n\n".join(user_parts),
+    )
+    if narration_enabled():
+        text, _ = stream_chat_llm(
+            llm,
+            lc_messages,
+            agent="narrator_dm",
+            provider="claude",
+            on_text=emit_narration,
+        )
+    else:
+        response = invoke_chat_llm(llm, lc_messages, agent="narrator_dm", provider="claude")
+        text = message_text(response)
     text = sanitize_narration_dashes(text.strip())
     return {
         "narrative": text,
@@ -423,6 +442,7 @@ def continuity_guard_node(state: DMState) -> DMState:
     )
     if issues:
         log_agent("continuity_guard", "revised", issues=issues)
+        emit_narration_replace(final)
     result: DMState = {"narrative": final, "response": final}
     if issues:
         result["continuity_issues"] = issues

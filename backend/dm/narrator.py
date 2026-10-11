@@ -6,7 +6,7 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from backend.dm.prose_style import NARRATION_STYLE_RULES, sanitize_narration_dashes
 from backend.games.dnd5e.characters.entity import Dnd5eCharacter, campaign_setting_line
-from backend.llm import ChatProvider, get_langchain_chat_llm, invoke_chat_llm
+from backend.llm import ChatProvider, get_langchain_chat_llm, invoke_chat_llm, message_text
 
 
 def synthesize_journal_entry(
@@ -48,7 +48,7 @@ Mechanics:
         agent="journal_narrator",
         provider=chat_provider,
     )
-    text = response.content if isinstance(response.content, str) else str(response.content)
+    text = message_text(response)
     return sanitize_narration_dashes(text.strip())
 
 
@@ -72,5 +72,4 @@ Past tense, in-world. No rulebook language.
         agent="scribe",
         provider=chat_provider,
     )
-    text = response.content if isinstance(response.content, str) else str(response.content)
-    return text.strip()
+    return message_text(response).strip()

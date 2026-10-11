@@ -6,7 +6,8 @@ from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 
 from backend.dm.prose_style import NARRATION_STYLE_RULES, sanitize_narration_dashes
-from backend.llm import get_langchain_chat_llm
+from backend.games.dnd5e.prompts import dnd5e_stable_system_prompt
+from backend.llm import cached_system, structured_llm
 
 
 class ContinuityVerdict(BaseModel):
@@ -64,8 +65,13 @@ Player message:
 DM draft:
 {draft_response[:4000]}
 """
-    llm = get_langchain_chat_llm("claude").with_structured_output(ContinuityVerdict)
-    return llm.invoke([HumanMessage(content=prompt)])
+    llm = structured_llm(ContinuityVerdict)
+    return llm.invoke(
+        [
+            cached_system(dnd5e_stable_system_prompt()),
+            HumanMessage(content=prompt),
+        ]
+    )
 
 
 def apply_continuity_guard(

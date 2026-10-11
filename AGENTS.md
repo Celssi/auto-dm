@@ -70,10 +70,6 @@ When editing frontend empty-value placeholders, use `EMPTY_FIELD` from `frontend
 | Play UI | `frontend/src/pages/PlayPage.tsx` |
 | Campaigns UI | `frontend/src/pages/CampaignsPage.tsx` |
 
-## Running locally
+## Running
 
-```bash
-./scripts/start-app.sh
-```
-
-API: http://127.0.0.1:8000 · UI: http://localhost:5173
+Cloud Run service `auto-dm` in project `celssi`, region `europe-north1`. Push to `main` deploys via the GCP Cloud Build trigger. Bucket: `gs://celssi-auto-dm`. Google sign-in is limited to `lauri.mukkala.fi@gmail.com`.

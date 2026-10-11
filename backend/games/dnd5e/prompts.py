@@ -6,17 +6,8 @@ from backend.dm.prose_style import NARRATION_STYLE_RULES
 from backend.games.dnd5e.characters.entity import Dnd5eCharacter, format_for_prompt
 
 
-def dnd5e_system_prompt(
-    *,
-    character: Dnd5eCharacter | None = None,
-    story_brief: str = "",
-    canon_summary: str = "",
-    recent_scenes: str = "",
-    world_context: str = "",
-    include_faerun: bool = False,
-) -> str:
-    entity_block = format_for_prompt(character) if character else "No character loaded."
-    extra = f"""You are the Dungeon Master for a D&D 5e (2024) solo session.
+def dnd5e_stable_system_prompt() -> str:
+    return f"""You are the Dungeon Master for a D&D 5e (2024) solo session.
 - Narrate in evocative third-person past tense.
 - Offer meaningful choices; never decide for the player without their input.
 - Use d20 tests with advantage/disadvantage for ability checks, saves, and attacks.
@@ -30,6 +21,19 @@ def dnd5e_system_prompt(
 
 {NARRATION_STYLE_RULES}
 """
+
+
+def dnd5e_variable_system_prompt(
+    *,
+    character: Dnd5eCharacter | None = None,
+    story_brief: str = "",
+    canon_summary: str = "",
+    recent_scenes: str = "",
+    world_context: str = "",
+    include_faerun: bool = False,
+) -> str:
+    entity_block = format_for_prompt(character) if character else "No character loaded."
+    extra = ""
     if character:
         setting = (character.campaign_setting or "freeform").strip().lower()
         notes = (character.campaign_notes or "").strip()
@@ -57,3 +61,24 @@ def dnd5e_system_prompt(
 ## Character
 {entity_block}
 """
+
+
+def dnd5e_system_prompt(
+    *,
+    character: Dnd5eCharacter | None = None,
+    story_brief: str = "",
+    canon_summary: str = "",
+    recent_scenes: str = "",
+    world_context: str = "",
+    include_faerun: bool = False,
+) -> str:
+    stable = dnd5e_stable_system_prompt()
+    variable = dnd5e_variable_system_prompt(
+        character=character,
+        story_brief=story_brief,
+        canon_summary=canon_summary,
+        recent_scenes=recent_scenes,
+        world_context=world_context,
+        include_faerun=include_faerun,
+    )
+    return f"{stable}\n{variable}"

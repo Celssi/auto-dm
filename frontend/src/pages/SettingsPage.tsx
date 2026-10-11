@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { m } from '../lib/framer';
-import { Database, Settings2, Sparkles } from 'lucide-react';
+import { Database, Download, Settings2, Sparkles } from 'lucide-react';
+import { usePWA } from '../hooks/usePWA';
 import { api } from '../api/client';
 import PageHeader from '../components/ui/PageHeader';
 import StatusBadge from '../components/ui/StatusBadge';
@@ -11,8 +12,13 @@ import { useToast } from '../components/ui/toast';
 
 export default function SettingsPage() {
   const toast = useToast();
+  const { isInstallable, isInstalled, installPWA } = usePWA();
   const [settings, setSettings] = useState({ include_faerun: false, use_rerank: true });
-  const [health, setHealth] = useState<{ indexed: boolean; claude_configured: boolean } | null>(null);
+  const [health, setHealth] = useState<{
+    indexed: boolean;
+    claude_configured: boolean;
+    claude_model?: string;
+  } | null>(null);
   const [indexing, setIndexing] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
 
@@ -62,8 +68,21 @@ export default function SettingsPage() {
           />
           <StatusBadge
             status={health.claude_configured ? 'ok' : 'error'}
-            label={health.claude_configured ? 'Claude API configured' : 'Missing API key'}
+            label={
+              health.claude_configured
+                ? `Claude API configured (${health.claude_model || 'unknown'})`
+                : 'Missing API key'
+            }
           />
+        </m.div>
+      )}
+
+      {isInstallable && !isInstalled && (
+        <m.div variants={fadeUp}>
+          <button type="button" className="btn-ghost inline-flex items-center gap-2" onClick={() => void installPWA()}>
+            <Download size={16} />
+            Install app
+          </button>
         </m.div>
       )}
 
@@ -93,7 +112,7 @@ export default function SettingsPage() {
           <h2 className="display-title text-base">Index rulebooks</h2>
         </div>
         <p className="text-sm text-muted leading-relaxed">
-          Requires Ollama with nomic-embed-text. First run may take hours with OCR.
+          Uses the rulebooks in Cloud Storage. The first run can take a long time if OCR is needed.
         </p>
         <div className="flex flex-wrap gap-2">
           <button type="button" className="btn-ghost" disabled={indexing} onClick={() => reindex(false)}>

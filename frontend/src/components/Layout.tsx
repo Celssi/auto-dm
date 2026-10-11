@@ -1,4 +1,6 @@
 import { Link, Outlet, useLocation } from 'react-router-dom';
+import { LogOut } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 import { m } from '../lib/framer';
 import { Dices } from 'lucide-react';
 
@@ -18,6 +20,7 @@ function isActive(pathname: string, to: string, exact?: boolean) {
 
 export default function Layout() {
   const loc = useLocation();
+  const { signOut, user } = useAuth();
   const isPlaySession = /^\/play\/[^/]+/.test(loc.pathname);
 
   return (
@@ -57,6 +60,14 @@ export default function Layout() {
                 </Link>
               );
             })}
+          </div>
+
+          <div className="ml-auto flex items-center gap-2 shrink-0">
+            {user?.email && <span className="hidden sm:block text-xs text-muted">{user.email}</span>}
+            <button type="button" className="btn-ghost inline-flex items-center gap-1.5" onClick={() => void signOut()}>
+              <LogOut size={14} />
+              Sign out
+            </button>
           </div>
         </div>
       </nav>
