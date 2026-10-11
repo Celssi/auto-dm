@@ -15,7 +15,7 @@ from starlette.staticfiles import StaticFiles as StarletteStaticFiles
 from backend.auth import is_public_api_path, require_allowed_user
 from backend.config import LANGSMITH_ENABLED, LANGSMITH_ENDPOINT, LANGSMITH_PROJECT
 from backend.gcs_sync import hydrate_runtime
-from backend.routes import adventures, brambletrek, campaigns, characters, play, sessions, system
+from backend.routes import adventures, books, brambletrek, campaigns, characters, play, sessions, system
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +73,7 @@ async def firebase_auth_middleware(request: Request, call_next):
     return await call_next(request)
 
 app.include_router(system.router)
+app.include_router(books.router)
 app.include_router(characters.router)
 app.include_router(campaigns.router)
 app.include_router(adventures.router)
@@ -83,12 +84,15 @@ app.include_router(sessions.router)
 class SPAStaticFiles(StarletteStaticFiles):
     """Serve index.html for client-side routes such as /characters."""
 
+    _spa_prefixes = {"characters", "campaigns", "adventures", "play", "books", "settings"}
+
     async def get_response(self, path: str, scope):
         try:
             return await super().get_response(path, scope)
         except StarletteHTTPException as exc:
             name = path.rsplit("/", 1)[-1]
-            if exc.status_code == 404 and path != "index.html" and "." not in name:
+            first = path.split("/", 1)[0]
+            if exc.status_code == 404 and path != "index.html" and ("." not in name or first in self._spa_prefixes):
                 return await super().get_response("index.html", scope)
             raise
 

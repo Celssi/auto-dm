@@ -41,5 +41,6 @@ export function leaveScopedRoute(pathname: string): string | null {
   if (/^\/characters\/.+/.test(pathname)) return '/characters';
   if (/^\/campaigns\/.+/.test(pathname)) return '/campaigns';
   if (/^\/adventures\/.+/.test(pathname)) return '/adventures';
+  if (/^\/books\/.+/.test(pathname)) return '/books';
   return null;
 }

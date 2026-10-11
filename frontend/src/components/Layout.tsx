@@ -1,9 +1,13 @@
+import { lazy, Suspense } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Dices, LogOut } from 'lucide-react';
+import { Dices, Library, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useBookReader } from '../context/BookReaderContext';
 import { m } from '../lib/framer';
 import GameSwitcher from './GameSwitcher';
 import BottomNav from './BottomNav';
+
+const PdfReaderOverlay = lazy(() => import('./books/PdfReaderOverlay'));
 
 const links = [
   { to: '/', label: 'Home', exact: true },
@@ -11,6 +15,7 @@ const links = [
   { to: '/campaigns', label: 'Campaigns' },
   { to: '/adventures', label: 'Adventures' },
   { to: '/play', label: 'Play' },
+  { to: '/books', label: 'Books' },
   { to: '/settings', label: 'Settings' },
 ];
 
@@ -22,6 +27,7 @@ function isActive(pathname: string, to: string, exact?: boolean) {
 export default function Layout() {
   const loc = useLocation();
   const { signOut, user } = useAuth();
+  const { open, openReader } = useBookReader();
   const isPlaySession = /^\/play\/[^/]+/.test(loc.pathname);
 
   return (
@@ -68,6 +74,15 @@ export default function Layout() {
           )}
 
           <div className="ml-auto flex items-center gap-2 shrink-0">
+            <button
+              type="button"
+              className="btn-ghost min-h-11 px-3 inline-flex items-center gap-1.5"
+              onClick={openReader}
+              aria-label="Open rulebook"
+            >
+              <Library size={16} />
+              <span className="hidden sm:inline">Books</span>
+            </button>
             <GameSwitcher />
             {user?.email && <span className="hidden lg:block text-xs text-muted">{user.email}</span>}
             <button type="button" className="btn-ghost inline-flex items-center gap-1.5" onClick={() => void signOut()}>
@@ -89,6 +104,17 @@ export default function Layout() {
       </main>
 
       {!isPlaySession && <BottomNav />}
+      {open && (
+        <Suspense
+          fallback={
+            <div className="fixed inset-0 z-40 bg-bg flex items-center justify-center text-sm text-muted">
+              Opening reader…
+            </div>
+          }
+        >
+          <PdfReaderOverlay />
+        </Suspense>
+      )}
     </div>
   );
 }

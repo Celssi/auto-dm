@@ -6,7 +6,7 @@ import logging
 import os
 from pathlib import Path
 
-from backend.config import CHROMA_DIR, DATA_DIR, SAVES_DIR
+from backend.config import CHROMA_DIR, DATA_DIR, SAVES_DIR, local_pdf_path
 
 logger = logging.getLogger(__name__)
 
@@ -113,6 +113,52 @@ def delete_prefix(prefix: str) -> None:
         return
     for blob in _client().list_blobs(data_bucket_name(), prefix=prefix):
         blob.delete()
+
+
+def pdf_object_name(relative: str) -> str:
+    return f"{PDF_PREFIX}{relative.lstrip('/')}"
+
+
+def pdf_available(relative: str) -> bool:
+    if local_pdf_path(relative).is_file():
+        return True
+    bucket = _bucket()
+    if bucket is None:
+        return False
+    return bool(bucket.blob(pdf_object_name(relative)).exists())
+
+
+def pdf_byte_size(relative: str) -> int | None:
+    local = local_pdf_path(relative)
+    if local.is_file():
+        return local.stat().st_size
+    bucket = _bucket()
+    if bucket is None:
+        return None
+    blob = bucket.blob(pdf_object_name(relative))
+    if not blob.exists():
+        return None
+    blob.reload()
+    return int(blob.size or 0)
+
+
+def read_pdf_bytes(relative: str, start: int = 0, end: int | None = None) -> bytes:
+    local = local_pdf_path(relative)
+    if local.is_file():
+        with local.open("rb") as handle:
+            handle.seek(start)
+            if end is None:
+                return handle.read()
+            return handle.read(end - start + 1)
+    bucket = _bucket()
+    if bucket is None:
+        raise FileNotFoundError(relative)
+    blob = bucket.blob(pdf_object_name(relative))
+    if not blob.exists():
+        raise FileNotFoundError(relative)
+    if end is None:
+        return blob.download_as_bytes(start=start)
+    return blob.download_as_bytes(start=start, end=end)
 
 
 def download_pdf(relative: str, dest: Path) -> Path:

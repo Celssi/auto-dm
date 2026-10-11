@@ -27,3 +27,15 @@ def test_spa_missing_asset_still_404(tmp_path: Path):
     res = client.get("/assets/missing.js")
 
     assert res.status_code == 404
+
+
+def test_spa_books_deep_link_with_extension_serves_index(tmp_path: Path):
+    (tmp_path / "index.html").write_text("<html>auto-dm</html>")
+    app = FastAPI()
+    app.mount("/", SPAStaticFiles(directory=str(tmp_path), html=True), name="frontend")
+    client = TestClient(app)
+
+    res = client.get("/books/dnd5e%2Fplayer.pdf")
+
+    assert res.status_code == 200
+    assert res.text == "<html>auto-dm</html>"

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Home, MoreHorizontal, Play, ScrollText, Settings, Users } from 'lucide-react';
+import { BookOpen, Home, Library, MoreHorizontal, Play, ScrollText, Settings, Users } from 'lucide-react';
 
 const primary = [
   { to: '/', label: 'Home', icon: Home, exact: true },
@@ -11,6 +11,7 @@ const primary = [
 
 const moreLinks = [
   { to: '/adventures', label: 'Adventures', icon: ScrollText },
+  { to: '/books', label: 'Books', icon: Library },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -27,7 +28,7 @@ export default function BottomNav() {
   return (
     <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border/80 bg-panel/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
       {moreOpen && (
-        <div className="border-b border-border/80 px-3 py-2 grid grid-cols-2 gap-2">
+        <div className="border-b border-border/80 px-3 py-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
           {moreLinks.map(({ to, label, icon: Icon }) => {
             const active = isActive(pathname, to);
             return (

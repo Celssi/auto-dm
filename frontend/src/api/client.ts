@@ -79,6 +79,32 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export type StreamHandler = (event: string, data: unknown) => void;
 
+export interface BookMeta {
+  id: string;
+  label: string;
+  faction: string;
+  page_offset: number;
+  aliases: string[];
+}
+
+export interface BookBookmark {
+  id: string;
+  book_id: string;
+  page: number;
+  label: string;
+  created_at: string;
+}
+
+export interface BookLastRead {
+  book_id: string;
+  page: number;
+}
+
+export interface BookState {
+  bookmarks: BookBookmark[];
+  lastByGame: Record<string, BookLastRead>;
+}
+
 async function readSse(path: string, body: unknown, onEvent: StreamHandler): Promise<void> {
   const res = await fetch(`${BASE}${path}`, {
     method: 'POST',
@@ -158,6 +184,15 @@ export const api = {
     }),
 
   getGames: () => request<{ games: { id: string; label: string }[] }>('/games'),
+  listBooks: (gameId = 'dnd5e') => request<{ books: BookMeta[] }>(`/books?game_id=${encodeURIComponent(gameId)}`),
+  getBookState: () => request<BookState>('/books/state'),
+  saveBookState: (body: Partial<BookState>) =>
+    request<BookState>('/books/state', {
+      method: 'PUT',
+      body: JSON.stringify(body),
+    }),
+  bookFileUrl: (bookId: string, gameId = 'dnd5e') =>
+    `${BASE}/books/${bookId}/file?game_id=${encodeURIComponent(gameId)}`,
 
   listCharacters: () => request<{ characters: { id: string; name: string; game_id?: string }[] }>('/characters'),
   getCharacter: (id: string) => request<{ character: Record<string, unknown> }>(`/characters/${id}`),
