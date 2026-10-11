@@ -45,7 +45,7 @@ steps:
       - "--memory=8Gi"
       - "--timeout=900"
       - "--quiet"
-      - "--set-env-vars=AUTO_DM_BUCKET=$_DATA_BUCKET,ALLOWED_EMAILS=$_ALLOWED_EMAILS,FIREBASE_PROJECT_ID=$_AR_PROJECT_ID,GOOGLE_CLOUD_PROJECT=$_AR_PROJECT_ID"
+      - "--set-env-vars=AUTO_DM_BUCKET=$_DATA_BUCKET,ALLOWED_EMAILS=$_ALLOWED_EMAILS,FIREBASE_PROJECT_ID=$_FIREBASE_PROJECT_ID,GOOGLE_CLOUD_PROJECT=$_AR_PROJECT_ID"
       - "--set-secrets=ANTHROPIC_API_KEY=AUTO_DM_ANTHROPIC_API_KEY:latest"
     id: Deploy
     entrypoint: gcloud
@@ -80,6 +80,7 @@ substitutions:
   _AR_REPOSITORY: cloud-run-source-deploy
   _AR_PROJECT_ID: celssi
   _DATA_BUCKET: celssi-auto-dm
+  _FIREBASE_PROJECT_ID: kirjasto-celssi
   _ALLOWED_EMAILS: lauri.mukkala.fi@gmail.com
   _TRIGGER_ID: ""
 tags:
