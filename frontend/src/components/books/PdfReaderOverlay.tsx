@@ -135,7 +135,13 @@ function PdfPages({
   return (
     <>
       <div className="shrink-0 border-b border-border bg-panel px-3 py-2 flex flex-wrap items-center gap-2">
-        <button type="button" className="btn-ghost min-h-11 px-3" disabled={page <= 1} onClick={() => go(page - 1)}>
+        <button
+          type="button"
+          className="btn-ghost min-h-11 px-3"
+          disabled={page <= 1}
+          onClick={() => go(page - 1)}
+          aria-label="Previous page"
+        >
           <ChevronLeft size={18} />
         </button>
         <label className="text-xs text-muted inline-flex items-center gap-2">
@@ -155,6 +161,7 @@ function PdfPages({
           className="btn-ghost min-h-11 px-3"
           disabled={page >= maxPrinted}
           onClick={() => go(page + 1)}
+          aria-label="Next page"
         >
           <ChevronRight size={18} />
         </button>
@@ -163,6 +170,7 @@ function PdfPages({
             type="button"
             className="btn-ghost min-h-11 px-3"
             onClick={() => setScale((value) => Math.max(0.6, Math.round((value - 0.1) * 10) / 10))}
+            aria-label="Zoom out"
           >
             <Minus size={16} />
           </button>
@@ -171,6 +179,7 @@ function PdfPages({
             type="button"
             className="btn-ghost min-h-11 px-3"
             onClick={() => setScale((value) => Math.min(2.4, Math.round((value + 0.1) * 10) / 10))}
+            aria-label="Zoom in"
           >
             <Plus size={16} />
           </button>
