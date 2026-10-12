@@ -52,7 +52,23 @@ def _bearer_token(request: Request) -> str | None:
     return token or None
 
 
+def is_local_dev_bypass(request: Request) -> bool:
+    """Skip Firebase only for loopback uvicorn, never on Cloud Run."""
+    if os.environ.get("K_SERVICE"):
+        return False
+    if os.environ.get("AUTO_DM_REQUIRE_AUTH") == "1":
+        return False
+    client = (request.client.host if request.client else "") or ""
+    if client in {"127.0.0.1", "::1", "localhost"}:
+        return True
+    origin = (request.headers.get("origin") or "").lower()
+    return origin.startswith("http://localhost:") or origin.startswith("http://127.0.0.1:")
+
+
 async def require_allowed_user(request: Request) -> dict:
+    if is_local_dev_bypass(request):
+        email = next(iter(allowed_emails()))
+        return {"uid": "local-dev", "email": email}
     token = _bearer_token(request)
     if not token:
         raise HTTPException(status_code=401, detail="Sign-in required")

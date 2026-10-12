@@ -95,6 +95,7 @@ function PdfPages({
 }) {
   const { gameId } = useGame();
   const [token, setToken] = useState<string | null>(null);
+  const [authReady, setAuthReady] = useState(false);
   const [pageCount, setPageCount] = useState(1);
   const [scale, setScale] = useState(1);
   const [width, setWidth] = useState(640);
@@ -104,9 +105,13 @@ function PdfPages({
 
   useEffect(() => {
     let cancelled = false;
-    void getAuthToken().then((value) => {
-      if (!cancelled) setToken(value);
-    });
+    void getAuthToken()
+      .then((value) => {
+        if (!cancelled) setToken(value);
+      })
+      .finally(() => {
+        if (!cancelled) setAuthReady(true);
+      });
     return () => {
       cancelled = true;
     };
@@ -123,12 +128,10 @@ function PdfPages({
   }, []);
 
   const file = useMemo(() => {
-    if (!token) return null;
-    return {
-      url: api.bookFileUrl(book.id, gameId),
-      httpHeaders: { Authorization: `Bearer ${token}` },
-    };
-  }, [book.id, gameId, token]);
+    if (!authReady) return null;
+    const url = api.bookFileUrl(book.id, gameId);
+    return token ? { url, httpHeaders: { Authorization: `Bearer ${token}` } } : { url };
+  }, [authReady, book.id, gameId, token]);
 
   const go = (next: number) => onPage(Math.min(maxPrinted, Math.max(1, next)));
 

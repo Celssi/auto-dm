@@ -5,14 +5,17 @@ import {
   signInWithPopup,
   signInWithRedirect,
   signOut as firebaseSignOut,
-  type User,
 } from 'firebase/auth';
 import { ALLOWED_EMAILS, auth, firebaseReady, googleProvider, isAllowedEmail } from '../lib/firebase';
 import { setAuthTokenProvider } from '../lib/authToken';
-import { clearAuthRedirect, markAuthRedirect } from '../lib/authRedirect';
+import { clearAuthRedirect, isLocalDevAuth, isLocalHost, markAuthRedirect } from '../lib/authRedirect';
+
+export interface AuthUser {
+  email: string | null;
+}
 
 interface AuthContextType {
-  user: User | null;
+  user: AuthUser | null;
   loading: boolean;
   firebaseReady: boolean;
   signInError: string | null;
@@ -23,9 +26,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-function isLocalHost(hostname = window.location.hostname): boolean {
-  return hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '[::1]';
-}
+const localDevUser: AuthUser = { email: ALLOWED_EMAILS[0] ?? 'lauri.mukkala.fi@gmail.com' };
 
 function authErrorCode(error: unknown): string {
   return error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
@@ -44,8 +45,9 @@ function authErrorMessage(error: unknown): string {
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(() => Boolean(auth));
+  const localDev = isLocalDevAuth();
+  const [user, setUser] = useState<AuthUser | null>(() => (localDev ? localDevUser : null));
+  const [loading, setLoading] = useState(() => !localDev && Boolean(auth));
   const [signInError, setSignInError] = useState<string | null>(null);
 
   const isAllowedUser = useCallback((email: string | null): boolean => {
@@ -53,6 +55,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
+    if (localDev) {
+      setAuthTokenProvider(async () => null);
+      return () => setAuthTokenProvider(null);
+    }
     if (!auth) return;
 
     const firebaseAuth = auth;
@@ -94,9 +100,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       unsubscribe();
       setAuthTokenProvider(null);
     };
-  }, [isAllowedUser]);
+  }, [isAllowedUser, localDev]);
 
   const signInWithGoogle = useCallback(async () => {
+    if (localDev) return;
     if (!auth) {
       throw new Error('Firebase is not configured.');
     }
@@ -120,24 +127,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     markAuthRedirect();
     await signInWithRedirect(auth, googleProvider);
-  }, [isAllowedUser]);
+  }, [isAllowedUser, localDev]);
 
   const signOut = useCallback(async () => {
-    if (!auth) return;
+    if (localDev || !auth) return;
     await firebaseSignOut(auth);
-  }, []);
+  }, [localDev]);
 
   const value = useMemo(
     () => ({
       user,
       loading,
-      firebaseReady,
+      firebaseReady: localDev || firebaseReady,
       signInError,
       signInWithGoogle,
       signOut,
       isAllowedUser,
     }),
-    [user, loading, signInError, signInWithGoogle, signOut, isAllowedUser],
+    [user, loading, localDev, signInError, signInWithGoogle, signOut, isAllowedUser],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

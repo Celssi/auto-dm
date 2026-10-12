@@ -2,31 +2,73 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
+from functools import lru_cache
 from pathlib import Path
 
-from backend.config import CHROMA_DIR, DATA_DIR, SAVES_DIR, local_pdf_path
+from backend.config import CHROMA_DIR, DATA_DIR, SAVES_DIR, _load_dotenv_value, local_pdf_path
 
 logger = logging.getLogger(__name__)
 
 PDF_PREFIX = "pdfs/"
 CHROMA_PREFIX = "chroma/"
 SAVES_PREFIX = "saves/"
+DEFAULT_BUCKET = "celssi-auto-dm"
+_DISABLED_BUCKETS = {"", "none", "local", "off", "0", "false"}
 
 
 def data_bucket_name() -> str:
-    return os.environ.get("AUTO_DM_BUCKET", "").strip()
+    raw = os.environ.get("AUTO_DM_BUCKET")
+    if raw is None:
+        raw = _load_dotenv_value("AUTO_DM_BUCKET") or DEFAULT_BUCKET
+    name = (raw or "").strip()
+    if name.lower() in _DISABLED_BUCKETS:
+        return ""
+    return name
 
 
 def bucket_enabled() -> bool:
     return bool(data_bucket_name())
 
 
+def _gcs_project() -> str:
+    return (
+        os.environ.get("GOOGLE_CLOUD_PROJECT") or os.environ.get("GCLOUD_PROJECT") or "celssi"
+    ).strip()
+
+
+def _local_gcs_credentials():
+    """Use the allowed account's gcloud login when ADC is a different user."""
+    from google.oauth2.credentials import Credentials
+
+    from backend.auth import DEFAULT_ALLOWED_EMAIL, allowed_emails
+
+    account = (
+        os.environ.get("AUTO_DM_GCLOUD_ACCOUNT")
+        or os.environ.get("CLOUDSDK_CORE_ACCOUNT")
+        or next(iter(allowed_emails()), DEFAULT_ALLOWED_EMAIL)
+    ).strip()
+    adc_path = Path.home() / ".config/gcloud/legacy_credentials" / account / "adc.json"
+    if not adc_path.is_file():
+        return None
+    info = json.loads(adc_path.read_text(encoding="utf-8"))
+    logger.info("Using gcloud credentials for %s", account)
+    return Credentials.from_authorized_user_info(info)
+
+
+@lru_cache(maxsize=1)
 def _client():
     from google.cloud import storage
 
-    return storage.Client()
+    project = _gcs_project()
+    if os.environ.get("K_SERVICE"):
+        return storage.Client(project=project)
+    creds = _local_gcs_credentials()
+    if creds is not None:
+        return storage.Client(project=project, credentials=creds)
+    return storage.Client(project=project)
 
 
 def _bucket():
@@ -206,13 +248,26 @@ def upload_chroma() -> None:
 def hydrate_runtime() -> None:
     if not bucket_enabled():
         return
-    CHROMA_DIR.mkdir(parents=True, exist_ok=True)
-    SAVES_DIR.mkdir(parents=True, exist_ok=True)
-    chroma_count = download_prefix(CHROMA_PREFIX, CHROMA_DIR)
-    saves_count = download_prefix(SAVES_PREFIX, SAVES_DIR)
-    settings_src = SAVES_DIR / "settings.json"
-    if settings_src.is_file():
-        dest = DATA_DIR / "settings.json"
-        dest.parent.mkdir(parents=True, exist_ok=True)
-        dest.write_bytes(settings_src.read_bytes())
-    logger.info("Hydrated runtime from gs://%s (chroma=%s, saves=%s)", data_bucket_name(), chroma_count, saves_count)
+    try:
+        CHROMA_DIR.mkdir(parents=True, exist_ok=True)
+        SAVES_DIR.mkdir(parents=True, exist_ok=True)
+        hydrate_chroma = bool(os.environ.get("K_SERVICE")) or (
+            os.environ.get("AUTO_DM_HYDRATE_CHROMA") == "1"
+        )
+        chroma_count = download_prefix(CHROMA_PREFIX, CHROMA_DIR) if hydrate_chroma else 0
+        saves_count = download_prefix(SAVES_PREFIX, SAVES_DIR)
+        settings_src = SAVES_DIR / "settings.json"
+        if settings_src.is_file():
+            dest = DATA_DIR / "settings.json"
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            dest.write_bytes(settings_src.read_bytes())
+        logger.info(
+            "Hydrated runtime from gs://%s (chroma=%s, saves=%s)",
+            data_bucket_name(),
+            chroma_count,
+            saves_count,
+        )
+    except Exception:
+        if os.environ.get("K_SERVICE"):
+            raise
+        logger.exception("Could not hydrate from gs://%s, using local saves", data_bucket_name())

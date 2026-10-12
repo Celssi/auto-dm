@@ -26,7 +26,7 @@ function isActive(pathname: string, to: string, exact?: boolean) {
 
 export default function Layout() {
   const loc = useLocation();
-  const { signOut, user } = useAuth();
+  const { signOut } = useAuth();
   const { open, openReader } = useBookReader();
   const isPlaySession = /^\/play\/[^/]+/.test(loc.pathname);
 
@@ -84,7 +84,6 @@ export default function Layout() {
               <span className="hidden sm:inline">Books</span>
             </button>
             <GameSwitcher />
-            {user?.email && <span className="hidden lg:block text-xs text-muted">{user.email}</span>}
             <button type="button" className="btn-ghost inline-flex items-center gap-1.5" onClick={() => void signOut()}>
               <LogOut size={14} />
               <span className="hidden sm:inline">Sign out</span>
