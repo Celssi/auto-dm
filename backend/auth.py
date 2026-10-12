@@ -44,7 +44,7 @@ def verify_id_token(token: str) -> dict:
     return auth.verify_id_token(token)
 
 
-def _bearer_token(request: Request) -> str | None:
+def bearer_token(request: Request) -> str | None:
     header = request.headers.get("authorization") or request.headers.get("Authorization")
     if not header or not header.startswith("Bearer "):
         return None
@@ -69,7 +69,7 @@ async def require_allowed_user(request: Request) -> dict:
     if is_local_dev_bypass(request):
         email = next(iter(allowed_emails()))
         return {"uid": "local-dev", "email": email}
-    token = _bearer_token(request)
+    token = bearer_token(request)
     if not token:
         raise HTTPException(status_code=401, detail="Sign-in required")
     try:
@@ -82,5 +82,9 @@ async def require_allowed_user(request: Request) -> dict:
     return {"uid": decoded.get("uid"), "email": email}
 
 
+def is_book_file_path(path: str) -> bool:
+    return path.startswith("/api/books/") and path.endswith("/file")
+
+
 def is_public_api_path(path: str) -> bool:
-    return path in PUBLIC_API_PATHS
+    return path in PUBLIC_API_PATHS or is_book_file_path(path)

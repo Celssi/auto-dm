@@ -94,9 +94,13 @@ function PdfPages({
   onJump: (bookmark: BookBookmark) => void;
 }) {
   const { gameId } = useGame();
-  const [token, setToken] = useState<string | null>(null);
-  const [authReady, setAuthReady] = useState(false);
+  const [file, setFile] = useState<{
+    url: string;
+    httpHeaders?: Record<string, string>;
+    withCredentials?: boolean;
+  } | null>(null);
   const [pageCount, setPageCount] = useState(1);
+  const options = useMemo(() => ({ disableAutoFetch: true, disableStream: true, rangeChunkSize: 65536 }), []);
   const [scale, setScale] = useState(1);
   const [width, setWidth] = useState(640);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -105,17 +109,30 @@ function PdfPages({
 
   useEffect(() => {
     let cancelled = false;
-    void getAuthToken()
-      .then((value) => {
-        if (!cancelled) setToken(value);
-      })
-      .finally(() => {
-        if (!cancelled) setAuthReady(true);
-      });
+    const url = api.bookFileUrl(book.id, gameId);
+    void (async () => {
+      try {
+        const { ticket } = await api.createBookFileTicket(book.id, gameId);
+        if (!cancelled) {
+          setFile({ url: api.bookFileUrl(book.id, gameId, ticket), withCredentials: false });
+        }
+        return;
+      } catch {
+        /* local or older API: open without a ticket */
+      }
+      const token = await getAuthToken();
+      if (!cancelled) {
+        setFile(
+          token
+            ? { url, httpHeaders: { Authorization: `Bearer ${token}` }, withCredentials: false }
+            : { url, withCredentials: false },
+        );
+      }
+    })();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [book.id, gameId]);
 
   useEffect(() => {
     const node = frameRef.current;
@@ -126,12 +143,6 @@ function PdfPages({
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
-
-  const file = useMemo(() => {
-    if (!authReady) return null;
-    const url = api.bookFileUrl(book.id, gameId);
-    return token ? { url, httpHeaders: { Authorization: `Bearer ${token}` } } : { url };
-  }, [authReady, book.id, gameId, token]);
 
   const go = (next: number) => onPage(Math.min(maxPrinted, Math.max(1, next)));
 
@@ -195,6 +206,7 @@ function PdfPages({
               <Document
                 file={file}
                 suspense={false}
+                options={options}
                 loading={<p className="text-sm text-muted p-6">Loading PDF…</p>}
                 error={<p className="text-sm text-danger p-6">Could not load this PDF.</p>}
                 onLoadSuccess={({ numPages }) => setPageCount(numPages)}

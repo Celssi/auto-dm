@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import mimetypes
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -15,7 +16,18 @@ from starlette.staticfiles import StaticFiles as StarletteStaticFiles
 from backend.auth import is_public_api_path, require_allowed_user
 from backend.config import LANGSMITH_ENABLED, LANGSMITH_ENDPOINT, LANGSMITH_PROJECT
 from backend.gcs_sync import hydrate_runtime
-from backend.routes import adventures, books, brambletrek, campaigns, characters, play, sessions, system
+from backend.routes import (
+    adventures,
+    books,
+    brambletrek,
+    campaigns,
+    characters,
+    play,
+    sessions,
+    system,
+)
+
+mimetypes.add_type("text/javascript", ".mjs")
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +84,7 @@ async def firebase_auth_middleware(request: Request, call_next):
             return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
     return await call_next(request)
 
+
 app.include_router(system.router)
 app.include_router(books.router)
 app.include_router(characters.router)
@@ -80,6 +93,7 @@ app.include_router(adventures.router)
 app.include_router(play.router)
 app.include_router(brambletrek.router)
 app.include_router(sessions.router)
+
 
 class SPAStaticFiles(StarletteStaticFiles):
     """Serve index.html for client-side routes such as /characters."""
@@ -92,7 +106,8 @@ class SPAStaticFiles(StarletteStaticFiles):
         except StarletteHTTPException as exc:
             name = path.rsplit("/", 1)[-1]
             first = path.split("/", 1)[0]
-            if exc.status_code == 404 and path != "index.html" and ("." not in name or first in self._spa_prefixes):
+            spa_fallback = "." not in name or first in self._spa_prefixes
+            if exc.status_code == 404 and path != "index.html" and spa_fallback:
                 return await super().get_response("index.html", scope)
             raise
 

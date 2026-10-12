@@ -191,8 +191,13 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify(body),
     }),
-  bookFileUrl: (bookId: string, gameId = 'dnd5e') =>
-    `${BASE}/books/${bookId}/file?game_id=${encodeURIComponent(gameId)}`,
+  createBookFileTicket: (bookId: string, gameId = 'dnd5e') =>
+    request<{ ticket: string; expires_in: number }>(`/books/${bookId}/ticket?game_id=${encodeURIComponent(gameId)}`),
+  bookFileUrl: (bookId: string, gameId = 'dnd5e', ticket?: string) => {
+    const params = new URLSearchParams({ game_id: gameId });
+    if (ticket) params.set('ticket', ticket);
+    return `${BASE}/books/${bookId}/file?${params.toString()}`;
+  },
 
   listCharacters: () => request<{ characters: { id: string; name: string; game_id?: string }[] }>('/characters'),
   getCharacter: (id: string) => request<{ character: Record<string, unknown> }>(`/characters/${id}`),
