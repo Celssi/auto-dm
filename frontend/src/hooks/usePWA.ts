@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { startPwaUpdates } from '../lib/pwaUpdate';
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -22,8 +23,8 @@ export function usePWA() {
   const [isInstalled, setIsInstalled] = useState(getInitialInstalled);
 
   useEffect(() => {
-    if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-      void navigator.serviceWorker.register('/sw.js', { scope: '/' });
+    if (import.meta.env.PROD) {
+      startPwaUpdates();
     }
 
     const handleBeforeInstallPrompt = (event: Event) => {

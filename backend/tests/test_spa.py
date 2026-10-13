@@ -29,6 +29,20 @@ def test_spa_missing_asset_still_404(tmp_path: Path):
     assert res.status_code == 404
 
 
+def test_service_worker_is_not_cached(tmp_path: Path):
+    (tmp_path / "index.html").write_text("<html>auto-dm</html>")
+    (tmp_path / "sw.js").write_text("self.skipWaiting()")
+    app = FastAPI()
+    app.mount("/", SPAStaticFiles(directory=str(tmp_path), html=True), name="frontend")
+    client = TestClient(app)
+
+    res = client.get("/sw.js")
+
+    assert res.status_code == 200
+    assert res.headers["cache-control"] == "no-cache, no-store, must-revalidate"
+    assert res.headers["service-worker-allowed"] == "/"
+
+
 def test_spa_books_deep_link_with_extension_serves_index(tmp_path: Path):
     (tmp_path / "index.html").write_text("<html>auto-dm</html>")
     app = FastAPI()

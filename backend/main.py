@@ -102,7 +102,7 @@ class SPAStaticFiles(StarletteStaticFiles):
 
     async def get_response(self, path: str, scope):
         try:
-            return await super().get_response(path, scope)
+            response = await super().get_response(path, scope)
         except StarletteHTTPException as exc:
             name = path.rsplit("/", 1)[-1]
             first = path.split("/", 1)[0]
@@ -110,6 +110,10 @@ class SPAStaticFiles(StarletteStaticFiles):
             if exc.status_code == 404 and path != "index.html" and spa_fallback:
                 return await super().get_response("index.html", scope)
             raise
+        if path == "sw.js":
+            response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
+            response.headers["Service-Worker-Allowed"] = "/"
+        return response
 
 
 frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"

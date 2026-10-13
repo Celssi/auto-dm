@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "build": "node scripts/update-cache-version.js auto-dm && tsc --noEmit && vite build",
     "preview": "vite preview",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
