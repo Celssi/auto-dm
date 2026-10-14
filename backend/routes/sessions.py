@@ -11,6 +11,8 @@ from backend.dm.lonelog import format_mechanical
 from backend.dm.opening_scene import begin_session
 from backend.dm.oracles import ORACLE_TOOLS, run_oracle
 from backend.dm.prose_style import sanitize_narration_dashes
+from backend.dm.session_recap import get_or_refresh_recap
+from backend.dm.session_world import get_or_refresh_world
 from backend.dm.stream_turn import stream_dm_turn
 from backend.dm.trace import audit_session_context
 from backend.games.registry import get_game, resolve_game_id
@@ -23,6 +25,7 @@ from backend.storage import (
     get_session,
     get_session_lonelog,
     list_sessions,
+    patch_session,
 )
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
@@ -56,9 +59,14 @@ class CombatActionBody(BaseModel):
     target_id: str | None = None
 
 
+class SessionPatchBody(BaseModel):
+    name: str | None = None
+    archived: bool | None = None
+
+
 @router.get("")
-def list_all():
-    return {"sessions": list_sessions()}
+def list_all(include_archived: bool = False):
+    return {"sessions": list_sessions(include_archived=include_archived)}
 
 
 @router.get("/shortcuts")
@@ -79,6 +87,35 @@ def get_one(session_id: str):
     if not sess:
         raise HTTPException(404, "Session not found")
     return {"session": sess}
+
+
+@router.patch("/{session_id}")
+def patch(session_id: str, body: SessionPatchBody):
+    if body.name is None and body.archived is None:
+        raise HTTPException(400, "Provide a name or archived flag")
+    try:
+        sess = patch_session(session_id, body.model_dump())
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    if not sess:
+        raise HTTPException(404, "Session not found")
+    return {"session": sess}
+
+
+@router.get("/{session_id}/recap")
+def recap(session_id: str, force: bool = False):
+    try:
+        return get_or_refresh_recap(session_id, force=force)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
+
+
+@router.get("/{session_id}/world")
+def world(session_id: str, refresh: bool = False):
+    try:
+        return get_or_refresh_world(session_id, refresh=refresh)
+    except ValueError as e:
+        raise HTTPException(404, str(e)) from e
 
 
 @router.post("")

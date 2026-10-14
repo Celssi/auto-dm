@@ -280,14 +280,24 @@ export const api = {
       player_progress: PlayerProgress;
     }>(`/adventures/${adventureId}/complete`, { method: 'POST' }),
 
-  listSessions: () => request<{ sessions: SessionMeta[] }>('/sessions'),
+  listSessions: (includeArchived = false) =>
+    request<{ sessions: SessionMeta[] }>(includeArchived ? '/sessions?include_archived=true' : '/sessions'),
   getSession: (id: string) => request<{ session: SessionFull }>(`/sessions/${id}`),
   createSession: (body: CreateSessionBody) =>
     request<{ id: string; session: SessionFull }>('/sessions', {
       method: 'POST',
       body: JSON.stringify(body),
     }),
+  updateSession: (id: string, body: { name?: string; archived?: boolean }) =>
+    request<{ session: SessionFull }>(`/sessions/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
   deleteSession: (id: string) => request<{ ok: boolean }>(`/sessions/${id}`, { method: 'DELETE' }),
+  getSessionRecap: (id: string, force = false) =>
+    request<SessionRecap>(`/sessions/${id}/recap${force ? '?force=true' : ''}`),
+  getSessionWorld: (id: string, refresh = false) =>
+    request<SessionWorld>(`/sessions/${id}/world${refresh ? '?refresh=true' : ''}`),
 
   chat: (sessionId: string, message: string) =>
     request<ChatResult>(`/sessions/${sessionId}/chat`, {
@@ -663,7 +673,25 @@ export interface SessionMeta {
   name: string;
   character_id: string;
   adventure_id: string;
+  archived?: boolean;
   created_at?: string;
+}
+
+export interface SessionRecap {
+  text: string;
+  message_count: number;
+}
+
+export interface WorldEntry {
+  name: string;
+  body: string;
+  source?: string;
+}
+
+export interface SessionWorld {
+  npcs: WorldEntry[];
+  locations: WorldEntry[];
+  message_count: number;
 }
 
 export interface ChatMessage {

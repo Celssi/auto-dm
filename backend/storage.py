@@ -156,7 +156,7 @@ def list_adventure_ids_for_character(char_id: str) -> list[str]:
 
 def delete_sessions_for_adventure(adv_id: str) -> list[str]:
     deleted: list[str] = []
-    for session in list_sessions():
+    for session in list_sessions(include_archived=True):
         if session.get("adventure_id") == adv_id and session.get("id"):
             if delete_session(session["id"]):
                 deleted.append(session["id"])
@@ -165,7 +165,7 @@ def delete_sessions_for_adventure(adv_id: str) -> list[str]:
 
 def delete_sessions_for_character(char_id: str) -> list[str]:
     deleted: list[str] = []
-    for session in list_sessions():
+    for session in list_sessions(include_archived=True):
         if session.get("character_id") == char_id and session.get("id"):
             if delete_session(session["id"]):
                 deleted.append(session["id"])
@@ -335,13 +335,20 @@ SESSIONS_DIR = SAVES_DIR / "sessions"
 SESSIONS_INDEX = SESSIONS_DIR / "index.json"
 
 
-def list_sessions() -> list[dict[str, str]]:
+def _session_archived(row: dict) -> bool:
+    return bool(row.get("archived"))
+
+
+def list_sessions(*, include_archived: bool = False) -> list[dict[str, str]]:
     index = _read_json(SESSIONS_INDEX, [])
-    return [s for s in index if s.get("id")]
+    rows = [s for s in index if s.get("id")]
+    if include_archived:
+        return rows
+    return [s for s in rows if not _session_archived(s)]
 
 
 def find_session_for_adventure(adventure_id: str) -> dict[str, str] | None:
-    for session in list_sessions():
+    for session in list_sessions(include_archived=False):
         if session.get("adventure_id") == adventure_id:
             return session
     return None
@@ -371,6 +378,7 @@ def create_session(
         "adventure_id": adventure_id,
         "include_faerun": include_faerun,
         "extras": {},
+        "archived": False,
         "created_at": _now_iso(),
         "updated_at": _now_iso(),
     }
@@ -387,6 +395,7 @@ def create_session(
             "character_id": character_id,
             "adventure_id": adventure_id,
             "created_at": meta["created_at"],
+            "archived": False,
         },
     )
     _write_json(SESSIONS_INDEX, index)
@@ -399,6 +408,43 @@ def update_session(session_id: str, updates: dict) -> None:
     meta.update(updates)
     meta["updated_at"] = _now_iso()
     _write_json(path, meta)
+
+
+def _update_session_index(session_id: str, updates: dict) -> None:
+    index = _read_json(SESSIONS_INDEX, [])
+    allowed = {"name", "archived", "character_id", "adventure_id"}
+    changed = False
+    for entry in index:
+        if entry.get("id") != session_id:
+            continue
+        for key, value in updates.items():
+            if key in allowed:
+                entry[key] = value
+                changed = True
+        break
+    if changed:
+        _write_json(SESSIONS_INDEX, index)
+
+
+def patch_session(session_id: str, updates: dict) -> dict | None:
+    """Rename or archive a session. Additive fields only; never deletes files."""
+    path = SESSIONS_DIR / session_id / "session.json"
+    meta = _read_json(path)
+    if not meta:
+        return None
+    allowed: dict[str, Any] = {}
+    if "name" in updates and updates["name"] is not None:
+        name = str(updates["name"]).strip()
+        if not name:
+            raise ValueError("Session name cannot be empty")
+        allowed["name"] = name
+    if "archived" in updates and updates["archived"] is not None:
+        allowed["archived"] = bool(updates["archived"])
+    if not allowed:
+        return get_session(session_id)
+    update_session(session_id, allowed)
+    _update_session_index(session_id, allowed)
+    return get_session(session_id)
 
 
 def update_session_extras(session_id: str, extras: dict) -> None:
@@ -464,3 +510,25 @@ def delete_session(session_id: str) -> bool:
     _write_json(SESSIONS_INDEX, new_index)
     _remove_dir(SESSIONS_DIR / session_id)
     return True
+
+
+def get_session_recap_cache(session_id: str) -> dict | None:
+    data = _read_json(SESSIONS_DIR / session_id / "recap.json")
+    return data if isinstance(data, dict) else None
+
+
+def save_session_recap_cache(session_id: str, data: dict) -> None:
+    payload = dict(data)
+    payload["updated_at"] = _now_iso()
+    _write_json(SESSIONS_DIR / session_id / "recap.json", payload)
+
+
+def get_session_world_cache(session_id: str) -> dict | None:
+    data = _read_json(SESSIONS_DIR / session_id / "world.json")
+    return data if isinstance(data, dict) else None
+
+
+def save_session_world_cache(session_id: str, data: dict) -> None:
+    payload = dict(data)
+    payload["updated_at"] = _now_iso()
+    _write_json(SESSIONS_DIR / session_id / "world.json", payload)

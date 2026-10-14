@@ -6,13 +6,15 @@ import type { ChatMessage, PlayerProgress, SpellConfirmation } from '../../api/c
 import type { Character } from '../../types';
 import PlayCharacterSidebar from '../../components/play/PlayCharacterSidebar';
 import PlayToolsPanel from '../../components/play/PlayToolsPanel';
+import SessionRecapCard from '../../components/play/SessionRecapCard';
+import WorldRosterPanel from '../../components/play/WorldRosterPanel';
 import ListLoading from '../../components/ui/ListLoading';
 import { fadeUp } from '../../components/ui/motion';
 import { displayLabel } from '../../lib/displayText';
 import AnimatedPage from '../../components/ui/AnimatedPage';
 import ChatMarkdown from '../../components/play/ChatMarkdown';
 import { getGamePlayConfig } from '../../games/play/registry';
-import type { PlayState, DiceModalState } from './playState';
+import type { DiceModalState, PlayState } from './playState';
 import type { JournalEntity } from '../../api/client';
 import DiceRollModal from '../../components/play/DiceRollModal';
 import SegmentedControl from '../../components/ui/forms/SegmentedControl';
@@ -89,6 +91,9 @@ export default function PlaySessionView({
     auditEvents,
     sources,
     journalEntities,
+    recap,
+    recapLoading,
+    world,
     playerProgress,
     adventureComplete,
     nextAdventure,
@@ -125,6 +130,7 @@ export default function PlaySessionView({
             characterId={characterId}
             characterSummary={characterSummary}
             playerProgress={playerProgress}
+            world={world}
           />
         }
         chat={
@@ -138,6 +144,8 @@ export default function PlaySessionView({
               beginError={beginError}
               onBegin={onBegin}
               journalEntities={journalEntities}
+              recap={recap}
+              recapLoading={recapLoading}
               bottomRef={bottomRef}
               adventureComplete={adventureComplete}
               nextAdventure={nextAdventure}
@@ -314,11 +322,13 @@ function PlayCharacterPanel({
   characterId,
   characterSummary,
   playerProgress,
+  world,
 }: {
   character: Character | null;
   characterId: string;
   characterSummary: Record<string, unknown>;
   playerProgress: PlayerProgress | null;
+  world: PlayState['world'];
 }) {
   const completed = playerProgress?.completed_beats ?? [];
   return (
@@ -359,6 +369,7 @@ function PlayCharacterPanel({
         )}
         <p className="text-[10px] text-muted leading-relaxed">The DM knows more than you see here.</p>
       </div>
+      <WorldRosterPanel npcs={world?.npcs ?? []} locations={world?.locations ?? []} />
     </aside>
   );
 }
@@ -372,6 +383,8 @@ function PlayChatArea({
   beginError,
   onBegin,
   journalEntities,
+  recap,
+  recapLoading,
   bottomRef,
   adventureComplete,
   nextAdventure,
@@ -388,6 +401,8 @@ function PlayChatArea({
   beginError: string;
   onBegin: () => void;
   journalEntities: JournalEntity[];
+  recap: PlayState['recap'];
+  recapLoading: boolean;
   bottomRef: React.RefObject<HTMLDivElement | null>;
   adventureComplete: boolean;
   nextAdventure: { id: string; name: string } | null;
@@ -420,6 +435,9 @@ function PlayChatArea({
   return (
     <div className="flex-1 overflow-y-auto px-3 py-3 space-y-4 scroll-smooth min-h-0">
       <>
+        {(recapLoading || (recap?.text && messages.length > 0)) && (
+          <SessionRecapCard text={recap?.text || ''} loading={recapLoading} />
+        )}
         <ChatReadyPrompt
           show={messages.length === 0 && !loading && !beginning}
           beginError={beginError}

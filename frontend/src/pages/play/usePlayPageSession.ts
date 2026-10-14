@@ -21,6 +21,16 @@ function streamErrorDetail(data: unknown): string {
   return 'Something went wrong talking to the DM.';
 }
 
+function worldToEntities(world: {
+  npcs: { name: string; body: string }[];
+  locations: { name: string; body: string }[];
+}) {
+  return [
+    ...world.npcs.map((entry) => ({ kind: 'npc' as const, name: entry.name, body: entry.body })),
+    ...world.locations.map((entry) => ({ kind: 'location' as const, name: entry.name, body: entry.body })),
+  ];
+}
+
 function applyChatResultPatch(result: ChatResult) {
   return {
     character: result.character as Character,
@@ -61,7 +71,7 @@ export function usePlayPageSession(
 
   const loadMeta = useCallback(async () => {
     const [s, c, a, sh, or] = await Promise.all([
-      api.listSessions(),
+      api.listSessions(true),
       api.listCharacters(),
       api.listAdventures(),
       api.getShortcuts(),
@@ -86,6 +96,44 @@ export function usePlayPageSession(
       await getPlaySessionExtensions(gameId).refreshJourney(sessionId, dispatch);
     },
     [dispatch],
+  );
+
+  const loadRecapAndWorld = useCallback(
+    async (sessionId: string, messageCount: number, seq: number) => {
+      const continuing = messageCount > 0;
+      dispatch({
+        type: 'set',
+        patch: continuing ? { recapLoading: true } : { recapLoading: false, recap: null },
+      });
+      if (continuing) {
+        try {
+          const recap = await api.getSessionRecap(sessionId);
+          if (seq === loadSeqRef.current) {
+            dispatch({ type: 'set', patch: { recap, recapLoading: false } });
+          }
+        } catch (err: unknown) {
+          console.warn('Failed to load session recap', err);
+          if (seq === loadSeqRef.current) {
+            dispatch({ type: 'set', patch: { recapLoading: false } });
+          }
+        }
+      }
+      try {
+        const world = await api.getSessionWorld(sessionId, continuing);
+        if (seq === loadSeqRef.current) {
+          dispatch({
+            type: 'set',
+            patch: {
+              world,
+              journalEntities: worldToEntities(world),
+            },
+          });
+        }
+      } catch (err: unknown) {
+        console.warn('Failed to load session world', err);
+      }
+    },
+    [dispatch, loadSeqRef],
   );
 
   const loadSession = useCallback(
@@ -125,6 +173,9 @@ export function usePlayPageSession(
               adventureId: '',
               sessionLoaded: true,
               journalEntities: [],
+              recap: null,
+              recapLoading: false,
+              world: null,
               campaignId: '',
               playerProgress: null,
               adventureComplete: false,
@@ -133,6 +184,7 @@ export function usePlayPageSession(
             },
           });
           if (gameId) await refreshJourney(id, gameId);
+          await loadRecapAndWorld(id, (session.messages || []).length, seq);
           return;
         }
 
@@ -189,6 +241,7 @@ export function usePlayPageSession(
         const loadedGameId = String((ch as Character).game_id || 'dnd5e');
         setGameId(loadedGameId);
         if (loadedGameId) await refreshJourney(id, loadedGameId);
+        await loadRecapAndWorld(id, (session.messages || []).length, seq);
       } catch (e) {
         if (seq !== loadSeqRef.current) return;
         dispatch({
@@ -200,7 +253,7 @@ export function usePlayPageSession(
         });
       }
     },
-    [dispatch, loadSeqRef, campaignIdRef, refreshJourney, setGameId],
+    [dispatch, loadSeqRef, campaignIdRef, refreshJourney, setGameId, loadRecapAndWorld],
   );
 
   const startSession = async () => {
@@ -306,12 +359,26 @@ export function usePlayPageSession(
       await refreshSessionLogs(sessionId);
       const chatGameId = String((result.character as Character)?.game_id || state.character?.game_id || 'dnd5e');
       await getPlaySessionExtensions(chatGameId).afterChat(sessionId, dispatch);
-      if (campaignIdRef.current) {
-        api
-          .getCampaignEntities(campaignIdRef.current)
-          .then(({ entities }) => dispatch({ type: 'set', patch: { journalEntities: entities } }))
-          .catch((err: unknown) => console.warn('Failed to refresh journal entities', err));
-      }
+      api
+        .getSessionWorld(sessionId, false)
+        .then((world) =>
+          dispatch({
+            type: 'set',
+            patch: {
+              world,
+              journalEntities: worldToEntities(world),
+            },
+          }),
+        )
+        .catch((err: unknown) => {
+          console.warn('Failed to refresh session world', err);
+          if (campaignIdRef.current) {
+            api
+              .getCampaignEntities(campaignIdRef.current)
+              .then(({ entities }) => dispatch({ type: 'set', patch: { journalEntities: entities } }))
+              .catch((inner: unknown) => console.warn('Failed to refresh journal entities', inner));
+          }
+        });
     } catch (e) {
       dispatch({
         type: 'set',
@@ -490,12 +557,26 @@ export function usePlayPageSession(
       if (streamError) throw new Error(streamError);
       if (!done[0]) throw new Error('The DM closed the stream without a reply.');
       await refreshSessionLogs(state.sessionId);
-      if (campaignIdRef.current) {
-        api
-          .getCampaignEntities(campaignIdRef.current)
-          .then(({ entities }) => dispatch({ type: 'set', patch: { journalEntities: entities } }))
-          .catch((err: unknown) => console.warn('Failed to refresh journal entities', err));
-      }
+      api
+        .getSessionWorld(state.sessionId, false)
+        .then((world) =>
+          dispatch({
+            type: 'set',
+            patch: {
+              world,
+              journalEntities: worldToEntities(world),
+            },
+          }),
+        )
+        .catch((err: unknown) => {
+          console.warn('Failed to refresh session world', err);
+          if (campaignIdRef.current) {
+            api
+              .getCampaignEntities(campaignIdRef.current)
+              .then(({ entities }) => dispatch({ type: 'set', patch: { journalEntities: entities } }))
+              .catch((inner: unknown) => console.warn('Failed to refresh journal entities', inner));
+          }
+        });
     } catch (e) {
       dispatch({
         type: 'set',
@@ -622,6 +703,16 @@ export function usePlayPageSession(
     [state.sessionId, state.character?.game_id, dispatch, refreshSessionLogs],
   );
 
+  const renameSession = async (id: string, name: string) => {
+    await api.updateSession(id, { name });
+    await loadMeta();
+  };
+
+  const archiveSession = async (id: string, archived: boolean) => {
+    await api.updateSession(id, { archived });
+    await loadMeta();
+  };
+
   const handleCombatAction = useCallback(
     async (action: string, targetId?: string) => {
       if (!state.sessionId) return;
@@ -659,5 +750,7 @@ export function usePlayPageSession(
     handleDragonkeepInit,
     handleBrambletrekCombatAction,
     handleCombatAction,
+    renameSession,
+    archiveSession,
   };
 }

@@ -41,6 +41,8 @@ export default function PlayPage() {
     handleDragonkeepInit,
     handleBrambletrekCombatAction,
     handleCombatAction,
+    renameSession,
+    archiveSession,
   } = usePlayPageSession(state, dispatch, loadSeqRef, campaignIdRef);
 
   const { gameId } = useGame();
@@ -81,6 +83,8 @@ export default function PlayPage() {
         onIncludeFaerunChange={(includeFaerun) => dispatch({ type: 'set', patch: { includeFaerun } })}
         onStartSession={startSession}
         onBootstrapAndPlay={bootstrapAndPlay}
+        onRenameSession={renameSession}
+        onArchiveSession={archiveSession}
       />
     );
   }
