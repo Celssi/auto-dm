@@ -11,7 +11,6 @@ import yaml
 from backend.config import CURATED_DIR, pdf_path
 from backend.games.brambletrek.curated_audit import (
     PdfCheck,
-    compact_text,
     text_found_in_page,
 )
 from backend.games.dnd5e.characters.background_extract import (

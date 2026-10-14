@@ -4,11 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.dm.campaign_bootstrap import BootstrapMode
-
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 
+from backend.dm.campaign_bootstrap import BootstrapMode
 from backend.dm.prose_style import NARRATION_STYLE_RULES, sanitize_narration_dashes
 from backend.dm.session_opening import attach_opening_to_session
 from backend.dm.story_director import ensure_story_progress

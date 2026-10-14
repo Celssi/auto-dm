@@ -7,7 +7,6 @@ from backend.dm.encounters import CombatState, combat_state_view, load_combat_st
 from backend.dm.narration_stream import emit_narration, emit_narration_replace, narration_enabled
 from backend.dm.prose_style import sanitize_narration_dashes
 from backend.dm.state import DMState, char_from_dict, factions_for, game_plugin
-from backend.dm.turn_kind import is_dice_only_turn
 from backend.dm.story_director import (
     apply_completion_if_done,
     build_narrator_brief,
@@ -19,6 +18,7 @@ from backend.dm.story_director import (
 )
 from backend.dm.story_memory import build_narrative_context
 from backend.dm.trace import log_agent
+from backend.dm.turn_kind import is_dice_only_turn
 from backend.games.dnd5e.actions import SHORTCUTS
 from backend.games.dnd5e.dm.combat_manager import (
     finish_player_turn,

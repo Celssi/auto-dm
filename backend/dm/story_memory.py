@@ -8,10 +8,10 @@ from langchain_core.messages import HumanMessage, SystemMessage
 
 from backend.dm.lonelog import extract_narrative_snippets
 from backend.dm.world_context import world_context_for_campaign
-from backend.games.dnd5e.characters.entity import Dnd5eCharacter
-from backend.games.registry import resolve_game_id
 from backend.games.brambletrek.prompts import brambletrek_stable_system_prompt
+from backend.games.dnd5e.characters.entity import Dnd5eCharacter
 from backend.games.dnd5e.prompts import dnd5e_stable_system_prompt
+from backend.games.registry import resolve_game_id
 from backend.llm import cached_system, get_langchain_chat_llm, invoke_chat_llm, message_text
 
 CANON_MAX = 4000
