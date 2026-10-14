@@ -21,7 +21,9 @@ def test_message_text_skips_thinking_blocks():
 
 
 def test_message_text_uses_string_text_property():
-    response = SimpleNamespace(text="Only the prose.", content=[{"type": "thinking", "thinking": "hidden"}])
+    response = SimpleNamespace(
+        text="Only the prose.", content=[{"type": "thinking", "thinking": "hidden"}]
+    )
     assert message_text(response) == "Only the prose."
 
 

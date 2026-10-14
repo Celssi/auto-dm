@@ -5,12 +5,7 @@ import { fileURLToPath } from 'node:url';
 const timestamp = new Date().toISOString().replace(/[-:.]/g, '').slice(0, 12);
 const projectName = process.argv[2] || 'app';
 const version = `${projectName}-${timestamp}`;
-const swPath = path.join(
-  path.dirname(fileURLToPath(import.meta.url)),
-  '..',
-  'public',
-  'sw.js'
-);
+const swPath = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', 'public', 'sw.js');
 
 function replaceAssignment(source, name) {
   const regex = new RegExp(`const ${name} = ['"][^'"]+['"];`);

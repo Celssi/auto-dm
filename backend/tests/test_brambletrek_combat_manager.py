@@ -105,7 +105,12 @@ def test_opponent_turn_deals_damage():
 
 def test_aerith_item_search_red():
     char = _char(health=12)
-    ctx = {"adventure_id": "dragonkeep", "finale": True, "finale_phase": "1", "opponent_id": "aerith"}
+    ctx = {
+        "adventure_id": "dragonkeep",
+        "finale": True,
+        "finale_phase": "1",
+        "opponent_id": "aerith",
+    }
     draw_calls: list[int] = []
 
     def fake_draw(*_args, **_kwargs):
@@ -114,7 +119,10 @@ def test_aerith_item_search_red():
         if n == 1:
             return {"ok": True, "cards": ["4 of hearts", "3 of clubs"]}
         if n == 2:
-            return {"ok": True, "cards": ["2 of hearts", "3 of clubs", "4 of spades", "5 of diamonds"]}
+            return {
+                "ok": True,
+                "cards": ["2 of hearts", "3 of clubs", "4 of spades", "5 of diamonds"],
+            }
         return {"ok": True, "cards": ["2 of hearts"]}
 
     with patch("backend.games.brambletrek.combat.manager.draw_cards", side_effect=fake_draw):
@@ -152,7 +160,12 @@ def test_aerith_phase_complete_uses_phase_goals():
 
 def test_eolan_red_face_streak_advances_phase():
     char = _char(health=12)
-    ctx = {"adventure_id": "dragonkeep", "finale": True, "finale_phase": "1", "opponent_id": "aerith"}
+    ctx = {
+        "adventure_id": "dragonkeep",
+        "finale": True,
+        "finale_phase": "1",
+        "opponent_id": "aerith",
+    }
     with patch(
         "backend.games.brambletrek.combat.manager.draw_cards",
         side_effect=[
@@ -174,7 +187,12 @@ def test_eolan_red_face_streak_advances_phase():
 
 def test_advance_phase_button_flow():
     char = _char(health=12)
-    ctx = {"adventure_id": "dragonkeep", "finale": True, "finale_phase": "1", "opponent_id": "aerith"}
+    ctx = {
+        "adventure_id": "dragonkeep",
+        "finale": True,
+        "finale_phase": "1",
+        "opponent_id": "aerith",
+    }
     with patch(
         "backend.games.brambletrek.combat.manager.draw_cards",
         side_effect=[
@@ -184,7 +202,12 @@ def test_advance_phase_button_flow():
         ],
     ):
         state = begin_combat(char, ctx, char_id="c1", mode="aerith_finale")
-    state["phase_progress"] = {"damage_dealt": 20, "rounds": 1, "bands_seen": [], "eolan_red_streak": 0}
+    state["phase_progress"] = {
+        "damage_dealt": 20,
+        "rounds": 1,
+        "bands_seen": [],
+        "eolan_red_streak": 0,
+    }
     state, lines = combat_action(state, char, "advance_phase", char_id="c1")
     assert state["finale_phase"] == "2"
     assert len(state["tactic_hand"]) == 4

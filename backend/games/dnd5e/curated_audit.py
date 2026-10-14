@@ -318,9 +318,7 @@ def pdf_spot_audit(*, limit: int = 0, force_ocr: bool = False) -> list[str]:
 
         print(f"  [{i}/{total}] {check.curated_id} — mismatch", flush=True)
         if not body_ok:
-            issues.append(
-                f"{check.curated_id}: {check.label} not found on p.{check.printed_page}"
-            )
+            issues.append(f"{check.curated_id}: {check.label} not found on p.{check.printed_page}")
         elif not title_ok:
             issues.append(
                 f"{check.curated_id}: title not found on p.{check.printed_page}: {check.title!r}"

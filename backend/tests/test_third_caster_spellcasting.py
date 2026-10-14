@@ -1,6 +1,10 @@
 """Third-caster subclass spellcasting (Eldritch Knight, Arcane Trickster)."""
 
-from backend.games.dnd5e.characters.character_builder import compute_spell_slots, rebuild_character, spell_limits
+from backend.games.dnd5e.characters.character_builder import (
+    compute_spell_slots,
+    rebuild_character,
+    spell_limits,
+)
 from backend.games.dnd5e.characters.creation_choices import apply_creation_choices
 from backend.games.dnd5e.characters.entity import Dnd5eCharacter
 from backend.games.dnd5e.characters.spell_resources import is_spell_available, spell_level_for

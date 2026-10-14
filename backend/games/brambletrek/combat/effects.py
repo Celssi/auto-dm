@@ -10,7 +10,10 @@ def _infer_buffs_from_label(label: str) -> dict[str, Any]:
     """Fallback when tactic rows lack structured buff fields."""
     lbl = label.lower()
     meta: dict[str, Any] = {}
-    if any(p in lbl for p in ("skip your", "you miss", "you skip", "lose your next turn", "stuns the player")):
+    if any(
+        p in lbl
+        for p in ("skip your", "you miss", "you skip", "lose your next turn", "stuns the player")
+    ):
         meta["skip_turn"] = True
     if "attacks miss" in lbl or "attack misses" in lbl:
         turns = 3 if "3 turn" in lbl else 2 if "2 turn" in lbl else 1
@@ -212,7 +215,9 @@ def apply_tactic_effects(
             state["player"] = player
             lines.append(f"You take {damage} damage.")
         if heal > 0:
-            opponent["hp"] = min(int(opponent.get("max_hp") or 20), int(opponent.get("hp") or 0) + heal)
+            opponent["hp"] = min(
+                int(opponent.get("max_hp") or 20), int(opponent.get("hp") or 0) + heal
+            )
             state["opponent"] = opponent
             lines.append(f"Opponent heals {heal}.")
         lines.extend(_apply_buff_metadata(tactic, buffs))

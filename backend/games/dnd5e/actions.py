@@ -224,7 +224,12 @@ def run_shortcut(
             f"D&D 5e ability check for {build}, {ability.upper()} modifier {mod:+d}. "
             f"{result['summary']}. Explain DC, success, and any relevant 2024 PHB guidance."
         )
-        out: dict = {"user_message": user, "prompt": prompt, "dice": result, "task": "ability_check"}
+        out: dict = {
+            "user_message": user,
+            "prompt": prompt,
+            "dice": result,
+            "task": "ability_check",
+        }
         if luck_updates:
             out["entity_updates"] = luck_updates
         return out
