@@ -35,11 +35,7 @@ function enrichChildren(
       return enrichText(child, entities, matcher, childPrefix);
     }
     if (isValidElement<{ children?: ReactNode }>(child) && child.props.children) {
-      return cloneElement(
-        child,
-        {},
-        enrichChildren(child.props.children, entities, matcher, childPrefix),
-      );
+      return cloneElement(child, {}, enrichChildren(child.props.children, entities, matcher, childPrefix));
     }
     return child;
   });
