@@ -66,6 +66,90 @@ function characterNamesForIds(characterIds: string[] | undefined, characters: { 
   return names.join(', ');
 }
 
+/** Drop the technical " - play" suffix from generated session names. */
+export function sessionDisplayTitle(name: string | null | undefined): string {
+  const raw = (name ?? '').trim();
+  if (!raw) return 'Session';
+  return raw.replace(/\s+-\s+play$/i, '').trim() || raw;
+}
+
+export function formatListDate(iso: string | null | undefined): string {
+  if (!iso) return '';
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '';
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+export function sessionListSubtitle(characterName?: string | null, createdAt?: string | null): string {
+  return [characterName?.trim(), formatListDate(createdAt)].filter(Boolean).join(' · ');
+}
+
+export type CharacterRosterEntry = {
+  id: string;
+  name: string;
+  game_id?: string;
+  species?: string;
+  class_name?: string;
+  level?: number;
+  hp?: number;
+  max_hp?: number;
+  classes?: { class_name: string; level: number }[];
+  legacy?: string;
+  health?: number;
+};
+
+export function rosterEntryFromCharacter(
+  id: string,
+  name: string,
+  character: Record<string, unknown>,
+): CharacterRosterEntry {
+  const classesRaw = character.classes;
+  const classes = Array.isArray(classesRaw)
+    ? classesRaw
+        .filter((entry): entry is Record<string, unknown> => Boolean(entry) && typeof entry === 'object')
+        .map((entry) => ({
+          class_name: String(entry.class_name || ''),
+          level: Number(entry.level || 1),
+        }))
+        .filter((entry) => entry.class_name)
+    : undefined;
+  return {
+    id,
+    name,
+    game_id: typeof character.game_id === 'string' ? character.game_id : undefined,
+    species: typeof character.species === 'string' ? character.species : undefined,
+    class_name: typeof character.class_name === 'string' ? character.class_name : undefined,
+    level: typeof character.level === 'number' ? character.level : undefined,
+    hp: typeof character.hp === 'number' ? character.hp : undefined,
+    max_hp: typeof character.max_hp === 'number' ? character.max_hp : undefined,
+    classes,
+    legacy: typeof character.legacy === 'string' ? character.legacy : undefined,
+    health: typeof character.health === 'number' ? character.health : undefined,
+  };
+}
+
+/** Species, class, level, and HP for character list cards. */
+export function characterRosterSubtitle(entry: CharacterRosterEntry): string {
+  if ((entry.game_id || '') === 'brambletrek') {
+    const parts = [
+      entry.legacy ? displayLabel(entry.legacy) : '',
+      entry.health != null ? `Health ${entry.health}` : '',
+    ];
+    return parts.filter(Boolean).join(' · ');
+  }
+  const classLine = entry.classes?.length
+    ? entry.classes.map((item) => `${displayLabel(item.class_name)} ${item.level}`).join(' · ')
+    : [displayLabel(entry.class_name), entry.level != null ? String(entry.level) : ''].filter(Boolean).join(' ');
+  const identity = [displayLabel(entry.species), classLine].filter(Boolean).join(' · ');
+  const hp =
+    entry.hp != null && entry.max_hp != null
+      ? `HP ${entry.hp}/${entry.max_hp}`
+      : entry.hp != null
+        ? `HP ${entry.hp}`
+        : '';
+  return [identity, hp].filter(Boolean).join(' · ');
+}
+
 /** Resolve character label from campaign ids and/or loaded adventures. */
 export function campaignCharacterLabel(
   characterIds: string[] | undefined,

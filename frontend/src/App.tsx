@@ -35,7 +35,12 @@ function HomeWrapper() {
   const { gameId } = useGame();
   const [indexed, setIndexed] = useState(false);
   const [claudeOk, setClaudeOk] = useState(false);
-  const [recent, setRecent] = useState<{ id: string; name: string } | null>(null);
+  const [recent, setRecent] = useState<{
+    id: string;
+    name: string;
+    characterName?: string;
+    createdAt?: string;
+  } | null>(null);
   const [sessionsLoaded, setSessionsLoaded] = useState(false);
 
   useEffect(() => {
@@ -51,7 +56,10 @@ function HomeWrapper() {
       .then(([s, c]) => {
         if (cancelled) return;
         const match = s.sessions.find((session) => sessionMatchesGame(session, c.characters, gameId));
-        setRecent(match ? { id: match.id, name: match.name } : null);
+        const characterName = match
+          ? c.characters.find((character) => character.id === match.character_id)?.name
+          : undefined;
+        setRecent(match ? { id: match.id, name: match.name, characterName, createdAt: match.created_at } : null);
       })
       .finally(() => {
         if (!cancelled) setSessionsLoaded(true);

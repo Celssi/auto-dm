@@ -1,6 +1,5 @@
 import type { ReactNode } from 'react';
 import { m } from '../../lib/framer';
-import { displayLabel } from '../../lib/displayText';
 import { fadeUp } from './motion';
 
 interface Props {
@@ -25,7 +24,7 @@ export default function ListCard({ title, subtitle, onClick, selected, children 
       }`}
     >
       <div className="font-medium text-gray-100">{title}</div>
-      {subtitle && <div className="text-xs text-muted mt-0.5">{displayLabel(subtitle)}</div>}
+      {subtitle && <div className="text-xs text-muted mt-0.5">{subtitle}</div>}
       {children}
     </Tag>
   );

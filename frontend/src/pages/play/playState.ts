@@ -36,7 +36,7 @@ export interface DiceModalState {
 }
 
 export interface PlayState {
-  sessions: { id: string; name: string; character_id?: string; archived?: boolean }[];
+  sessions: { id: string; name: string; character_id?: string; archived?: boolean; created_at?: string }[];
   metaLoaded: boolean;
   sessionLoaded: boolean;
   loadError: string;

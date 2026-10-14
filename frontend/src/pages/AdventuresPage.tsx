@@ -17,6 +17,7 @@ import { adventuresReducer, initialAdventuresState, type AdventuresState } from 
 import { useGame } from '../context/GameContext';
 import { campaignMatchesGame, filterByGame } from '../lib/gameScope';
 import { useViewport } from '../hooks/useViewport';
+import { displayLabel } from '../lib/displayText';
 
 export default function AdventuresPage() {
   const navigate = useNavigate();
@@ -238,7 +239,7 @@ function AdventureBrowser({
           ) : (
             adventures.map((a) => {
               const camp = campaigns.find((c) => c.id === a.campaign_id);
-              const subtitle = camp ? `${a.mode} · ${camp.name}` : a.mode;
+              const subtitle = camp ? `${displayLabel(a.mode)} · ${camp.name}` : displayLabel(a.mode);
               return (
                 <ListCard
                   key={a.id}

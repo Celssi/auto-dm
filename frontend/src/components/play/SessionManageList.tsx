@@ -1,18 +1,23 @@
 import { useState } from 'react';
-import { Archive, ArchiveRestore, Pencil, Swords } from 'lucide-react';
+import { Swords } from 'lucide-react';
 import EmptyState from '../ui/EmptyState';
 import ListLoading from '../ui/ListLoading';
+import OverflowMenu from '../ui/OverflowMenu';
 import TextInput from '../ui/forms/TextInput';
+import { sessionDisplayTitle, sessionListSubtitle } from '../../lib/displayText';
 
 export interface ManageableSession {
   id: string;
   name: string;
+  character_id?: string;
   archived?: boolean;
+  created_at?: string;
 }
 
 interface Props {
   metaLoaded: boolean;
   sessions: ManageableSession[];
+  characters?: { id: string; name: string }[];
   onNavigateSession: (id: string) => void;
   onRenameSession: (id: string, name: string) => Promise<void>;
   onArchiveSession: (id: string, archived: boolean) => Promise<void>;
@@ -21,6 +26,7 @@ interface Props {
 export default function SessionManageList({
   metaLoaded,
   sessions,
+  characters = [],
   onNavigateSession,
   onRenameSession,
   onArchiveSession,
@@ -89,72 +95,71 @@ export default function SessionManageList({
       {visible.length === 0 ? (
         <p className="text-sm text-muted">All sessions are archived. Turn on Show archived to restore one.</p>
       ) : (
-        <ul className="space-y-1">
-          {visible.map((session) => (
-            <li
-              key={session.id}
-              className="rounded-lg border border-transparent hover:border-accent/20 hover:bg-accent/10 px-2 py-1.5"
-            >
-              {editingId === session.id ? (
-                <form
-                  className="flex items-center gap-2"
-                  onSubmit={(event) => {
-                    event.preventDefault();
-                    void commitRename(session.id);
-                  }}
-                >
-                  <TextInput
-                    value={draft}
-                    onChange={(event) => setDraft(event.target.value)}
-                    aria-label="Session name"
-                    className="flex-1"
-                    autoFocus
-                  />
-                  <button
-                    type="submit"
-                    className="btn-primary text-xs min-h-9 px-3"
-                    disabled={busyId === session.id || !draft.trim()}
+        <ul className="space-y-2">
+          {visible.map((session) => {
+            const title = sessionDisplayTitle(session.name);
+            const characterName = characters.find((character) => character.id === session.character_id)?.name;
+            const detail = [
+              sessionListSubtitle(characterName, session.created_at),
+              session.archived ? 'Archived' : '',
+            ]
+              .filter(Boolean)
+              .join(' · ');
+            return (
+              <li key={session.id}>
+                {editingId === session.id ? (
+                  <form
+                    className="flex items-center gap-2 py-3 px-3 rounded-xl border border-border bg-bg/40"
+                    onSubmit={(event) => {
+                      event.preventDefault();
+                      void commitRename(session.id);
+                    }}
                   >
-                    Save
-                  </button>
-                  <button type="button" className="btn-ghost text-xs min-h-9 px-3" onClick={() => setEditingId('')}>
-                    Cancel
-                  </button>
-                </form>
-              ) : (
-                <div className="flex items-center gap-1">
-                  <button
-                    type="button"
-                    className="flex-1 text-left py-1.5 px-1 text-sm rounded-md hover:text-accent"
-                    onClick={() => onNavigateSession(session.id)}
-                  >
-                    <span className="block">{session.name}</span>
-                    {session.archived && (
-                      <span className="text-[10px] uppercase tracking-wider text-muted">Archived</span>
-                    )}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost min-h-9 px-2 text-muted"
-                    aria-label={`Rename ${session.name}`}
-                    onClick={() => startRename(session)}
-                    disabled={busyId === session.id}
-                  >
-                    <Pencil size={14} />
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-ghost min-h-9 px-2 text-muted"
-                    aria-label={session.archived ? `Unarchive ${session.name}` : `Archive ${session.name}`}
-                    onClick={() => void toggleArchive(session)}
-                    disabled={busyId === session.id}
-                  >
-                    {session.archived ? <ArchiveRestore size={14} /> : <Archive size={14} />}
-                  </button>
-                </div>
-              )}
-            </li>
-          ))}
+                    <TextInput
+                      value={draft}
+                      onChange={(event) => setDraft(event.target.value)}
+                      aria-label="Session name"
+                      className="flex-1"
+                      autoFocus
+                    />
+                    <button
+                      type="submit"
+                      className="btn-primary text-xs min-h-9 px-3"
+                      disabled={busyId === session.id || !draft.trim()}
+                    >
+                      Save
+                    </button>
+                    <button type="button" className="btn-ghost text-xs min-h-9 px-3" onClick={() => setEditingId('')}>
+                      Cancel
+                    </button>
+                  </form>
+                ) : (
+                  <div className="flex items-center gap-1 py-3 px-3 rounded-xl border border-border bg-bg/40 hover:bg-accent/10 hover:border-accent/30 transition-colors">
+                    <button
+                      type="button"
+                      className="flex-1 text-left min-w-0"
+                      onClick={() => onNavigateSession(session.id)}
+                    >
+                      <span className="block text-sm text-gray-100">{title}</span>
+                      {detail && <span className="block text-xs text-muted mt-0.5">{detail}</span>}
+                    </button>
+                    <OverflowMenu
+                      label={`More actions for ${title}`}
+                      items={[
+                        { label: 'Rename', onSelect: () => startRename(session) },
+                        {
+                          label: session.archived ? 'Unarchive' : 'Archive',
+                          onSelect: () => {
+                            void toggleArchive(session);
+                          },
+                        },
+                      ]}
+                    />
+                  </div>
+                )}
+              </li>
+            );
+          })}
         </ul>
       )}
     </div>

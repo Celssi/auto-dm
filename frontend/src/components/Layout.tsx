@@ -47,31 +47,29 @@ export default function Layout() {
             </span>
           </Link>
 
-          {!isPlaySession && (
-            <div className="hidden md:flex items-center gap-1 overflow-x-auto scrollbar-none">
-              {links.map((l) => {
-                const active = isActive(loc.pathname, l.to, l.exact);
-                return (
-                  <Link
-                    key={l.to}
-                    to={l.to}
-                    className={`relative text-sm min-h-11 px-3 inline-flex items-center rounded-xl whitespace-nowrap transition-colors ${
-                      active ? 'text-accent' : 'text-muted hover:text-gray-200'
-                    }`}
-                  >
-                    {active && (
-                      <m.span
-                        layoutId="nav-indicator"
-                        className="absolute inset-0 bg-accent/10 border border-accent/20 rounded-xl"
-                        transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                      />
-                    )}
-                    <span className="relative z-10">{l.label}</span>
-                  </Link>
-                );
-              })}
-            </div>
-          )}
+          <div className="hidden md:flex items-center gap-1 overflow-x-auto scrollbar-none">
+            {links.map((l) => {
+              const active = isActive(loc.pathname, l.to, l.exact);
+              return (
+                <Link
+                  key={l.to}
+                  to={l.to}
+                  className={`relative text-sm min-h-11 px-3 inline-flex items-center rounded-xl whitespace-nowrap transition-colors ${
+                    active ? 'text-accent' : 'text-muted hover:text-gray-200'
+                  }`}
+                >
+                  {active && (
+                    <m.span
+                      layoutId="nav-indicator"
+                      className="absolute inset-0 bg-accent/10 border border-accent/20 rounded-xl"
+                      transition={{ type: 'spring', stiffness: 380, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative z-10">{l.label}</span>
+                </Link>
+              );
+            })}
+          </div>
 
           <div className="ml-auto flex items-center gap-2 shrink-0">
             <button
@@ -81,7 +79,7 @@ export default function Layout() {
               aria-label="Open rulebook"
             >
               <Library size={16} />
-              <span className="hidden sm:inline">Books</span>
+              <span className="hidden sm:inline">Open rulebook</span>
             </button>
             <GameSwitcher />
             <button type="button" className="btn-ghost inline-flex items-center gap-1.5" onClick={() => void signOut()}>

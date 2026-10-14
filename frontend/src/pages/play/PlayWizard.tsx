@@ -148,6 +148,7 @@ function PlayContinueTab({
       <SessionManageList
         metaLoaded={metaLoaded}
         sessions={sessions}
+        characters={characters}
         onNavigateSession={onNavigateSession}
         onRenameSession={onRenameSession}
         onArchiveSession={onArchiveSession}

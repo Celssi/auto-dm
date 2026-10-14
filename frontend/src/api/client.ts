@@ -674,6 +674,7 @@ export interface SessionMeta {
   character_id: string;
   adventure_id: string;
   archived?: boolean;
+  created_at?: string;
 }
 
 export interface SessionRecap {
