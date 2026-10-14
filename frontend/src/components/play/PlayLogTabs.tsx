@@ -20,7 +20,7 @@ interface Props {
 
 export default function PlayLogTabs({ tabs, active, onChange, children }: Props) {
   return (
-    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
+    <div className="flex-1 min-h-[10rem] flex flex-col overflow-hidden">
       <div className="flex items-center gap-2 mb-1.5 shrink-0 flex-wrap">
         {tabs.map((tab, i) => (
           <span key={tab} className="flex items-center gap-2">

@@ -6,11 +6,12 @@ import StatusBadge from '../components/ui/StatusBadge';
 import AnimatedPage from '../components/ui/AnimatedPage';
 import { fadeUp, staggerContainer } from '../components/ui/motion';
 import { useGame } from '../context/GameContext';
+import { sessionDisplayTitle, sessionListSubtitle } from '../lib/displayText';
 
 interface Props {
   indexed: boolean;
   claudeOk: boolean;
-  recentSession?: { id: string; name: string } | null;
+  recentSession?: { id: string; name: string; characterName?: string; createdAt?: string } | null;
   sessionsLoaded?: boolean;
 }
 
@@ -51,20 +52,7 @@ export default function HomePage({ indexed, claudeOk, recentSession, sessionsLoa
       </m.div>
 
       <m.div variants={fadeUp} className="grid sm:grid-cols-2 gap-4">
-        {recentSession && (
-          <div className="panel-glow p-5 flex flex-col justify-between gap-4 min-h-[10.5rem]">
-            <div>
-              <p className="label-text mb-1">Continue playing</p>
-              <p className="display-title text-lg">{recentSession.name}</p>
-            </div>
-            <Link
-              to={`/play/${recentSession.id}`}
-              className="btn-primary inline-flex items-center justify-center gap-2 w-full sm:w-fit"
-            >
-              <Play size={16} /> Resume session
-            </Link>
-          </div>
-        )}
+        {recentSession && <ContinuePlayingCard session={recentSession} />}
 
         <div
           className={`panel-glow p-5 flex flex-col justify-between gap-4 min-h-[10.5rem] ${
@@ -104,5 +92,28 @@ export default function HomePage({ indexed, claudeOk, recentSession, sessionsLoa
         ))}
       </m.div>
     </AnimatedPage>
+  );
+}
+
+function ContinuePlayingCard({
+  session,
+}: {
+  session: { id: string; name: string; characterName?: string; createdAt?: string };
+}) {
+  const detail = sessionListSubtitle(session.characterName, session.createdAt);
+  return (
+    <div className="panel-glow p-5 flex flex-col justify-between gap-4 min-h-[10.5rem]">
+      <div>
+        <p className="label-text mb-1">Continue playing</p>
+        <p className="display-title text-lg">{sessionDisplayTitle(session.name)}</p>
+        {detail && <p className="text-sm text-muted mt-1">{detail}</p>}
+      </div>
+      <Link
+        to={`/play/${session.id}`}
+        className="btn-primary inline-flex items-center justify-center gap-2 w-full sm:w-fit"
+      >
+        <Play size={16} /> Resume session
+      </Link>
+    </div>
   );
 }

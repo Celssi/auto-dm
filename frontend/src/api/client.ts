@@ -663,6 +663,7 @@ export interface SessionMeta {
   name: string;
   character_id: string;
   adventure_id: string;
+  created_at?: string;
 }
 
 export interface ChatMessage {

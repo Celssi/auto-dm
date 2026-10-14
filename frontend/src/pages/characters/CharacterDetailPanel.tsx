@@ -11,6 +11,7 @@ import { getGameCharacterConfig } from '../../games/registry';
 import { GameCharacterSetup } from '../../games/components';
 import { brambletrekSummaryLine } from '../../games/brambletrek/sheetUtils';
 import { fadeUp } from '../../components/ui/motion';
+import OverflowMenu from '../../components/ui/OverflowMenu';
 
 type UnlockedFeatures = import('../../games/dnd5e/character-sheet/UnlockedFeaturesPanel').UnlockedFeatures;
 
@@ -40,8 +41,25 @@ export default function CharacterDetailPanel({
   onChange,
 }: Props) {
   const [choicesOpen, setChoicesOpen] = useState(true);
+  const [editing, setEditing] = useState(false);
+  const [snapshot, setSnapshot] = useState<Character | null>(null);
   const gameId = character.game_id || 'dnd5e';
   const config = getGameCharacterConfig(gameId);
+
+  const startEdit = () => {
+    setSnapshot(character);
+    setEditing(true);
+  };
+  const cancelEdit = () => {
+    if (snapshot) onChange(snapshot);
+    setSnapshot(null);
+    setEditing(false);
+  };
+  const saveEdit = async () => {
+    await onSave(character);
+    setSnapshot(null);
+    setEditing(false);
+  };
 
   const unlockedFeatures = summary.unlocked_features as UnlockedFeatures | undefined;
   const missingChoices = (summary.missing_creation_choices as string[]) || [];
@@ -58,9 +76,9 @@ export default function CharacterDetailPanel({
           <button type="button" className="btn-ghost" onClick={onEdit}>
             Edit
           </button>
-          <button type="button" className="btn-danger ml-auto" onClick={onDelete}>
-            Delete
-          </button>
+          <div className="ml-auto">
+            <OverflowMenu items={[{ label: 'Delete', onSelect: onDelete, danger: true }]} />
+          </div>
         </div>
 
         <div className="panel-glow p-4">
@@ -89,9 +107,15 @@ export default function CharacterDetailPanel({
           ← Back
         </button>
         <div className="w-px h-6 bg-border hidden sm:block" />
-        <button type="button" className="btn-ghost" onClick={onEdit}>
-          Edit
-        </button>
+        {editing ? (
+          <button type="button" className="btn-ghost" onClick={cancelEdit}>
+            Cancel
+          </button>
+        ) : (
+          <button type="button" className="btn-ghost" onClick={startEdit}>
+            Edit
+          </button>
+        )}
         <button type="button" className="btn-primary" onClick={onLevelUp}>
           Level up
         </button>
@@ -106,12 +130,19 @@ export default function CharacterDetailPanel({
         >
           Export PDF
         </button>
-        <button type="button" className="btn-primary ml-auto" onClick={() => onSave(character)}>
-          Save changes
-        </button>
-        <button type="button" className="btn-danger" onClick={onDelete}>
-          Delete
-        </button>
+        {editing && (
+          <button type="button" className="btn-primary ml-auto" onClick={() => void saveEdit()}>
+            Save changes
+          </button>
+        )}
+        <div className={editing ? '' : 'ml-auto'}>
+          <OverflowMenu
+            items={[
+              { label: 'Edit character setup', onSelect: onEdit },
+              { label: 'Delete', onSelect: onDelete, danger: true },
+            ]}
+          />
+        </div>
       </div>
 
       {missingChoices.length > 0 && (
@@ -129,11 +160,15 @@ export default function CharacterDetailPanel({
           {choicesOpen && (
             <>
               <p className="text-xs text-muted">Still needed: {missingChoices.join('; ')}</p>
-              <CreationChoicesForm
-                char={character}
-                options={charOptions}
-                patch={(p) => onChange({ ...character, ...p })}
-              />
+              {editing ? (
+                <CreationChoicesForm
+                  char={character}
+                  options={charOptions}
+                  patch={(p) => onChange({ ...character, ...p })}
+                />
+              ) : (
+                <p className="text-xs text-muted">Edit the sheet to complete these choices.</p>
+              )}
             </>
           )}
         </div>
@@ -145,19 +180,25 @@ export default function CharacterDetailPanel({
         </div>
       )}
 
-      <CharacterSheetHeader character={character} editable onChange={(patch) => onChange({ ...character, ...patch })} />
+      <CharacterSheetHeader
+        character={character}
+        editable={editing}
+        onChange={(patch) => onChange({ ...character, ...patch })}
+      />
 
       {unlockedFeatures && <UnlockedFeaturesPanel features={unlockedFeatures} />}
 
-      <MulticlassPanel
-        character={{ ...character, id: activeId || undefined }}
-        onChange={(classes) => onChange({ ...character, classes })}
-      />
+      {editing && (
+        <MulticlassPanel
+          character={{ ...character, id: activeId || undefined }}
+          onChange={(classes) => onChange({ ...character, classes })}
+        />
+      )}
 
       <CharacterSheetView
         character={character}
         summary={summary}
-        editable
+        editable={editing}
         hideHeader
         onChange={(c) => onChange(c as Character)}
       />

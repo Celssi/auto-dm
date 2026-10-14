@@ -19,6 +19,7 @@ import { useGame } from '../../context/GameContext';
 import { filterByGame, sessionMatchesGame } from '../../lib/gameScope';
 import type { GameId } from '../../games/registry';
 import LongJobOverlay from '../../components/LongJobOverlay';
+import { sessionDisplayTitle, sessionListSubtitle } from '../../lib/displayText';
 
 interface Props {
   state: PlayState;
@@ -137,7 +138,12 @@ function PlayContinueTab({
       exit={{ opacity: 0, y: -8 }}
       className="panel-glow p-5 space-y-4"
     >
-      <PlaySessionList metaLoaded={metaLoaded} sessions={sessions} onNavigateSession={onNavigateSession} />
+      <PlaySessionList
+        metaLoaded={metaLoaded}
+        sessions={sessions}
+        characters={characters}
+        onNavigateSession={onNavigateSession}
+      />
       <details className="text-sm group">
         <summary className="cursor-pointer text-muted hover:text-accent transition-colors label-text">
           Advanced: link existing adventure
@@ -197,10 +203,12 @@ function PlayContinueTab({
 function PlaySessionList({
   metaLoaded,
   sessions,
+  characters,
   onNavigateSession,
 }: {
   metaLoaded: boolean;
   sessions: PlayState['sessions'];
+  characters: PlayState['characters'];
   onNavigateSession: (id: string) => void;
 }) {
   if (!metaLoaded) return <ListLoading />;
@@ -214,18 +222,23 @@ function PlaySessionList({
     );
   }
   return (
-    <div className="space-y-1">
+    <div className="space-y-2">
       <p className="label-text mb-2">Recent sessions</p>
-      {sessions.slice(0, 8).map((s) => (
-        <button
-          key={s.id}
-          type="button"
-          className="block w-full text-left py-2.5 px-3 text-sm rounded-lg hover:bg-accent/10 hover:text-accent border border-transparent hover:border-accent/20 transition-colors"
-          onClick={() => onNavigateSession(s.id)}
-        >
-          {s.name}
-        </button>
-      ))}
+      {sessions.slice(0, 8).map((s) => {
+        const characterName = characters.find((character) => character.id === s.character_id)?.name;
+        const detail = sessionListSubtitle(characterName, s.created_at);
+        return (
+          <button
+            key={s.id}
+            type="button"
+            className="block w-full text-left py-3 px-3 rounded-xl border border-border bg-bg/40 hover:bg-accent/10 hover:border-accent/30 transition-colors"
+            onClick={() => onNavigateSession(s.id)}
+          >
+            <span className="block text-sm text-gray-100">{sessionDisplayTitle(s.name)}</span>
+            {detail && <span className="block text-xs text-muted mt-0.5">{detail}</span>}
+          </button>
+        );
+      })}
     </div>
   );
 }

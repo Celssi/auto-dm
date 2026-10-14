@@ -1,9 +1,10 @@
 import type { Character } from '../../types';
+import type { CharacterRosterEntry } from '../../lib/displayText';
 
 export type CharactersMode = 'list' | 'wizard' | 'view';
 
 export interface CharactersState {
-  roster: { id: string; name: string; game_id?: string }[];
+  roster: CharacterRosterEntry[];
   rosterLoaded: boolean;
   activeId: string | null;
   character: Character | null;

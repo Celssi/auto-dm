@@ -11,8 +11,10 @@ import PageHeader from '../components/ui/PageHeader';
 import ListCard from '../components/ui/ListCard';
 import EmptyState from '../components/ui/EmptyState';
 import ListLoading from '../components/ui/ListLoading';
+import PageSkeleton from '../components/ui/PageSkeleton';
 import AnimatedPage from '../components/ui/AnimatedPage';
 import ConfirmDialog from '../components/ui/ConfirmDialog';
+import { characterRosterSubtitle, type CharacterRosterEntry } from '../lib/displayText';
 import { fadeUp, staggerContainer } from '../components/ui/motion';
 import { useGame } from '../context/GameContext';
 import { filterByGame } from '../lib/gameScope';
@@ -125,6 +127,7 @@ function CharactersWorkspace({
           onCancel={() => navigate(activeId ? `/characters/${activeId}` : '/characters')}
         />
       )}
+      {mode === 'view' && !character && !state.error && <PageSkeleton rows={4} />}
       {mode === 'view' && character && (
         <CharactersView
           character={character}
@@ -274,7 +277,13 @@ function CharactersHeader({
   return (
     <PageHeader
       title="Characters"
-      subtitle={mode === 'view' && character ? character.name : `Create and manage ${activeLabel} character sheets.`}
+      subtitle={
+        mode === 'view' && character
+          ? character.name
+          : mode === 'view'
+            ? 'Loading character.'
+            : `Create and manage ${activeLabel} character sheets.`
+      }
       actions={
         mode === 'list' ? (
           <button type="button" className="btn-primary shrink-0 inline-flex items-center gap-2" onClick={onCreate}>
@@ -343,7 +352,7 @@ function CharactersRoster({
   onOpen,
   onCreate,
 }: {
-  roster: { id: string; name: string; game_id?: string }[];
+  roster: CharacterRosterEntry[];
   loaded: boolean;
   onOpen: (id: string) => void;
   onCreate: () => void;
@@ -367,7 +376,14 @@ function CharactersRoster({
           />
         </div>
       ) : (
-        roster.map((r) => <ListCard key={r.id} title={r.name} onClick={() => onOpen(r.id)} />)
+        roster.map((r) => (
+          <ListCard
+            key={r.id}
+            title={r.name}
+            subtitle={characterRosterSubtitle(r) || undefined}
+            onClick={() => onOpen(r.id)}
+          />
+        ))
       )}
     </m.div>
   );
