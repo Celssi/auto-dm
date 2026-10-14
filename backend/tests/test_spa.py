@@ -2,8 +2,9 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from starlette.responses import JSONResponse, Response
 
-from backend.main import SPAStaticFiles
+from backend.main import AUTH_POPUP_COOP, SPAStaticFiles, apply_auth_popup_headers
 
 
 def test_spa_unknown_path_serves_index(tmp_path: Path):
@@ -12,10 +13,15 @@ def test_spa_unknown_path_serves_index(tmp_path: Path):
     app.mount("/", SPAStaticFiles(directory=str(tmp_path), html=True), name="frontend")
     client = TestClient(app)
 
+    page = client.get("/")
+    assert page.status_code == 200
+    assert page.headers["cross-origin-opener-policy"] == AUTH_POPUP_COOP
+
     res = client.get("/characters")
 
     assert res.status_code == 200
     assert res.text == "<html>auto-dm</html>"
+    assert res.headers["cross-origin-opener-policy"] == AUTH_POPUP_COOP
 
 
 def test_spa_missing_asset_still_404(tmp_path: Path):
@@ -41,6 +47,7 @@ def test_service_worker_is_not_cached(tmp_path: Path):
     assert res.status_code == 200
     assert res.headers["cache-control"] == "no-cache, no-store, must-revalidate"
     assert res.headers["service-worker-allowed"] == "/"
+    assert "cross-origin-opener-policy" not in res.headers
 
 
 def test_spa_books_deep_link_with_extension_serves_index(tmp_path: Path):
@@ -53,3 +60,14 @@ def test_spa_books_deep_link_with_extension_serves_index(tmp_path: Path):
 
     assert res.status_code == 200
     assert res.text == "<html>auto-dm</html>"
+    assert res.headers["cross-origin-opener-policy"] == AUTH_POPUP_COOP
+
+
+def test_auth_popup_header_is_only_on_html():
+    html = Response("ok", media_type="text/html")
+    apply_auth_popup_headers(html)
+    assert html.headers["cross-origin-opener-policy"] == AUTH_POPUP_COOP
+
+    api = JSONResponse({"ok": True})
+    apply_auth_popup_headers(api)
+    assert "cross-origin-opener-policy" not in api.headers
