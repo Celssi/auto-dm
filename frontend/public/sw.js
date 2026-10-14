@@ -29,7 +29,11 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (url.pathname.startsWith('/api') || request.headers.get('accept')?.includes('text/event-stream')) {
+  if (
+    url.pathname.startsWith('/api') ||
+    url.pathname.startsWith('/__/') ||
+    request.headers.get('accept')?.includes('text/event-stream')
+  ) {
     return;
   }
 

@@ -6,9 +6,10 @@ import {
   signInWithRedirect,
   signOut as firebaseSignOut,
 } from 'firebase/auth';
+import { accessDeniedMessage, authErrorCode, authErrorMessage } from '../lib/authErrors';
 import { ALLOWED_EMAILS, auth, firebaseReady, googleProvider, isAllowedEmail } from '../lib/firebase';
 import { setAuthTokenProvider } from '../lib/authToken';
-import { clearAuthRedirect, isLocalDevAuth, isLocalHost, markAuthRedirect } from '../lib/authRedirect';
+import { clearAuthRedirect, isAuthRedirectPending, isLocalDevAuth, isLocalHost, markAuthRedirect } from '../lib/authRedirect';
 
 export interface AuthUser {
   email: string | null;
@@ -28,20 +29,11 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const localDevUser: AuthUser = { email: ALLOWED_EMAILS[0] ?? 'lauri.mukkala.fi@gmail.com' };
 
-function authErrorCode(error: unknown): string {
-  return error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
-}
-
-function authErrorMessage(error: unknown): string {
-  const code = authErrorCode(error);
-  if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
-    return 'Sign-in was interrupted. Try Continue with Google again.';
-  }
-  if (code === 'auth/unauthorized-domain') {
-    return 'This domain is not authorized for Google sign-in.';
-  }
-  if (error instanceof Error && error.message) return error.message;
-  return 'Sign-in failed.';
+function isStandaloneDisplay(): boolean {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as Navigator & { standalone?: boolean }).standalone === true
+  );
 }
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -68,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     let cancelled = false;
+    const redirectPending = isAuthRedirectPending();
 
     void getRedirectResult(firebaseAuth)
       .then(async (result) => {
@@ -75,8 +68,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (result?.user && !isAllowedUser(result.user.email)) {
           await firebaseSignOut(firebaseAuth);
           if (!cancelled) {
-            setSignInError(`Access denied. Only ${ALLOWED_EMAILS.join(', ')} may sign in.`);
+            setSignInError(accessDeniedMessage(ALLOWED_EMAILS));
           }
+          return;
+        }
+        if (redirectPending && !result && !firebaseAuth.currentUser && !cancelled) {
+          setSignInError('Sign-in did not complete. Try Continue with Google again.');
         }
       })
       .catch((error: unknown) => {
@@ -88,6 +85,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (firebaseUser && !isAllowedUser(firebaseUser.email)) {
         await firebaseSignOut(firebaseAuth);
         setUser(null);
+        setSignInError(accessDeniedMessage(ALLOWED_EMAILS));
         setLoading(false);
         return;
       }
@@ -105,28 +103,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signInWithGoogle = useCallback(async () => {
     if (localDev) return;
     if (!auth) {
-      throw new Error('Firebase is not configured.');
+      throw new Error('Firebase is not configured on this build.');
     }
     setSignInError(null);
 
-    if (isLocalHost()) {
+    const preferRedirect = !isLocalHost() && isStandaloneDisplay();
+    if (!preferRedirect) {
       try {
         const result = await signInWithPopup(auth, googleProvider);
         if (result.user && !isAllowedUser(result.user.email)) {
           await firebaseSignOut(auth);
-          throw new Error(`Access denied. Only ${ALLOWED_EMAILS.join(', ')} may sign in.`);
+          throw new Error(accessDeniedMessage(ALLOWED_EMAILS));
         }
         return;
       } catch (error) {
         const code = authErrorCode(error);
         if (code !== 'auth/popup-blocked' && code !== 'auth/cancelled-popup-request') {
-          throw error;
+          throw new Error(authErrorMessage(error), { cause: error });
         }
       }
     }
 
-    markAuthRedirect();
-    await signInWithRedirect(auth, googleProvider);
+    try {
+      markAuthRedirect();
+      await signInWithRedirect(auth, googleProvider);
+    } catch (error) {
+      clearAuthRedirect();
+      throw new Error(authErrorMessage(error), { cause: error });
+    }
   }, [isAllowedUser, localDev]);
 
   const signOut = useCallback(async () => {

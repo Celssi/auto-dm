@@ -16,7 +16,8 @@ export default function LoginPage() {
     try {
       await signInWithGoogle();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Sign-in failed.');
+      setError(err instanceof Error ? err.message : 'Sign-in failed. Try Continue with Google again.');
+    } finally {
       setBusy(false);
     }
   };
@@ -41,8 +42,16 @@ export default function LoginPage() {
         >
           {busy || returning || loading ? 'Signing in…' : 'Continue with Google'}
         </button>
-        {!firebaseReady && <p className="text-sm text-danger">Firebase is not configured on this build.</p>}
-        {message && <p className="text-sm text-danger">{message}</p>}
+        {!firebaseReady && (
+          <p className="text-sm text-danger" role="alert">
+            Firebase is not configured on this build.
+          </p>
+        )}
+        {message && (
+          <p className="text-sm text-danger" role="alert">
+            {message}
+          </p>
+        )}
       </div>
     </div>
   );

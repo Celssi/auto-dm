@@ -12,10 +12,16 @@ from backend.auth import (
 )
 
 
-def _request(host: str = "127.0.0.1", origin: str | None = None) -> Request:
+def _request(
+    host: str = "127.0.0.1",
+    origin: str | None = None,
+    authorization: str | None = None,
+) -> Request:
     headers = []
     if origin:
         headers.append((b"origin", origin.encode()))
+    if authorization:
+        headers.append((b"authorization", authorization.encode()))
     return Request(
         {
             "type": "http",
@@ -80,3 +86,16 @@ def test_require_allowed_user_needs_token_on_cloud_run(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         asyncio.run(require_allowed_user(_request()))
     assert exc.value.status_code == 401
+
+
+def test_require_allowed_user_rejects_other_email(monkeypatch):
+    monkeypatch.setenv("K_SERVICE", "auto-dm")
+    monkeypatch.setenv("ALLOWED_EMAILS", "lauri.mukkala.fi@gmail.com")
+    monkeypatch.setattr(
+        "backend.auth.verify_id_token",
+        lambda _token: {"uid": "abc", "email": "other@example.com"},
+    )
+    with pytest.raises(HTTPException) as exc:
+        asyncio.run(require_allowed_user(_request(authorization="Bearer fake-token")))
+    assert exc.value.status_code == 403
+    assert "not allowed" in str(exc.value.detail)

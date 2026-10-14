@@ -14,6 +14,7 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 from starlette.staticfiles import StaticFiles as StarletteStaticFiles
 
 from backend.auth import is_public_api_path, require_allowed_user
+from backend.auth_proxy import router as firebase_auth_helper_router
 from backend.config import LANGSMITH_ENABLED, LANGSMITH_ENDPOINT, LANGSMITH_PROJECT
 from backend.gcs_sync import hydrate_runtime
 from backend.routes import (
@@ -106,7 +107,10 @@ class SPAStaticFiles(StarletteStaticFiles):
         except StarletteHTTPException as exc:
             name = path.rsplit("/", 1)[-1]
             first = path.split("/", 1)[0]
-            spa_fallback = "." not in name or first in self._spa_prefixes
+            spa_fallback = (
+                not path.startswith("__/")
+                and ("." not in name or first in self._spa_prefixes)
+            )
             if exc.status_code == 404 and path != "index.html" and spa_fallback:
                 return await super().get_response("index.html", scope)
             raise
@@ -115,6 +119,8 @@ class SPAStaticFiles(StarletteStaticFiles):
             response.headers["Service-Worker-Allowed"] = "/"
         return response
 
+
+app.include_router(firebase_auth_helper_router)
 
 frontend_dist = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 if frontend_dist.exists():

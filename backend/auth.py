@@ -78,7 +78,10 @@ async def require_allowed_user(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Invalid session") from exc
     email = str(decoded.get("email") or "").strip().lower()
     if not email or email not in allowed_emails():
-        raise HTTPException(status_code=403, detail="Access denied")
+        raise HTTPException(
+            status_code=403,
+            detail="Access denied. This account is not allowed to use Auto-DM.",
+        )
     return {"uid": decoded.get("uid"), "email": email}
 
 
