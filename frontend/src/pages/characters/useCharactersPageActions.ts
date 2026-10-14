@@ -5,6 +5,7 @@ import type { Character } from '../../types';
 import { DEFAULT_GAME_ID } from '../../games/registry';
 import type { CharactersAction, CharactersState } from './charactersState';
 import { useToast } from '../../components/ui/toast';
+import { rosterEntryFromCharacter } from '../../lib/displayText';
 
 export type SaveCharOptions = { silentToast?: boolean; alreadyPersisted?: boolean };
 
@@ -26,7 +27,17 @@ export function useCharactersPageActions(
 
   const load = useCallback(async () => {
     const { characters } = await api.listCharacters();
-    dispatch({ type: 'set', patch: { roster: characters, rosterLoaded: true, error: null } });
+    const roster = await Promise.all(
+      characters.map(async (entry) => {
+        try {
+          const { character } = await api.getCharacter(entry.id);
+          return rosterEntryFromCharacter(entry.id, entry.name, character);
+        } catch {
+          return entry;
+        }
+      }),
+    );
+    dispatch({ type: 'set', patch: { roster, rosterLoaded: true, error: null } });
   }, [dispatch]);
 
   const loadCharacter = useCallback(

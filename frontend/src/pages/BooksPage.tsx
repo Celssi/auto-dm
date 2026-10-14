@@ -10,6 +10,7 @@ import { fadeUp, staggerContainer } from '../components/ui/motion';
 import { m } from '../lib/framer';
 import { useGame } from '../context/GameContext';
 import { useBookReader } from '../context/BookReaderContext';
+import { bookFactionLabel } from '../lib/books';
 
 export default function BooksPage() {
   const navigate = useNavigate();
@@ -73,7 +74,7 @@ export default function BooksPage() {
               <ListCard
                 key={book.id}
                 title={book.label}
-                subtitle={book.faction}
+                subtitle={bookFactionLabel(book.faction)}
                 onClick={() => open(book.id, last?.book_id === book.id ? last.page : 1)}
               />
             ))}
