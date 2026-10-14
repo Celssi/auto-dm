@@ -9,8 +9,8 @@ from backend.dm.journal_keeper import run_journal_keeper
 from backend.dm.lonelog import format_mechanical, format_narrative
 from backend.dm.narrator import synthesize_lonelog_summary
 from backend.dm.state import DMState, char_from_dict, game_plugin
-from backend.dm.turn_kind import is_dice_only_turn
 from backend.dm.story_memory import increment_summary
+from backend.dm.turn_kind import is_dice_only_turn
 from backend.games.registry import resolve_game_id
 from backend.storage import (
     append_adventure_log,

@@ -5,6 +5,7 @@ from __future__ import annotations
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 
+from backend.games.dnd5e.prompts import dnd5e_stable_system_prompt
 from backend.journal_storage import (
     append_story_arc_note,
     find_journal_entry_id,
@@ -16,7 +17,6 @@ from backend.journal_storage import (
     save_campaign_location,
     save_campaign_npc,
 )
-from backend.games.dnd5e.prompts import dnd5e_stable_system_prompt
 from backend.llm import cached_system, structured_llm
 from backend.storage import append_adventure_log
 

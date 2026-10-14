@@ -30,15 +30,15 @@ function enrichChildren(
   keyPrefix: string,
 ): ReactNode {
   return Children.map(children, (child, index) => {
-    const key = `${keyPrefix}-${index}`;
+    const childPrefix = `${keyPrefix}-${index}`;
     if (typeof child === 'string') {
-      return enrichText(child, entities, matcher, key);
+      return enrichText(child, entities, matcher, childPrefix);
     }
     if (isValidElement<{ children?: ReactNode }>(child) && child.props.children) {
       return cloneElement(
         child,
-        { key: child.key ?? key },
-        enrichChildren(child.props.children, entities, matcher, key),
+        {},
+        enrichChildren(child.props.children, entities, matcher, childPrefix),
       );
     }
     return child;
