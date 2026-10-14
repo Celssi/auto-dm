@@ -4,6 +4,8 @@ import type {
   ChatMessage,
   CombatStateSnapshot,
   JournalEntity,
+  SessionRecap,
+  SessionWorld,
   PlayerProgress,
   NextAdventure,
   Shortcut,
@@ -34,7 +36,7 @@ export interface DiceModalState {
 }
 
 export interface PlayState {
-  sessions: { id: string; name: string; character_id?: string }[];
+  sessions: { id: string; name: string; character_id?: string; archived?: boolean }[];
   metaLoaded: boolean;
   sessionLoaded: boolean;
   loadError: string;
@@ -70,6 +72,9 @@ export interface PlayState {
   spellConfirm: SpellConfirmation | null;
   chatError: string;
   journalEntities: JournalEntity[];
+  recap: SessionRecap | null;
+  recapLoading: boolean;
+  world: SessionWorld | null;
   adventureId: string;
   campaignId: string;
   playerProgress: PlayerProgress | null;
@@ -129,6 +134,9 @@ export function createInitialPlayState(sessionId = '', wizardTab: 'continue' | '
     spellConfirm: null,
     chatError: '',
     journalEntities: [],
+    recap: null,
+    recapLoading: false,
+    world: null,
     adventureId: '',
     campaignId: '',
     playerProgress: null,

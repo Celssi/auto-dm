@@ -1,10 +1,7 @@
 import { Link } from 'react-router-dom';
 import { m, AnimatePresence } from '../../lib/framer';
-import { Swords } from 'lucide-react';
 import PageHeader from '../../components/ui/PageHeader';
 import TabBar from '../../components/ui/TabBar';
-import EmptyState from '../../components/ui/EmptyState';
-import ListLoading from '../../components/ui/ListLoading';
 import AnimatedPage from '../../components/ui/AnimatedPage';
 import { Field } from '../../components/ui/forms/Field';
 import TextInput from '../../components/ui/forms/TextInput';
@@ -19,6 +16,7 @@ import { useGame } from '../../context/GameContext';
 import { filterByGame, sessionMatchesGame } from '../../lib/gameScope';
 import type { GameId } from '../../games/registry';
 import LongJobOverlay from '../../components/LongJobOverlay';
+import SessionManageList from '../../components/play/SessionManageList';
 
 interface Props {
   state: PlayState;
@@ -29,6 +27,8 @@ interface Props {
   onIncludeFaerunChange: (value: boolean) => void;
   onStartSession: () => void;
   onBootstrapAndPlay: () => void;
+  onRenameSession: (id: string, name: string) => Promise<void>;
+  onArchiveSession: (id: string, archived: boolean) => Promise<void>;
 }
 
 function playWizardContext(state: PlayState, gameId: GameId) {
@@ -47,6 +47,8 @@ export default function PlayWizard({
   onIncludeFaerunChange,
   onStartSession,
   onBootstrapAndPlay,
+  onRenameSession,
+  onArchiveSession,
 }: Props) {
   const { gameId } = useGame();
   const { metaLoaded, wizardTab, newSession, newCampaign, includeFaerun, bootstrapError, bootstrapping } = state;
@@ -82,6 +84,8 @@ export default function PlayWizard({
             includeFaerun={includeFaerun}
             showFaerun={campaignPlay.showFaerunToggle}
             onNavigateSession={onNavigateSession}
+            onRenameSession={onRenameSession}
+            onArchiveSession={onArchiveSession}
             onPatchNewSession={onPatchNewSession}
             onIncludeFaerunChange={onIncludeFaerunChange}
             onStartSession={onStartSession}
@@ -113,6 +117,8 @@ function PlayContinueTab({
   includeFaerun,
   showFaerun,
   onNavigateSession,
+  onRenameSession,
+  onArchiveSession,
   onPatchNewSession,
   onIncludeFaerunChange,
   onStartSession,
@@ -125,6 +131,8 @@ function PlayContinueTab({
   includeFaerun: boolean;
   showFaerun: boolean;
   onNavigateSession: (id: string) => void;
+  onRenameSession: (id: string, name: string) => Promise<void>;
+  onArchiveSession: (id: string, archived: boolean) => Promise<void>;
   onPatchNewSession: (patch: Partial<PlayState['newSession']>) => void;
   onIncludeFaerunChange: (value: boolean) => void;
   onStartSession: () => void;
@@ -137,7 +145,13 @@ function PlayContinueTab({
       exit={{ opacity: 0, y: -8 }}
       className="panel-glow p-5 space-y-4"
     >
-      <PlaySessionList metaLoaded={metaLoaded} sessions={sessions} onNavigateSession={onNavigateSession} />
+      <SessionManageList
+        metaLoaded={metaLoaded}
+        sessions={sessions}
+        onNavigateSession={onNavigateSession}
+        onRenameSession={onRenameSession}
+        onArchiveSession={onArchiveSession}
+      />
       <details className="text-sm group">
         <summary className="cursor-pointer text-muted hover:text-accent transition-colors label-text">
           Advanced: link existing adventure
@@ -191,42 +205,6 @@ function PlayContinueTab({
         </div>
       </details>
     </m.div>
-  );
-}
-
-function PlaySessionList({
-  metaLoaded,
-  sessions,
-  onNavigateSession,
-}: {
-  metaLoaded: boolean;
-  sessions: PlayState['sessions'];
-  onNavigateSession: (id: string) => void;
-}) {
-  if (!metaLoaded) return <ListLoading />;
-  if (sessions.length === 0) {
-    return (
-      <EmptyState
-        icon={<Swords size={28} />}
-        title="No sessions yet"
-        description="Start a new campaign below to begin your adventure."
-      />
-    );
-  }
-  return (
-    <div className="space-y-1">
-      <p className="label-text mb-2">Recent sessions</p>
-      {sessions.slice(0, 8).map((s) => (
-        <button
-          key={s.id}
-          type="button"
-          className="block w-full text-left py-2.5 px-3 text-sm rounded-lg hover:bg-accent/10 hover:text-accent border border-transparent hover:border-accent/20 transition-colors"
-          onClick={() => onNavigateSession(s.id)}
-        >
-          {s.name}
-        </button>
-      ))}
-    </div>
   );
 }
 
