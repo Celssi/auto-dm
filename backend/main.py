@@ -31,6 +31,17 @@ mimetypes.add_type("text/javascript", ".mjs")
 
 logger = logging.getLogger(__name__)
 
+# Chrome severs window.opener when this page's opener policy does not match
+# Google's account chooser. Firebase then reports auth/popup-closed-by-user
+# after the account is picked. This value keeps the sign-in popup attached.
+AUTH_POPUP_COOP = "same-origin-allow-popups"
+
+
+def apply_auth_popup_headers(response) -> None:
+    content_type = response.headers.get("content-type", "")
+    if content_type.startswith("text/html"):
+        response.headers["Cross-Origin-Opener-Policy"] = AUTH_POPUP_COOP
+
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
@@ -82,7 +93,9 @@ async def firebase_auth_middleware(request: Request, call_next):
             await require_allowed_user(request)
         except HTTPException as exc:
             return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
-    return await call_next(request)
+    response = await call_next(request)
+    apply_auth_popup_headers(response)
+    return response
 
 
 app.include_router(system.router)
@@ -108,11 +121,14 @@ class SPAStaticFiles(StarletteStaticFiles):
             first = path.split("/", 1)[0]
             spa_fallback = "." not in name or first in self._spa_prefixes
             if exc.status_code == 404 and path != "index.html" and spa_fallback:
-                return await super().get_response("index.html", scope)
+                response = await super().get_response("index.html", scope)
+                apply_auth_popup_headers(response)
+                return response
             raise
         if path == "sw.js":
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
             response.headers["Service-Worker-Allowed"] = "/"
+        apply_auth_popup_headers(response)
         return response
 
 

@@ -30,5 +30,7 @@ if (ALLOWED_EMAILS.length === 0) {
 }
 
 export function isAllowedEmail(email: string | null | undefined): boolean {
-  return Boolean(email && ALLOWED_EMAILS.includes(email));
+  const normalized = email?.trim().toLowerCase() ?? '';
+  if (!normalized) return false;
+  return ALLOWED_EMAILS.some((allowed) => allowed.trim().toLowerCase() === normalized);
 }

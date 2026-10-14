@@ -1046,7 +1046,10 @@ def long_rest_recover(char: Dnd5eCharacter) -> dict[str, Any]:
     char.exhaustion = max(0, char.exhaustion - 1)  # PHB 2024: long rest removes 1 level
     char.concentration = ""
     char.wild_shape_uses = compute_wild_shape_max(char)
-    from backend.games.dnd5e.characters.origin_feats import apply_lucky_rest, reset_healer_medic_uses
+    from backend.games.dnd5e.characters.origin_feats import (
+        apply_lucky_rest,
+        reset_healer_medic_uses,
+    )
 
     apply_lucky_rest(char)
     reset_healer_medic_uses(char)

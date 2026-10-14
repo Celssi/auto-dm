@@ -24,7 +24,12 @@ def default_combat_state() -> dict[str, Any]:
             "bands_seen": [],
             "eolan_red_streak": 0,
         },
-        "buffs": {"damage_bonus": 0, "critical": False, "skip_player": 0, "halve_incoming_turns": 0},
+        "buffs": {
+            "damage_bonus": 0,
+            "critical": False,
+            "skip_player": 0,
+            "halve_incoming_turns": 0,
+        },
         "log": [],
         "combat_context": None,
         "opponent_last_card": "",

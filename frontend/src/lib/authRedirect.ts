@@ -8,14 +8,6 @@ export function isLocalDevAuth(): boolean {
   return import.meta.env.DEV && typeof window !== 'undefined' && isLocalHost();
 }
 
-export function markAuthRedirect(): void {
-  try {
-    sessionStorage.setItem(REDIRECT_FLAG, '1');
-  } catch {
-    /* private mode */
-  }
-}
-
 export function clearAuthRedirect(): void {
   try {
     sessionStorage.removeItem(REDIRECT_FLAG);

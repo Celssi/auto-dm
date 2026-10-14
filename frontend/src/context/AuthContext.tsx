@@ -1,14 +1,8 @@
 import { createContext, use, useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
-import {
-  getRedirectResult,
-  onAuthStateChanged,
-  signInWithPopup,
-  signInWithRedirect,
-  signOut as firebaseSignOut,
-} from 'firebase/auth';
+import { getRedirectResult, onAuthStateChanged, signInWithPopup, signOut as firebaseSignOut } from 'firebase/auth';
 import { ALLOWED_EMAILS, auth, firebaseReady, googleProvider, isAllowedEmail } from '../lib/firebase';
 import { setAuthTokenProvider } from '../lib/authToken';
-import { clearAuthRedirect, isLocalDevAuth, isLocalHost, markAuthRedirect } from '../lib/authRedirect';
+import { clearAuthRedirect, isAuthRedirectPending, isLocalDevAuth } from '../lib/authRedirect';
 
 export interface AuthUser {
   email: string | null;
@@ -28,6 +22,10 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const localDevUser: AuthUser = { email: ALLOWED_EMAILS[0] ?? 'lauri.mukkala.fi@gmail.com' };
 
+function accessDeniedMessage(): string {
+  return `Access denied. Only ${ALLOWED_EMAILS.join(', ')} may sign in.`;
+}
+
 function authErrorCode(error: unknown): string {
   return error && typeof error === 'object' && 'code' in error ? String(error.code) : '';
 }
@@ -37,8 +35,17 @@ function authErrorMessage(error: unknown): string {
   if (code === 'auth/popup-closed-by-user' || code === 'auth/cancelled-popup-request') {
     return 'Sign-in was interrupted. Try Continue with Google again.';
   }
+  if (code === 'auth/popup-blocked') {
+    return 'The browser blocked the Google sign-in window. Allow popups for this site and try again.';
+  }
   if (code === 'auth/unauthorized-domain') {
-    return 'This domain is not authorized for Google sign-in.';
+    return 'This site is not authorized for Google sign-in.';
+  }
+  if (code === 'auth/web-storage-unsupported') {
+    return 'This browser blocked Google sign-in storage. Try a normal window instead of a private one.';
+  }
+  if (code === 'auth/network-request-failed') {
+    return 'Could not reach Google sign-in. Check the connection and try again.';
   }
   if (error instanceof Error && error.message) return error.message;
   return 'Sign-in failed.';
@@ -69,14 +76,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false;
 
+    // Older builds sent the whole page to Google. Finish that return if the
+    // browser still has it, and say so when third-party storage swallowed it.
     void getRedirectResult(firebaseAuth)
       .then(async (result) => {
+        const pending = isAuthRedirectPending();
         clearAuthRedirect();
         if (result?.user && !isAllowedUser(result.user.email)) {
           await firebaseSignOut(firebaseAuth);
-          if (!cancelled) {
-            setSignInError(`Access denied. Only ${ALLOWED_EMAILS.join(', ')} may sign in.`);
-          }
+          if (!cancelled) setSignInError(accessDeniedMessage());
+          return;
+        }
+        if (pending && !result?.user && !firebaseAuth.currentUser && !cancelled) {
+          setSignInError('Google sign-in did not finish. Try Continue with Google again.');
         }
       })
       .catch((error: unknown) => {
@@ -87,6 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsubscribe = onAuthStateChanged(firebaseAuth, async (firebaseUser) => {
       if (firebaseUser && !isAllowedUser(firebaseUser.email)) {
         await firebaseSignOut(firebaseAuth);
+        if (!cancelled) setSignInError(accessDeniedMessage());
         setUser(null);
         setLoading(false);
         return;
@@ -108,25 +121,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error('Firebase is not configured.');
     }
     setSignInError(null);
-
-    if (isLocalHost()) {
-      try {
-        const result = await signInWithPopup(auth, googleProvider);
-        if (result.user && !isAllowedUser(result.user.email)) {
-          await firebaseSignOut(auth);
-          throw new Error(`Access denied. Only ${ALLOWED_EMAILS.join(', ')} may sign in.`);
-        }
-        return;
-      } catch (error) {
-        const code = authErrorCode(error);
-        if (code !== 'auth/popup-blocked' && code !== 'auth/cancelled-popup-request') {
-          throw error;
-        }
+    try {
+      const result = await signInWithPopup(auth, googleProvider);
+      if (result.user && !isAllowedUser(result.user.email)) {
+        await firebaseSignOut(auth);
+        throw new Error(accessDeniedMessage());
       }
+    } catch (error) {
+      const message = authErrorMessage(error);
+      setSignInError(message);
+      throw new Error(message, { cause: error });
     }
-
-    markAuthRedirect();
-    await signInWithRedirect(auth, googleProvider);
   }, [isAllowedUser, localDev]);
 
   const signOut = useCallback(async () => {

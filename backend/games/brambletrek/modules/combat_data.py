@@ -84,7 +84,10 @@ DRAGONKEEP_OPPONENTS: dict[str, dict[str, Any]] = {
                 "label": "Aqua Dart: Shoots a quick water dart, dealing 2 damage.",
                 "damage": 2,
             },
-            "8-10": {"label": "Mystic Bubble: Reduces the next damage taken by half (rounded up).", "opponent_halve_next": 1},
+            "8-10": {
+                "label": "Mystic Bubble: Reduces the next damage taken by half (rounded up).",
+                "opponent_halve_next": 1,
+            },
             "jack": {
                 "label": "Siren's Song: Causes the player to skip their next turn.",
                 "skip_turn": True,
@@ -107,7 +110,10 @@ DRAGONKEEP_OPPONENTS: dict[str, dict[str, Any]] = {
         "health": 16,
         "tactics": {
             "2-4": {"label": "Brackish Snap: Quick pincer attack, dealing 2 damage.", "damage": 2},
-            "5-7": {"label": "Shell Guard: Reduces next damage taken by half (rounded up).", "opponent_halve_next": 1},
+            "5-7": {
+                "label": "Shell Guard: Reduces next damage taken by half (rounded up).",
+                "opponent_halve_next": 1,
+            },
             "8-10": {"label": "Tidal Pincer: Strong claw attack, dealing 3 damage.", "damage": 3},
             "jack": {
                 "label": "Saltwater Spray: Reduces player's attack damage by 3 next turn.",
@@ -201,7 +207,11 @@ DRAGONKEEP_OPPONENTS: dict[str, dict[str, Any]] = {
                 "label": "Fiery Plume: Swoops with a fiery attack, dealing 2 damage.",
                 "damage": 2,
             },
-            "5-7": {"label": "Wing Gust: Reduces the player's attack by 2 until end of turn.", "reduce_player_damage": 2, "reduce_player_damage_turns": 1},
+            "5-7": {
+                "label": "Wing Gust: Reduces the player's attack by 2 until end of turn.",
+                "reduce_player_damage": 2,
+                "reduce_player_damage_turns": 1,
+            },
             "8-10": {
                 "label": "Blaze Dive: Dives in a ball of fire, dealing 3 damage.",
                 "damage": 3,
@@ -221,7 +231,11 @@ DRAGONKEEP_OPPONENTS: dict[str, dict[str, Any]] = {
         "label": "Forest Elemental",
         "health": 14,
         "tactics": {
-            "2-4": {"label": "Barkskin: Reduces incoming damage by 2 for 3 turns.", "opponent_armor": 2, "opponent_armor_turns": 3},
+            "2-4": {
+                "label": "Barkskin: Reduces incoming damage by 2 for 3 turns.",
+                "opponent_armor": 2,
+                "opponent_armor_turns": 3,
+            },
             "5-7": {
                 "label": "Root Snare: Reduces player's damage by 2 for 2 turns.",
                 "reduce_player_damage": 2,
@@ -250,7 +264,10 @@ DRAGONKEEP_OPPONENTS: dict[str, dict[str, Any]] = {
             },
             "5-7": {"label": "Sap Coating: Reduces damage taken by 3."},
             "8-10": {"label": "Twig Barrage: 2 damage per turn for 3 turns.", "damage": 2},
-            "jack": {"label": "Woodland Stealth: Evades the next tactic card.", "opponent_evades_next": 1},
+            "jack": {
+                "label": "Woodland Stealth: Evades the next tactic card.",
+                "opponent_evades_next": 1,
+            },
             "queen": {"label": "Healing Roots: Heals 5 health points.", "heal": 5},
             "king": {
                 "label": "Timber Smash: Deals 7 damage to opponent and 4 to itself.",
@@ -397,7 +414,11 @@ DRAGONKEEP_EOLAN: dict[str, Any] = {
                     "effect": "Deals 3 damage; +1 attack next turn.",
                     "damage": 3,
                 },
-                "jack": {"label": "Shade Cloak", "effect": "Avoid one Aerith attack.", "evade_next": 1},
+                "jack": {
+                    "label": "Shade Cloak",
+                    "effect": "Avoid one Aerith attack.",
+                    "evade_next": 1,
+                },
                 "queen": {"label": "Starlight Elixir", "effect": "Restores 4 health.", "heal": 4},
                 "king": {
                     "label": "Dawnbreaker Shield",
@@ -458,13 +479,42 @@ DRAGONKEEP_EOLAN: dict[str, Any] = {
                 },
             },
             "items": {
-                "2-4": {"label": "Starlit Sash", "effect": "+1 attack for two turns.", "damage_bonus": 1, "damage_bonus_turns": 2},
-                "5-7": {"label": "Ember of Courage", "effect": "Nullifies Aerith's next attack.", "evade_next": 1},
+                "2-4": {
+                    "label": "Starlit Sash",
+                    "effect": "+1 attack for two turns.",
+                    "damage_bonus": 1,
+                    "damage_bonus_turns": 2,
+                },
+                "5-7": {
+                    "label": "Ember of Courage",
+                    "effect": "Nullifies Aerith's next attack.",
+                    "evade_next": 1,
+                },
                 "8-10": {"label": "Moonbeam Flask", "effect": "Restores 5 health.", "heal": 5},
-                "jack": {"label": "Twilight Dagger", "effect": "Deals 4 damage; Aerith −3 next attack.", "damage": 4, "reduce_opponent_damage": 3},
-                "queen": {"label": "Shield of Dawn", "effect": "Halves Aerith's next three attacks.", "halve_incoming_turns": 3},
-                "king": {"label": "Comet's Heart", "effect": "Deals 6 damage; stuns Aerith.", "damage": 6, "skip_opponent_turns": 1},
-                "ace": {"label": "Eclipse Orb", "effect": "Deals 7 damage; +3 on your next attack.", "damage": 7, "damage_bonus": 3, "damage_bonus_turns": 1},
+                "jack": {
+                    "label": "Twilight Dagger",
+                    "effect": "Deals 4 damage; Aerith −3 next attack.",
+                    "damage": 4,
+                    "reduce_opponent_damage": 3,
+                },
+                "queen": {
+                    "label": "Shield of Dawn",
+                    "effect": "Halves Aerith's next three attacks.",
+                    "halve_incoming_turns": 3,
+                },
+                "king": {
+                    "label": "Comet's Heart",
+                    "effect": "Deals 6 damage; stuns Aerith.",
+                    "damage": 6,
+                    "skip_opponent_turns": 1,
+                },
+                "ace": {
+                    "label": "Eclipse Orb",
+                    "effect": "Deals 7 damage; +3 on your next attack.",
+                    "damage": 7,
+                    "damage_bonus": 3,
+                    "damage_bonus_turns": 1,
+                },
             },
         },
         "3": {
@@ -520,13 +570,47 @@ DRAGONKEEP_EOLAN: dict[str, Any] = {
                 },
             },
             "items": {
-                "2-4": {"label": "Gleaming Star Orb", "effect": "+2 attack next turn.", "damage_bonus": 2, "damage_bonus_turns": 1},
-                "5-7": {"label": "Mantle of Shadows", "effect": "Avoid Aerith's next attack.", "evade_next": 1},
-                "8-10": {"label": "Flameheart Talisman", "effect": "Deals 4 damage; fire ward 2 turns.", "damage": 4, "halve_incoming_turns": 2},
-                "jack": {"label": "Lunar Shard", "effect": "Aerith's next two attacks −5.", "reduce_opponent_damage": 5, "reduce_opponent_damage_turns": 2},
-                "queen": {"label": "Eclipse Arrow", "effect": "Deals 5 damage; Aerith −1 attack.", "damage": 5, "reduce_opponent_damage": 1},
-                "king": {"label": "Duskblade Dagger", "effect": "Deals 6 damage; dodge one attack.", "damage": 6, "evade_next": 1},
-                "ace": {"label": "Celestial Shield", "effect": "Deals 7 damage; halves next attack.", "damage": 7, "halve_incoming_turns": 1},
+                "2-4": {
+                    "label": "Gleaming Star Orb",
+                    "effect": "+2 attack next turn.",
+                    "damage_bonus": 2,
+                    "damage_bonus_turns": 1,
+                },
+                "5-7": {
+                    "label": "Mantle of Shadows",
+                    "effect": "Avoid Aerith's next attack.",
+                    "evade_next": 1,
+                },
+                "8-10": {
+                    "label": "Flameheart Talisman",
+                    "effect": "Deals 4 damage; fire ward 2 turns.",
+                    "damage": 4,
+                    "halve_incoming_turns": 2,
+                },
+                "jack": {
+                    "label": "Lunar Shard",
+                    "effect": "Aerith's next two attacks −5.",
+                    "reduce_opponent_damage": 5,
+                    "reduce_opponent_damage_turns": 2,
+                },
+                "queen": {
+                    "label": "Eclipse Arrow",
+                    "effect": "Deals 5 damage; Aerith −1 attack.",
+                    "damage": 5,
+                    "reduce_opponent_damage": 1,
+                },
+                "king": {
+                    "label": "Duskblade Dagger",
+                    "effect": "Deals 6 damage; dodge one attack.",
+                    "damage": 6,
+                    "evade_next": 1,
+                },
+                "ace": {
+                    "label": "Celestial Shield",
+                    "effect": "Deals 7 damage; halves next attack.",
+                    "damage": 7,
+                    "halve_incoming_turns": 1,
+                },
             },
         },
     },

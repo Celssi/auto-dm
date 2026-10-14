@@ -12,10 +12,16 @@ from backend.auth import (
 )
 
 
-def _request(host: str = "127.0.0.1", origin: str | None = None) -> Request:
+def _request(
+    host: str = "127.0.0.1",
+    origin: str | None = None,
+    authorization: str | None = None,
+) -> Request:
     headers = []
     if origin:
         headers.append((b"origin", origin.encode()))
+    if authorization:
+        headers.append((b"authorization", authorization.encode()))
     return Request(
         {
             "type": "http",
@@ -41,6 +47,25 @@ def test_default_allowed_email(monkeypatch):
 def test_allowed_emails_from_env(monkeypatch):
     monkeypatch.setenv("ALLOWED_EMAILS", "lauri.mukkala.fi@gmail.com, other@example.com")
     assert allowed_emails() == {"lauri.mukkala.fi@gmail.com", "other@example.com"}
+
+
+def test_allowed_emails_ignore_case(monkeypatch):
+    monkeypatch.setenv("ALLOWED_EMAILS", "Lauri.Mukkala.FI@gmail.com")
+    assert allowed_emails() == {"lauri.mukkala.fi@gmail.com"}
+
+
+def test_require_allowed_user_matches_email_case_insensitively(monkeypatch):
+    monkeypatch.setenv("K_SERVICE", "auto-dm")
+    monkeypatch.setenv("ALLOWED_EMAILS", "Lauri.Mukkala.FI@gmail.com")
+    monkeypatch.setattr(
+        "backend.auth.verify_id_token",
+        lambda _token: {"uid": "user-1", "email": "LAURI.MUKKALA.FI@gmail.com"},
+    )
+    user = asyncio.run(
+        require_allowed_user(_request(host="10.0.0.8", authorization="Bearer test-token"))
+    )
+    assert user["email"] == "lauri.mukkala.fi@gmail.com"
+    assert user["uid"] == "user-1"
 
 
 def test_health_is_public():

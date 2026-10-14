@@ -41,8 +41,16 @@ export default function LoginPage() {
         >
           {busy || returning || loading ? 'Signing in…' : 'Continue with Google'}
         </button>
-        {!firebaseReady && <p className="text-sm text-danger">Firebase is not configured on this build.</p>}
-        {message && <p className="text-sm text-danger">{message}</p>}
+        {!firebaseReady && (
+          <p className="text-sm text-danger" role="alert">
+            Firebase is not configured on this build.
+          </p>
+        )}
+        {message && (
+          <p className="text-sm text-danger" role="alert">
+            {message}
+          </p>
+        )}
       </div>
     </div>
   );
