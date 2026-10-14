@@ -99,10 +99,7 @@ export default function SessionManageList({
           {visible.map((session) => {
             const title = sessionDisplayTitle(session.name);
             const characterName = characters.find((character) => character.id === session.character_id)?.name;
-            const detail = [
-              sessionListSubtitle(characterName, session.created_at),
-              session.archived ? 'Archived' : '',
-            ]
+            const detail = [sessionListSubtitle(characterName, session.created_at), session.archived ? 'Archived' : '']
               .filter(Boolean)
               .join(' · ');
             return (
