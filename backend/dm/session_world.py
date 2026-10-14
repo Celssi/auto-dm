@@ -286,4 +286,3 @@ def get_or_refresh_world(session_id: str, *, refresh: bool = False) -> dict[str,
     payload = _payload(entries, count)
     save_session_world_cache(session_id, payload)
     return payload
-
