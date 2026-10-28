@@ -1,4 +1,4 @@
-const CACHE_NAME = 'auto-dm-20261014T090';
+const CACHE_NAME = 'auto-dm-20261028T082';
 const urlsToCache = ['/', '/manifest.json', '/icons/icon-192x192.png', '/icons/icon-512x512.png'];
 
 self.addEventListener('install', (event) => {
