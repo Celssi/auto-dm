@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Library, Minus, Plus, X } from 'lucide-react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -8,7 +8,7 @@ import { useBookReader } from '../../context/BookReaderContext';
 import { useGame } from '../../context/GameContext';
 import { getAuthToken } from '../../lib/authToken';
 import { pdfPageToPrinted, printedToPdfPage } from '../../lib/books';
-import { createRangedPdfSource } from '../../lib/pdfRangeSource';
+import { createRangedPdfSource, type RangedPdfTransport } from '../../lib/pdfRangeSource';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
 
@@ -95,7 +95,7 @@ function PdfPages({
   onJump: (bookmark: BookBookmark) => void;
 }) {
   const { gameId } = useGame();
-  const [file, setFile] = useState<InstanceType<typeof pdfjs.PDFDataRangeTransport> | null>(null);
+  const [file, setFile] = useState<RangedPdfTransport | null>(null);
   const [pageCount, setPageCount] = useState(1);
   const [loadError, setLoadError] = useState(false);
   const [scale, setScale] = useState(1);
@@ -106,7 +106,7 @@ function PdfPages({
 
   useEffect(() => {
     let cancelled = false;
-    const transportRef: { current: InstanceType<typeof pdfjs.PDFDataRangeTransport> | null } = { current: null };
+    const transportRef: { current: RangedPdfTransport | null } = { current: null };
     setFile(null);
     setLoadError(false);
     setPageCount(1);
@@ -123,7 +123,7 @@ function PdfPages({
         }
         const next = await createRangedPdfSource(url, headers);
         if (cancelled) {
-          next.abort();
+          next.close();
           return;
         }
         transportRef.current = next;
@@ -135,7 +135,7 @@ function PdfPages({
     })();
     return () => {
       cancelled = true;
-      transportRef.current?.abort();
+      transportRef.current?.close();
     };
   }, [book.id, gameId]);
 
@@ -148,6 +148,18 @@ function PdfPages({
     observer.observe(node);
     return () => observer.disconnect();
   }, []);
+
+  // react-pdf Document (suspense=false) reloads whenever `file` / `options` identity
+  // changes. An inline `{ range: file }` aborts the transport on every re-render
+  // (pageCount, resize, zoom) and leaves requestDataRange as a silent no-op.
+  const documentFile = useMemo(() => (file ? { range: file } : null), [file]);
+  const documentOptions = useMemo(
+    () => ({
+      disableAutoFetch: true,
+      disableStream: true,
+    }),
+    [],
+  );
 
   const go = (next: number) => onPage(Math.min(maxPrinted, Math.max(1, next)));
 
@@ -211,7 +223,8 @@ function PdfPages({
               <p className="text-sm text-danger p-6">Could not load this PDF.</p>
             ) : file ? (
               <Document
-                file={{ range: file }}
+                file={documentFile}
+                options={documentOptions}
                 suspense={false}
                 loading={<p className="text-sm text-muted p-6">Loading PDF…</p>}
                 error={<p className="text-sm text-danger p-6">Could not load this PDF.</p>}
