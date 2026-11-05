@@ -180,6 +180,13 @@ def book_file(book_id: str, request: Request, game_id: str = Query(default="dnd5
 
     parsed = _parse_range(request.headers.get("range"), size)
     if parsed is None:
+        # pdf.js probes with an unranged GET and enables HTTP Range mode only when
+        # Content-Length is the *full* PDF size (and Accept-Ranges: bytes). Returning
+        # an unsolicited 206 for the first 64 KiB advertised Content-Length as the
+        # chunk size, so the worker treated a 300 MB handbook as a 64 KiB file and
+        # never issued follow-up Range requests ("Could not load this PDF.").
+        # Stream from offset 0 with the real Content-Length; with disableStream the
+        # client aborts after headers and switches to ranged reads.
         if size <= _FIRST_CHUNK:
             data = read_pdf_bytes(book_id)
             return Response(
@@ -187,7 +194,12 @@ def book_file(book_id: str, request: Request, game_id: str = Query(default="dnd5
                 media_type="application/pdf",
                 headers=_pdf_headers(len(data)),
             )
-        parsed = (0, _FIRST_CHUNK - 1)
+        return StreamingResponse(
+            _iter_pdf_bytes(book_id, 0, size - 1),
+            status_code=200,
+            media_type="application/pdf",
+            headers=_pdf_headers(size),
+        )
 
     start, end = parsed
     if end - start + 1 > _MAX_RANGE_BYTES:
