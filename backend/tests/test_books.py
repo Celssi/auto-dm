@@ -95,7 +95,7 @@ def test_expired_ticket_is_rejected(monkeypatch):
     assert res.status_code == 401
 
 
-def test_unranged_large_file_advertises_full_content_length(monkeypatch):
+def test_unranged_large_file_requires_range(monkeypatch):
     from backend.routes.books import issue_file_ticket
 
     client = _gcs_book_app(monkeypatch)
@@ -106,8 +106,6 @@ def test_unranged_large_file_advertises_full_content_length(monkeypatch):
     )
     ticket = issue_file_ticket("dnd5e/player.pdf")
     res = client.get(f"/api/books/dnd5e/player.pdf/file?game_id=dnd5e&ticket={ticket}")
-    assert res.status_code == 200
-    assert res.headers["content-length"] == "200000"
+    assert res.status_code == 416
     assert res.headers["accept-ranges"] == "bytes"
-    assert "content-range" not in res.headers
-    assert len(res.content) == 200_000
+    assert res.headers["content-range"] == "bytes */200000"

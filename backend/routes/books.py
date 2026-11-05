@@ -180,13 +180,10 @@ def book_file(book_id: str, request: Request, game_id: str = Query(default="dnd5
 
     parsed = _parse_range(request.headers.get("range"), size)
     if parsed is None:
-        # pdf.js probes with an unranged GET and enables HTTP Range mode only when
-        # Content-Length is the *full* PDF size (and Accept-Ranges: bytes). Returning
-        # an unsolicited 206 for the first 64 KiB advertised Content-Length as the
-        # chunk size, so the worker treated a 300 MB handbook as a 64 KiB file and
-        # never issued follow-up Range requests ("Could not load this PDF.").
-        # Stream from offset 0 with the real Content-Length; with disableStream the
-        # client aborts after headers and switches to ranged reads.
+        # Small files can be returned whole. Large rulebooks exceed Cloud Run's ~32 MiB
+        # response cap, so clients must HEAD for size then fetch with Range (see
+        # frontend/src/lib/pdfRangeSource.ts). Rejecting the unranged GET keeps the
+        # failure mode obvious instead of truncating mid-stream with a 500.
         if size <= _FIRST_CHUNK:
             data = read_pdf_bytes(book_id)
             return Response(
@@ -194,11 +191,15 @@ def book_file(book_id: str, request: Request, game_id: str = Query(default="dnd5
                 media_type="application/pdf",
                 headers=_pdf_headers(len(data)),
             )
-        return StreamingResponse(
-            _iter_pdf_bytes(book_id, 0, size - 1),
-            status_code=200,
+        return Response(
+            status_code=416,
             media_type="application/pdf",
-            headers=_pdf_headers(size),
+            headers=_pdf_headers(
+                None,
+                {
+                    "Content-Range": f"bytes */{size}",
+                },
+            ),
         )
 
     start, end = parsed

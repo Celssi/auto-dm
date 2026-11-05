@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Library, Minus, Plus, X } from 'lucide-react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
@@ -8,6 +8,7 @@ import { useBookReader } from '../../context/BookReaderContext';
 import { useGame } from '../../context/GameContext';
 import { getAuthToken } from '../../lib/authToken';
 import { pdfPageToPrinted, printedToPdfPage } from '../../lib/books';
+import { createRangedPdfSource } from '../../lib/pdfRangeSource';
 
 pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString();
 
@@ -94,13 +95,9 @@ function PdfPages({
   onJump: (bookmark: BookBookmark) => void;
 }) {
   const { gameId } = useGame();
-  const [file, setFile] = useState<{
-    url: string;
-    httpHeaders?: Record<string, string>;
-    withCredentials?: boolean;
-  } | null>(null);
+  const [file, setFile] = useState<InstanceType<typeof pdfjs.PDFDataRangeTransport> | null>(null);
   const [pageCount, setPageCount] = useState(1);
-  const options = useMemo(() => ({ disableAutoFetch: true, disableStream: true, rangeChunkSize: 65536 }), []);
+  const [loadError, setLoadError] = useState(false);
   const [scale, setScale] = useState(1);
   const [width, setWidth] = useState(640);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -109,28 +106,36 @@ function PdfPages({
 
   useEffect(() => {
     let cancelled = false;
-    const url = api.bookFileUrl(book.id, gameId);
+    const transportRef: { current: InstanceType<typeof pdfjs.PDFDataRangeTransport> | null } = { current: null };
+    setFile(null);
+    setLoadError(false);
+    setPageCount(1);
     void (async () => {
       try {
-        const { ticket } = await api.createBookFileTicket(book.id, gameId);
-        if (!cancelled) {
-          setFile({ url: api.bookFileUrl(book.id, gameId, ticket), withCredentials: false });
+        let url = api.bookFileUrl(book.id, gameId);
+        let headers: Record<string, string> | undefined;
+        try {
+          const { ticket } = await api.createBookFileTicket(book.id, gameId);
+          url = api.bookFileUrl(book.id, gameId, ticket);
+        } catch {
+          const token = await getAuthToken();
+          if (token) headers = { Authorization: `Bearer ${token}` };
         }
-        return;
-      } catch {
-        /* local or older API: open without a ticket */
-      }
-      const token = await getAuthToken();
-      if (!cancelled) {
-        setFile(
-          token
-            ? { url, httpHeaders: { Authorization: `Bearer ${token}` }, withCredentials: false }
-            : { url, withCredentials: false },
-        );
+        const next = await createRangedPdfSource(url, headers);
+        if (cancelled) {
+          next.abort();
+          return;
+        }
+        transportRef.current = next;
+        setFile(next);
+      } catch (error) {
+        console.error(error);
+        if (!cancelled) setLoadError(true);
       }
     })();
     return () => {
       cancelled = true;
+      transportRef.current?.abort();
     };
   }, [book.id, gameId]);
 
@@ -202,11 +207,12 @@ function PdfPages({
       <div className="flex-1 min-h-0 flex flex-col md:flex-row">
         <div ref={frameRef} className="flex-1 min-h-0 overflow-auto bg-bg-elevated">
           <div className="flex justify-center py-3">
-            {file ? (
+            {loadError ? (
+              <p className="text-sm text-danger p-6">Could not load this PDF.</p>
+            ) : file ? (
               <Document
-                file={file}
+                file={{ range: file }}
                 suspense={false}
-                options={options}
                 loading={<p className="text-sm text-muted p-6">Loading PDF…</p>}
                 error={<p className="text-sm text-danger p-6">Could not load this PDF.</p>}
                 onLoadSuccess={({ numPages }) => setPageCount(numPages)}
