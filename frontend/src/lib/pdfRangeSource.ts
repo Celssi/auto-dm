@@ -1,5 +1,8 @@
 import { pdfjs } from 'react-pdf';
 
+/** Match backend `_MAX_RANGE_BYTES` — Cloud Run responses must stay under ~32 MiB. */
+const MAX_RANGE_BYTES = 2 * 1024 * 1024;
+
 export type RangedPdfTransport = InstanceType<typeof pdfjs.PDFDataRangeTransport> & {
   /** Permanent teardown when leaving the book / unmounting the reader. */
   close: () => void;
@@ -32,20 +35,42 @@ export async function createRangedPdfSource(
       this.#controllers.add(controller);
       void (async () => {
         try {
-          const res = await fetch(url, {
-            headers: {
-              ...httpHeaders,
-              Range: `bytes=${begin}-${end - 1}`,
-            },
-            credentials: 'omit',
-            signal: controller.signal,
-          });
-          if (!(res.status === 200 || res.status === 206)) {
-            throw new Error(`PDF range failed (${res.status})`);
+          // pdf.js asks for whole object streams (cover art often >> 2 MiB). The API
+          // caps each GET at 2 MiB; a short onDataRange is treated as complete and
+          // leaves image-heavy pages blank/white or stuck decoding.
+          const total = end - begin;
+          const parts: Uint8Array[] = [];
+          let got = 0;
+          while (got < total) {
+            if (this.#closed || controller.signal.aborted) return;
+            const absBegin = begin + got;
+            const absEnd = Math.min(end, absBegin + MAX_RANGE_BYTES);
+            const res = await fetch(url, {
+              headers: {
+                ...httpHeaders,
+                Range: `bytes=${absBegin}-${absEnd - 1}`,
+              },
+              credentials: 'omit',
+              signal: controller.signal,
+            });
+            if (!(res.status === 200 || res.status === 206)) {
+              throw new Error(`PDF range failed (${res.status})`);
+            }
+            const chunk = new Uint8Array(await res.arrayBuffer());
+            if (chunk.byteLength === 0) {
+              throw new Error('PDF range returned empty body');
+            }
+            parts.push(chunk);
+            got += chunk.byteLength;
           }
-          const chunk = new Uint8Array(await res.arrayBuffer());
+          const bytes = new Uint8Array(got);
+          let offset = 0;
+          for (const part of parts) {
+            bytes.set(part, offset);
+            offset += part.byteLength;
+          }
           if (!this.#closed) {
-            this.onDataRange(begin, chunk);
+            this.onDataRange(begin, bytes);
           }
         } catch (error) {
           if (controller.signal.aborted || this.#closed) return;
