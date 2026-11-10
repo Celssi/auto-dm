@@ -94,6 +94,7 @@ export default function PlaySessionView({
     recap,
     recapLoading,
     world,
+    worldLoading,
     playerProgress,
     adventureComplete,
     nextAdventure,
@@ -131,6 +132,7 @@ export default function PlaySessionView({
             characterSummary={characterSummary}
             playerProgress={playerProgress}
             world={world}
+            worldLoading={worldLoading}
           />
         }
         chat={
@@ -323,14 +325,18 @@ function PlayCharacterPanel({
   characterSummary,
   playerProgress,
   world,
+  worldLoading,
 }: {
   character: Character | null;
   characterId: string;
   characterSummary: Record<string, unknown>;
   playerProgress: PlayerProgress | null;
   world: PlayState['world'];
+  worldLoading: boolean;
 }) {
-  const completed = playerProgress?.completed_beats ?? [];
+  const stage = playerProgress?.stage?.trim() ?? '';
+  // Avoid repeating the current stage as a one-item beat list.
+  const completed = (playerProgress?.completed_beats ?? []).filter((beat) => beat.trim() !== stage);
   return (
     <aside className="panel-glow overflow-y-auto p-3 flex flex-col gap-3 min-h-0 flex-1">
       <div className="flex items-center justify-between gap-2 shrink-0">
@@ -369,7 +375,7 @@ function PlayCharacterPanel({
         )}
         <p className="text-[10px] text-muted leading-relaxed">The DM knows more than you see here.</p>
       </div>
-      <WorldRosterPanel npcs={world?.npcs ?? []} locations={world?.locations ?? []} />
+      <WorldRosterPanel npcs={world?.npcs ?? []} locations={world?.locations ?? []} loading={worldLoading && !world} />
     </aside>
   );
 }

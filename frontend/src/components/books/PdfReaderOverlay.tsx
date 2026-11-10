@@ -1,11 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Library, Minus, Plus, X } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { Document, Page, pdfjs } from 'react-pdf';
 import 'react-pdf/dist/Page/AnnotationLayer.css';
 import 'react-pdf/dist/Page/TextLayer.css';
 import { api, type BookBookmark, type BookMeta } from '../../api/client';
 import { useBookReader } from '../../context/BookReaderContext';
 import { useGame } from '../../context/GameContext';
+import { useFocusTrap } from '../../hooks/useFocusTrap';
 import { getAuthToken } from '../../lib/authToken';
 import { pdfPageToPrinted, printedToPdfPage } from '../../lib/books';
 import { createRangedPdfSource, type RangedPdfTransport } from '../../lib/pdfRangeSource';
@@ -17,6 +19,9 @@ export default function PdfReaderOverlay() {
     useBookReader();
   const book = books.find((item) => item.id === bookId) ?? null;
   const bookMarks = bookState.bookmarks.filter((mark) => mark.book_id === bookId);
+  const dialogRef = useRef<HTMLDivElement>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
+  useFocusTrap(dialogRef, open, closeReader, closeRef);
 
   useEffect(() => {
     if (!open) return;
@@ -29,17 +34,33 @@ export default function PdfReaderOverlay() {
 
   if (!open) return null;
 
-  return (
-    <div className="fixed inset-0 z-40 bg-bg flex flex-col">
+  return createPortal(
+    <div
+      ref={dialogRef}
+      className="fixed inset-0 z-40 bg-bg flex flex-col"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="pdf-reader-title"
+      tabIndex={-1}
+    >
       <header className="shrink-0 border-b border-border bg-panel px-3 py-2 flex items-center gap-2">
-        <button type="button" className="btn-ghost min-h-11 px-3" onClick={closeReader} aria-label="Close reader">
+        <button
+          ref={closeRef}
+          type="button"
+          className="btn-ghost min-h-11 min-w-11 px-3"
+          onClick={closeReader}
+          aria-label="Close reader"
+          title="Close reader (Esc)"
+        >
           <X size={18} />
         </button>
-        <p className="font-display text-sm text-accent truncate flex-1">{book?.label || 'Rulebooks'}</p>
+        <h2 id="pdf-reader-title" className="font-display text-sm text-accent truncate flex-1">
+          {book?.label || 'Rulebooks'}
+        </h2>
         {book && (
           <button
             type="button"
-            className="btn-ghost min-h-11 px-3"
+            className="btn-ghost min-h-11 min-w-11 px-3"
             onClick={toggleBookmark}
             aria-label={bookMarks.some((mark) => mark.page === page) ? 'Remove bookmark' : 'Add bookmark'}
           >
@@ -52,7 +73,8 @@ export default function PdfReaderOverlay() {
       ) : (
         <BookPicker books={books} onOpen={openBook} />
       )}
-    </div>
+    </div>,
+    document.body,
   );
 }
 

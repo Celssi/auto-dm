@@ -16,6 +16,7 @@ interface Props {
 export default function OverflowMenu({ items, label = 'More actions', children }: Props) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -23,7 +24,10 @@ export default function OverflowMenu({ items, label = 'More actions', children }
       if (!rootRef.current?.contains(event.target as Node)) setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') setOpen(false);
+      if (event.key === 'Escape') {
+        setOpen(false);
+        triggerRef.current?.focus();
+      }
     };
     document.addEventListener('pointerdown', onPointerDown);
     document.addEventListener('keydown', onKeyDown);
@@ -36,8 +40,9 @@ export default function OverflowMenu({ items, label = 'More actions', children }
   return (
     <div className="relative" ref={rootRef}>
       <button
+        ref={triggerRef}
         type="button"
-        className="btn-ghost min-h-11 px-3 inline-flex items-center gap-1.5"
+        className="btn-ghost min-h-11 min-w-11 px-3 inline-flex justify-center items-center gap-1.5"
         aria-label={label}
         aria-haspopup="menu"
         aria-expanded={open}

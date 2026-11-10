@@ -33,8 +33,9 @@ function MotionProvider({ children }: { children: ReactNode }) {
 
 function HomeWrapper() {
   const { gameId } = useGame();
-  const [indexed, setIndexed] = useState(false);
-  const [claudeOk, setClaudeOk] = useState(false);
+  // null = still checking; avoids flashing "Missing API key" before /health answers.
+  const [indexed, setIndexed] = useState<boolean | null>(null);
+  const [claudeOk, setClaudeOk] = useState<boolean | null>(null);
   const [recent, setRecent] = useState<{
     id: string;
     name: string;
@@ -44,10 +45,23 @@ function HomeWrapper() {
   const [sessionsLoaded, setSessionsLoaded] = useState(false);
 
   useEffect(() => {
-    api.health().then((h) => {
-      setIndexed(h.indexed);
-      setClaudeOk(h.claude_configured);
-    });
+    let cancelled = false;
+    api
+      .health()
+      .then((h) => {
+        if (cancelled) return;
+        setIndexed(h.indexed);
+        setClaudeOk(h.claude_configured);
+      })
+      .catch((err: unknown) => {
+        console.warn('Health check failed', err);
+        if (cancelled) return;
+        setIndexed(false);
+        setClaudeOk(false);
+      });
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   useEffect(() => {

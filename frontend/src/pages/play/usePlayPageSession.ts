@@ -103,7 +103,9 @@ export function usePlayPageSession(
       const continuing = messageCount > 0;
       dispatch({
         type: 'set',
-        patch: continuing ? { recapLoading: true } : { recapLoading: false, recap: null },
+        patch: continuing
+          ? { recapLoading: true, worldLoading: true }
+          : { recapLoading: false, recap: null, worldLoading: true },
       });
       if (continuing) {
         try {
@@ -125,12 +127,16 @@ export function usePlayPageSession(
             type: 'set',
             patch: {
               world,
+              worldLoading: false,
               journalEntities: worldToEntities(world),
             },
           });
         }
       } catch (err: unknown) {
         console.warn('Failed to load session world', err);
+        if (seq === loadSeqRef.current) {
+          dispatch({ type: 'set', patch: { worldLoading: false } });
+        }
       }
     },
     [dispatch, loadSeqRef],
@@ -176,6 +182,7 @@ export function usePlayPageSession(
               recap: null,
               recapLoading: false,
               world: null,
+              worldLoading: false,
               campaignId: '',
               playerProgress: null,
               adventureComplete: false,

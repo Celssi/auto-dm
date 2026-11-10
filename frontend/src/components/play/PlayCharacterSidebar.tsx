@@ -3,6 +3,7 @@ import { displayLabel, EMPTY_FIELD } from '../../lib/displayText';
 import GlossaryTip, { GlossaryTagList } from '../ui/GlossaryTip';
 import { getGameCharacterConfig } from '../../games/registry';
 import {
+  formatAbilityMod,
   formatMod,
   initiativeMod,
   passivePerception,
@@ -170,23 +171,52 @@ const SKILL_ABILITIES: Record<string, string> = {
   nature: 'int',
 };
 
+const ABILITY_NAMES: Record<string, string> = {
+  str: 'Strength',
+  dex: 'Dexterity',
+  con: 'Constitution',
+  int: 'Intelligence',
+  wis: 'Wisdom',
+  cha: 'Charisma',
+};
+
 function DndAbilities({ character: c }: { character: Character }) {
   const scores = c.ability_scores || {};
   const pb = proficiencyBonus(c.level || 1);
+  const saveProfs = new Set(c.save_proficiencies || []);
   return (
     <div className="rounded-md border border-border bg-bg/40 p-2">
-      <div className="text-[10px] uppercase tracking-wide text-muted mb-1.5">Abilities</div>
-      <div className="grid grid-cols-3 gap-1 text-xs">
-        {(['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).map((ab) => (
-          <div key={ab} className="flex justify-between gap-1 px-1 py-0.5 rounded bg-panel/50">
-            <span className="uppercase text-muted">{ab}</span>
-            <span>
-              {scores[ab] ?? 10} <span className="text-muted">({saveBonus(c, ab)})</span>
-            </span>
-          </div>
-        ))}
+      <div className="flex items-baseline justify-between text-[10px] uppercase tracking-wide text-muted mb-1.5">
+        <span>Abilities</span>
+        <span className="normal-case tracking-normal">score · mod · save</span>
       </div>
-      <p className="text-[10px] text-muted mt-1.5">Proficiency {formatMod(pb)}</p>
+      <div className="grid grid-cols-2 min-[360px]:grid-cols-3 gap-1 text-xs">
+        {(['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).map((ab) => {
+          const score = scores[ab] ?? 10;
+          const mod = formatAbilityMod(score);
+          const save = saveBonus(c, ab);
+          const proficient = saveProfs.has(ab);
+          return (
+            <div
+              key={ab}
+              className="px-1.5 py-1 rounded bg-panel/50"
+              title={`${ABILITY_NAMES[ab]} ${score}, modifier ${mod}, saving throw ${save}${proficient ? ' (proficient)' : ''}`}
+            >
+              <div className="flex justify-between gap-1">
+                <span className="uppercase text-muted">{ab}</span>
+                <span>
+                  {score} <span className="font-semibold text-gray-100">{mod}</span>
+                </span>
+              </div>
+              <div className={`text-[10px] text-right ${proficient ? 'text-accent' : 'text-muted'}`}>
+                Save {save}
+                {proficient ? ' ●' : ''}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      <p className="text-[10px] text-muted mt-1.5">Proficiency {formatMod(pb)} · ● proficient save</p>
     </div>
   );
 }

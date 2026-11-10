@@ -9,8 +9,8 @@ import { useGame } from '../context/GameContext';
 import { sessionDisplayTitle, sessionListSubtitle } from '../lib/displayText';
 
 interface Props {
-  indexed: boolean;
-  claudeOk: boolean;
+  indexed: boolean | null;
+  claudeOk: boolean | null;
   recentSession?: { id: string; name: string; characterName?: string; createdAt?: string } | null;
   sessionsLoaded?: boolean;
 }
@@ -47,8 +47,17 @@ export default function HomePage({ indexed, claudeOk, recentSession, sessionsLoa
       <PageHeader title="Auto-DM" subtitle={`${game.label}. ${game.description}`} />
 
       <m.div variants={fadeUp} className="flex flex-wrap gap-2">
-        <StatusBadge status={indexed ? 'ok' : 'warn'} label={indexed ? 'Rules index ready' : 'Rules not indexed'} />
-        <StatusBadge status={claudeOk ? 'ok' : 'error'} label={claudeOk ? 'Claude configured' : 'Missing API key'} />
+        {indexed === null || claudeOk === null ? (
+          <StatusBadge status="pending" label="Checking status…" />
+        ) : (
+          <>
+            <StatusBadge status={indexed ? 'ok' : 'warn'} label={indexed ? 'Rules index ready' : 'Rules not indexed'} />
+            <StatusBadge
+              status={claudeOk ? 'ok' : 'error'}
+              label={claudeOk ? 'Claude configured' : 'Missing API key'}
+            />
+          </>
+        )}
       </m.div>
 
       <m.div variants={fadeUp} className="grid sm:grid-cols-2 gap-4">

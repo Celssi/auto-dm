@@ -18,6 +18,7 @@ interface Props {
   form: CampaignsState['form'];
   generateForm: CampaignsState['generateForm'];
   characters: CampaignsState['characters'];
+  charactersLoaded?: boolean;
   generating: boolean;
   onCreateModeChange: (mode: 'manual' | 'ai') => void;
   onPatchForm: (patch: Partial<CampaignsState['form']>) => void;
@@ -34,6 +35,7 @@ export default function CampaignCreateForm({
   form,
   generateForm,
   characters,
+  charactersLoaded = true,
   generating,
   onCreateModeChange,
   onPatchForm,
@@ -94,6 +96,7 @@ export default function CampaignCreateForm({
       ) : (
         <AiCampaignFields
           characters={characters}
+          charactersLoaded={charactersLoaded}
           generateForm={generateForm}
           generating={generating}
           canGenerate={Boolean(canGenerate)}
@@ -149,6 +152,7 @@ function ManualCampaignFields({
 
 function AiCampaignFields({
   characters,
+  charactersLoaded,
   generateForm,
   generating,
   canGenerate,
@@ -158,6 +162,7 @@ function AiCampaignFields({
   onCancel,
 }: {
   characters: CampaignsState['characters'];
+  charactersLoaded: boolean;
   generateForm: CampaignsState['generateForm'];
   generating: boolean;
   canGenerate: boolean;
@@ -174,7 +179,11 @@ function AiCampaignFields({
         book from your indexed PDFs.
       </p>
       <Field label="Character">
-        {characters.length === 0 ? (
+        {!charactersLoaded ? (
+          <p className="text-sm text-muted" role="status">
+            Loading characters…
+          </p>
+        ) : characters.length === 0 ? (
           <p className="text-sm text-muted">Create a character first to generate a campaign.</p>
         ) : (
           <ChoiceGroup

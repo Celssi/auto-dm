@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { BookOpen, Home, Library, MoreHorizontal, Play, ScrollText, Settings, Users } from 'lucide-react';
 
@@ -22,13 +22,43 @@ function isActive(pathname: string, to: string, exact?: boolean) {
 
 export default function BottomNav() {
   const { pathname } = useLocation();
-  const [moreOpen, setMoreOpen] = useState(false);
+  // The More sheet is tied to the route it was opened on, so any navigation dismisses it.
+  const [moreOpenOn, setMoreOpenOn] = useState<string | null>(null);
+  const moreOpen = moreOpenOn === pathname;
+  const setMoreOpen = (value: boolean | ((prev: boolean) => boolean)) => {
+    const next = typeof value === 'function' ? value(moreOpen) : value;
+    setMoreOpenOn(next ? pathname : null);
+  };
   const moreActive = moreLinks.some((link) => isActive(pathname, link.to));
+  const navRef = useRef<HTMLElement>(null);
+  const moreButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    if (!moreOpen) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      setMoreOpenOn(null);
+      moreButtonRef.current?.focus();
+    };
+    const onPointerDown = (event: PointerEvent) => {
+      if (!navRef.current?.contains(event.target as Node)) setMoreOpenOn(null);
+    };
+    document.addEventListener('keydown', onKeyDown);
+    document.addEventListener('pointerdown', onPointerDown);
+    return () => {
+      document.removeEventListener('keydown', onKeyDown);
+      document.removeEventListener('pointerdown', onPointerDown);
+    };
+  }, [moreOpen]);
 
   return (
-    <nav className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border/80 bg-panel/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]">
+    <nav
+      ref={navRef}
+      aria-label="Primary"
+      className="md:hidden fixed bottom-0 inset-x-0 z-30 border-t border-border/80 bg-panel/95 backdrop-blur-md pb-[env(safe-area-inset-bottom)]"
+    >
       {moreOpen && (
-        <div className="border-b border-border/80 px-3 py-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <div id="bottom-nav-more" className="border-b border-border/80 px-3 py-2 grid grid-cols-2 sm:grid-cols-3 gap-2">
           {moreLinks.map(({ to, label, icon: Icon }) => {
             const active = isActive(pathname, to);
             return (
@@ -36,6 +66,7 @@ export default function BottomNav() {
                 key={to}
                 to={to}
                 onClick={() => setMoreOpen(false)}
+                aria-current={active ? 'page' : undefined}
                 className={`min-h-11 inline-flex items-center justify-center gap-2 rounded-xl text-sm ${
                   active ? 'bg-accent/10 text-accent' : 'text-muted'
                 }`}
@@ -54,6 +85,7 @@ export default function BottomNav() {
             <Link
               key={to}
               to={to}
+              aria-current={active ? 'page' : undefined}
               className={`min-h-14 flex flex-col items-center justify-center gap-0.5 text-[11px] ${
                 active ? 'text-accent' : 'text-muted'
               }`}
@@ -68,7 +100,9 @@ export default function BottomNav() {
           className={`min-h-14 flex flex-col items-center justify-center gap-0.5 text-[11px] ${
             moreOpen || moreActive ? 'text-accent' : 'text-muted'
           }`}
+          ref={moreButtonRef}
           aria-expanded={moreOpen}
+          aria-controls="bottom-nav-more"
           onClick={() => setMoreOpen((value) => !value)}
         >
           <MoreHorizontal size={20} />

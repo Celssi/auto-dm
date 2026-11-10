@@ -7,7 +7,7 @@ interface Props {
 
 export default function Toggle({ checked, onChange, label, description }: Props) {
   return (
-    <label className="flex items-start gap-3 cursor-pointer group">
+    <label className="flex items-start gap-3 cursor-pointer group min-h-11 py-1">
       <span className="relative shrink-0 mt-0.5 w-10 h-5">
         <input
           type="checkbox"
@@ -18,7 +18,7 @@ export default function Toggle({ checked, onChange, label, description }: Props)
         />
         <span
           aria-hidden
-          className={`block w-10 h-5 rounded-full border transition-colors ${
+          className={`block w-10 h-5 rounded-full border transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-accent ${
             checked ? 'bg-accent/80 border-accent' : 'bg-bg border-border group-hover:border-accent/40'
           }`}
         >

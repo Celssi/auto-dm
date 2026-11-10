@@ -168,6 +168,7 @@ export default function CampaignsPage() {
             form={state.form}
             generateForm={state.generateForm}
             characters={scopedCharacters}
+            charactersLoaded={state.campaignsLoaded}
             generating={state.generating}
             onCreateModeChange={(createMode) => dispatch({ type: 'set', patch: { createMode } })}
             onPatchForm={(patch) => dispatch({ type: 'patchForm', patch })}

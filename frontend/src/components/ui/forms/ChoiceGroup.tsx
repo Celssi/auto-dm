@@ -56,7 +56,7 @@ function ChoiceChip({ active, onClick, children }: { active: boolean; onClick: (
     <button
       type="button"
       onClick={onClick}
-      className={`w-full text-left text-sm px-3 py-2 rounded-lg border transition-colors cursor-pointer ${chipClass(active)}`}
+      className={`w-full min-w-0 min-h-11 text-left text-sm px-3 py-2 rounded-lg border break-words transition-colors cursor-pointer ${chipClass(active)}`}
     >
       {children}
     </button>
@@ -129,7 +129,11 @@ export default function ChoiceGroup({
   columns = 3,
 }: Props) {
   const colClass =
-    columns === 2 ? 'grid-cols-2' : columns === 4 ? 'grid-cols-2 sm:grid-cols-4' : 'grid-cols-2 sm:grid-cols-3';
+    columns === 2
+      ? 'grid-cols-1 min-[360px]:grid-cols-2'
+      : columns === 4
+        ? 'grid-cols-2 sm:grid-cols-4'
+        : 'grid-cols-2 sm:grid-cols-3';
 
   if (groups?.length) {
     return (

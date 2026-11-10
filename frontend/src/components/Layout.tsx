@@ -74,16 +74,22 @@ export default function Layout() {
           <div className="ml-auto flex items-center gap-2 shrink-0">
             <button
               type="button"
-              className="btn-ghost min-h-11 px-3 inline-flex items-center gap-1.5"
+              className="btn-ghost min-h-11 min-w-11 px-3 inline-flex items-center justify-center gap-1.5"
               onClick={openReader}
               aria-label="Open rulebook"
             >
-              <Library size={16} />
+              <Library size={16} aria-hidden="true" />
               <span className="hidden sm:inline">Open rulebook</span>
             </button>
             <GameSwitcher />
-            <button type="button" className="btn-ghost inline-flex items-center gap-1.5" onClick={() => void signOut()}>
-              <LogOut size={14} />
+            <button
+              type="button"
+              className="btn-ghost min-h-11 min-w-11 px-3 inline-flex items-center justify-center gap-1.5"
+              onClick={() => void signOut()}
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut size={14} aria-hidden="true" />
               <span className="hidden sm:inline">Sign out</span>
             </button>
           </div>

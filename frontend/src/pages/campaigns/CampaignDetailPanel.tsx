@@ -27,6 +27,7 @@ interface Props {
     | 'campaignAdventures'
     | 'adventuresLoaded'
     | 'characters'
+    | 'campaignsLoaded'
     | 'newAdventureOpen'
     | 'bootstrapping'
     | 'linkingCharacter'
@@ -88,7 +89,11 @@ export default function CampaignDetailPanel({
   ];
 
   return (
-    <m.div initial={{ opacity: 0, x: 12 }} animate={{ opacity: 1, x: 0 }} className="panel-glow p-5 space-y-5">
+    <m.div
+      initial={{ opacity: 0, x: 12 }}
+      animate={{ opacity: 1, x: 0 }}
+      className="panel-glow p-4 sm:p-5 space-y-5 min-w-0"
+    >
       <LongJobOverlay
         active={state.bootstrapping}
         title="Generating adventure"
@@ -161,10 +166,10 @@ function CampaignDetailHeader({
   onDelete: () => void;
 }) {
   return (
-    <div className="flex flex-wrap items-start justify-between gap-3">
+    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
       <div className="space-y-3 min-w-0 flex-1">
-        <div>
-          <h2 className="display-title text-xl">{campaign.name}</h2>
+        <div className="min-w-0">
+          <h2 className="display-title text-xl break-words">{campaign.name}</h2>
           {!needsCharacterLink && (
             <p className="text-sm text-muted mt-1">
               {campaignCharacterLabel(campaign.character_ids, state.characters, state.campaignAdventures)}
@@ -174,6 +179,7 @@ function CampaignDetailHeader({
         {needsCharacterLink && (
           <LinkCharacterBlock
             characters={state.characters}
+            charactersLoaded={state.campaignsLoaded}
             linking={state.linkingCharacter}
             characterId={effectiveLinkCharacterId}
             onCharacterId={onLinkCharacterId}
@@ -181,7 +187,7 @@ function CampaignDetailHeader({
           />
         )}
       </div>
-      <button type="button" className="btn-danger text-sm" onClick={onDelete}>
+      <button type="button" className="btn-danger text-sm min-h-11 self-start shrink-0" onClick={onDelete}>
         Delete campaign
       </button>
     </div>
@@ -190,21 +196,27 @@ function CampaignDetailHeader({
 
 function LinkCharacterBlock({
   characters,
+  charactersLoaded,
   linking,
   characterId,
   onCharacterId,
   onLink,
 }: {
   characters: { id: string; name: string }[];
+  charactersLoaded: boolean;
   linking: boolean;
   characterId: string;
   onCharacterId: (id: string) => void;
   onLink: (id: string) => void;
 }) {
   return (
-    <div className="rounded-lg border border-border bg-bg/40 p-4 space-y-3 max-w-md">
+    <div className="rounded-lg border border-border bg-bg/40 p-4 space-y-3 w-full sm:max-w-md">
       <p className="text-sm text-muted">No character linked to this campaign yet.</p>
-      {characters.length === 0 ? (
+      {!charactersLoaded ? (
+        <p className="text-sm text-muted" role="status">
+          Loading characters…
+        </p>
+      ) : characters.length === 0 ? (
         <p className="text-sm">
           <Link to="/characters" className="text-accent hover:underline">
             Create a character

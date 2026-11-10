@@ -75,6 +75,7 @@ export interface PlayState {
   recap: SessionRecap | null;
   recapLoading: boolean;
   world: SessionWorld | null;
+  worldLoading: boolean;
   adventureId: string;
   campaignId: string;
   playerProgress: PlayerProgress | null;
@@ -137,6 +138,7 @@ export function createInitialPlayState(sessionId = '', wizardTab: 'continue' | '
     recap: null,
     recapLoading: false,
     world: null,
+    worldLoading: false,
     adventureId: '',
     campaignId: '',
     playerProgress: null,

@@ -85,7 +85,7 @@ export default function SessionManageList({
         {archived.length > 0 && (
           <button
             type="button"
-            className="text-xs text-muted hover:text-accent"
+            className="text-xs text-muted hover:text-accent min-h-11 px-2"
             onClick={() => setShowArchived((value) => !value)}
           >
             {showArchived ? 'Hide archived' : `Show archived (${archived.length})`}
@@ -111,6 +111,12 @@ export default function SessionManageList({
                       event.preventDefault();
                       void commitRename(session.id);
                     }}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Escape') {
+                        event.preventDefault();
+                        setEditingId('');
+                      }
+                    }}
                   >
                     <TextInput
                       value={draft}
@@ -121,20 +127,20 @@ export default function SessionManageList({
                     />
                     <button
                       type="submit"
-                      className="btn-primary text-xs min-h-9 px-3"
+                      className="btn-primary text-xs min-h-11 px-3"
                       disabled={busyId === session.id || !draft.trim()}
                     >
                       Save
                     </button>
-                    <button type="button" className="btn-ghost text-xs min-h-9 px-3" onClick={() => setEditingId('')}>
+                    <button type="button" className="btn-ghost text-xs min-h-11 px-3" onClick={() => setEditingId('')}>
                       Cancel
                     </button>
                   </form>
                 ) : (
-                  <div className="flex items-center gap-1 py-3 px-3 rounded-xl border border-border bg-bg/40 hover:bg-accent/10 hover:border-accent/30 transition-colors">
+                  <div className="flex items-center gap-1 py-1 pl-3 pr-1 rounded-xl border border-border bg-bg/40 hover:bg-accent/10 hover:border-accent/30 transition-colors">
                     <button
                       type="button"
-                      className="flex-1 text-left min-w-0"
+                      className="flex-1 text-left min-w-0 min-h-11 py-2"
                       onClick={() => onNavigateSession(session.id)}
                     >
                       <span className="block text-sm text-gray-100">{title}</span>

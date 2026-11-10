@@ -1,4 +1,4 @@
-const CACHE_NAME = 'auto-dm-20261105T163';
+const CACHE_NAME = 'auto-dm-20261110T194';
 const urlsToCache = ['/', '/manifest.json', '/icons/icon-192x192.png', '/icons/icon-512x512.png'];
 
 self.addEventListener('install', (event) => {
@@ -21,8 +21,26 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+function offlineResponse() {
+  return new Response('Offline. Check your connection and try again.', {
+    status: 503,
+    statusText: 'Service Unavailable',
+    headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+  });
+}
+
+function putInCache(request, response) {
+  const copy = response.clone();
+  return caches
+    .open(CACHE_NAME)
+    .then((cache) => cache.put(request, copy))
+    .catch(() => undefined);
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
+  if (request.method !== 'GET') return;
+
   const url = new URL(request.url);
 
   if (url.origin !== self.location.origin) {
@@ -33,33 +51,43 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (request.destination === 'document') {
+  // Range requests (PDF reader) must go straight to the network.
+  if (request.headers.has('range')) return;
+
+  if (request.mode === 'navigate' || request.destination === 'document') {
+    // Network first; on failure fall back to the cached page, then the cached app shell.
     event.respondWith(
       fetch(request)
         .then((response) => {
-          if (response.status === 200) {
-            const copy = response.clone();
-            caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-          }
+          if (response.status === 200) void putInCache(request, response);
           return response;
         })
-        .catch(() => caches.match(request)),
+        .catch(() =>
+          caches
+            .match(request)
+            .then((cached) => cached || caches.match('/'))
+            .then((cached) => cached || offlineResponse())
+            .catch(() => offlineResponse()),
+        ),
     );
     return;
   }
 
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((response) => {
-        if (!response.ok || response.status !== 200 || response.type !== 'basic') {
-          return response;
-        }
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
-        return response;
-      });
-    }),
+    caches
+      .match(request)
+      .catch(() => undefined)
+      .then((cached) => {
+        if (cached) return cached;
+        return fetch(request)
+          .then((response) => {
+            if (response.ok && response.status === 200 && response.type === 'basic') {
+              void putInCache(request, response);
+            }
+            return response;
+          })
+          .catch(() => offlineResponse());
+      }),
   );
 });
 
