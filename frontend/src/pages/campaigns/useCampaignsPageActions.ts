@@ -29,14 +29,26 @@ export function useCampaignsPageActions(
 
   const loadAdventures = useCallback(
     async (campaignId: string) => {
-      dispatch({ type: 'set', patch: { adventuresLoaded: false } });
-      const res = await api.listCampaignAdventures(campaignId);
-      dispatch({ type: 'set', patch: { campaignAdventures: res.adventures, adventuresLoaded: true } });
+      dispatch({ type: 'set', patch: { adventuresLoaded: false, adventuresError: false } });
+      try {
+        const res = await api.listCampaignAdventures(campaignId);
+        dispatch({
+          type: 'set',
+          patch: { campaignAdventures: res.adventures, adventuresLoaded: true, adventuresError: false },
+        });
+      } catch (err: unknown) {
+        console.warn('Failed to load campaign adventures', err);
+        dispatch({ type: 'set', patch: { campaignAdventures: [], adventuresLoaded: true, adventuresError: true } });
+      }
     },
     [dispatch],
   );
 
   const charactersRef = useRef(state.characters);
+  const selectedIdRef = useRef(state.selected?.id ?? '');
+  useEffect(() => {
+    selectedIdRef.current = state.selected?.id ?? '';
+  }, [state.selected?.id]);
 
   useEffect(() => {
     charactersRef.current = state.characters;
@@ -65,6 +77,8 @@ export function useCampaignsPageActions(
           type: 'set',
           patch: {
             selected: campaign,
+            // Not-loaded is distinct from zero: never show the previous campaign's count.
+            ...(selectedIdRef.current === id ? {} : { campaignAdventures: [], adventuresLoaded: false }),
             copyForm: { character_id: defaultChar, name: '' },
           },
         });

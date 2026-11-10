@@ -26,6 +26,7 @@ interface Props {
     | 'entry'
     | 'campaignAdventures'
     | 'adventuresLoaded'
+    | 'adventuresError'
     | 'characters'
     | 'campaignsLoaded'
     | 'newAdventureOpen'
@@ -83,7 +84,14 @@ export default function CampaignDetailPanel({
   const list = state.tab === 'npcs' ? campaign.npcs : state.tab === 'locations' ? campaign.locations : [];
   const tabs = [
     { id: 'story', label: 'Story arc' },
-    { id: 'adventures', label: `Adventures (${state.campaignAdventures.length})` },
+    {
+      id: 'adventures',
+      label: !state.adventuresLoaded
+        ? 'Adventures (…)'
+        : state.adventuresError
+          ? 'Adventures (?)'
+          : `Adventures (${state.campaignAdventures.length})`,
+    },
     { id: 'npcs', label: `NPCs (${campaign.npcs?.length ?? 0})` },
     { id: 'locations', label: `Locations (${campaign.locations?.length ?? 0})` },
   ];
@@ -125,6 +133,7 @@ export default function CampaignDetailPanel({
           <CampaignAdventuresTab
             adventures={state.campaignAdventures}
             adventuresLoaded={state.adventuresLoaded}
+            adventuresError={state.adventuresError}
             characters={state.characters}
             isBrambletrek={isBrambletrekCampaign}
             newAdventureOpen={state.newAdventureOpen}
@@ -348,6 +357,7 @@ function CampaignStoryTab({ campaign }: { campaign: CampaignFull }) {
 function CampaignAdventuresTab({
   adventures,
   adventuresLoaded,
+  adventuresError,
   characters,
   isBrambletrek,
   newAdventureOpen,
@@ -361,6 +371,7 @@ function CampaignAdventuresTab({
 }: {
   adventures: AdventureMeta[];
   adventuresLoaded: boolean;
+  adventuresError: boolean;
   characters: { id: string; name: string; game_id?: string }[];
   isBrambletrek: boolean;
   newAdventureOpen: boolean;
@@ -411,6 +422,7 @@ function CampaignAdventuresTab({
       <CampaignAdventureList
         adventures={adventures}
         adventuresLoaded={adventuresLoaded}
+        adventuresError={adventuresError}
         onPlayAdventure={onPlayAdventure}
         onDeleteAdventure={onDeleteAdventure}
       />
@@ -504,15 +516,20 @@ function NewAdventureForm({
 function CampaignAdventureList({
   adventures,
   adventuresLoaded,
+  adventuresError,
   onPlayAdventure,
   onDeleteAdventure,
 }: {
   adventures: AdventureMeta[];
   adventuresLoaded: boolean;
+  adventuresError: boolean;
   onPlayAdventure: (id: string) => void;
   onDeleteAdventure: (id: string) => void;
 }) {
   if (!adventuresLoaded) return <ListLoading />;
+  if (adventuresError) {
+    return <p className="text-sm text-muted">Could not load adventures. Reopen the campaign to try again.</p>;
+  }
   if (adventures.length === 0) {
     return (
       <EmptyState

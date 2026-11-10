@@ -9,6 +9,7 @@ export interface CampaignsState {
   campaignAdventures: AdventureMeta[];
   allAdventures: AdventureMeta[];
   adventuresLoaded: boolean;
+  adventuresError: boolean;
   characters: { id: string; name: string; game_id?: string }[];
   tab: CampaignTab;
   entry: JournalEntry | null;
@@ -57,6 +58,7 @@ export const initialCampaignsState: CampaignsState = {
   campaignAdventures: [],
   allAdventures: [],
   adventuresLoaded: false,
+  adventuresError: false,
   characters: [],
   tab: 'story',
   entry: null,
