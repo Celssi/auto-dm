@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from backend.dm.memory_dedupe import condense_body
 from backend.journal_storage import (
     get_campaign,
     get_campaign_location,
@@ -23,6 +24,20 @@ def _clip(text: str, limit: int = MAX_BODY) -> str:
     if len(text) <= limit:
         return text
     return text[:limit] + "…"
+
+
+def _clip_memory(body: str, limit: int = MAX_BODY) -> str:
+    """Condense repeated [Update] notes, then keep the opening and the newest facts.
+
+    Plain head clipping dropped every recent update once a note grew past the limit,
+    so the DM kept seeing only the first description of long-running NPCs.
+    """
+    text = condense_body(body)
+    if len(text) <= limit:
+        return text
+    head = limit // 3
+    tail = limit - head
+    return f"{text[:head].rstrip()} … {text[-tail:].lstrip()}"
 
 
 def prior_adventures_context(
@@ -89,7 +104,7 @@ def world_context_for_campaign(
             npc = get_campaign_npc(campaign_id, row["id"])
             if not npc:
                 continue
-            parts.append(f"\n**{npc.get('name', row['id'])}**\n{_clip(npc.get('body', ''))}")
+            parts.append(f"\n**{npc.get('name', row['id'])}**\n{_clip_memory(npc.get('body', ''))}")
 
     loc_rows = list_campaign_locations(campaign_id)[:MAX_LOCATIONS]
     if loc_rows:
@@ -98,6 +113,6 @@ def world_context_for_campaign(
             loc = get_campaign_location(campaign_id, row["id"])
             if not loc:
                 continue
-            parts.append(f"\n**{loc.get('name', row['id'])}**\n{_clip(loc.get('body', ''))}")
+            parts.append(f"\n**{loc.get('name', row['id'])}**\n{_clip_memory(loc.get('body', ''))}")
 
     return "\n".join(parts).strip()

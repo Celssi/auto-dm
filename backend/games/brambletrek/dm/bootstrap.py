@@ -77,7 +77,7 @@ def generate_brambletrek_opening(char: dict, adv: dict | None = None) -> str:
         character=char,
         top_k=8,
     )
-    llm = structured_llm(BrambletrekOpeningPackage)
+    llm = structured_llm(BrambletrekOpeningPackage, side=False)
     pkg = llm.invoke(
         [
             HumanMessage(

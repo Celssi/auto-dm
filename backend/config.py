@@ -52,7 +52,11 @@ def _load_dotenv_value(name: str) -> str | None:
 
 
 ANTHROPIC_API_KEY = _load_dotenv_value("ANTHROPIC_API_KEY")
+# Newest Opus per Anthropic's models overview (checked 2026-11-10): claude-opus-5-5.
 CLAUDE_CHAT_MODEL = os.environ.get("CLAUDE_CHAT_MODEL", "claude-opus-5-5")
+# Bookkeeping/extraction calls (journal, resources, progress, recap, continuity).
+# Defaults to the main model; set e.g. claude-sonnet-5-5 to cut side-task cost.
+CLAUDE_SIDE_MODEL = os.environ.get("CLAUDE_SIDE_MODEL", "").strip() or CLAUDE_CHAT_MODEL
 CHAT_MODEL = os.environ.get("OLLAMA_CHAT_MODEL", "gemma3:12b")
 
 

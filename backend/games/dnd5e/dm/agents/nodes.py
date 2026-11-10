@@ -27,7 +27,11 @@ from backend.games.dnd5e.dm.combat_manager import (
     try_start_planned_encounter,
 )
 from backend.games.dnd5e.dm.resource_keeper import run_resource_keeper
-from backend.games.dnd5e.prompts import dnd5e_stable_system_prompt, dnd5e_variable_system_prompt
+from backend.games.dnd5e.prompts import (
+    dnd5e_session_context,
+    dnd5e_stable_system_prompt,
+    dnd5e_turn_context,
+)
 from backend.llm import (
     build_cached_chat_messages,
     get_langchain_chat_llm,
@@ -383,13 +387,16 @@ def narrator_dm_node(state: DMState) -> DMState:
     campaign_id = adventure.get("campaign_id")
     memory = build_narrative_context(adventure, campaign_id, char)
     stable = dnd5e_stable_system_prompt()
-    variable = dnd5e_variable_system_prompt(
+    variable = dnd5e_session_context(
         character=char,
         story_brief=state.get("story_brief") or "",
-        canon_summary=memory["canon_summary"],
-        recent_scenes=memory["recent_scenes"],
         world_context=memory["world_bible"],
         include_faerun=include_faerun,
+    )
+    volatile = dnd5e_turn_context(
+        character=char,
+        canon_summary=memory["canon_summary"],
+        recent_scenes=memory["recent_scenes"],
     )
     llm = get_langchain_chat_llm("claude")
     user_parts = [state.get("user_message", "")]
@@ -404,6 +411,7 @@ def narrator_dm_node(state: DMState) -> DMState:
         variable,
         state.get("messages") or [],
         "\n\n".join(user_parts),
+        volatile=volatile,
     )
     if narration_enabled():
         text, _ = stream_chat_llm(

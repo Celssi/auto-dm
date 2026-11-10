@@ -164,7 +164,7 @@ Requirements:
 
 {NARRATION_STYLE_RULES}
 """
-    llm = structured_llm(CampaignBootstrapSpec)
+    llm = structured_llm(CampaignBootstrapSpec, side=False)
     return llm.invoke([HumanMessage(content=prompt)])
 
 
@@ -266,7 +266,7 @@ Requirements:
 
 {NARRATION_STYLE_RULES}
 """
-    llm = structured_llm(AdventureContinuationSpec)
+    llm = structured_llm(AdventureContinuationSpec, side=False)
     try:
         return llm.invoke([HumanMessage(content=prompt)])
     except Exception:
@@ -423,7 +423,7 @@ Requirements:
 - locations: 3-6 entries with atmosphere, features, current state
 - Names must be consistent across story_arc, adventures, NPCs, and locations
 """
-    llm = structured_llm(CampaignPlanSpec)
+    llm = structured_llm(CampaignPlanSpec, side=False)
     spec = llm.invoke([HumanMessage(content=prompt)])
     if len(spec.adventures) > count:
         spec.adventures = spec.adventures[:count]
@@ -675,7 +675,7 @@ Story arc:
 Propose what happens next. Do not repeat finished plots. Advance unresolved threads
 or introduce a natural escalation.
 """
-    llm = structured_llm(NextAdventureHookSpec)
+    llm = structured_llm(NextAdventureHookSpec, side=False)
     return llm.invoke([HumanMessage(content=prompt)])
 
 

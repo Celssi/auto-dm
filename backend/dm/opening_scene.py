@@ -56,7 +56,7 @@ def _generate_opening_from_outline(
 ) -> str:
     char_obj = character_from_dict(char)
     world = world_context_for_campaign(campaign_id) if campaign_id else ""
-    llm = structured_llm(OpeningScenePackage)
+    llm = structured_llm(OpeningScenePackage, side=False)
     pkg = llm.invoke(
         [
             HumanMessage(
@@ -96,7 +96,7 @@ def _generate_standalone_opening(
         character_id=character_id,
         include_faerun=include_faerun,
     )
-    llm = structured_llm(OpeningScenePackage)
+    llm = structured_llm(OpeningScenePackage, side=False)
     prompt = f"""Write the opening scene for a D&D 5e solo adventure.
 
 Adventure: {adventure_name or spec.adventure_name}

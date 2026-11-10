@@ -260,3 +260,39 @@ def test_session_routes_rename_archive_recap_world(isolated_saves):
 
     client.patch(f"/api/sessions/{sid}", json={"archived": False})
     assert client.get("/api/sessions").json()["sessions"][0]["id"] == sid
+
+
+def test_world_refresh_skips_llm_when_campaign_journal_exists(isolated_saves):
+    from backend.dm import session_world
+
+    sid = _session()
+    storage.save_session_messages(sid, [{"role": "assistant", "content": "**Dalla** waits."}])
+    with (
+        patch.object(session_world, "_campaign_id_for_session", return_value="camp"),
+        patch.object(session_world, "get_campaign", return_value={"id": "camp"}),
+        patch.object(
+            session_world, "list_campaign_npcs", return_value=[{"id": "d", "name": "Dalla"}]
+        ),
+        patch.object(session_world, "list_campaign_locations", return_value=[]),
+        patch.object(session_world, "campaign_world_entries", return_value=[]),
+        patch.object(session_world, "_llm_extract") as llm,
+    ):
+        get_or_refresh_world(sid, refresh=True)
+    llm.assert_not_called()
+
+
+def test_world_refresh_runs_llm_once_per_transcript_state(isolated_saves):
+    from backend.dm import session_world
+
+    sid = _session()
+    storage.save_session_messages(sid, [{"role": "assistant", "content": "Helda waits."}])
+    with patch.object(session_world, "_llm_extract", return_value=[]) as llm:
+        get_or_refresh_world(sid, refresh=True)
+        get_or_refresh_world(sid, refresh=True)
+    assert llm.call_count == 1
+
+
+def test_world_hides_action_prompts_from_marked_names():
+    assert extract_marked_names(
+        "You could **Ask Dalla to come with you** or find **Brannoc**."
+    ) == ["Brannoc"]

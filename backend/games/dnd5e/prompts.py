@@ -63,6 +63,51 @@ def dnd5e_variable_system_prompt(
 """
 
 
+def dnd5e_session_context(
+    *,
+    character: Dnd5eCharacter | None = None,
+    story_brief: str = "",
+    world_context: str = "",
+    include_faerun: bool = False,
+) -> str:
+    """Slow-changing narrator context (setting, world bible, story brief): cacheable."""
+    extra = ""
+    if character:
+        setting = (character.campaign_setting or "freeform").strip().lower()
+        notes = (character.campaign_notes or "").strip()
+        if setting == "faerun" or include_faerun:
+            extra += (
+                "- Setting: Faerûn (Forgotten Realms). "
+                "Use Heroes of Faerûn and Adventures in Faerûn.\n"
+            )
+        elif notes:
+            extra += f"- Setting: {notes}\n"
+        else:
+            extra += "- Setting: freeform/homebrew unless the player specifies otherwise.\n"
+    if world_context.strip():
+        extra += f"\n{world_context.strip()[:6000]}\n"
+    if story_brief.strip():
+        extra += f"\n{story_brief.strip()[:5000]}\n"
+    return extra.strip()
+
+
+def dnd5e_turn_context(
+    *,
+    character: Dnd5eCharacter | None = None,
+    canon_summary: str = "",
+    recent_scenes: str = "",
+) -> str:
+    """Per-turn narrator context (canon, recent scenes, live sheet): sent after history."""
+    entity_block = format_for_prompt(character) if character else "No character loaded."
+    parts: list[str] = []
+    if canon_summary.strip():
+        parts.append(f"## Adventure canon\n{canon_summary.strip()[:4000]}")
+    if recent_scenes.strip():
+        parts.append(f"## Recent scenes\n{recent_scenes.strip()[:3000]}")
+    parts.append(f"## Character\n{entity_block}")
+    return "\n\n".join(parts)
+
+
 def dnd5e_system_prompt(
     *,
     character: Dnd5eCharacter | None = None,

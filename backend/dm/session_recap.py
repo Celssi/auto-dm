@@ -98,7 +98,7 @@ Recent log:
 Recent transcript:
 {chr(10).join(transcript_bits) or "(none)"}
 """
-    llm = get_langchain_chat_llm("claude", effort="medium")
+    llm = get_langchain_chat_llm("claude", effort="medium", side=True)
     response = invoke_chat_llm(
         llm,
         [

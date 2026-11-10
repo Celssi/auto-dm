@@ -11,6 +11,7 @@ from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, System
 from backend.config import (
     ANTHROPIC_API_KEY,
     CLAUDE_CHAT_MODEL,
+    CLAUDE_SIDE_MODEL,
     OLLAMA_BASE_URL,
     OLLAMA_REQUEST_TIMEOUT,
 )
@@ -22,12 +23,27 @@ _CLAUDE_MODEL_ALIASES: dict[str, str] = {
     "claude-sonnet-4-20250514": "claude-sonnet-4-6",
 }
 
-CLAUDE_MAX_TOKENS = 16000
+# Output cap per call. Adaptive thinking counts toward it, so keep headroom for long
+# narration and large structured campaign plans.
+CLAUDE_MAX_TOKENS = int(os.environ.get("CLAUDE_MAX_TOKENS", "16000"))
+# SDK-level retries with backoff on 429/5xx/overloaded, and a hard per-request timeout so
+# a stuck upstream call cannot hold a Cloud Run request open forever.
+CLAUDE_MAX_RETRIES = int(os.environ.get("CLAUDE_MAX_RETRIES", "3"))
+CLAUDE_TIMEOUT_S = float(os.environ.get("CLAUDE_TIMEOUT_S", "600"))
+
+# Narrator history: keep at least this many recent messages, but move the window start
+# in steps so the cached conversation prefix stays identical across several turns.
+HISTORY_MIN_MESSAGES = 10
+HISTORY_WINDOW_STEP = 6
 
 
 def resolve_claude_model(model: str | None = None) -> str:
     name = (model or CLAUDE_CHAT_MODEL).strip()
     return _CLAUDE_MODEL_ALIASES.get(name, name)
+
+
+def resolve_claude_side_model() -> str:
+    return resolve_claude_model(CLAUDE_SIDE_MODEL)
 
 
 def resolve_anthropic_api_key(*, anthropic_key: str | None = None) -> str | None:
@@ -73,17 +89,42 @@ def cached_system(text: str) -> SystemMessage:
     )
 
 
+def history_window(history: list[dict[str, Any]] | None) -> list[dict[str, Any]]:
+    """Recent chat history with a start index that only moves every few turns.
+
+    A plain ``[-10:]`` slice shifts the first message every turn, which changes the cached
+    prefix and turns every narrator call into a full cache miss.
+    """
+    items = list(history or [])
+    n = len(items)
+    if n <= HISTORY_MIN_MESSAGES:
+        return items
+    start = ((n - HISTORY_MIN_MESSAGES) // HISTORY_WINDOW_STEP) * HISTORY_WINDOW_STEP
+    return items[start:]
+
+
 def build_cached_chat_messages(
     stable: str,
     variable: str,
     history: list[dict[str, Any]] | None,
     user_content: str,
+    *,
+    volatile: str = "",
 ) -> list[BaseMessage]:
-    messages: list[BaseMessage] = [cached_system(stable)]
+    """Narrator prompt laid out for prompt caching.
+
+    Order: [stable rules + session context] (cached) → history (cached at last message)
+    → this turn's volatile context + player message (uncached). ``volatile`` is for
+    state that changes nearly every turn (recent scenes, HP, canon summary) so it does not
+    invalidate the cached prefix.
+    """
+    system_blocks: list[dict[str, Any]] = [{"type": "text", "text": stable}]
     if variable.strip():
-        messages.append(SystemMessage(content=variable.strip()))
+        system_blocks.append({"type": "text", "text": variable.strip()})
+    system_blocks[-1] = {**system_blocks[-1], "cache_control": {"type": "ephemeral"}}
+    messages: list[BaseMessage] = [SystemMessage(content=system_blocks)]
     hist: list[BaseMessage] = []
-    for item in (history or [])[-10:]:
+    for item in history_window(history):
         role = item.get("role", "")
         content = item.get("content", "")
         if role == "user":
@@ -93,7 +134,10 @@ def build_cached_chat_messages(
     if hist:
         hist[-1] = apply_cache_breakpoint(hist[-1])
     messages.extend(hist)
-    messages.append(HumanMessage(content=user_content))
+    turn = user_content
+    if volatile.strip():
+        turn = f"{volatile.strip()}\n\n## Player turn\n{user_content}"
+    messages.append(HumanMessage(content=turn))
     return messages
 
 
@@ -206,6 +250,8 @@ def _cached_langchain_chat_llm(provider: str, model: str, api_key: str, effort: 
             "model": model,
             "api_key": api_key,
             "max_tokens": CLAUDE_MAX_TOKENS,
+            "max_retries": CLAUDE_MAX_RETRIES,
+            "timeout": CLAUDE_TIMEOUT_S,
         }
         if effort:
             kwargs["effort"] = effort
@@ -223,19 +269,25 @@ def get_langchain_chat_llm(
     provider: ChatProvider = "claude",
     *,
     effort: EffortLevel = "high",
+    side: bool = False,
 ):
+    """Chat model. ``side=True`` selects CLAUDE_SIDE_MODEL for bookkeeping calls."""
     if provider == "claude":
         key = resolve_anthropic_api_key()
         if not key:
             raise RuntimeError("ANTHROPIC_API_KEY not set")
-        return _cached_langchain_chat_llm(provider, resolve_claude_model(), key, effort)
+        model = resolve_claude_side_model() if side else resolve_claude_model()
+        return _cached_langchain_chat_llm(provider, model, key, effort)
     model = os.environ.get("OLLAMA_CHAT_MODEL", "gemma3:12b")
     return _cached_langchain_chat_llm(provider, model, "", "")
 
 
-def structured_llm(schema: type, provider: ChatProvider = "claude"):
-    """Structured output via json_schema (forced tool use is rejected on Opus 5.5)."""
-    return get_langchain_chat_llm(provider, effort="medium").with_structured_output(
+def structured_llm(schema: type, provider: ChatProvider = "claude", *, side: bool = True):
+    """Structured output via json_schema (forced tool use is rejected on Opus 5.5).
+
+    ``side=False`` keeps creative generation (campaigns, openings) on the main model.
+    """
+    return get_langchain_chat_llm(provider, effort="medium", side=side).with_structured_output(
         schema, method="json_schema"
     )
 
@@ -251,6 +303,8 @@ def get_llamaindex_chat_llm(provider: ChatProvider = "claude"):
             model=resolve_claude_model(),
             api_key=key,
             max_tokens=CLAUDE_MAX_TOKENS,
+            max_retries=CLAUDE_MAX_RETRIES,
+            timeout=CLAUDE_TIMEOUT_S,
             additional_kwargs={"output_config": {"effort": "high"}},
         )
     from llama_index.llms.ollama import Ollama

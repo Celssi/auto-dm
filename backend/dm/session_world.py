@@ -10,6 +10,7 @@ from backend.dm.journal_keeper import (
     apply_journal_updates,
     extract_journal_updates,
 )
+from backend.dm.memory_dedupe import condense_body, looks_like_entity_name
 from backend.journal_storage import (
     get_campaign,
     get_campaign_location,
@@ -54,7 +55,8 @@ def _entry(kind: str, name: str, body: str = "", source: str = "session") -> dic
     return {
         "kind": kind,
         "name": name.strip(),
-        "body": (body or "").strip(),
+        # Display-only condensing of repeated [Update] paragraphs; stored notes are untouched.
+        "body": condense_body(body or ""),
         "source": source,
     }
 
@@ -65,6 +67,9 @@ def _merge_entries(rows: list[dict[str, str]]) -> list[dict[str, str]]:
     for row in rows:
         name = str(row.get("name") or "").strip()
         if not name:
+            continue
+        # Hide session-only rows that are really player options; campaign notes are shown as-is.
+        if row.get("source") != "campaign" and not looks_like_entity_name(name):
             continue
         key = _norm(name)
         if key not in by_name:
@@ -156,6 +161,8 @@ def extract_marked_names(text: str) -> list[str]:
         name = match.strip()
         key = _norm(name)
         if key in seen or key in _COMMON_FALSE_POSITIVES or len(key) < 2:
+            continue
+        if not looks_like_entity_name(name):
             continue
         seen.add(key)
         names.append(name)
@@ -275,14 +282,34 @@ def get_or_refresh_world(session_id: str, *, refresh: bool = False) -> dict[str,
     cache = get_session_world_cache(session_id)
     extra: list[dict[str, str]] = []
     stale = cache is None or cache.get("message_count") != count
+    llm_count = (cache or {}).get("llm_message_count")
     if (refresh or stale) and count > 0:
         extra.extend(heuristic_extract(session))
-        if refresh:
+        if refresh and _needs_llm_extract(session, llm_count, count):
             try:
                 extra.extend(_llm_extract(session, _campaign_id_for_session(session)))
+                llm_count = count
             except Exception:
                 pass
     entries = assemble_world_entries(session, cache=cache, extra=extra)
     payload = _payload(entries, count)
+    if llm_count is not None:
+        payload["llm_message_count"] = llm_count
     save_session_world_cache(session_id, payload)
     return payload
+
+
+def _needs_llm_extract(session: dict[str, Any], llm_count: Any, count: int) -> bool:
+    """Run the Claude roster extract at most once per transcript state.
+
+    Campaign sessions already get per-turn journal updates from the journal keeper, so
+    re-reading the last turns on every session open only re-appended the same facts as
+    new [Update] paragraphs (and cost a Claude call per open). Only backfill when the
+    campaign has no journal entries yet, or for session-only play with new turns.
+    """
+    if llm_count == count:
+        return False
+    campaign_id = _campaign_id_for_session(session)
+    if campaign_id and get_campaign(campaign_id):
+        return not (list_campaign_npcs(campaign_id) or list_campaign_locations(campaign_id))
+    return True
