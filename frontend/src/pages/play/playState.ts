@@ -75,7 +75,9 @@ export interface PlayState {
   recap: SessionRecap | null;
   recapLoading: boolean;
   world: SessionWorld | null;
+  /** True until the NPC/location fetch for the current session has resolved. */
   worldLoading: boolean;
+  worldError: boolean;
   adventureId: string;
   campaignId: string;
   playerProgress: PlayerProgress | null;
@@ -138,7 +140,8 @@ export function createInitialPlayState(sessionId = '', wizardTab: 'continue' | '
     recap: null,
     recapLoading: false,
     world: null,
-    worldLoading: false,
+    worldLoading: true,
+    worldError: false,
     adventureId: '',
     campaignId: '',
     playerProgress: null,

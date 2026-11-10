@@ -95,6 +95,7 @@ export default function PlaySessionView({
     recapLoading,
     world,
     worldLoading,
+    worldError,
     playerProgress,
     adventureComplete,
     nextAdventure,
@@ -133,6 +134,7 @@ export default function PlaySessionView({
             playerProgress={playerProgress}
             world={world}
             worldLoading={worldLoading}
+            worldError={worldError}
           />
         }
         chat={
@@ -326,6 +328,7 @@ function PlayCharacterPanel({
   playerProgress,
   world,
   worldLoading,
+  worldError,
 }: {
   character: Character | null;
   characterId: string;
@@ -333,6 +336,7 @@ function PlayCharacterPanel({
   playerProgress: PlayerProgress | null;
   world: PlayState['world'];
   worldLoading: boolean;
+  worldError: boolean;
 }) {
   const stage = playerProgress?.stage?.trim() ?? '';
   // Avoid repeating the current stage as a one-item beat list.
@@ -375,7 +379,12 @@ function PlayCharacterPanel({
         )}
         <p className="text-[10px] text-muted leading-relaxed">The DM knows more than you see here.</p>
       </div>
-      <WorldRosterPanel npcs={world?.npcs ?? []} locations={world?.locations ?? []} loading={worldLoading && !world} />
+      <WorldRosterPanel
+        npcs={world?.npcs ?? []}
+        locations={world?.locations ?? []}
+        loading={worldLoading && !world}
+        error={worldError && !world}
+      />
     </aside>
   );
 }

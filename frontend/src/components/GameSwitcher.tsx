@@ -32,10 +32,10 @@ export default function GameSwitcher() {
   };
 
   return (
-    <div ref={rootRef} className="relative">
+    <div ref={rootRef} className="relative min-w-0">
       <button
         type="button"
-        className="btn-ghost min-h-11 inline-flex items-center gap-1.5 max-w-[12rem] sm:max-w-none"
+        className="btn-ghost min-h-11 inline-flex items-center gap-1.5 max-w-full min-w-0 px-3"
         aria-haspopup="listbox"
         aria-expanded={open}
         onClick={() => setOpen((value) => !value)}

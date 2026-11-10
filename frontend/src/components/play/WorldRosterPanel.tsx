@@ -7,9 +7,10 @@ interface Props {
   npcs: WorldEntry[];
   locations: WorldEntry[];
   loading?: boolean;
+  error?: boolean;
 }
 
-export default function WorldRosterPanel({ npcs, locations, loading = false }: Props) {
+export default function WorldRosterPanel({ npcs, locations, loading = false, error = false }: Props) {
   const [open, setOpen] = useState(true);
   const count = npcs.length + locations.length;
 
@@ -23,7 +24,7 @@ export default function WorldRosterPanel({ npcs, locations, loading = false }: P
       >
         <span className="section-heading">NPCs & locations</span>
         <span className="inline-flex items-center gap-1 text-[10px] text-muted">
-          {loading ? '…' : count}
+          {loading ? '…' : error ? '-' : count}
           <ChevronDown size={14} className={`transition-transform ${open ? 'rotate-180' : ''}`} />
         </span>
       </button>
@@ -32,7 +33,12 @@ export default function WorldRosterPanel({ npcs, locations, loading = false }: P
           Loading NPCs and locations…
         </p>
       )}
-      {open && !loading && (
+      {open && !loading && error && (
+        <p className="px-3 pb-3 text-xs text-muted" role="status">
+          Could not load NPCs and locations. Reopen the session to try again.
+        </p>
+      )}
+      {open && !loading && !error && (
         <div className="px-3 pb-3 space-y-3">
           <RosterGroup kind="npc" title="NPCs" icon={Users} entries={npcs} empty="No NPCs recorded yet." />
           <RosterGroup

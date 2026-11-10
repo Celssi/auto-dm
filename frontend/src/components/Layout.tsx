@@ -34,15 +34,15 @@ export default function Layout() {
     <div className={`flex flex-col ${isPlaySession ? 'h-dvh overflow-hidden' : 'min-h-screen'}`}>
       <nav className="border-b border-border/80 bg-panel/70 backdrop-blur-md shrink-0 z-20">
         <div
-          className={`mx-auto px-4 py-2.5 flex items-center gap-3 md:gap-6 ${
+          className={`mx-auto px-3 sm:px-4 py-2.5 flex items-center gap-2 sm:gap-3 md:gap-6 min-w-0 ${
             isPlaySession ? 'max-w-[1600px]' : 'max-w-7xl'
           }`}
         >
-          <Link to="/" className="flex items-center gap-2 group shrink-0">
+          <Link to="/" className="flex items-center gap-2 group shrink-0 min-h-11" aria-label="Auto-DM home">
             <m.span whileHover={{ rotate: 12 }} transition={{ type: 'spring', stiffness: 300 }} className="text-accent">
               <Dices size={22} />
             </m.span>
-            <span className="font-display font-semibold text-accent group-hover:opacity-80 transition-opacity">
+            <span className="hidden min-[400px]:inline font-display font-semibold text-accent group-hover:opacity-80 transition-opacity">
               Auto-DM
             </span>
           </Link>
@@ -71,10 +71,10 @@ export default function Layout() {
             })}
           </div>
 
-          <div className="ml-auto flex items-center gap-2 shrink-0">
+          <div className="ml-auto flex items-center gap-1.5 sm:gap-2 min-w-0">
             <button
               type="button"
-              className="btn-ghost min-h-11 min-w-11 px-3 inline-flex items-center justify-center gap-1.5"
+              className="btn-ghost min-h-11 min-w-11 px-3 shrink-0 inline-flex items-center justify-center gap-1.5"
               onClick={openReader}
               aria-label="Open rulebook"
             >
@@ -84,7 +84,7 @@ export default function Layout() {
             <GameSwitcher />
             <button
               type="button"
-              className="btn-ghost min-h-11 min-w-11 px-3 inline-flex items-center justify-center gap-1.5"
+              className="btn-ghost min-h-11 min-w-11 px-3 shrink-0 inline-flex items-center justify-center gap-1.5"
               onClick={() => void signOut()}
               aria-label="Sign out"
               title="Sign out"

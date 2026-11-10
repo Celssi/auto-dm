@@ -104,8 +104,8 @@ export function usePlayPageSession(
       dispatch({
         type: 'set',
         patch: continuing
-          ? { recapLoading: true, worldLoading: true }
-          : { recapLoading: false, recap: null, worldLoading: true },
+          ? { recapLoading: true, worldLoading: true, worldError: false }
+          : { recapLoading: false, recap: null, worldLoading: true, worldError: false },
       });
       if (continuing) {
         try {
@@ -128,6 +128,7 @@ export function usePlayPageSession(
             patch: {
               world,
               worldLoading: false,
+              worldError: false,
               journalEntities: worldToEntities(world),
             },
           });
@@ -135,7 +136,7 @@ export function usePlayPageSession(
       } catch (err: unknown) {
         console.warn('Failed to load session world', err);
         if (seq === loadSeqRef.current) {
-          dispatch({ type: 'set', patch: { worldLoading: false } });
+          dispatch({ type: 'set', patch: { worldLoading: false, worldError: true } });
         }
       }
     },
@@ -146,7 +147,10 @@ export function usePlayPageSession(
     async (id: string) => {
       if (!id) return;
       const seq = ++loadSeqRef.current;
-      dispatch({ type: 'set', patch: { sessionLoaded: false, loadError: '' } });
+      dispatch({
+        type: 'set',
+        patch: { sessionLoaded: false, loadError: '', world: null, worldLoading: true, worldError: false },
+      });
       try {
         const { session } = await api.getSession(id);
         if (seq !== loadSeqRef.current || !session.character_id) return;
@@ -182,7 +186,7 @@ export function usePlayPageSession(
               recap: null,
               recapLoading: false,
               world: null,
-              worldLoading: false,
+              worldLoading: true,
               campaignId: '',
               playerProgress: null,
               adventureComplete: false,
@@ -255,6 +259,7 @@ export function usePlayPageSession(
           type: 'set',
           patch: {
             sessionLoaded: true,
+            worldLoading: false,
             loadError: e instanceof Error ? e.message : 'Failed to load session',
           },
         });
