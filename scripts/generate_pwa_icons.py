@@ -1,83 +1,91 @@
-"""Draw Auto-DM PWA icons from the favicon d20 motif."""
-
+#!/usr/bin/env python3
+"""Regenerate PWA / favicon assets from assets/brand/hedgehog.svg (needs cairosvg + Pillow)."""
 from __future__ import annotations
 
+import io
+import sys
 from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+import cairosvg
+from PIL import Image, ImageDraw, ImageFilter
 
-OUT = Path(__file__).resolve().parent.parent / "frontend" / "public" / "icons"
-BG = (10, 14, 20, 255)
-GOLD = (212, 175, 55, 255)
-INNER = (22, 31, 46, 255)
-INNER_TINT = (212, 175, 55, 38)
+ROOT = Path(__file__).resolve().parents[1]
+# Auto-DM keeps the script at repo/scripts but public/ is frontend/public
+if (ROOT / "frontend" / "public").is_dir() and not (ROOT / "public").is_dir():
+    PUBLIC = ROOT / "frontend" / "public"
+    APP_ICON = None
+elif (ROOT / "frontend" / "public").is_dir() and (ROOT / "scripts").is_dir() and Path(__file__).resolve().parent.parent.name != "frontend":
+    PUBLIC = ROOT / "frontend" / "public"
+    APP_ICON = None
+else:
+    PUBLIC = ROOT / "public"
+    APP_ICON = ROOT / "src" / "app" if (ROOT / "src" / "app").is_dir() else None
 
-
-def _font(size: int) -> ImageFont.FreeTypeFont | ImageFont.ImageFont:
-    for path in (
-        "/System/Library/Fonts/Supplemental/Georgia Bold.ttf",
-        "/System/Library/Fonts/Supplemental/Georgia.ttf",
-        "/Library/Fonts/Georgia.ttf",
-        "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf",
-    ):
-        candidate = Path(path)
-        if candidate.is_file():
-            return ImageFont.truetype(str(candidate), size)
-    return ImageFont.load_default()
-
-
-def _draw_icon(size: int) -> Image.Image:
-    image = Image.new("RGBA", (size, size), BG)
-    draw = ImageDraw.Draw(image)
-    pad = size * 0.08
-    cx = cy = size / 2
-    outer = [
-        (cx, pad),
-        (size - pad, cy * 0.72),
-        (size - pad, size - cy * 0.72),
-        (cx, size - pad),
-        (pad, size - cy * 0.72),
-        (pad, cy * 0.72),
-    ]
-    inner = [
-        (cx, size * 0.22),
-        (size * 0.78, cy * 0.78),
-        (size * 0.78, size - cy * 0.78),
-        (cx, size * 0.78),
-        (size * 0.22, size - cy * 0.78),
-        (size * 0.22, cy * 0.78),
-    ]
-    draw.polygon(outer, fill=INNER, outline=GOLD)
-    draw.polygon(inner, fill=INNER_TINT, outline=GOLD)
-    width = max(1, round(size * 0.035))
-    draw.line(outer + [outer[0]], fill=GOLD, width=width)
-    font = _font(max(10, int(size * 0.28)))
-    text = "20"
-    bbox = draw.textbbox((0, 0), text, font=font)
-    tw, th = bbox[2] - bbox[0], bbox[3] - bbox[1]
-    draw.text(((size - tw) / 2, (size - th) / 2 - bbox[1] * 0.15), text, font=font, fill=GOLD)
-    return image
+SOURCE = ROOT / "assets" / "brand" / "hedgehog.svg"
+ICONS = PUBLIC / "icons"
+CREAM = (250, 246, 238, 255)
+RADIUS = 0.22
+ANY_SIZES = [48, 72, 96, 128, 144, 152, 180, 192, 256, 384, 512]
+MASKABLE_SIZES = [192, 512]
+MASTER = 1024
 
 
-def _maskable(icon: Image.Image, size: int) -> Image.Image:
-    canvas = Image.new("RGBA", (size, size), BG)
-    inner = int(size * 0.8)
-    scaled = icon.resize((inner, inner), Image.Resampling.LANCZOS)
-    offset = (size - inner) // 2
-    canvas.paste(scaled, (offset, offset), scaled)
-    return canvas
+def rounded_mask(size: int, radius: int, scale: int = 4) -> Image.Image:
+    big = Image.new("L", (size * scale, size * scale), 0)
+    ImageDraw.Draw(big).rounded_rectangle(
+        (0, 0, size * scale - 1, size * scale - 1), radius=radius * scale, fill=255
+    )
+    return big.resize((size, size), Image.Resampling.LANCZOS)
+
+
+def down(img: Image.Image, size: int) -> Image.Image:
+    out = img.resize((size, size), Image.Resampling.LANCZOS)
+    if size <= 64:
+        out = out.filter(ImageFilter.UnsharpMask(radius=0.6, percent=60, threshold=1))
+    return out
+
+
+def save(img: Image.Image, path: Path) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    img.save(path, format="PNG", optimize=True)
 
 
 def main() -> None:
-    OUT.mkdir(parents=True, exist_ok=True)
-    icon_192 = _draw_icon(192)
-    icon_512 = _draw_icon(512)
-    icon_192.save(OUT / "icon-192x192.png")
-    icon_512.save(OUT / "icon-512x512.png")
-    _draw_icon(180).save(OUT / "apple-touch-icon.png")
-    _maskable(icon_192, 192).save(OUT / "icon-192x192-maskable.png")
-    _maskable(icon_512, 512).save(OUT / "icon-512x512-maskable.png")
-    print(f"Wrote PWA icons to {OUT}")
+    if not SOURCE.is_file():
+        sys.exit(f"Missing {SOURCE}")
+    raw = cairosvg.svg2png(url=str(SOURCE), output_width=MASTER, output_height=MASTER)
+    master = Image.open(io.BytesIO(raw)).convert("RGBA")
+    opaque = Image.new("RGBA", master.size, CREAM)
+    opaque.alpha_composite(master)
+    rounded = opaque.copy()
+    rounded.putalpha(rounded_mask(rounded.width, int(rounded.width * RADIUS)))
+
+    ICONS.mkdir(parents=True, exist_ok=True)
+    for n in ANY_SIZES:
+        save(down(rounded, n), ICONS / f"icon-{n}x{n}.png")
+    auto_dm = PUBLIC.as_posix().endswith("frontend/public")
+    for n in MASKABLE_SIZES:
+        canvas = Image.new("RGBA", (n, n), CREAM)
+        art = int(n * 0.8)
+        canvas.alpha_composite(down(opaque, art), ((n - art) // 2, (n - art) // 2))
+        name = f"icon-{n}x{n}-maskable.png" if auto_dm else f"maskable-{n}x{n}.png"
+        save(canvas, ICONS / name)
+    for n in (16, 32):
+        save(down(rounded, n), ICONS / f"favicon-{n}x{n}.png")
+        if (ICONS / f"icon-{n}x{n}.png").exists() or n in (16, 32):
+            save(down(rounded, n), ICONS / f"icon-{n}x{n}.png")
+
+    save(down(opaque, 180).convert("RGB"), PUBLIC / "apple-touch-icon.png")
+    save(down(opaque, 180).convert("RGB"), ICONS / "apple-touch-icon.png")
+    PUBLIC.joinpath("icon.svg").write_text(SOURCE.read_text(encoding="utf-8"), encoding="utf-8")
+    down(rounded, 256).save(PUBLIC / "favicon.ico", format="ICO", sizes=[(16, 16), (32, 32), (48, 48)])
+    if auto_dm:
+        PUBLIC.joinpath("favicon.svg").write_text(SOURCE.read_text(encoding="utf-8"), encoding="utf-8")
+    if APP_ICON and APP_ICON.is_dir():
+        save(down(opaque, 180).convert("RGB"), APP_ICON / "apple-icon.png")
+        down(rounded, 256).save(APP_ICON / "favicon.ico", format="ICO", sizes=[(16, 16), (32, 32), (48, 48)])
+        APP_ICON.joinpath("icon.svg").write_text(SOURCE.read_text(encoding="utf-8"), encoding="utf-8")
+    print(f"Wrote icons from {SOURCE} to {PUBLIC}")
 
 
 if __name__ == "__main__":

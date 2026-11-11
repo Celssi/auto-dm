@@ -1,6 +1,6 @@
 import { lazy, Suspense } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
-import { Dices, Library, LogOut } from 'lucide-react';
+import { Library, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { useBookReader } from '../context/BookReaderContext';
 import { m } from '../lib/framer';
@@ -39,8 +39,8 @@ export default function Layout() {
           }`}
         >
           <Link to="/" className="flex items-center gap-2 group shrink-0 min-h-11" aria-label="Auto-DM home">
-            <m.span whileHover={{ rotate: 12 }} transition={{ type: 'spring', stiffness: 300 }} className="text-accent">
-              <Dices size={22} />
+            <m.span whileHover={{ rotate: 12 }} transition={{ type: 'spring', stiffness: 300 }} className="inline-flex">
+              <img src="/icon.svg" alt="" width={28} height={28} className="h-7 w-7 rounded-md" />
             </m.span>
             <span className="hidden min-[400px]:inline font-display font-semibold text-accent group-hover:opacity-80 transition-opacity">
               Auto-DM
