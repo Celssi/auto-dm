@@ -1,13 +1,5 @@
-const CACHE_NAME = 'auto-dm-20261111T044';
-const urlsToCache = [
-  '/',
-  '/manifest.json',
-  '/icon.svg',
-  '/favicon.svg',
-  '/icons/icon-192x192.png',
-  '/icons/icon-512x512.png',
-  '/icons/apple-touch-icon.png',
-];
+const CACHE_NAME = 'auto-dm-20261111T051';
+const urlsToCache = ['/', '/manifest.json', '/icons/icon-192x192.png', '/icons/icon-512x512.png'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -49,9 +41,7 @@ function isStaticAsset(url) {
   return (
     url.pathname.startsWith('/assets/') ||
     url.pathname.startsWith('/icons/') ||
-    url.pathname === '/icon.svg' ||
     url.pathname === '/favicon.svg' ||
-    url.pathname === '/favicon.ico' ||
     url.pathname === '/manifest.json'
   );
 }
