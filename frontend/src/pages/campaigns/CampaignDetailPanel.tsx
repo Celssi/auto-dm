@@ -76,25 +76,7 @@ export default function CampaignDetailPanel({
   const defaultLinkCharacterId = state.characters[0]?.id ?? '';
   const [linkCharacterId, setLinkCharacterId] = useState(defaultLinkCharacterId);
   const effectiveLinkCharacterId = linkCharacterId || defaultLinkCharacterId;
-
-  const linkedIdSet = new Set(linkedIds);
-  const linkedChar = state.characters.find((c) => linkedIdSet.has(c.id));
-  const isBrambletrekCampaign = (linkedChar?.game_id || '') === 'brambletrek';
-
-  const list = state.tab === 'npcs' ? campaign.npcs : state.tab === 'locations' ? campaign.locations : [];
-  const tabs = [
-    { id: 'story', label: 'Story arc' },
-    {
-      id: 'adventures',
-      label: !state.adventuresLoaded
-        ? 'Adventures (…)'
-        : state.adventuresError
-          ? 'Adventures (?)'
-          : `Adventures (${state.campaignAdventures.length})`,
-    },
-    { id: 'npcs', label: `NPCs (${campaign.npcs?.length ?? 0})` },
-    { id: 'locations', label: `Locations (${campaign.locations?.length ?? 0})` },
-  ];
+  const tabs = campaignTabs(campaign, state);
 
   return (
     <m.div
@@ -126,34 +108,95 @@ export default function CampaignDetailPanel({
 
       <TabBar tabs={tabs} active={state.tab} onChange={(id) => onTabChange(id as CampaignTab)} />
 
-      <AnimatePresence mode="wait">
-        {state.tab === 'story' && <CampaignStoryTab campaign={campaign} />}
-
-        {state.tab === 'adventures' && (
-          <CampaignAdventuresTab
-            adventures={state.campaignAdventures}
-            adventuresLoaded={state.adventuresLoaded}
-            adventuresError={state.adventuresError}
-            characters={state.characters}
-            isBrambletrek={isBrambletrekCampaign}
-            newAdventureOpen={state.newAdventureOpen}
-            bootstrapping={state.bootstrapping}
-            adventureForm={state.adventureForm}
-            onToggleNewAdventure={onToggleNewAdventure}
-            onPatchAdventureForm={onPatchAdventureForm}
-            onStartNewAdventure={onStartNewAdventure}
-            onPlayAdventure={onPlayAdventure}
-            onDeleteAdventure={onDeleteAdventure}
-          />
-        )}
-
-        {state.tab !== 'story' && state.tab !== 'adventures' && !state.entry && (
-          <CampaignJournalList tab={state.tab} list={list || []} onOpenEntry={onOpenEntry} />
-        )}
-
-        {state.entry && <CampaignEntryEditor entry={state.entry} onSetEntry={onSetEntry} onSaveEntry={onSaveEntry} />}
-      </AnimatePresence>
+      <CampaignDetailTabs
+        campaign={campaign}
+        state={state}
+        linkedIds={linkedIds}
+        onOpenEntry={onOpenEntry}
+        onSaveEntry={onSaveEntry}
+        onSetEntry={onSetEntry}
+        onToggleNewAdventure={onToggleNewAdventure}
+        onPatchAdventureForm={onPatchAdventureForm}
+        onStartNewAdventure={onStartNewAdventure}
+        onPlayAdventure={onPlayAdventure}
+        onDeleteAdventure={onDeleteAdventure}
+      />
     </m.div>
+  );
+}
+
+function campaignTabs(campaign: CampaignFull, state: Props['state']) {
+  const adventureLabel = !state.adventuresLoaded
+    ? 'Adventures (…)'
+    : state.adventuresError
+      ? 'Adventures (?)'
+      : `Adventures (${state.campaignAdventures.length})`;
+  return [
+    { id: 'story', label: 'Story arc' },
+    { id: 'adventures', label: adventureLabel },
+    { id: 'npcs', label: `NPCs (${campaign.npcs?.length ?? 0})` },
+    { id: 'locations', label: `Locations (${campaign.locations?.length ?? 0})` },
+  ];
+}
+
+function CampaignDetailTabs({
+  campaign,
+  state,
+  linkedIds,
+  onOpenEntry,
+  onSaveEntry,
+  onSetEntry,
+  onToggleNewAdventure,
+  onPatchAdventureForm,
+  onStartNewAdventure,
+  onPlayAdventure,
+  onDeleteAdventure,
+}: {
+  campaign: CampaignFull;
+  state: Props['state'];
+  linkedIds: string[];
+  onOpenEntry: (kind: 'npc' | 'location', id: string) => void;
+  onSaveEntry: () => void;
+  onSetEntry: (entry: JournalEntry | null) => void;
+  onToggleNewAdventure: () => void;
+  onPatchAdventureForm: (patch: Partial<CampaignsState['adventureForm']>) => void;
+  onStartNewAdventure: () => void;
+  onPlayAdventure: (id: string) => void;
+  onDeleteAdventure: (id: string) => void;
+}) {
+  const linkedIdSet = new Set(linkedIds);
+  const linkedChar = state.characters.find((character) => linkedIdSet.has(character.id));
+  const isBrambletrekCampaign = (linkedChar?.game_id || '') === 'brambletrek';
+  const list = state.tab === 'npcs' ? campaign.npcs : state.tab === 'locations' ? campaign.locations : [];
+
+  return (
+    <AnimatePresence mode="wait">
+      {state.tab === 'story' && <CampaignStoryTab campaign={campaign} />}
+
+      {state.tab === 'adventures' && (
+        <CampaignAdventuresTab
+          adventures={state.campaignAdventures}
+          adventuresLoaded={state.adventuresLoaded}
+          adventuresError={state.adventuresError}
+          characters={state.characters}
+          isBrambletrek={isBrambletrekCampaign}
+          newAdventureOpen={state.newAdventureOpen}
+          bootstrapping={state.bootstrapping}
+          adventureForm={state.adventureForm}
+          onToggleNewAdventure={onToggleNewAdventure}
+          onPatchAdventureForm={onPatchAdventureForm}
+          onStartNewAdventure={onStartNewAdventure}
+          onPlayAdventure={onPlayAdventure}
+          onDeleteAdventure={onDeleteAdventure}
+        />
+      )}
+
+      {state.tab !== 'story' && state.tab !== 'adventures' && !state.entry && (
+        <CampaignJournalList tab={state.tab} list={list || []} onOpenEntry={onOpenEntry} />
+      )}
+
+      {state.entry && <CampaignEntryEditor entry={state.entry} onSetEntry={onSetEntry} onSaveEntry={onSaveEntry} />}
+    </AnimatePresence>
   );
 }
 

@@ -118,20 +118,22 @@ function PdfPages({
 }) {
   const { gameId } = useGame();
   const [file, setFile] = useState<RangedPdfTransport | null>(null);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
   const [pageCount, setPageCount] = useState(1);
   const [loadError, setLoadError] = useState(false);
   const [scale, setScale] = useState(1);
   const [width, setWidth] = useState(640);
   const frameRef = useRef<HTMLDivElement>(null);
+  const requestKey = `${book.id}:${gameId}`;
+  const visibleFile = loadedKey === requestKey ? file : null;
+  const visibleError = loadedKey === requestKey && loadError;
+  const visiblePageCount = loadedKey === requestKey ? pageCount : 1;
   const pdfPage = printedToPdfPage(page, book.page_offset);
-  const maxPrinted = pdfPageToPrinted(pageCount, book.page_offset);
+  const maxPrinted = pdfPageToPrinted(visiblePageCount, book.page_offset);
 
   useEffect(() => {
     let cancelled = false;
     const transportRef: { current: RangedPdfTransport | null } = { current: null };
-    setFile(null);
-    setLoadError(false);
-    setPageCount(1);
     void (async () => {
       try {
         let url = api.bookFileUrl(book.id, gameId);
@@ -150,16 +152,22 @@ function PdfPages({
         }
         transportRef.current = next;
         setFile(next);
+        setLoadError(false);
+        setPageCount(1);
+        setLoadedKey(requestKey);
       } catch (error) {
         console.error(error);
-        if (!cancelled) setLoadError(true);
+        if (!cancelled) {
+          setLoadError(true);
+          setLoadedKey(requestKey);
+        }
       }
     })();
     return () => {
       cancelled = true;
       transportRef.current?.close();
     };
-  }, [book.id, gameId]);
+  }, [book.id, gameId, requestKey]);
 
   useEffect(() => {
     const node = frameRef.current;
@@ -174,7 +182,7 @@ function PdfPages({
   // react-pdf Document (suspense=false) reloads whenever `file` / `options` identity
   // changes. An inline `{ range: file }` aborts the transport on every re-render
   // (pageCount, resize, zoom) and leaves requestDataRange as a silent no-op.
-  const documentFile = useMemo(() => (file ? { range: file } : null), [file]);
+  const documentFile = useMemo(() => (visibleFile ? { range: visibleFile } : null), [visibleFile]);
   const documentOptions = useMemo(
     () => ({
       disableAutoFetch: true,
@@ -241,9 +249,9 @@ function PdfPages({
       <div className="flex-1 min-h-0 flex flex-col md:flex-row">
         <div ref={frameRef} className="flex-1 min-h-0 overflow-auto bg-bg-elevated">
           <div className="flex justify-center py-3">
-            {loadError ? (
+            {visibleError ? (
               <p className="text-sm text-danger p-6">Could not load this PDF.</p>
-            ) : file ? (
+            ) : visibleFile ? (
               <Document
                 file={documentFile}
                 options={documentOptions}
@@ -253,7 +261,7 @@ function PdfPages({
                 onLoadSuccess={({ numPages }) => setPageCount(numPages)}
               >
                 <Page
-                  pageNumber={Math.min(pdfPage, pageCount)}
+                  pageNumber={Math.min(pdfPage, visiblePageCount)}
                   width={width}
                   scale={scale}
                   loading={<p className="text-sm text-muted p-6">Rendering page…</p>}

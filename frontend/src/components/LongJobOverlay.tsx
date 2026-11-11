@@ -15,21 +15,22 @@ interface Props {
   message?: string;
 }
 
-export default function LongJobOverlay({ active, title, message }: Props) {
+function ElapsedLine() {
   const [elapsed, setElapsed] = useState(0);
-  useKeepAlive(active);
 
   useEffect(() => {
-    if (!active) {
-      setElapsed(0);
-      return;
-    }
     const started = Date.now();
     const timer = window.setInterval(() => {
       setElapsed(Math.floor((Date.now() - started) / 1000));
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [active]);
+  }, []);
+
+  return <p className="text-xs text-muted">Elapsed {formatElapsed(elapsed)}. Keep this tab in the foreground.</p>;
+}
+
+export default function LongJobOverlay({ active, title, message }: Props) {
+  useKeepAlive(active);
 
   if (!active) return null;
 
@@ -43,7 +44,7 @@ export default function LongJobOverlay({ active, title, message }: Props) {
             {message || 'This window stays open so Cloud Run does not scale away mid-job.'}
           </p>
         </div>
-        <p className="text-xs text-muted">Elapsed {formatElapsed(elapsed)}. Keep this tab in the foreground.</p>
+        <ElapsedLine />
       </div>
     </div>
   );

@@ -77,9 +77,6 @@
       ]
     }
   ],
-  "categories": [
-    "games",
-    "entertainment"
-  ],
+  "categories": ["games", "entertainment"],
   "prefer_related_applications": false
 }
