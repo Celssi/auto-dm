@@ -1,4 +1,4 @@
-const CACHE_NAME = 'auto-dm-20261111T051';
+const CACHE_NAME = 'auto-dm-20261111T035';
 const urlsToCache = ['/', '/manifest.json', '/icons/icon-192x192.png', '/icons/icon-512x512.png'];
 
 self.addEventListener('install', (event) => {
@@ -42,6 +42,7 @@ function isStaticAsset(url) {
     url.pathname.startsWith('/assets/') ||
     url.pathname.startsWith('/icons/') ||
     url.pathname === '/favicon.svg' ||
+    url.pathname === '/favicon.ico' ||
     url.pathname === '/manifest.json'
   );
 }

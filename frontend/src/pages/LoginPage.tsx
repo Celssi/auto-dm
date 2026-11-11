@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Dices } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { isAuthRedirectPending } from '../lib/authRedirect';
 
@@ -24,8 +23,8 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="panel-glow w-full max-w-md p-8 space-y-6 text-center">
-        <div className="flex justify-center text-accent">
-          <Dices size={36} />
+        <div className="flex justify-center">
+          <img src="/icons/icon-192x192.png" alt="" width={72} height={72} className="rounded-2xl" />
         </div>
         <div className="space-y-2">
           <h1 className="font-display text-3xl font-semibold text-gradient">Auto-DM</h1>
