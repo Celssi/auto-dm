@@ -53,11 +53,12 @@ class BookStateBody(BaseModel):
 
 
 def _ticket_secret() -> bytes:
-    raw = (
-        os.environ.get("AUTO_DM_TICKET_SECRET")
-        or os.environ.get("ANTHROPIC_API_KEY")
-        or "auto-dm-local-ticket"
-    )
+    dedicated = os.environ.get("AUTO_DM_TICKET_SECRET")
+    if dedicated:
+        return dedicated.encode()
+    if os.environ.get("K_SERVICE"):
+        raise RuntimeError("AUTO_DM_TICKET_SECRET is required on Cloud Run")
+    raw = os.environ.get("ANTHROPIC_API_KEY") or "auto-dm-local-ticket"
     return raw.encode()
 
 

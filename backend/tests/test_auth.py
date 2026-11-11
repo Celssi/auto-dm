@@ -105,3 +105,9 @@ def test_require_allowed_user_needs_token_on_cloud_run(monkeypatch):
     with pytest.raises(HTTPException) as exc:
         asyncio.run(require_allowed_user(_request()))
     assert exc.value.status_code == 401
+
+
+def test_local_bypass_off_for_remote_origin_spoof(monkeypatch):
+    monkeypatch.delenv("K_SERVICE", raising=False)
+    monkeypatch.delenv("AUTO_DM_REQUIRE_AUTH", raising=False)
+    assert not is_local_dev_bypass(_request(host="10.0.0.8", origin="http://localhost:5173"))

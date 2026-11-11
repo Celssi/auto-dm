@@ -59,10 +59,7 @@ def is_local_dev_bypass(request: Request) -> bool:
     if os.environ.get("AUTO_DM_REQUIRE_AUTH") == "1":
         return False
     client = (request.client.host if request.client else "") or ""
-    if client in {"127.0.0.1", "::1", "localhost"}:
-        return True
-    origin = (request.headers.get("origin") or "").lower()
-    return origin.startswith("http://localhost:") or origin.startswith("http://127.0.0.1:")
+    return client in {"127.0.0.1", "::1", "localhost"}
 
 
 async def require_allowed_user(request: Request) -> dict:

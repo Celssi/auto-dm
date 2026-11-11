@@ -299,11 +299,6 @@ export const api = {
   getSessionWorld: (id: string, refresh = false) =>
     request<SessionWorld>(`/sessions/${id}/world${refresh ? '?refresh=true' : ''}`),
 
-  chat: (sessionId: string, message: string) =>
-    request<ChatResult>(`/sessions/${sessionId}/chat`, {
-      method: 'POST',
-      body: JSON.stringify({ message }),
-    }),
   chatStream: (sessionId: string, message: string, onEvent: StreamHandler) =>
     readSse(`/sessions/${sessionId}/chat/stream`, { message }, onEvent),
   getShortcuts: (gameId = 'dnd5e', characterId?: string) => {

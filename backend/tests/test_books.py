@@ -1,5 +1,6 @@
 from pathlib import Path
 
+import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
@@ -109,3 +110,22 @@ def test_unranged_large_file_requires_range(monkeypatch):
     assert res.status_code == 416
     assert res.headers["accept-ranges"] == "bytes"
     assert res.headers["content-range"] == "bytes */200000"
+
+
+def test_ticket_secret_required_on_cloud_run(monkeypatch):
+    monkeypatch.setenv("K_SERVICE", "auto-dm")
+    monkeypatch.delenv("AUTO_DM_TICKET_SECRET", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    from backend.routes import books
+
+    with pytest.raises(RuntimeError, match="AUTO_DM_TICKET_SECRET"):
+        books._ticket_secret()
+
+
+def test_ticket_secret_falls_back_locally(monkeypatch):
+    monkeypatch.delenv("K_SERVICE", raising=False)
+    monkeypatch.delenv("AUTO_DM_TICKET_SECRET", raising=False)
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    from backend.routes import books
+
+    assert books._ticket_secret() == b"auto-dm-local-ticket"

@@ -14,6 +14,7 @@ from backend.dm.state import DMState
 from backend.dm.trace import dm_turn_trace
 from backend.games.registry import get_game, resolve_game_id
 from backend.llm import ChatProvider
+from backend.session_locks import session_lock
 from backend.settings_store import load_settings
 from backend.storage import (
     append_session_log,
@@ -37,6 +38,22 @@ def _graph_run_config(session_id: str, user_message: str) -> RunnableConfig:
 
 
 def run_dm_turn(
+    session_id: str,
+    user_message: str,
+    *,
+    chat_provider: ChatProvider = "claude",
+    precomputed_shortcut: dict | None = None,
+) -> dict[str, Any]:
+    with session_lock(session_id):
+        return _run_dm_turn_unlocked(
+            session_id,
+            user_message,
+            chat_provider=chat_provider,
+            precomputed_shortcut=precomputed_shortcut,
+        )
+
+
+def _run_dm_turn_unlocked(
     session_id: str,
     user_message: str,
     *,

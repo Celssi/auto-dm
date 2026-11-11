@@ -16,6 +16,7 @@ from backend.dm.session_world import get_or_refresh_world
 from backend.dm.stream_turn import stream_dm_turn
 from backend.dm.trace import audit_session_context
 from backend.games.registry import get_game, resolve_game_id
+from backend.session_locks import session_lock
 from backend.settings_store import load_settings
 from backend.storage import (
     append_session_log,
@@ -26,6 +27,7 @@ from backend.storage import (
     get_session_lonelog,
     list_sessions,
     patch_session,
+    save_session_messages,
 )
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
@@ -217,29 +219,35 @@ def shortcut_stream(session_id: str, body: ShortcutBody):
 
 @router.post("/{session_id}/oracle")
 def run_session_oracle(session_id: str, body: OracleBody):
-    sess = get_session(session_id)
-    if not sess:
-        raise HTTPException(404, "Session not found")
-    try:
-        result = run_oracle(body.oracle_id, likelihood_level=body.likelihood_level)
-    except ValueError as e:
-        raise HTTPException(400, str(e)) from e
-    append_session_log(session_id, format_mechanical(result.get("summary", "")))
-    record_audit(
-        {
-            "event": "oracle",
-            "source": "oracle",
-            "detail": {
-                "oracle_id": body.oracle_id,
-                "likelihood_level": body.likelihood_level,
-                "summary": result.get("summary", ""),
-                "answer": result.get("answer"),
-                "inferred": False,
+    with session_lock(session_id):
+        sess = get_session(session_id)
+        if not sess:
+            raise HTTPException(404, "Session not found")
+        try:
+            result = run_oracle(body.oracle_id, likelihood_level=body.likelihood_level)
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from e
+        summary = str(result.get("summary", ""))
+        messages = list(sess.get("messages") or [])
+        messages.append({"role": "user", "content": f"[oracle: {body.oracle_id}]"})
+        messages.append({"role": "assistant", "content": summary})
+        save_session_messages(session_id, messages)
+        append_session_log(session_id, format_mechanical(summary))
+        record_audit(
+            {
+                "event": "oracle",
+                "source": "oracle",
+                "detail": {
+                    "oracle_id": body.oracle_id,
+                    "likelihood_level": body.likelihood_level,
+                    "summary": summary,
+                    "answer": result.get("answer"),
+                    "inferred": False,
+                },
             },
-        },
-        session_id=session_id,
-    )
-    return result
+            session_id=session_id,
+        )
+        return result
 
 
 @router.get("/{session_id}/audit")
