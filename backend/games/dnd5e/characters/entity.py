@@ -69,6 +69,9 @@ class Dnd5eCharacter:
     cantrips: list[str] = field(default_factory=list)
     prepared_spells: list[str] = field(default_factory=list)
     known_spells: list[str] = field(default_factory=list)
+    spellbook: list[str] = field(default_factory=list)
+    expertise: list[str] = field(default_factory=list)
+    lay_on_hands_remaining: int = -1
     spell_slots: dict[str, int] = field(default_factory=dict)
     heroic_inspiration: bool = False
     armor: str = "none"
@@ -171,10 +174,12 @@ class Dnd5eCharacter:
         self.save_proficiencies = _clean_list(self.save_proficiencies, 6)
         self.tool_proficiencies = _clean_list(self.tool_proficiencies, 12)
         self.class_skill_choices = _clean_list(self.class_skill_choices, 4)
-        self.languages = _clean_list(self.languages, 12) or ["common"]
-        self.cantrips = _clean_list(self.cantrips, 12)
+        self.languages = _clean_list(self.languages, 16) or ["common"]
+        self.cantrips = _clean_list(self.cantrips, 16)
         self.prepared_spells = _clean_list(self.prepared_spells, 40)
         self.known_spells = _clean_list(self.known_spells, 40)
+        self.spellbook = _clean_list(self.spellbook, 40)
+        self.expertise = _clean_list(self.expertise, 12)
         self.human_skill = str(self.human_skill or "").strip().lower()
         self.origin_feat = str(self.origin_feat or "").strip()
         fc = self.feature_choices if isinstance(self.feature_choices, dict) else {}
@@ -214,9 +219,13 @@ class Dnd5eCharacter:
             self.luck_points_remaining = lp_max
         else:
             self.luck_points_remaining = max(0, min(lp_max, int(self.luck_points_remaining)))
-        from backend.games.dnd5e.characters.class_resources import sync_second_wind_uses
+        from backend.games.dnd5e.characters.class_resources import (
+            sync_lay_on_hands,
+            sync_second_wind_uses,
+        )
 
         sync_second_wind_uses(self)
+        sync_lay_on_hands(self)
         self.savage_attacker_used_this_turn = bool(self.savage_attacker_used_this_turn)
         self.equipment_notes = str(self.equipment_notes or "").strip()
         self.starting_gear_choice = str(self.starting_gear_choice or "").strip().lower()
@@ -267,11 +276,24 @@ class Dnd5eCharacter:
             mod += self.proficiency_bonus()
         return mod
 
+    def expertise_skills(self) -> set[str]:
+        names = {str(item).strip().lower() for item in (self.expertise or []) if str(item).strip()}
+        fc = self.feature_choices if isinstance(self.feature_choices, dict) else {}
+        extra = fc.get("rogue_expertise") or []
+        if isinstance(extra, list):
+            names.update(str(item).strip().lower() for item in extra if str(item).strip())
+        return names
+
+    def skill_bonus_value(self, skill_id: str, ability: str) -> int:
+        bonus = self.ability_modifier(ability)
+        sid = str(skill_id or "").strip().lower()
+        if sid in (self.skill_proficiencies or []):
+            pb = self.proficiency_bonus()
+            bonus += pb * 2 if sid in self.expertise_skills() else pb
+        return bonus
+
     def passive_perception(self) -> int:
-        pp = 10 + self.ability_modifier("wis")
-        if "perception" in (self.skill_proficiencies or []):
-            pp += self.proficiency_bonus()
-        return pp
+        return 10 + self.skill_bonus_value("perception", "wis")
 
     def header_fields(self) -> dict[str, Any]:
         return {
@@ -421,10 +443,13 @@ def character_from_dict(data: dict[str, Any] | None) -> Dnd5eCharacter:
         weapon_mastery=_clean_list(data.get("weapon_mastery"), 6),
         versatile_origin_feat=str(data.get("versatile_origin_feat", "") or ""),
         background_gear_choice=str(data.get("background_gear_choice", "") or ""),
-        languages=_clean_list(data.get("languages"), 12) or ["common"],
-        cantrips=_clean_list(data.get("cantrips"), 12),
+        languages=_clean_list(data.get("languages"), 16) or ["common"],
+        cantrips=_clean_list(data.get("cantrips"), 16),
         prepared_spells=_clean_list(data.get("prepared_spells"), 40),
         known_spells=_clean_list(data.get("known_spells"), 40),
+        spellbook=_clean_list(data.get("spellbook"), 40),
+        expertise=_clean_list(data.get("expertise"), 12),
+        lay_on_hands_remaining=int(data.get("lay_on_hands_remaining", -1) or -1),
         spell_slots=dict(slots) if isinstance(slots, dict) else {},
         heroic_inspiration=bool(data.get("heroic_inspiration", False)),
         armor=str(data.get("armor", "none") or "none"),
@@ -505,6 +530,9 @@ def character_to_dict(char: Dnd5eCharacter) -> dict[str, Any]:
         "cantrips": list(char.cantrips),
         "prepared_spells": list(char.prepared_spells),
         "known_spells": list(char.known_spells),
+        "spellbook": list(char.spellbook),
+        "expertise": list(char.expertise),
+        "lay_on_hands_remaining": char.lay_on_hands_remaining,
         "spell_slots": dict(char.spell_slots),
         "heroic_inspiration": char.heroic_inspiration,
         "armor": char.armor,
@@ -573,6 +601,7 @@ def format_for_prompt(
     skills = ", ".join(char.skill_proficiencies) or "(none)"
     cantrips = ", ".join(char.cantrips) or "(none)"
     spells = ", ".join(char.prepared_spells or char.known_spells) or "(none)"
+    book = ", ".join(char.spellbook) or "(none)"
     feats = (
         ", ".join(
             [x for x in [char.origin_feat, char.versatile_origin_feat] + list(char.feats) if x]
@@ -671,8 +700,10 @@ def format_for_prompt(
         f"- Inventory: {', '.join(str(i) for i in char.inventory) or '(none)'}",
         f"- Weapon mastery: {', '.join(char.weapon_mastery) or '(none)'}",
         f"- Cantrips: {cantrips}",
+        f"- Spellbook: {book}",
         f"- Spells: {spells}",
         f"- Spell slots: {slots or '(none)'}",
+        f"- Expertise: {', '.join(sorted(char.expertise_skills())) or '(none)'}",
         f"- Proficiency bonus: +{char.proficiency_bonus()}",
         f"- Heroic Inspiration: {'yes' if char.heroic_inspiration else 'no'}",
         f"- Exhaustion: level {char.exhaustion}"
@@ -694,6 +725,17 @@ def format_for_prompt(
     sw_max = second_wind_max(char)
     if sw_max > 0:
         lines.append(f"- Second Wind uses: {char.second_wind_remaining}/{sw_max}")
+    from backend.games.dnd5e.characters.class_resources import (
+        lay_on_hands_max,
+        sneak_attack_dice,
+    )
+
+    loh_max = lay_on_hands_max(char)
+    if loh_max > 0:
+        lines.append(f"- Lay on Hands: {char.lay_on_hands_remaining}/{loh_max} HP")
+    sa = sneak_attack_dice(char)
+    if sa > 0:
+        lines.append(f"- Sneak Attack: {sa}d6 (once per turn)")
     lines.extend(
         [
             f"- Death saves: {char.death_save_successes} success"

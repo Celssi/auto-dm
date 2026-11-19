@@ -14,6 +14,9 @@ import {
   spellAttackBonus,
   spellAbility,
   spellSaveDc,
+  expertiseSkills,
+  weaponAttackLine,
+  characterHasWeaponMastery,
 } from './sheetUtils';
 import { AbilityTile, CombatStat, DeathSaves, HpBar, SheetField, SheetSection } from './characterSheetViewParts';
 import CharacterSheetHeader from './CharacterSheetHeader';
@@ -112,6 +115,7 @@ function Page1Abilities({
 }
 
 function Page1Skills({ character: c, profs }: { character: Character; profs: Set<string> }) {
+  const expertise = expertiseSkills(c);
   return (
     <SheetSection title="Skills" className="lg:col-span-5">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
@@ -123,7 +127,9 @@ function Page1Skills({ character: c, profs }: { character: Character; profs: Set
             }`}
           >
             <span className="flex items-center gap-1.5 min-w-0">
-              <span className={profs.has(sk.id) ? 'text-accent' : 'text-border'}>{profs.has(sk.id) ? '●' : '○'}</span>
+              <span className={profs.has(sk.id) ? 'text-accent' : 'text-border'}>
+                {expertise.has(sk.id) ? '●●' : profs.has(sk.id) ? '●' : '○'}
+              </span>
               <GlossaryTip name={sk.id} variant="custom">
                 <span className="truncate cursor-pointer">{sk.label}</span>
               </GlossaryTip>
@@ -332,9 +338,16 @@ function Page1FeaturesGear({
         <div>
           <div className="sheet-label mb-1.5">Weapons</div>
           {weapons.length ? (
-            <div className="flex flex-wrap gap-1.5">
+            <div className="space-y-1.5">
               {weapons.map((w) => (
-                <GlossaryTip key={w.name} name={w.name} />
+                <div key={w.name} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  {characterHasWeaponMastery(c) ? (
+                    <GlossaryTip name={w.name} />
+                  ) : (
+                    <span className="text-sm font-medium">{w.name}</span>
+                  )}
+                  <span className="text-xs text-muted">{weaponAttackLine(c, w)}</span>
+                </div>
               ))}
             </div>
           ) : (

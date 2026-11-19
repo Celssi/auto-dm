@@ -54,7 +54,12 @@ export default function CreationChoicesForm({ char, options, patch, choices }: P
           );
         }
 
-        if (choice.kind === 'skills' || choice.kind === 'spells' || choice.kind === 'invocations') {
+        if (
+          choice.kind === 'skills' ||
+          choice.kind === 'spells' ||
+          choice.kind === 'invocations' ||
+          choice.kind === 'languages'
+        ) {
           const pickOpts =
             choice.kind === 'spells' && choice.spell_options?.length
               ? choice.spell_options.map(String)

@@ -10,6 +10,7 @@ interface Props {
 
 export default function WizardFeaturesStep({ char, options, patch }: Props) {
   const catalog = (options.creation_choice_catalog || {}) as CreationChoiceCatalog;
+  const choices = choicesForDraft(char, options, catalog).filter((choice) => choice.id !== 'origin_languages');
   const missing = validateChoices(char, choicesForDraft(char, options, catalog));
 
   return (
@@ -18,7 +19,7 @@ export default function WizardFeaturesStep({ char, options, patch }: Props) {
         Species traits, class features, and origin-feat options from the PHB. Required picks must be completed before
         finishing character creation.
       </p>
-      <CreationChoicesForm char={char} options={options} patch={patch} />
+      <CreationChoicesForm char={char} options={options} patch={patch} choices={choices} />
       {missing.length > 0 && <p className="text-xs text-amber-400/90">Still needed: {missing.join('; ')}</p>}
     </div>
   );

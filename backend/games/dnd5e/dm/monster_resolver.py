@@ -8,7 +8,12 @@ from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 
 from backend.llm import structured_llm
-from backend.rag.engine import query_rules
+
+
+def query_rules(*args, **kwargs):
+    from backend.rag.engine import query_rules as _query_rules
+
+    return _query_rules(*args, **kwargs)
 
 
 class MonsterAttack(BaseModel):

@@ -28,6 +28,76 @@ from backend.games.dnd5e.characters.entity import (
 from backend.games.dnd5e.dm.monster_resolver import lookup_monster
 from backend.play_tools import roll_dice
 
+SHIELD_AC_BONUS = 5
+
+
+def _prepared_spell_names(char_dict: dict) -> set[str]:
+    char = character_from_dict(char_dict)
+    names = list(char.prepared_spells or []) + list(char.known_spells or [])
+    return {str(name).strip().lower() for name in names if str(name).strip()}
+
+
+def _first_level_slots(char_dict: dict) -> int:
+    slots = character_from_dict(char_dict).spell_slots or {}
+    return int(slots.get("1") or slots.get(1) or 0)
+
+
+def _spend_first_level_slot(char_dict: dict) -> dict:
+    char = character_from_dict(char_dict)
+    slots = dict(char.spell_slots or {})
+    remaining = int(slots.get("1") or 0)
+    slots["1"] = max(0, remaining - 1)
+    char.spell_slots = slots
+    return character_to_dict(char)
+
+
+def _shield_prepared(char_dict: dict) -> bool:
+    return "shield" in _prepared_spell_names(char_dict) and _first_level_slots(char_dict) > 0
+
+
+def _message_uses_shield(message: str) -> bool:
+    text = (message or "").lower()
+    if any(
+        token in text
+        for token in ("take the hit", "don't shield", "do not shield", "no shield", "skip shield")
+    ):
+        return False
+    return bool(re.search(r"\bshield\b", text))
+
+
+def resolve_pending_reaction(
+    state: CombatState,
+    char_dict: dict,
+    user_message: str = "",
+) -> tuple[CombatState, dict, list[str]]:
+    pending = state.pending_reaction if isinstance(state.pending_reaction, dict) else None
+    if not pending or pending.get("type") != "shield":
+        return state, char_dict, []
+    events: list[str] = []
+    if _message_uses_shield(user_message) and _shield_prepared(char_dict):
+        char_dict = _spend_first_level_slot(char_dict)
+        ac = int(pending.get("target_ac") or 10) + SHIELD_AC_BONUS
+        events.append(
+            f"**Shield** reaction: AC {pending.get('target_ac')} → {ac}. "
+            f"{pending.get('attacker', 'The attack')} misses. 1st-level slot spent "
+            f"(L1 {_first_level_slots(char_dict)} remaining)."
+        )
+        state.pending_reaction = None
+        return state, char_dict, events
+    damage = int(pending.get("damage") or 0)
+    if damage > 0:
+        char_dict = apply_damage_to_player(char_dict, damage)
+        player = _combatant_by_id(state, "player")
+        if player:
+            player.hp = character_from_dict(char_dict).hp
+        char = character_from_dict(char_dict)
+        events.append(
+            f"{pending.get('attacker', 'The attack')} lands. "
+            f"You take **{damage}** damage (HP {char.hp}/{char.max_hp})."
+        )
+    state.pending_reaction = None
+    return state, char_dict, events
+
 
 def _initiative_mod(char: Dnd5eCharacter) -> int:
     return char.initiative_modifier()
@@ -480,6 +550,21 @@ def resolve_enemy_turn(state: CombatState, char_dict: dict) -> tuple[CombatState
         result = resolve_enemy_attack(actor, target_ac)
         events.append(result["summary"])
         if result["hit"] and result["damage"] > 0:
+            attack_total = int(result.get("total") or 0)
+            if _shield_prepared(char_dict) and attack_total < target_ac + SHIELD_AC_BONUS:
+                state.pending_reaction = {
+                    "type": "shield",
+                    "attacker": actor.name,
+                    "damage": result["damage"],
+                    "attack_total": attack_total,
+                    "target_ac": target_ac,
+                }
+                events.append(
+                    f"**Reaction available:** Shield is prepared. This attack ({attack_total} vs AC {target_ac}) "
+                    f"would miss if you cast Shield (AC {target_ac + SHIELD_AC_BONUS}, 1st-level slot). "
+                    "Reply to use Shield, or take the hit."
+                )
+                continue
             char_dict = apply_damage_to_player(char_dict, result["damage"])
             if player:
                 player.hp = character_from_dict(char_dict).hp
@@ -584,6 +669,14 @@ def format_combat_context(state: CombatState | None) -> str:
         )
     elif actor and actor.kind == "enemy":
         lines.append("Enemy turns are resolved mechanically before narration when possible.")
+    pending = state.pending_reaction if isinstance(state.pending_reaction, dict) else None
+    if pending and pending.get("type") == "shield":
+        lines.append(
+            "Pending reaction: the player has Shield prepared. "
+            f"{pending.get('attacker', 'An attack')} hit AC {pending.get('target_ac')} "
+            f"(total {pending.get('attack_total')}) for {pending.get('damage')} damage. "
+            "If they cast Shield now, the attack misses and a 1st-level slot is spent."
+        )
     return "\n".join(lines)
 
 
@@ -710,13 +803,27 @@ def _message_has_combat_intent(msg: str) -> bool:
         "shoot",
         "swing",
         "kill",
+        "cast ",
+        "cantrip",
+        "fire bolt",
+        "magic missile",
         "/initiative",
         "/attack",
+        "/cast",
     )
     return any(t in lowered for t in triggers)
 
 
-_COMBAT_PLAYER_TASKS = frozenset({"initiative", "death_save", "cast_spell", "saving_throw"})
+_COMBAT_PLAYER_TASKS = frozenset(
+    {
+        "initiative",
+        "death_save",
+        "cast_spell",
+        "saving_throw",
+        "attack_roll",
+        "ability_check",
+    }
+)
 
 
 def player_took_combat_action(

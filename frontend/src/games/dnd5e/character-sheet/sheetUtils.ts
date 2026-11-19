@@ -27,13 +27,33 @@ export function proficiencyBonus(level: number): number {
   return 2 + Math.floor((Math.max(1, level) - 1) / 4);
 }
 
-export function passivePerception(char: Character): number {
-  const wis = char.ability_scores?.wis ?? 10;
-  let pp = 10 + abilityMod(wis);
-  if ((char.skill_proficiencies || []).includes('perception')) {
-    pp += proficiencyBonus(char.level || 1);
+export function expertiseSkills(char: Character): Set<string> {
+  const names = new Set<string>();
+  for (const item of (char.expertise as string[] | undefined) || []) {
+    if (item) names.add(String(item).toLowerCase());
   }
-  return pp;
+  const fc = (char.feature_choices || {}) as Record<string, unknown>;
+  const extra = fc.rogue_expertise;
+  if (Array.isArray(extra)) {
+    for (const item of extra) {
+      if (item) names.add(String(item).toLowerCase());
+    }
+  }
+  return names;
+}
+
+export function skillBonusValue(char: Character, skillId: string, ability: string): number {
+  const score = char.ability_scores?.[ability] ?? 10;
+  let bonus = abilityMod(score);
+  if ((char.skill_proficiencies || []).includes(skillId)) {
+    const pb = proficiencyBonus(char.level || 1);
+    bonus += expertiseSkills(char).has(skillId) ? pb * 2 : pb;
+  }
+  return bonus;
+}
+
+export function passivePerception(char: Character): number {
+  return 10 + skillBonusValue(char, 'perception', 'wis');
 }
 
 const ORIGIN_FEAT_LABELS: Record<string, string> = {
@@ -116,12 +136,7 @@ export function spellAttackBonus(char: Character): number | null {
 }
 
 export function skillBonus(char: Character, skillId: string, ability: string): string {
-  const score = char.ability_scores?.[ability] ?? 10;
-  let m = abilityMod(score);
-  if ((char.skill_proficiencies || []).includes(skillId)) {
-    m += proficiencyBonus(char.level || 1);
-  }
-  return formatMod(m);
+  return formatMod(skillBonusValue(char, skillId, ability));
 }
 
 export const ARMOR_CATALOG = [
@@ -190,22 +205,81 @@ export function computeAcDetails(char: Character): {
   return { ac: char.ac_manual ? Number(char.ac || computed) : computed, formula, parts };
 }
 
+function itemBaseAndQty(label: string): { name: string; qty: number } {
+  const text = String(label || '').trim();
+  const match = /^(.*?)\s*\((\d+)\)\s*$/.exec(text);
+  if (match) return { name: match[1].trim(), qty: Math.max(1, Number(match[2])) };
+  return { name: text, qty: 1 };
+}
+
+function stackKey(name: string): string {
+  let key = normItem(name);
+  if (key.endsWith('ses')) return key;
+  if (key.endsWith('s') && !key.endsWith('ss')) key = key.slice(0, -1);
+  return key;
+}
+
+function formatCounted(name: string, qty: number): string {
+  return qty <= 1 ? name : `${name} (${qty})`;
+}
+
 export function equipmentDisplayItems(char: Character): string[] {
-  const seen = new Set<string>();
   const items: string[] = [];
-  const add = (label: string) => {
-    const text = String(label || '').trim();
-    const key = normItem(text);
-    if (!text || key === 'none' || key === 'unarmored' || seen.has(key)) return;
-    seen.add(key);
-    items.push(text);
-  };
+  const seen = new Set<string>();
   const armor = armorRow(String(char.armor || 'none'));
+  const armorKeys = new Set(
+    armor.id === 'none'
+      ? []
+      : [stackKey(armor.label), stackKey(armor.id), stackKey(`${armor.label} armor`), stackKey(`${armor.id} armor`)],
+  );
+  const add = (label: string, skip?: Set<string>) => {
+    const { name, qty } = itemBaseAndQty(label);
+    const key = stackKey(name);
+    if (!name || key === 'none' || key === 'unarmored') return;
+    if (skip && (skip.has(key) || skip.has(normItem(name)))) return;
+    if (seen.has(key)) return;
+    seen.add(key);
+    items.push(formatCounted(name, qty));
+  };
   if (armor.id !== 'none') add(armor.label);
   if (char.shield) add('Shield');
-  for (const weapon of char.weapons || []) add(weapon.name);
-  for (const item of char.inventory || []) add(item);
+  const inventoryKeys = new Set((char.inventory || []).map((item) => stackKey(String(item))));
+  for (const weapon of char.weapons || []) {
+    if (inventoryKeys.has(stackKey(weapon.name))) continue;
+    add(weapon.name);
+  }
+  for (const item of char.inventory || []) add(String(item), armorKeys);
   return items;
+}
+
+export function characterHasWeaponMastery(char: Character): boolean {
+  const ids = [char.class_name, ...((char.classes as { class_name?: string }[]) || []).map((row) => row.class_name)];
+  return ids.some((id) => ['barbarian', 'fighter', 'paladin', 'ranger', 'rogue'].includes(String(id || '').toLowerCase()));
+}
+
+export function weaponAttackLine(char: Character, weapon: { name: string; damage?: string; damage_type?: string; ability?: string; proficient?: boolean }): string {
+  const catalogHint = String(weapon.ability || 'str').toLowerCase();
+  const name = String(weapon.name || '');
+  const finesse = /dagger|rapier|scimitar|shortsword|whip/i.test(name);
+  const ranged = /bow|crossbow|dart|sling/i.test(name);
+  let ability = catalogHint;
+  if (finesse) {
+    ability = abilityMod(char.ability_scores?.dex ?? 10) >= abilityMod(char.ability_scores?.str ?? 10) ? 'dex' : 'str';
+  } else if (ranged) {
+    ability = 'dex';
+  }
+  const mod = abilityMod(char.ability_scores?.[ability] ?? 10);
+  const pb = proficiencyBonus(char.level || 1);
+  const proficient = weapon.proficient !== false;
+  const atk = mod + (proficient ? pb : 0);
+  const damage = weapon.damage || '1d6';
+  const dmgType = weapon.damage_type || '';
+  const masteryIds = new Set((char.weapon_mastery || []).map((id) => String(id).toLowerCase().replace(/ /g, '_')));
+  const weaponKey = name.toLowerCase().replace(/ /g, '_');
+  const usesMastery = characterHasWeaponMastery(char) && masteryIds.has(weaponKey);
+  let line = `${formatMod(atk)} to hit, ${damage}${formatMod(mod)} ${dmgType}`.trim();
+  if (usesMastery) line += ', mastery';
+  return line;
 }
 
 export function weaponMasteryWarnings(char: Character): string[] {

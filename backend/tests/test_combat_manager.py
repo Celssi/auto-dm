@@ -252,7 +252,8 @@ def test_player_took_combat_action():
 
     assert player_took_combat_action("I ask about the harbor") is False
     assert player_took_combat_action("I attack the merrow") is True
-    assert player_took_combat_action("", {"task": "attack_roll"}) is False
+    assert player_took_combat_action("I cast Fire Bolt at the goblin lookout") is True
+    assert player_took_combat_action("", {"task": "attack_roll"}) is True
     assert player_took_combat_action("", {"task": "initiative"}) is True
 
 

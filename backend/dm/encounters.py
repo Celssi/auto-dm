@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import uuid
 from pathlib import Path
-from typing import Literal
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
@@ -54,6 +54,7 @@ class CombatState(BaseModel):
     order: list[str] = Field(default_factory=list)
     combatants: list[Combatant] = Field(default_factory=list)
     status: CombatStatus = "active"
+    pending_reaction: dict[str, Any] | None = None
 
 
 def _encounters_path(adventure_id: str) -> Path:

@@ -13,6 +13,7 @@ import { fadeUp } from '../../components/ui/motion';
 import { displayLabel } from '../../lib/displayText';
 import AnimatedPage from '../../components/ui/AnimatedPage';
 import ChatMarkdown from '../../components/play/ChatMarkdown';
+import ErrorBoundary from '../../components/ui/ErrorBoundary';
 import { getGamePlayConfig } from '../../games/play/registry';
 import type { DiceModalState, PlayState } from './playState';
 import type { JournalEntity } from '../../api/client';
@@ -468,9 +469,9 @@ function PlayChatArea({
           onStartNextAdventure={onStartNextAdventure}
         />
         <AnimatePresence initial={false}>
-          {messages.map((msg) => (
+          {messages.map((msg, index) => (
             <m.div
-              key={`${msg.role}-${msg.content.length}-${msg.content.slice(0, 48)}`}
+              key={`msg-${index}-${msg.role}`}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.25 }}
@@ -486,7 +487,9 @@ function PlayChatArea({
                 {msg.role === 'assistant' && (
                   <div className="text-[10px] uppercase tracking-wider text-accent/70 mb-1.5 font-medium">DM</div>
                 )}
-                <ChatMarkdown content={msg.content} entities={journalEntities} />
+                <ErrorBoundary key={`${index}-${msg.role}`}>
+                  <ChatMarkdown content={msg.content} entities={journalEntities} />
+                </ErrorBoundary>
               </div>
             </m.div>
           ))}

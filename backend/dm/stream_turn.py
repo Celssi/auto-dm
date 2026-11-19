@@ -29,8 +29,6 @@ def stream_dm_turn(
 
     def worker() -> None:
         try:
-            for event, data in prelude or []:
-                emit(event, data)
             with narration_events(emit):
                 result = run_dm_turn(
                     session_id,
@@ -46,6 +44,8 @@ def stream_dm_turn(
             pending.put(None)
 
     def generate() -> Iterator[dict[str, str]]:
+        for event, data in prelude or []:
+            yield {"event": event, "data": json.dumps(data)}
         threading.Thread(target=worker, daemon=True).start()
         while True:
             try:

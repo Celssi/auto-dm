@@ -33,7 +33,7 @@ function worldToEntities(world: {
 
 function applyChatResultPatch(result: ChatResult) {
   return {
-    character: result.character as Character,
+    ...(result.character ? { character: result.character as Character } : {}),
     sources: result.sources || [],
     spellConfirm: result.spell_confirmation ?? null,
     ...(result.player_progress ? { playerProgress: result.player_progress } : {}),
@@ -369,6 +369,14 @@ export function usePlayPageSession(
       const result = done[0];
       if (!result) throw new Error('The DM closed the stream without a reply.');
       await refreshSessionLogs(sessionId);
+      if (state.characterId) {
+        try {
+          const fresh = await api.getCharacter(state.characterId);
+          dispatch({ type: 'set', patch: { character: fresh.character as Character } });
+        } catch (err: unknown) {
+          console.warn('Failed to refresh character after chat', err);
+        }
+      }
       const chatGameId = String((result.character as Character)?.game_id || state.character?.game_id || 'dnd5e');
       await getPlaySessionExtensions(chatGameId).afterChat(sessionId, dispatch);
       api
@@ -534,7 +542,9 @@ export function usePlayPageSession(
         shortcutReady,
         streamPromise.then(() => {
           const payload = shortcutBox[0];
-          if (!payload) throw new Error('Dice shortcut stream ended before the roll.');
+          if (!payload) {
+            throw new Error(streamError || 'Dice shortcut stream ended before the roll.');
+          }
           return payload;
         }),
       ]);
@@ -569,6 +579,14 @@ export function usePlayPageSession(
       if (streamError) throw new Error(streamError);
       if (!done[0]) throw new Error('The DM closed the stream without a reply.');
       await refreshSessionLogs(state.sessionId);
+      if (state.characterId) {
+        try {
+          const fresh = await api.getCharacter(state.characterId);
+          dispatch({ type: 'set', patch: { character: fresh.character as Character } });
+        } catch (err: unknown) {
+          console.warn('Failed to refresh character after dice shortcut', err);
+        }
+      }
       api
         .getSessionWorld(state.sessionId, false)
         .then((world) =>

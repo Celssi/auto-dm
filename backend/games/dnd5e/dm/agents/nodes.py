@@ -23,7 +23,6 @@ from backend.games.dnd5e.actions import SHORTCUTS
 from backend.games.dnd5e.dm.combat_manager import (
     finish_player_turn,
     format_combat_context,
-    player_took_combat_action,
     try_start_planned_encounter,
 )
 from backend.games.dnd5e.dm.resource_keeper import run_resource_keeper
@@ -39,7 +38,6 @@ from backend.llm import (
     message_text,
     stream_chat_llm,
 )
-from backend.rag.engine import query_rules
 
 COMBAT_SHORTCUTS = frozenset({"attack_roll", "initiative", "death_save"})
 COMBAT_KEYWORDS = (
@@ -74,23 +72,12 @@ _MIN_RESPONSE_FOR_BOOKKEEPING = 120
 
 def _needs_rules_check(message: str) -> bool:
     lower = message.lower()
-    triggers = [
-        "rule",
-        "spell",
-        "how does",
-        "what is",
-        "can i",
-        "does ",
-        "ability",
-        "attack",
-        "save",
-        "rest",
-        "level",
-        "feat",
-        "class feature",
-        "monster",
-    ]
-    return any(t in lower for t in triggers)
+    if "rules help" in lower or lower.startswith("/rules"):
+        return True
+    return any(
+        phrase in lower
+        for phrase in ("how does", "how do i", "what is the rule", "what's the rule", "can i use")
+    )
 
 
 def _in_combat_check(message: str, shortcut_id: str | None) -> bool:
@@ -170,11 +157,20 @@ def combat_manager_pre_node(state: DMState) -> DMState:
         return {}
 
     combat = load_combat_state(session_id)
+    char_dict = state.get("character") or {}
+    reaction_events: list[str] = []
+    if combat and combat.pending_reaction:
+        from backend.games.dnd5e.dm.combat_manager import resolve_pending_reaction, save_combat_state
+
+        combat, char_dict, reaction_events = resolve_pending_reaction(
+            combat, char_dict, state.get("user_message") or ""
+        )
+        save_combat_state(session_id, combat)
     if not combat:
         combat = try_start_planned_encounter(
             session_id,
             adv_id,
-            state.get("character") or {},
+            char_dict,
             user_message=state.get("user_message") or "",
             messages=state.get("messages") or [],
         )
@@ -182,6 +178,15 @@ def combat_manager_pre_node(state: DMState) -> DMState:
     updates: DMState = {"in_combat": bool(combat and combat.status == "active")}
     if combat:
         updates["combat_state"] = combat.model_dump()
+    if reaction_events:
+        updates["combat_events"] = list(state.get("combat_events") or []) + reaction_events
+    if char_dict is not state.get("character"):
+        updates["character"] = char_dict
+        cid = char_dict.get("id")
+        if cid:
+            from backend.storage import save_character
+
+            save_character(cid, char_dict)
     return updates
 
 
@@ -240,16 +245,20 @@ def combat_mechanics_node(state: DMState) -> DMState:
         return {"combat_context": ""}
     char_dict = state.get("character") or {}
     char = char_from_dict(char_dict)
+    prepared = ", ".join(char.prepared_spells or char.known_spells) or "none"
+    reactions = []
+    if any(str(s).lower() == "shield" for s in (char.prepared_spells or [])):
+        reactions.append("Shield (reaction, +5 AC, 1st-level slot)")
     lines = [
         f"Combat state — {char.name or 'Hero'}: HP {char.hp}/{char.max_hp}, AC {char.ac}",
         f"Spell slots: {char.spell_slots or 'none'}",
+        f"Prepared spells: {prepared}",
+        f"Prepared reactions: {', '.join(reactions) or 'none'}",
         f"Conditions: {', '.join(char.conditions) if char.conditions else 'none'}",
     ]
     if state.get("mechanics_summary"):
         lines.append(f"Latest roll: {state['mechanics_summary']}")
     if state.get("in_combat"):
-        game_id = "dnd5e"
-        factions = factions_for(state.get("include_faerun", False), game_id)
         from backend.games.dnd5e.dm.structured_lookup import (
             format_curated_context,
             lookup_curated_rules,
@@ -260,27 +269,21 @@ def combat_mechanics_node(state: DMState) -> DMState:
         curated = lookup_curated_rules(combat_query)
         if curated:
             lines.append(format_curated_context(curated))
-        rag = query_rules(
-            combat_query or f"Combat rules for: {state.get('user_message', '')}",
-            factions=["player", "monsters"] + (["dm"] if "dm" not in factions else []),
-            top_k=3,
-            use_rerank=True,
-            generate_answer=False,
-        )
-        if rag.sources:
-            lines.append("Combat rules excerpt:")
-            for s in rag.sources[:2]:
-                text = str(s.get("text") or "")[:800]
-                lines.append(f"- {s.get('source_label', '?')} p.{s.get('page', '?')}: {text}")
     return {"combat_context": "\n".join(lines)}
 
 
 def rules_referee_node(state: DMState) -> DMState:
     shortcut = state.get("shortcut_result") or {}
     rag_tasks = frozenset({"rules_help"})
-    if shortcut.get("task") in rag_tasks:
+    task = shortcut.get("task")
+    if task and task not in rag_tasks:
+        return {
+            "rules_context": shortcut.get("user_message") or shortcut.get("prompt") or "",
+            "rules_sources": [],
+        }
+    if task in rag_tasks:
         msg = shortcut.get("prompt") or state.get("user_message", "")
-    elif not state.get("needs_rules") and not shortcut:
+    elif not state.get("needs_rules"):
         return {"rules_context": "", "rules_sources": []}
     else:
         msg = state.get("user_message", "")
@@ -294,15 +297,19 @@ def rules_referee_node(state: DMState) -> DMState:
         lookup_curated_rules,
         rewrite_rules_query,
     )
+    from backend.settings_store import load_settings
 
     search_msg = rewrite_rules_query(msg)
     curated = lookup_curated_rules(search_msg)
     curated_block = format_curated_context(curated)
+    prefs = load_settings()
+    from backend.rag.engine import query_rules
+
     result = query_rules(
         search_msg,
         game_id="dnd5e",
         factions=factions,
-        use_rerank=prefs.get("use_rerank", True),
+        use_rerank=bool(prefs.get("use_rerank", True)) if generate else False,
         generate_answer=generate,
         character=state.get("character"),
     )
@@ -506,21 +513,25 @@ def combat_manager_post_node(state: DMState) -> DMState:
     if state.get("shortcut_result", {}).get("task") == "rules_help":
         return {}
     session_id = state.get("session_id", "")
-    if not session_id or not load_combat_state(session_id):
+    if not session_id:
         return {}
-    if not player_took_combat_action(
-        state.get("user_message") or "",
-        state.get("shortcut_result"),
-    ):
+    combat = load_combat_state(session_id)
+    if not combat or combat.status != "active":
         return {}
 
-    char_dict = state.get("character") or {}
+    char_dict = dict(state.get("character") or {})
+    before_hp = char_dict.get("hp")
     combat_after, char_dict, events = finish_player_turn(session_id, char_dict)
     result: DMState = {}
-    if char_dict != state.get("character"):
+    if char_dict != state.get("character") or char_dict.get("hp") != before_hp:
         result["character"] = char_dict
+        cid = char_dict.get("id")
+        if cid:
+            from backend.storage import save_character
+
+            save_character(cid, char_dict)
     if events:
-        result["combat_events"] = events
+        result["combat_events"] = list(state.get("combat_events") or []) + events
     if combat_after:
         view = combat_state_view(
             combat_after if combat_after.status == "active" else load_combat_state(session_id)

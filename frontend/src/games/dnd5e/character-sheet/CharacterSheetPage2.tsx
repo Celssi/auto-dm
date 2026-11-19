@@ -40,6 +40,16 @@ function page2Model(c: Character, summary?: Record<string, unknown>) {
   const secondWindRemaining = Number(c.second_wind_remaining ?? summary?.second_wind_remaining ?? secondWindMax);
   const showWildShape = wildShapeMax > 0 || (c.wild_shape_uses ?? 0) > 0;
   const preparedSpells = c.prepared_spells?.length ? c.prepared_spells : c.known_spells || [];
+  const spellbook = (c.spellbook as string[] | undefined) || [];
+  const classId = String(c.class_name || '').toLowerCase();
+  const level = Number(c.level || 1);
+  const paladinLevel = classId === 'paladin' ? level : 0;
+  const rogueLevel = classId === 'rogue' ? level : 0;
+  const layOnHandsMax = Number(summary?.lay_on_hands_max ?? (paladinLevel > 0 ? paladinLevel * 5 : 0));
+  const layOnHandsRemaining = Number(
+    c.lay_on_hands_remaining ?? summary?.lay_on_hands_remaining ?? (layOnHandsMax || -1),
+  );
+  const sneakAttackDice = Number(summary?.sneak_attack_dice ?? (rogueLevel > 0 ? Math.floor((rogueLevel + 1) / 2) : 0));
   const unlocked = summary?.unlocked_features as
     { species_traits?: SpeciesTraitRow[]; origin_feat_effects?: OriginFeatEffectRow[] } | undefined;
   return {
@@ -52,6 +62,10 @@ function page2Model(c: Character, summary?: Record<string, unknown>) {
     secondWindRemaining,
     showWildShape,
     preparedSpells,
+    spellbook,
+    layOnHandsMax,
+    layOnHandsRemaining,
+    sneakAttackDice,
     speciesTraits: unlocked?.species_traits || [],
     originFeatEffects: unlocked?.origin_feat_effects || [],
   };
@@ -73,8 +87,17 @@ export default function CharacterSheetPage2({ character: c, summary, editable, o
           secondWindMax={model.secondWindMax}
           secondWindRemaining={model.secondWindRemaining}
           showWildShape={model.showWildShape}
+          layOnHandsMax={model.layOnHandsMax}
+          layOnHandsRemaining={model.layOnHandsRemaining}
+          sneakAttackDice={model.sneakAttackDice}
         />
         <SheetSection title="Prepared Spells" className="lg:col-span-8">
+          {model.spellbook.length > 0 && (
+            <div className="mb-3">
+              <div className="sheet-label mb-1">Spellbook</div>
+              <TagList items={model.spellbook} classId={c.class_name} />
+            </div>
+          )}
           <TagList items={model.preparedSpells} classId={c.class_name} />
         </SheetSection>
       </div>
@@ -343,6 +366,9 @@ function Page2Resources({
   secondWindMax,
   secondWindRemaining,
   showWildShape,
+  layOnHandsMax,
+  layOnHandsRemaining,
+  sneakAttackDice,
 }: {
   character: Character;
   spellSlotsMax: Record<string, number>;
@@ -352,13 +378,18 @@ function Page2Resources({
   secondWindMax: number;
   secondWindRemaining: number;
   showWildShape: boolean;
+  layOnHandsMax: number;
+  layOnHandsRemaining: number;
+  sneakAttackDice: number;
 }) {
   const empty =
     Object.entries(c.spell_slots || {}).length === 0 &&
     !showWildShape &&
     !c.concentration &&
     luckPointsMax <= 0 &&
-    secondWindMax <= 0;
+    secondWindMax <= 0 &&
+    layOnHandsMax <= 0 &&
+    sneakAttackDice <= 0;
   return (
     <SheetSection title="Resources" className="lg:col-span-4">
       {empty ? (
@@ -370,6 +401,15 @@ function Page2Resources({
           )}
           {luckPointsMax > 0 && (
             <ResourcePips label="Luck points" remaining={luckPointsRemaining} max={luckPointsMax} />
+          )}
+          {layOnHandsMax > 0 && (
+            <ResourcePips label="Lay on Hands" remaining={layOnHandsRemaining} max={layOnHandsMax} />
+          )}
+          {sneakAttackDice > 0 && (
+            <div className="rounded-md border border-border px-3 py-2">
+              <div className="sheet-label">Sneak Attack</div>
+              <div className="text-sm font-medium mt-0.5">{sneakAttackDice}d6 once per turn</div>
+            </div>
           )}
           {Object.entries(c.spell_slots || {}).map(([lvl, n]) => (
             <SpellSlotPips key={lvl} level={lvl} remaining={n} max={spellSlotsMax[lvl] ?? n} />
