@@ -8,7 +8,7 @@ from functools import lru_cache
 from fastapi import HTTPException, Request
 
 DEFAULT_ALLOWED_EMAIL = "lauri.mukkala.fi@gmail.com"
-PUBLIC_API_PATHS = {"/api/health"}
+PUBLIC_API_PATHS = {"/api/health", "/api/recall-audit"}
 
 
 def allowed_emails() -> set[str]:

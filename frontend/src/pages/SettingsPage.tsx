@@ -18,6 +18,11 @@ type Health = {
   chunk_counts?: Record<string, number>;
   claude_configured: boolean;
   claude_model?: string;
+  last_recall?: {
+    hits?: number;
+    total?: number;
+    recall?: number;
+  } | null;
 };
 
 type AppSettings = { include_faerun: boolean; use_rerank: boolean };
@@ -30,6 +35,9 @@ function indexCount(health: Health, gameId: string) {
 function SettingsHealth({ health }: { health: Health }) {
   const dndReady = Boolean(health.indexed_by_game?.dnd5e || health.indexed);
   const brambleReady = Boolean(health.indexed_by_game?.brambletrek);
+  const recallHits = health.last_recall?.hits;
+  const recallTotal = health.last_recall?.total;
+  const recallRate = Number(health.last_recall?.recall ?? 0);
   return (
     <m.div variants={fadeUp} className="flex flex-wrap gap-2">
       <StatusBadge
@@ -40,6 +48,9 @@ function SettingsHealth({ health }: { health: Health }) {
         status={brambleReady ? 'ok' : 'warn'}
         label={brambleReady ? `Brambletrek index ready${indexCount(health, 'brambletrek')}` : 'Brambletrek not indexed'}
       />
+      {recallTotal ? (
+        <StatusBadge status={recallRate >= 0.8 ? 'ok' : 'warn'} label={`Rules recall ${recallHits}/${recallTotal}`} />
+      ) : null}
       <StatusBadge
         status={health.claude_configured ? 'ok' : 'error'}
         label={

@@ -53,7 +53,7 @@ export default function BooksPage() {
             type="button"
             className="panel-glow w-full text-left p-5"
             onClick={() => open(lastBook.id, last?.page)}
-            aria-label={`Continue reading ${lastBook.label}, page ${last?.page ?? 1}`}
+            aria-label={`Continue reading ${lastBook.label}, printed page ${last?.page ?? 1}`}
           >
             <span className="label-text mb-1 block" aria-hidden="true">
               Continue reading
@@ -62,7 +62,7 @@ export default function BooksPage() {
               {lastBook.label}
             </span>
             <span className="text-sm text-muted mt-1 block" aria-hidden="true">
-              Page {last?.page ?? 1}
+              Printed page {last?.page ?? 1}
             </span>
           </button>
         </m.div>

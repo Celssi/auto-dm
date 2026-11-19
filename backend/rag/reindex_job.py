@@ -6,7 +6,7 @@ import json
 import sys
 
 from backend.rag.ingest import run_ingest
-from backend.rag.recall_audit import run_recall_audit
+from backend.rag.recall_audit import run_recall_audit, save_recall_report
 from backend.rag.retrieval_core import get_collection
 
 
@@ -45,15 +45,16 @@ def main() -> int:
     counts = {"dnd5e": _chunk_count("dnd5e"), "brambletrek": _chunk_count("brambletrek")}
     print("AUTO_DM_REINDEX_COUNTS " + json.dumps(counts), flush=True)
     report = run_recall_audit(include_faerun=True)
+    compact = save_recall_report(report)
     print(
         "AUTO_DM_REINDEX_DONE "
         + json.dumps(
             {
                 "chunk_counts": counts,
-                "hits": report["hits"],
-                "total": report["total"],
-                "recall": report["recall"],
-                "misses": report["misses"],
+                "hits": compact["hits"],
+                "total": compact["total"],
+                "recall": compact["recall"],
+                "misses": compact["misses"],
             }
         ),
         flush=True,

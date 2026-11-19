@@ -70,6 +70,7 @@ def test_require_allowed_user_matches_email_case_insensitively(monkeypatch):
 
 def test_health_is_public():
     assert is_public_api_path("/api/health")
+    assert is_public_api_path("/api/recall-audit")
     assert is_public_api_path("/api/books/dnd5e/player.pdf/file")
     assert not is_public_api_path("/api/books/dnd5e/player.pdf/ticket")
     assert not is_public_api_path("/api/characters")

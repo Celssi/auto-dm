@@ -8,6 +8,9 @@ export default function PlayOracleGrid({ oracles, loading, onRun }: Props) {
   return (
     <div className="shrink-0">
       <h2 className="section-heading mb-1.5">Oracles</h2>
+      <p className="text-[11px] text-muted leading-relaxed mb-1.5">
+        Yes/no and spark answers. They do not invent the story.
+      </p>
       <div className="grid grid-cols-2 gap-1 max-h-[9rem] overflow-y-auto pr-0.5">
         {oracles.map((o) => (
           <button
