@@ -4,9 +4,30 @@ from __future__ import annotations
 
 import re
 
+_WATERMARK_RE = re.compile(r"Lauri Mukkala\s*\(Order\s*#\d+\)", re.I)
+_FOOTER_RE = re.compile(r"^CHAPTER\s+\d+\s*\|[^\n]*$", re.I | re.M)
+_DICE_LD_RE = re.compile(r"\b[lI]d(\d+)\b")
+_DICE_LD10_RE = re.compile(r"\b[lI]d[lI][oO0]\b")
+_ZERO_HP_RE = re.compile(r"\bO Hit Points\b")
+_ONE_ROUND_RE = re.compile(r"\|\s*round\b", re.I)
+_SPACED_CAPS_RE = re.compile(r"\b(?:[A-Z] ){2,}[A-Z]\b")
+_SPACED_LETTER_RE = re.compile(r"\b([A-Z]) ([A-Z]{2,})\b")
+
+
+def _collapse_spaced_caps(text: str) -> str:
+    text = _SPACED_CAPS_RE.sub(lambda m: m.group(0).replace(" ", ""), text)
+    return _SPACED_LETTER_RE.sub(r"\1\2", text)
+
 
 def clean_text(text: str) -> str:
     text = text.replace("\x00", "")
+    text = _WATERMARK_RE.sub("", text)
+    text = _FOOTER_RE.sub("", text)
+    text = _DICE_LD10_RE.sub("1d10", text)
+    text = _DICE_LD_RE.sub(r"1d\1", text)
+    text = _ZERO_HP_RE.sub("0 Hit Points", text)
+    text = _ONE_ROUND_RE.sub("1 round", text)
+    text = _collapse_spaced_caps(text)
     # Join words split across line breaks in PDF/OCR output.
     text = re.sub(r"([A-Za-z])-\n([A-Za-z])", r"\1\2", text)
     # Collapse noisy whitespace while preserving paragraph boundaries.

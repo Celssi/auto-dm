@@ -15,6 +15,7 @@ def test_list_books_hides_missing_files(monkeypatch):
     ids = [book["id"] for book in books]
     assert ids == ["dnd5e/player.pdf"]
     assert books[0]["label"] == "Player's Handbook (2024)"
+    assert books[0]["page_offset"] == 2
 
 
 def test_bookmark_round_trip(monkeypatch, tmp_path):

@@ -64,15 +64,24 @@ def faction_filters(factions: list[str] | None) -> MetadataFilters | None:
 
 
 def nodes_to_sources(nodes: list[NodeWithScore]) -> list[dict]:
+    from backend.rag.pages import pdf_to_printed
+
     sources: list[dict] = []
     for n in nodes:
         meta = n.metadata or {}
+        source_file = str(meta.get("source_file", "") or "")
+        pdf_page = meta.get("pdf_page") or meta.get("page", "")
+        printed = meta.get("printed_page")
+        if not printed:
+            printed = str(pdf_to_printed(source_file, pdf_page)) if pdf_page else ""
         sources.append(
             {
                 "text": n.get_content(),
-                "source_file": meta.get("source_file", ""),
+                "source_file": source_file,
                 "source_label": meta.get("source_label", ""),
-                "page": meta.get("page", ""),
+                "page": str(printed or pdf_page or ""),
+                "pdf_page": str(pdf_page or ""),
+                "printed_page": str(printed or ""),
                 "faction": meta.get("faction", ""),
                 "section_title": meta.get("section_title", ""),
                 "score": round(n.score, 4) if n.score is not None else None,

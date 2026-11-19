@@ -94,6 +94,8 @@ export interface Session {
 export interface Source {
   source_label?: string;
   page?: string;
+  printed_page?: string;
+  pdf_page?: string;
   text?: string;
 }
 

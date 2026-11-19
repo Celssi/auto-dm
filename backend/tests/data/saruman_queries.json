@@ -1,0 +1,142 @@
+[
+  {
+    "id": "exhaustion-what",
+    "query": "What does the Exhaustion condition do in 2024?",
+    "printed_page": 366,
+    "expect_title": "Exhaustion",
+    "expect_terms": ["d20", "speed", "die"]
+  },
+  {
+    "id": "exhaustion-penalty",
+    "query": "exhaustion penalty to d20 tests and speed",
+    "printed_page": 366,
+    "expect_title": "Exhaustion",
+    "expect_terms": ["2 times", "5 feet"]
+  },
+  {
+    "id": "exhaustion-death",
+    "query": "Exhaustion level 6 death",
+    "printed_page": 366,
+    "expect_title": "Exhaustion",
+    "expect_terms": ["die", "6"]
+  },
+  {
+    "id": "exhaustion-level-2",
+    "query": "I'm exhausted, level 2, what penalties do I have?",
+    "printed_page": 366,
+    "expect_title": "Exhaustion",
+    "expect_terms": ["2 times", "5 feet"]
+  },
+  {
+    "id": "heroic-inspiration",
+    "query": "What is Heroic Inspiration in 2024?",
+    "printed_page": 13,
+    "expect_title": "Heroic Inspiration",
+    "expect_terms": ["reroll", "one"]
+  },
+  {
+    "id": "heroic-inspiration-glossary",
+    "query": "Heroic Inspiration reroll any die",
+    "printed_page": 368,
+    "expect_title": "Heroic Inspiration",
+    "expect_terms": ["reroll"]
+  },
+  {
+    "id": "one-slot-named",
+    "query": "one spell with a spell slot per turn rule",
+    "printed_page": 236,
+    "expect_title": "One Spell with a Spell Slot per Turn",
+    "expect_terms": ["one spell slot"]
+  },
+  {
+    "id": "one-slot-two-leveled",
+    "query": "Can I cast two leveled spells in one turn, one with a bonus action?",
+    "printed_page": 236,
+    "expect_title": "One Spell with a Spell Slot per Turn",
+    "expect_terms": ["one spell slot"]
+  },
+  {
+    "id": "healing-word-fireball",
+    "query": "Can I cast Healing Word as a bonus action and Fireball as my action on the same turn?",
+    "printed_page": 236,
+    "expect_title": "One Spell with a Spell Slot per Turn",
+    "expect_terms": ["Healing Word", "Fireball"]
+  },
+  {
+    "id": "mastery-cleave",
+    "query": "What does the Cleave mastery property do?",
+    "printed_page": 214,
+    "expect_title": "Cleave",
+    "expect_terms": ["melee", "once per turn"]
+  },
+  {
+    "id": "mastery-graze",
+    "query": "What does the Graze mastery property do?",
+    "printed_page": 214,
+    "expect_title": "Graze",
+    "expect_terms": ["misses", "ability modifier"]
+  },
+  {
+    "id": "mastery-nick",
+    "query": "What does the Nick mastery property do?",
+    "printed_page": 214,
+    "expect_title": "Nick",
+    "expect_terms": ["Light", "once per turn"]
+  },
+  {
+    "id": "mastery-push",
+    "query": "What does the Push mastery property do?",
+    "printed_page": 214,
+    "expect_title": "Push",
+    "expect_terms": ["Large", "straight away"]
+  },
+  {
+    "id": "mastery-sap",
+    "query": "What does the Sap mastery property do?",
+    "printed_page": 214,
+    "expect_title": "Sap",
+    "expect_terms": ["Disadvantage"]
+  },
+  {
+    "id": "mastery-slow",
+    "query": "What does the Slow mastery property do?",
+    "printed_page": 214,
+    "expect_title": "Slow",
+    "expect_terms": ["damage", "10 feet"]
+  },
+  {
+    "id": "mastery-topple",
+    "query": "What does the Topple mastery property do?",
+    "printed_page": 214,
+    "expect_title": "Topple",
+    "expect_terms": ["Constitution", "Proficiency Bonus"]
+  },
+  {
+    "id": "mastery-vex",
+    "query": "What does the Vex mastery property do?",
+    "printed_page": 214,
+    "expect_title": "Vex",
+    "expect_terms": ["damage", "Advantage"]
+  },
+  {
+    "id": "longsword-mastery",
+    "query": "what is longsword mastery",
+    "printed_page": 215,
+    "expect_title": "Longsword",
+    "expect_terms": ["Sap", "1d8"]
+  },
+  {
+    "id": "rapier-mastery",
+    "query": "what is rapier mastery",
+    "printed_page": 215,
+    "expect_title": "Rapier",
+    "expect_terms": ["Vex", "1d8"]
+  },
+  {
+    "id": "halberd-mastery",
+    "query": "halberd weapon mastery",
+    "printed_page": 215,
+    "expect_title": "Halberd",
+    "expect_terms": ["Cleave", "1d10"]
+  }
+]
