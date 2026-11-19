@@ -23,6 +23,7 @@ export interface Character {
   shield?: boolean;
   ac_manual?: boolean;
   speed: number;
+  speed_effective?: number;
   hit_die: number;
   ability_scores: Record<string, number>;
   base_ability_scores?: Record<string, number>;

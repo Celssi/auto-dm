@@ -168,7 +168,11 @@ function Page1Combat({
       <div className="grid grid-cols-3 gap-2 mb-3">
         <CombatStat label="Armor Class" value={String(shownAc)} accent tipId="armor-class" />
         <CombatStat label="Initiative" value={formatMod(initiativeMod(c))} tipId="initiative" />
-        <CombatStat label="Speed" value={`${c.speed ?? 30} ft`} tipId="speed" />
+        <CombatStat
+          label="Speed"
+          value={`${c.speed_effective ?? c.speed ?? 30} ft`}
+          tipId="speed"
+        />
       </div>
       <p className="text-[11px] text-muted mb-3 leading-relaxed">{ac.formula}</p>
       {editable && (

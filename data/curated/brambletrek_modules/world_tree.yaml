@@ -168,7 +168,9 @@ journeys:
       - lore
   diamonds:
     '2':
-      label: ''
+      label: A shimmering portal opens, offering a shortcut and extra stores.
+      body: A shimmering portal opens. Supplies +2
+      supplies: 2
     ace:
       label: Above, constellations shift and point toward a concealed trove.
       body: Above, constellations shift and point toward a concealed trove. Starlight illuminates the
@@ -191,7 +193,9 @@ journeys:
       tags:
       - lore
     '5':
-      label: ''
+      label: A sprite, made of stardust, offers a blessing of health.
+      body: A sprite, made of stardust. Health +4
+      health: 4
     '6':
       label: You discover a secluded pool; its surface ripples and changes, across the water you see an
         old camp with a smouldering f
@@ -205,7 +209,9 @@ journeys:
       health: 3
       morale: 3
     '8':
-      label: ''
+      label: A cluster of glowing mushrooms yields extra stores.
+      body: A cluster of glowing mushrooms. Supplies +7
+      supplies: 7
     '9':
       label: Hidden among the leaves is an artefact, ancient and powerful.
       body: Hidden among the leaves is an artefact, ancient and powerful. It calls out, promising untold

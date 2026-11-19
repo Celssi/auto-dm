@@ -105,6 +105,37 @@ class Dnd5eCharacter:
 
         sync_legacy_class_fields(self)
 
+    def walking_speed(self) -> int:
+        return max(0, int(self.speed or 30))
+
+    def exhaustion_speed_penalty(self) -> int:
+        return 5 * max(0, int(self.exhaustion or 0))
+
+    def exhaustion_d20_penalty(self) -> int:
+        return 2 * max(0, int(self.exhaustion or 0))
+
+    def effective_speed(self) -> int:
+        return max(0, self.walking_speed() - self.exhaustion_speed_penalty())
+
+    def apply_exhaustion_state(self) -> None:
+        if int(self.exhaustion or 0) < 6:
+            return
+        self.hp = 0
+        if not any(str(c).lower() == "dead" for c in self.conditions):
+            self.conditions = [*self.conditions, "Dead"]
+
+    def spend_heroic_inspiration(self) -> bool:
+        if not self.heroic_inspiration:
+            return False
+        self.heroic_inspiration = False
+        return True
+
+    def grant_heroic_inspiration(self) -> str:
+        if self.heroic_inspiration:
+            return "already_has"
+        self.heroic_inspiration = True
+        return "granted"
+
     def clamp(self) -> None:
         self.name = str(self.name or "").strip()
         self.species = str(self.species or "").strip()
@@ -120,7 +151,7 @@ class Dnd5eCharacter:
         if self.max_hp and self.hp > self.max_hp:
             self.hp = self.max_hp
         self.ac = max(1, min(30, int(self.ac or 10)))
-        self.speed = max(5, min(120, int(self.speed or 30)))
+        self.speed = max(0, min(120, int(self.speed or 30)))
         self.hit_die = max(4, min(12, int(self.hit_die or 8)))
         self.hit_dice_max = max(0, min(20, int(self.hit_dice_max or self.level)))
         self.hit_dice_spent = max(0, min(self.hit_dice_max, int(self.hit_dice_spent or 0)))
@@ -171,6 +202,7 @@ class Dnd5eCharacter:
         self.death_save_failures = max(0, min(3, int(self.death_save_failures or 0)))
         self.exhaustion = max(0, min(6, int(self.exhaustion or 0)))
         self.conditions = _clean_list(self.conditions, 12)
+        self.apply_exhaustion_state()
         self.concentration = str(self.concentration or "").strip()[:80]
         self.wild_shape_uses = max(0, min(10, int(self.wild_shape_uses or 0)))
         from backend.games.dnd5e.characters.origin_feats import luck_points_max
@@ -446,6 +478,8 @@ def character_to_dict(char: Dnd5eCharacter) -> dict[str, Any]:
         "max_hp": char.max_hp,
         "ac": char.ac,
         "speed": char.speed,
+        "speed_effective": char.effective_speed(),
+        "exhaustion_d20_penalty": char.exhaustion_d20_penalty(),
         "hit_die": char.hit_die,
         "hit_dice_max": char.hit_dice_max,
         "hit_dice_spent": char.hit_dice_spent,
@@ -613,7 +647,13 @@ def format_for_prompt(
         f"- HP: {char.hp}/{char.max_hp} "
         f"(Hit Die d{char.hit_die}, "
         f"{char.hit_dice_max - char.hit_dice_spent} left)",
-        f"- AC: {char.ac} ({armor_line}) | Speed: {char.speed} ft.",
+        f"- AC: {char.ac} ({armor_line}) | Speed: {char.effective_speed()} ft"
+        + (
+            f" (walk {char.speed} minus {char.exhaustion_speed_penalty()} ft Exhaustion)"
+            if char.exhaustion
+            else ""
+        )
+        + ".",
         f"- Ability scores: {scores}",
         f"- Ability modifiers: {mods}",
         f"- Initiative: {char.initiative_modifier():+d}",
@@ -636,7 +676,14 @@ def format_for_prompt(
         f"- Proficiency bonus: +{char.proficiency_bonus()}",
         f"- Heroic Inspiration: {'yes' if char.heroic_inspiration else 'no'}",
         f"- Exhaustion: level {char.exhaustion}"
-        + (f" (−{char.exhaustion} to d20 tests)" if char.exhaustion else ""),
+        + (
+            f" (-{char.exhaustion_d20_penalty()} to d20 tests, "
+            f"-{char.exhaustion_speed_penalty()} ft Speed"
+            + ("; dies at level 6" if char.exhaustion >= 6 else "")
+            + ")"
+            if char.exhaustion
+            else ""
+        ),
         f"- Conditions: {', '.join(char.conditions) or '(none)'}",
         f"- Concentration: {char.concentration or '(none)'}",
     ]

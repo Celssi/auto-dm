@@ -43,6 +43,7 @@ class RulesSearchBody(BaseModel):
 class IngestBody(BaseModel):
     include_faerun: bool = False
     force_ocr: bool = False
+    confirm_drop_faerun: bool = False
 
 
 class GlossaryLookupBody(BaseModel):
@@ -96,6 +97,17 @@ def reindex(body: IngestBody):
 
     def worker() -> None:
         try:
+            if not body.include_faerun and not body.confirm_drop_faerun:
+                emit(
+                    "error",
+                    {
+                        "detail": (
+                            "Indexing core only would delete Faerun books from the production index. "
+                            "Use Index core + Faerun, or confirm dropping Faerun."
+                        )
+                    },
+                )
+                return
             emit("progress", {"message": "Indexing rulebooks. This can take a long time."})
             code = run_ingest(
                 core_only=not body.include_faerun,
@@ -103,6 +115,9 @@ def reindex(body: IngestBody):
                 reset=True,
                 force_ocr=body.force_ocr,
             )
+            from backend.rag.engine import clear_retrieval_caches
+
+            clear_retrieval_caches()
             collection = get_collection()
             count = collection.count() if collection else 0
             emit("done", {"ok": code == 0, "chunk_count": count})

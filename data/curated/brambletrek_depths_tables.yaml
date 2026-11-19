@@ -23,8 +23,8 @@ hearts:
     morale: 7
     tags: [item]
   "8":
-    label: "Friendly subterranean creature offers guidance"
-    morale: 8
+    label: "Hidden alcove of relics and supplies"
+    supplies: 8
     tags: [item]
   "9":
     label: "Underground cathedral of stalactites"
@@ -70,8 +70,8 @@ diamonds:
     morale: 7
     tags: [exit]
   "8":
-    label: "Hidden alcove of relics and supplies"
-    supplies: 8
+    label: "Friendly subterranean creature offers guidance"
+    morale: 8
     tags: [item]
   "9":
     label: "Revitalising underground waterfall"

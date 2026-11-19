@@ -116,6 +116,19 @@ def create(body: CharacterBody):
     return {"id": char_id, "character": get_character(char_id)}
 
 
+@router.post("/{char_id}/rebuild")
+def rebuild_saved(char_id: str):
+    """Rebuild derived 2024 stats and persist. Player-triggered; does not invent new choices."""
+    char = get_character(char_id)
+    if not char:
+        raise HTTPException(404, "Character not found")
+    plugin = _plugin_for_data(char)
+    rebuilt = plugin.rebuild_character(plugin.character_from_dict(char))
+    payload = plugin.character_to_dict(rebuilt)
+    save_character(char_id, payload)
+    return {"character": get_character(char_id)}
+
+
 @router.put("/{char_id}")
 def update(char_id: str, body: CharacterBody):
     plugin = _plugin_for_data(body.character)

@@ -123,6 +123,7 @@ weapons:
   damage_type: piercing
   category: simple
   properties: [ammunition, ranged, two-handed]
+  mastery: vex
 - id: light_crossbow
   label: Crossbow, Light
   damage: 1d8
@@ -221,6 +222,118 @@ weapons:
   category: martial
   properties: [ammunition, heavy, loading, ranged, two-handed]
   mastery: push
+- id: greatclub
+  label: Greatclub
+  damage: 1d8
+  damage_type: bludgeoning
+  category: simple
+  properties: [two-handed]
+  mastery: push
+- id: light_hammer
+  label: Light Hammer
+  damage: 1d4
+  damage_type: bludgeoning
+  category: simple
+  properties: [light, thrown]
+  mastery: nick
+- id: dart
+  label: Dart
+  damage: 1d4
+  damage_type: piercing
+  category: simple
+  properties: [finesse, thrown]
+  mastery: vex
+- id: sling
+  label: Sling
+  damage: 1d4
+  damage_type: bludgeoning
+  category: simple
+  properties: [ammunition, ranged]
+  mastery: slow
+- id: glaive
+  label: Glaive
+  damage: 1d10
+  damage_type: slashing
+  category: martial
+  properties: [heavy, reach, two-handed]
+  mastery: graze
+- id: halberd
+  label: Halberd
+  damage: 1d10
+  damage_type: slashing
+  category: martial
+  properties: [heavy, reach, two-handed]
+  mastery: cleave
+- id: lance
+  label: Lance
+  damage: 1d10
+  damage_type: piercing
+  category: martial
+  properties: [heavy, reach, two-handed]
+  mastery: topple
+- id: morningstar
+  label: Morningstar
+  damage: 1d8
+  damage_type: piercing
+  category: martial
+  properties: []
+  mastery: sap
+- id: pike
+  label: Pike
+  damage: 1d10
+  damage_type: piercing
+  category: martial
+  properties: [heavy, reach, two-handed]
+  mastery: push
+- id: trident
+  label: Trident
+  damage: 1d8
+  damage_type: piercing
+  category: martial
+  properties: [thrown, versatile]
+  mastery: topple
+- id: war_pick
+  label: War Pick
+  damage: 1d8
+  damage_type: piercing
+  category: martial
+  properties: [versatile]
+  mastery: sap
+- id: whip
+  label: Whip
+  damage: 1d4
+  damage_type: slashing
+  category: martial
+  properties: [finesse, reach]
+  mastery: slow
+- id: blowgun
+  label: Blowgun
+  damage: 1
+  damage_type: piercing
+  category: martial
+  properties: [ammunition, loading, ranged]
+  mastery: vex
+- id: hand_crossbow
+  label: Crossbow, Hand
+  damage: 1d6
+  damage_type: piercing
+  category: martial
+  properties: [ammunition, light, loading, ranged]
+  mastery: vex
+- id: musket
+  label: Musket
+  damage: 1d12
+  damage_type: piercing
+  category: martial
+  properties: [ammunition, loading, ranged, two-handed]
+  mastery: slow
+- id: pistol
+  label: Pistol
+  damage: 1d10
+  damage_type: piercing
+  category: martial
+  properties: [ammunition, loading, ranged]
+  mastery: vex
 # Standard + rare languages (PHB 2024 ch. 2).
 languages:
 - common
@@ -248,19 +361,21 @@ class_starting_gear_options:
   barbarian:
     - id: standard
       label: Primal warrior
-      description: Greataxe, 4 Javelins, Explorer's Pack, 15 GP
-      items: [Explorer's Pack, Javelins (4)]
-      weapons: [{name: Greataxe, damage: 1d12, damage_type: slashing, ability: str}]
+      description: Greataxe, 4 Handaxes, Explorer's Pack, 15 GP
+      items: [Greataxe, Handaxe (4), Explorer's Pack]
+      weapons:
+        - {name: Greataxe, damage: 1d12, damage_type: slashing, ability: str}
+        - {name: Handaxe, damage: 1d6, damage_type: slashing, ability: str}
       armor: none
       currency: {gp: 15}
   bard:
     - id: standard
       label: Performer
-      description: Rapier, Leather armor, Lute, Entertainer's Pack, Dagger, 15 GP
-      items: [Entertainer's Pack, Lute, Leather armor, Dagger]
-      weapons: [{name: Rapier, damage: 1d8, damage_type: piercing, ability: dex}]
+      description: Leather Armor, 2 Daggers, Musical Instrument, Entertainer's Pack, 19 GP
+      items: [Leather armor, Dagger (2), Musical Instrument, Entertainer's Pack]
+      weapons: [{name: Dagger, damage: 1d4, damage_type: piercing, ability: dex}]
       armor: leather
-      currency: {gp: 15}
+      currency: {gp: 19}
   cleric:
     - id: armored
       label: Armored acolyte
@@ -273,18 +388,23 @@ class_starting_gear_options:
   druid:
     - id: standard
       label: Warden of nature
-      description: Leather armor, Shield, Sickle, Druidic focus, Explorer's Pack, 15 GP
-      items: [Explorer's Pack, Druidic focus, Sickle]
-      weapons: [{name: Sickle, damage: 1d4, damage_type: slashing, ability: str}]
+      description: Leather armor, Shield, Sickle, Druidic Focus (Quarterstaff), Explorer's Pack, Herbalism Kit, 9 GP
+      items: [Leather armor, Shield, Sickle, Druidic Focus (Quarterstaff), Explorer's Pack, Herbalism Kit]
+      weapons:
+        - {name: Sickle, damage: 1d4, damage_type: slashing, ability: str}
+        - {name: Quarterstaff, damage: 1d6, damage_type: bludgeoning, ability: str}
       armor: leather
       shield: true
-      currency: {gp: 15}
+      currency: {gp: 9}
   fighter:
     - id: heavy
       label: Heavy warrior
       description: Chain Mail, Greatsword, Flail, 8 Javelins, Dungeoneer's Pack, 4 GP
-      items: [Dungeoneer's Pack, Flail, Javelins (8)]
-      weapons: [{name: Greatsword, damage: 2d6, damage_type: slashing, ability: str}]
+      items: [Chain Mail, Greatsword, Flail, Javelins (8), Dungeoneer's Pack]
+      weapons:
+        - {name: Greatsword, damage: 2d6, damage_type: slashing, ability: str}
+        - {name: Flail, damage: 1d8, damage_type: bludgeoning, ability: str}
+        - {name: Javelin, damage: 1d6, damage_type: piercing, ability: str}
       armor: chain_mail
       currency: {gp: 4}
     - id: skirmisher
@@ -297,61 +417,75 @@ class_starting_gear_options:
   monk:
     - id: standard
       label: Martial ascetic
-      description: Shortsword, 10 Darts, Explorer's Pack, 15 GP
-      items: [Explorer's Pack, Dart (10)]
-      weapons: [{name: Shortsword, damage: 1d6, damage_type: piercing, ability: dex}]
+      description: Spear, 5 Daggers, Artisan's Tools, Explorer's Pack, 11 GP
+      items: [Spear, Dagger (5), Artisan's Tools, Explorer's Pack]
+      weapons:
+        - {name: Spear, damage: 1d6, damage_type: piercing, ability: str}
+        - {name: Dagger, damage: 1d4, damage_type: piercing, ability: dex}
       armor: none
-      currency: {gp: 15}
+      currency: {gp: 11}
   paladin:
     - id: standard
       label: Holy knight
-      description: Longsword, Chain Mail, Shield, Holy Symbol, Priest's Pack, 15 GP
-      items: [Priest's Pack, Holy symbol]
-      weapons: [{name: Longsword, damage: 1d8, damage_type: slashing, ability: str}]
+      description: Chain Mail, Shield, Longsword, 6 Javelins, Holy Symbol, Priest's Pack, 9 GP
+      items: [Chain Mail, Shield, Longsword, Javelins (6), Holy symbol, Priest's Pack]
+      weapons:
+        - {name: Longsword, damage: 1d8, damage_type: slashing, ability: str}
+        - {name: Javelin, damage: 1d6, damage_type: piercing, ability: str}
       armor: chain_mail
       shield: true
-      currency: {gp: 15}
+      currency: {gp: 9}
   ranger:
     - id: standard
       label: Wilderness scout
-      description: Longbow, Leather armor, Quiver (20 arrows), Explorer's Pack, 15 GP
-      items: [Explorer's Pack, Quiver (20 arrows)]
-      weapons: [{name: Longbow, damage: 1d8, damage_type: piercing, ability: dex}]
-      armor: leather
-      currency: {gp: 15}
+      description: Studded Leather Armor, Scimitar, Shortsword, Longbow, 20 Arrows, Quiver, Druidic Focus, Explorer's Pack, 7 GP
+      items: [Studded Leather Armor, Scimitar, Shortsword, Longbow, Arrows (20), Quiver, Druidic Focus, Explorer's Pack]
+      weapons:
+        - {name: Scimitar, damage: 1d6, damage_type: slashing, ability: dex}
+        - {name: Shortsword, damage: 1d6, damage_type: piercing, ability: dex}
+        - {name: Longbow, damage: 1d8, damage_type: piercing, ability: dex}
+      armor: studded_leather
+      currency: {gp: 7}
   rogue:
     - id: standard
       label: Scoundrel
-      description: Shortsword, Leather armor, 2 Daggers, Thieves' tools, Burglar's Pack, 15 GP
-      items: [Burglar's Pack, Leather armor, Thieves' tools, Dagger (2)]
-      weapons: [{name: Shortsword, damage: 1d6, damage_type: piercing, ability: dex}]
+      description: Leather Armor, 2 Daggers, Shortsword, Shortbow, 20 Arrows, Quiver, Thieves' Tools, Burglar's Pack, 8 GP
+      items: [Leather armor, Dagger (2), Shortsword, Shortbow, Arrows (20), Quiver, Thieves' tools, Burglar's Pack]
+      weapons:
+        - {name: Shortsword, damage: 1d6, damage_type: piercing, ability: dex}
+        - {name: Dagger, damage: 1d4, damage_type: piercing, ability: dex}
+        - {name: Shortbow, damage: 1d6, damage_type: piercing, ability: dex}
       armor: leather
-      currency: {gp: 15}
+      currency: {gp: 8}
   sorcerer:
     - id: standard
       label: Innate caster
-      description: Light Crossbow, Arcane focus, Dagger, Scholar's Pack, 15 GP
-      items: [Scholar's Pack, Arcane focus, Dagger]
-      weapons: [{name: Light crossbow, damage: 1d8, damage_type: piercing, ability: dex}]
+      description: Spear, 2 Daggers, Arcane Focus (crystal), Dungeoneer's Pack, 28 GP
+      items: [Spear, Dagger (2), Arcane Focus (crystal), Dungeoneer's Pack]
+      weapons:
+        - {name: Spear, damage: 1d6, damage_type: piercing, ability: str}
+        - {name: Dagger, damage: 1d4, damage_type: piercing, ability: dex}
       armor: none
-      currency: {gp: 15}
+      currency: {gp: 28}
   warlock:
     - id: standard
       label: Pact binder
-      description: Light Crossbow, Leather armor, Arcane focus, Scholar's Pack, 15 GP
-      items: [Scholar's Pack, Arcane focus]
-      weapons: [{name: Light crossbow, damage: 1d8, damage_type: piercing, ability: dex}]
+      description: Leather Armor, Sickle, 2 Daggers, Arcane Focus (orb), Book (occult lore), Scholar's Pack, 15 GP
+      items: [Leather armor, Sickle, Dagger (2), Arcane Focus (orb), Book (occult lore), Scholar's Pack]
+      weapons:
+        - {name: Sickle, damage: 1d4, damage_type: slashing, ability: str}
+        - {name: Dagger, damage: 1d4, damage_type: piercing, ability: dex}
       armor: leather
       currency: {gp: 15}
   wizard:
     - id: standard
       label: Scholar
-      description: Dagger, Arcane focus, Spellbook, Scholar's Pack, 5 GP
-      items: [Scholar's Pack, Arcane focus, Spellbook, Dagger]
-      weapons: [{name: Dagger, damage: 1d4, damage_type: piercing, ability: dex}]
+      description: 2 Daggers, Arcane Focus (Quarterstaff), Robe, Spellbook, Scholar's Pack, 5 GP
+      items: [Dagger (2), Arcane Focus (Quarterstaff), Robe, Spellbook, Scholar's Pack]
+      weapons:
+        - {name: Dagger, damage: 1d4, damage_type: piercing, ability: dex}
+        - {name: Quarterstaff, damage: 1d6, damage_type: bludgeoning, ability: str}
       armor: none
-      currency: {gp: 5}
-
       currency: {gp: 5}
 
 # PHB 2024 background starting equipment (A = kit, B = 50 GP)
@@ -359,8 +493,8 @@ background_starting_gear_options:
   acolyte:
     - id: kit
       label: Acolyte's kit (A)
-      description: Holy symbol, Prayer book, 5 sticks of incense, Vestments, 8 GP
-      items: [Holy symbol, Prayer book, Incense (5), Vestments]
+      description: Calligrapher's Supplies, Book (prayers), Holy Symbol, Parchment (10 sheets), Robe, 8 GP
+      items: [Calligrapher's Supplies, Book (prayers), Holy symbol, Parchment (10), Robe]
       currency: {gp: 8}
     - id: gold
       label: 50 GP (B)
@@ -433,8 +567,8 @@ background_starting_gear_options:
   hermit:
     - id: kit
       label: Hermit's kit (A)
-      description: Quarterstaff, Herbalism Kit, Bedroll, Book (prayers), Oil (5 flasks), Traveler's Clothes, 16 GP
-      items: [Quarterstaff, Herbalism Kit, Bedroll, Book (prayers), Oil (5), Traveler's Clothes]
+      description: Quarterstaff, Herbalism Kit, Bedroll, Book (philosophy), Lamp, Oil (3 flasks), Traveler's Clothes, 16 GP
+      items: [Quarterstaff, Herbalism Kit, Bedroll, Book (philosophy), Lamp, Oil (3), Traveler's Clothes]
       weapons: [{name: Quarterstaff, damage: 1d6, damage_type: bludgeoning, ability: str}]
       currency: {gp: 16}
     - id: gold
@@ -511,66 +645,86 @@ background_starting_gear_options:
 # Legacy single-package map (fallback only)
 class_starting_gear:
   barbarian:
-    items: [Explorer's Pack, Javelins (4)]
-    weapons: [{name: Greataxe, damage: 1d12, damage_type: slashing, ability: str}]
+    items: [Greataxe, Handaxe (4), Explorer's Pack]
+    weapons:
+      - {name: Greataxe, damage: 1d12, damage_type: slashing, ability: str}
+      - {name: Handaxe, damage: 1d6, damage_type: slashing, ability: str}
     armor: none
     currency: {gp: 15}
   bard:
-    items: [Entertainer's Pack, Lute, Leather armor, Dagger]
-    weapons: [{name: Rapier, damage: 1d8, damage_type: piercing, ability: dex}]
+    items: [Leather armor, Dagger (2), Musical Instrument, Entertainer's Pack]
+    weapons: [{name: Dagger, damage: 1d4, damage_type: piercing, ability: dex}]
     armor: leather
-    currency: {gp: 15}
+    currency: {gp: 19}
   cleric:
     items: [Priest's Pack, Holy symbol, Chain shirt]
     weapons: [{name: Mace, damage: 1d6, damage_type: bludgeoning, ability: str}]
     armor: chain_shirt
     shield: true
-    currency: {gp: 15}
+    currency: {gp: 7}
   druid:
-    items: [Explorer's Pack, Leather armor, Druidic focus, Sickle]
-    weapons: [{name: Sickle, damage: 1d4, damage_type: slashing, ability: str}]
+    items: [Leather armor, Shield, Sickle, Druidic Focus (Quarterstaff), Explorer's Pack, Herbalism Kit]
+    weapons:
+      - {name: Sickle, damage: 1d4, damage_type: slashing, ability: str}
+      - {name: Quarterstaff, damage: 1d6, damage_type: bludgeoning, ability: str}
     armor: leather
     shield: true
-    currency: {gp: 15}
+    currency: {gp: 9}
   fighter:
-    items: [Explorer's Pack, Chain mail]
-    weapons: [{name: Longsword, damage: 1d8, damage_type: slashing, ability: str}]
+    items: [Chain Mail, Greatsword, Flail, Javelins (8), Dungeoneer's Pack]
+    weapons:
+      - {name: Greatsword, damage: 2d6, damage_type: slashing, ability: str}
+      - {name: Flail, damage: 1d8, damage_type: bludgeoning, ability: str}
     armor: chain_mail
-    shield: true
-    currency: {gp: 15}
+    currency: {gp: 4}
   monk:
-    items: [Explorer's Pack, Shortsword, Dart (10)]
-    weapons: [{name: Shortsword, damage: 1d6, damage_type: piercing, ability: dex}]
+    items: [Spear, Dagger (5), Artisan's Tools, Explorer's Pack]
+    weapons:
+      - {name: Spear, damage: 1d6, damage_type: piercing, ability: str}
+      - {name: Dagger, damage: 1d4, damage_type: piercing, ability: dex}
     armor: none
-    currency: {gp: 15}
+    currency: {gp: 11}
   paladin:
-    items: [Priest's Pack, Holy symbol, Chain mail]
-    weapons: [{name: Longsword, damage: 1d8, damage_type: slashing, ability: str}]
+    items: [Chain Mail, Shield, Longsword, Javelins (6), Holy symbol, Priest's Pack]
+    weapons:
+      - {name: Longsword, damage: 1d8, damage_type: slashing, ability: str}
+      - {name: Javelin, damage: 1d6, damage_type: piercing, ability: str}
     armor: chain_mail
     shield: true
-    currency: {gp: 15}
+    currency: {gp: 9}
   ranger:
-    items: [Explorer's Pack, Longbow, Quiver (20 arrows), Leather armor]
-    weapons: [{name: Longbow, damage: 1d8, damage_type: piercing, ability: dex}]
-    armor: leather
-    currency: {gp: 15}
+    items: [Studded Leather Armor, Scimitar, Shortsword, Longbow, Arrows (20), Quiver, Druidic Focus, Explorer's Pack]
+    weapons:
+      - {name: Scimitar, damage: 1d6, damage_type: slashing, ability: dex}
+      - {name: Shortsword, damage: 1d6, damage_type: piercing, ability: dex}
+      - {name: Longbow, damage: 1d8, damage_type: piercing, ability: dex}
+    armor: studded_leather
+    currency: {gp: 7}
   rogue:
-    items: [Burglar's Pack, Leather armor, Thieves' tools, Dagger (2)]
-    weapons: [{name: Shortsword, damage: 1d6, damage_type: piercing, ability: dex}]
+    items: [Leather armor, Dagger (2), Shortsword, Shortbow, Arrows (20), Quiver, Thieves' tools, Burglar's Pack]
+    weapons:
+      - {name: Shortsword, damage: 1d6, damage_type: piercing, ability: dex}
+      - {name: Shortbow, damage: 1d6, damage_type: piercing, ability: dex}
     armor: leather
-    currency: {gp: 15}
+    currency: {gp: 8}
   sorcerer:
-    items: [Scholar's Pack, Arcane focus, Dagger]
-    weapons: [{name: Light crossbow, damage: 1d8, damage_type: piercing, ability: dex}]
+    items: [Spear, Dagger (2), Arcane Focus (crystal), Dungeoneer's Pack]
+    weapons:
+      - {name: Spear, damage: 1d6, damage_type: piercing, ability: str}
+      - {name: Dagger, damage: 1d4, damage_type: piercing, ability: dex}
     armor: none
-    currency: {gp: 15}
+    currency: {gp: 28}
   warlock:
-    items: [Scholar's Pack, Arcane focus, Leather armor]
-    weapons: [{name: Light crossbow, damage: 1d8, damage_type: piercing, ability: dex}]
+    items: [Leather armor, Sickle, Dagger (2), Arcane Focus (orb), Book (occult lore), Scholar's Pack]
+    weapons:
+      - {name: Sickle, damage: 1d4, damage_type: slashing, ability: str}
+      - {name: Dagger, damage: 1d4, damage_type: piercing, ability: dex}
     armor: leather
     currency: {gp: 15}
   wizard:
-    items: [Scholar's Pack, Arcane focus, Spellbook, Dagger]
-    weapons: [{name: Dagger, damage: 1d4, damage_type: piercing, ability: dex}]
+    items: [Dagger (2), Arcane Focus (Quarterstaff), Robe, Spellbook, Scholar's Pack]
+    weapons:
+      - {name: Dagger, damage: 1d4, damage_type: piercing, ability: dex}
+      - {name: Quarterstaff, damage: 1d6, damage_type: bludgeoning, ability: str}
     armor: none
-    currency: {gp: 15}
+    currency: {gp: 5}

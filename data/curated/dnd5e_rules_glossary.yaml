@@ -1,0 +1,92 @@
+# PHB 2024 Rules Glossary excerpts for structured lookup (short original restatements).
+# Printed page numbers. Do not use 2014 wording.
+
+exhaustion:
+  title: Exhaustion
+  page: 366
+  text: >
+    While you have Exhaustion, you have a penalty equal to 2 times your Exhaustion level
+    on D20 Tests, and your Speed is reduced by 5 feet times your Exhaustion level.
+    If your Exhaustion level reaches 6, you die. A Long Rest reduces Exhaustion by 1 level.
+    The condition ends when the level reaches 0.
+
+heroic_inspiration:
+  title: Heroic Inspiration
+  page: 13
+  text: >
+    If you have Heroic Inspiration, you can spend it to reroll any die immediately after
+    you roll it, and you must use the new roll. You can have only one instance at a time.
+    If you would gain another while you already have it, you can give the new one to a
+    player character who lacks it. Otherwise the extra is lost. A Human with Resourceful
+    gains Heroic Inspiration when they finish a Long Rest.
+
+one_spell_slot_per_turn:
+  title: One Spell with a Spell Slot per Turn
+  page: 236
+  text: >
+    On a turn, you can expend only one spell slot to cast a spell. You cannot, for example,
+    cast Healing Word with a Bonus Action and Fireball with the Magic action on the same turn.
+    Cantrips do not use spell slots, so they are not limited by this rule.
+
+cleave:
+  title: Cleave (Weapon Mastery)
+  page: 214
+  text: >
+    If you hit a creature with a melee attack using this weapon, you can make an attack roll
+    with it against a second creature within 5 feet of the first that is also within your reach.
+    On a hit, the second creature takes the weapon's damage, but you don't add your ability
+    modifier to that damage unless the modifier is negative. You can use this mastery only
+    once per turn.
+
+graze:
+  title: Graze (Weapon Mastery)
+  page: 214
+  text: >
+    If your attack roll with this weapon misses a creature, you can deal damage to that
+    creature equal to the ability modifier you used for the attack. The damage is the same
+    type as the weapon's, and it can be increased only by increasing that modifier.
+
+nick:
+  title: Nick (Weapon Mastery)
+  page: 214
+  text: >
+    When you make the extra attack of the Light property, you can make it as part of the
+    Attack action instead of as a Bonus Action. You can make this extra attack only once
+    per turn.
+
+push:
+  title: Push (Weapon Mastery)
+  page: 214
+  text: >
+    If you hit a creature with this weapon, you can push the creature up to 10 feet straight
+    away from yourself if it is Large or smaller. There is no saving throw.
+
+sap:
+  title: Sap (Weapon Mastery)
+  page: 214
+  text: >
+    If you hit a creature with this weapon, that creature has Disadvantage on its next
+    attack roll before the start of your next turn.
+
+slow:
+  title: Slow (Weapon Mastery)
+  page: 214
+  text: >
+    If you hit a creature with this weapon and deal damage to it, you can reduce its Speed
+    by 10 feet until the start of your next turn. If the creature is hit more than once by
+    weapons with this property, the Speed reduction doesn't exceed 10 feet.
+
+topple:
+  title: Topple (Weapon Mastery)
+  page: 214
+  text: >
+    If you hit a creature with this weapon, it must succeed on a Constitution saving throw
+    (DC 8 + the ability modifier used for the attack + your Proficiency Bonus) or have the
+    Prone condition.
+
+vex:
+  title: Vex (Weapon Mastery)
+  page: 214
+  text: >
+    If you hit a creature with this weapon and deal damage to it, you have Advantage on
+    your next attack roll against that creature before the end of your next turn.

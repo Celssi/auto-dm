@@ -121,10 +121,11 @@ def rules_facilitator_node(state: DMState) -> DMState:
     if not result.sources:
         return {"rules_context": "", "rules_sources": []}
     chunks = []
-    for i, src in enumerate(result.sources[:5], 1):
+    cap = max(5, min(16, len(result.sources)))
+    for i, src in enumerate(result.sources[:cap], 1):
         chunks.append(
             f"[{i}] {src.get('source_label', src.get('label', '?'))} p.{src.get('page', '?')}\n"
-            f"{src.get('text', '')[:800]}"
+            f"{src.get('text', '')[:1200]}"
         )
     return {
         "rules_context": "\n\n".join(chunks),

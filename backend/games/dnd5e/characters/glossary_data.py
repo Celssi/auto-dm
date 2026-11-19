@@ -12,6 +12,7 @@ from backend.config import CURATED_DIR
 from backend.games.dnd5e.characters.spell_resources import normalize_spell_name
 
 _GLOSSARY_PATH = CURATED_DIR / "dnd5e_glossary.yaml"
+_JUNK_KEYS = frozenset({"slotthat", "character", "featureswhichare"})
 
 
 def _load() -> dict[str, Any]:
@@ -87,7 +88,7 @@ def glossary_db_index() -> dict[str, dict[str, Any]]:
     index: dict[str, dict[str, Any]] = {}
 
     for key, row in (data.get("spells") or {}).items():
-        if not isinstance(row, dict):
+        if str(key) in _JUNK_KEYS or not isinstance(row, dict):
             continue
         nk = normalize_spell_name(str(key))
         index[nk] = {
@@ -118,7 +119,7 @@ def glossary_db_index() -> dict[str, dict[str, Any]]:
         }
 
     for key, row in (data.get("features") or {}).items():
-        if not isinstance(row, dict):
+        if str(key) in _JUNK_KEYS or not isinstance(row, dict):
             continue
         _index_feature(index, str(key), row)
 

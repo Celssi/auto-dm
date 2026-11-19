@@ -18,15 +18,18 @@ _BRAMBLETREK_TABLE_PAGES: dict[str, list[int]] = {
     "background": [13],
     "trinket": [14],
     "resources": [8, 15, 16],
-    "legacy": [9, 17, 18, 19, 20, 21],
-    "journey": [24, 25, 26],
-    "combat": [30, 31],
+    "legacy": [9, 17, 18, 19, 20, 21, 22, 23],
+    "journey": [24, 25, 26, 27],
+    "combat": [30, 31, 32],
+    "item": [28, 29],
     "recovery": [16],
     "ending": [36],
 }
 
 # Table pages before intro/legacy overview when injecting creation context.
-_BRAMBLETREK_PAGE_ORDER = [24, 25, 12, 13, 14, 15, 16, 8, 9, 17, 18, 19, 20, 21, 26, 30, 31, 36]
+_BRAMBLETREK_PAGE_ORDER = [
+    24, 25, 26, 27, 12, 13, 14, 15, 16, 8, 9, 17, 18, 19, 20, 21, 22, 23, 28, 29, 30, 31, 32, 36,
+]
 
 
 def _brambletrek_pdf_page(printed_page: int) -> int:

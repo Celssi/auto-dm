@@ -42,6 +42,7 @@ species:
   - Fey Ancestry
   - Keen Senses
   - Trance
+  - Elven Lineage
 - id: gnome
   label: Gnome
   speed: 30
@@ -50,6 +51,7 @@ species:
   traits:
   - Darkvision 60 ft.
   - Gnomish Cunning
+  - Gnomish Lineage
 - id: goliath
   label: Goliath
   speed: 35
@@ -68,6 +70,7 @@ species:
   - Brave
   - Halfling Nimbleness
   - Luck
+  - Naturally Stealthy
 - id: human
   label: Human
   speed: 30

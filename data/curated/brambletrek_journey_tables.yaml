@@ -51,10 +51,11 @@ diamonds:
   "2":
     label: "Hidden path through the brambles"
     supplies: 2
-  "3":
-    label: "Rainbow after storm — stash of supplies"
-    supplies: 3
     tags: [item]
+  "3":
+    label: "Rainbow after storm, stash of supplies"
+    supplies: 3
+    tags: [item, depths]
   "4":
     label: "Ruin filled with history"
     supplies: 4

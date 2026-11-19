@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { m } from '../../lib/framer';
+import { api } from '../../api/client';
 import type { BrambletrekCharacter, Character } from '../../types';
 import type { PdfUnlockedFeatures } from '../../games/dnd5e/character-sheet/characterSheetPdfAssembly';
 import CharacterSheetView from '../../games/dnd5e/character-sheet/CharacterSheetView';
@@ -201,6 +202,16 @@ function DndCharacterDetail({
         }}
         onEditSetup={onEdit}
         onDelete={onDelete}
+        onRebuild={
+          activeId
+            ? () => {
+                void (async () => {
+                  const { character: rebuilt } = await api.rebuildCharacter(activeId);
+                  await onSave(rebuilt as Character, { alreadyPersisted: true });
+                })();
+              }
+            : undefined
+        }
       />
 
       {missingChoices.length > 0 && (
@@ -257,6 +268,7 @@ function DndSheetToolbar({
   onExportPdf,
   onEditSetup,
   onDelete,
+  onRebuild,
 }: {
   editing: boolean;
   onBack: () => void;
@@ -267,6 +279,7 @@ function DndSheetToolbar({
   onExportPdf: () => void;
   onEditSetup: () => void;
   onDelete: () => void;
+  onRebuild?: () => void;
 }) {
   return (
     <div className="flex flex-wrap items-center gap-2 panel-glow p-3">
@@ -298,6 +311,9 @@ function DndSheetToolbar({
         <OverflowMenu
           items={[
             { label: 'Edit character setup', onSelect: onEditSetup },
+            ...(onRebuild
+              ? [{ label: 'Rebuild sheet from 2024 rules', onSelect: onRebuild }]
+              : []),
             { label: 'Delete', onSelect: onDelete, danger: true },
           ]}
         />

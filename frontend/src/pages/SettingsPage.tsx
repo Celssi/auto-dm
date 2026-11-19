@@ -44,7 +44,7 @@ export default function SettingsPage() {
     }
   };
 
-  const reindex = async (includeFaerun: boolean) => {
+  const reindex = async (includeFaerun: boolean, confirmDropFaerun = false) => {
     setIndexing(true);
     setIndexStatus('Indexing rulebooks. This window keeps the Cloud Run instance awake.');
     setMessage(null);
@@ -59,7 +59,7 @@ export default function SettingsPage() {
         } else if (event === 'error' && data && typeof data === 'object' && 'detail' in data) {
           streamError = String((data as { detail: string }).detail);
         }
-      });
+      }, confirmDropFaerun);
       if (streamError) throw new Error(streamError);
       const ok = Boolean(result.ok);
       const msg = ok ? `Indexed ${result.chunk_count ?? 0} chunks` : 'Indexing failed';
@@ -143,8 +143,22 @@ export default function SettingsPage() {
         <button type="button" className="btn-ghost" onClick={save}>
           Save admin settings
         </button>
+        <p className="text-sm text-muted leading-relaxed">
+          Index core only removes Heroes of Faerun and Adventures in Faerun from the index. Prefer Index
+          core + Faerun unless you intend to drop those books.
+        </p>
         <div className="flex flex-wrap gap-2">
-          <button type="button" className="btn-ghost" disabled={indexing} onClick={() => reindex(false)}>
+          <button
+            type="button"
+            className="btn-ghost"
+            disabled={indexing}
+            onClick={() => {
+              const ok = window.confirm(
+                'Index core only deletes Faerun books from the rules index. Continue only if you want that.',
+              );
+              if (ok) void reindex(false, true);
+            }}
+          >
             {indexing ? 'Indexing…' : 'Index core (PHB, DMG, MM)'}
           </button>
           {gameId === 'dnd5e' && (
