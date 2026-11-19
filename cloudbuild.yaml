@@ -147,10 +147,7 @@ steps:
           --task-timeout=3h \
           --cpu=2 \
           --memory=8Gi \
-          --command=sh \
-          --args=-c,exec python -m backend.rag.reindex_job \
-          --set-env-vars="AUTO_DM_BUCKET=$_DATA_BUCKET,GOOGLE_CLOUD_PROJECT=$_AR_PROJECT_ID,HF_HOME=/app/.cache/huggingface" \
-          --quiet
+          --set-env-vars="AUTO_DM_JOB=reindex,AUTO_DM_BUCKET=$_DATA_BUCKET,GOOGLE_CLOUD_PROJECT=$_AR_PROJECT_ID,HF_HOME=/app/.cache/huggingface"
         echo "AUTO_DM_REINDEX executing Faerun + Brambletrek job"
         set +e
         gcloud run jobs execute auto-dm-reindex \
