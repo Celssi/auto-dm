@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import re
 import subprocess
 import sys
 from pathlib import Path
@@ -23,6 +22,8 @@ from backend.config import (
     pdf_path,
 )
 from backend.embeddings import build_embed_model
+from backend.rag.chunking import chunk_page_with_sections
+from backend.rag.ingest_docs import make_rule_document
 from backend.rag.ocr import (
     OcrNotAvailableError,
     extract_pages_with_ocr,
@@ -30,156 +31,10 @@ from backend.rag.ocr import (
     ocr_pdf_page_indices,
     tesseract_available,
 )
+from backend.rag.pages import is_skipped_index_page, pdf_to_printed
 from backend.rag.plugin import get_core_pdfs, get_faerun_pdfs, get_ocr_pdfs, get_pdf_sources
 from backend.rag.progress import ocr_progress_callback
-from backend.rag.text_utils import clean_text, is_low_quality, is_meaningful
-
-
-def _keep_chunk(text: str) -> bool:
-    if is_meaningful(text, min_chars=25, min_alpha_ratio=0.12):
-        return True
-    compact = re.sub(r"\s+", "", text)
-    has_letters = bool(re.search(r"[A-Za-z]{3,}", text))
-    has_numbers = bool(re.search(r"\d", text))
-    return len(compact) >= 20 and has_letters and has_numbers
-
-
-def _hard_split(text: str, chunk_size: int) -> list[str]:
-    if len(text) <= chunk_size:
-        return [text]
-    return [text[i : i + chunk_size] for i in range(0, len(text), chunk_size)]
-
-
-def _split_long_paragraph(paragraph: str, chunk_size: int) -> list[str]:
-    if len(paragraph) <= chunk_size:
-        return [paragraph]
-    sentence_parts = re.split(r"(?<=[.!?])\s+", paragraph)
-    if len(sentence_parts) <= 1:
-        return _hard_split(paragraph, chunk_size)
-    out: list[str] = []
-    buf: list[str] = []
-    buf_len = 0
-    for sent in sentence_parts:
-        sent = sent.strip()
-        if not sent:
-            continue
-        if len(sent) > chunk_size:
-            if buf:
-                out.append(" ".join(buf))
-                buf = []
-                buf_len = 0
-            out.extend(_hard_split(sent, chunk_size))
-            continue
-        add_len = len(sent) + (1 if buf else 0)
-        if buf and buf_len + add_len > chunk_size:
-            out.append(" ".join(buf))
-            buf = [sent]
-            buf_len = len(sent)
-        else:
-            buf.append(sent)
-            buf_len += add_len
-    if buf:
-        joined = " ".join(buf)
-        if len(joined) > chunk_size:
-            out.extend(_hard_split(joined, chunk_size))
-        else:
-            out.append(joined)
-    return out
-
-
-_SECTION_HEADING_RE = re.compile(
-    r"^(?:"
-    r"[A-Z][A-Za-z'']+(?:\s+[A-Za-z'']+){0,6}"
-    r"(?:\s*\([^)]+\))?"
-    r")$",
-    re.MULTILINE,
-)
-
-
-def _detect_section_title(text: str) -> str:
-    for line in text.split("\n")[:3]:
-        line = line.strip()
-        if not line or len(line) > 80:
-            continue
-        if _SECTION_HEADING_RE.match(line):
-            return line
-    return ""
-
-
-def _split_into_sections(text: str) -> list[tuple[str, str]]:
-    lines = text.split("\n")
-    sections: list[tuple[str, str]] = []
-    current_title = ""
-    current_lines: list[str] = []
-
-    for line in lines:
-        stripped = line.strip()
-        if (
-            stripped
-            and len(stripped) <= 80
-            and _SECTION_HEADING_RE.match(stripped)
-            and current_lines
-            and len("\n".join(current_lines).strip()) > 20
-        ):
-            sections.append((current_title, "\n".join(current_lines).strip()))
-            current_title = stripped
-            current_lines = [line]
-        else:
-            current_lines.append(line)
-
-    if current_lines:
-        body = "\n".join(current_lines).strip()
-        if body:
-            sections.append((current_title, body))
-
-    return sections if len(sections) > 1 else [("", text)]
-
-
-def _chunk_text(text: str, chunk_size: int, overlap: int) -> list[str]:
-    if len(text) <= chunk_size:
-        return [text] if _keep_chunk(text) else []
-
-    paragraphs = [p.strip() for p in re.split(r"\n{2,}", text) if p.strip()]
-    expanded: list[str] = []
-    for para in paragraphs:
-        expanded.extend(_split_long_paragraph(para, chunk_size))
-
-    chunks: list[str] = []
-    current: list[str] = []
-    current_len = 0
-    for part in expanded:
-        add_len = len(part) + (2 if current else 0)
-        if current and current_len + add_len > chunk_size:
-            chunks.append("\n\n".join(current).strip())
-            if overlap > 0:
-                tail = chunks[-1][-overlap:].strip()
-                current = [tail, part] if tail else [part]
-                current_len = len("\n\n".join(current))
-            else:
-                current = [part]
-                current_len = len(part)
-            continue
-        current.append(part)
-        current_len += add_len
-    if current:
-        chunks.append("\n\n".join(current).strip())
-
-    capped: list[str] = []
-    for chunk in chunks:
-        capped.extend(_hard_split(chunk, chunk_size))
-    return [c for c in capped if _keep_chunk(c)]
-
-
-def _chunk_page_with_sections(
-    page_text: str, chunk_size: int, overlap: int
-) -> list[tuple[str, str]]:
-    sections = _split_into_sections(page_text)
-    results: list[tuple[str, str]] = []
-    for title, body in sections:
-        for chunk in _chunk_text(body, chunk_size, overlap):
-            chunk_title = title or _detect_section_title(chunk)
-            results.append((chunk_title, chunk))
-    return results
+from backend.rag.text_utils import clean_text, is_low_quality
 
 
 def extract_pages_pypdf(pdf_path: Path) -> list[tuple[int, str]]:
@@ -190,6 +45,28 @@ def extract_pages_pypdf(pdf_path: Path) -> list[tuple[int, str]]:
         cleaned = clean_text(raw)
         if cleaned:
             pages.append((i + 1, cleaned))
+    return pages
+
+
+def extract_pages_pymupdf(pdf_path: Path) -> list[tuple[int, str]]:
+    """Layout-aware text: keeps table rows together better than pypdf."""
+    try:
+        import fitz
+    except ImportError:
+        return []
+    try:
+        doc = fitz.open(pdf_path)
+    except Exception:
+        return []
+    pages: list[tuple[int, str]] = []
+    try:
+        for i, page in enumerate(doc):
+            raw = page.get_text("text", sort=True) or ""
+            cleaned = clean_text(raw)
+            if cleaned:
+                pages.append((i + 1, cleaned))
+    finally:
+        doc.close()
     return pages
 
 
@@ -211,10 +88,16 @@ def extract_pages(
     force_ocr: bool = False,
     ocr_pdfs: list[str] | None = None,
 ) -> tuple[list[tuple[int, str, str]], str]:
-    pypdf_pages = extract_pages_pypdf(pdf_path)
-    page_map: dict[int, str] = {page_num: txt for page_num, txt in pypdf_pages if txt}
+    layout_pages = extract_pages_pymupdf(pdf_path)
+    if layout_pages:
+        seed_pages = layout_pages
+        seed_method = "pymupdf"
+    else:
+        seed_pages = extract_pages_pypdf(pdf_path)
+        seed_method = "pypdf"
+    page_map: dict[int, str] = {page_num: txt for page_num, txt in seed_pages if txt}
     methods: dict[int, str] = {
-        page_num: "pypdf" for page_num, _ in pypdf_pages if page_num in page_map
+        page_num: seed_method for page_num, _ in seed_pages if page_num in page_map
     }
 
     ocr_pdfs = ocr_pdfs or []
@@ -268,10 +151,8 @@ def extract_pages(
         return [], "none"
 
     method_values = set(method for _, _, method in pages)
-    if method_values == {"ocr"}:
-        extraction = "ocr"
-    elif method_values == {"pypdf"}:
-        extraction = "pypdf"
+    if len(method_values) == 1:
+        extraction = next(iter(method_values))
     else:
         extraction = "hybrid"
     return pages, extraction
@@ -290,20 +171,25 @@ def build_documents(
         force_ocr=force_ocr,
         ocr_pdfs=ocr_pdfs,
     )
-    docs: list[Document] = []
+    docs: list = []
     source_file = _pdf_key(path)
     for page_num, page_text, page_extraction in pages:
-        for section_title, chunk in _chunk_page_with_sections(page_text, CHUNK_SIZE, CHUNK_OVERLAP):
+        if is_skipped_index_page(source_file, page_num):
+            continue
+        printed = pdf_to_printed(source_file, page_num)
+        for section_title, chunk in chunk_page_with_sections(page_text, CHUNK_SIZE, CHUNK_OVERLAP):
             chunk_meta = {
                 "source_file": source_file,
                 "source_label": meta["label"],
                 "page": str(page_num),
+                "pdf_page": str(page_num),
+                "printed_page": str(printed),
                 "faction": meta["faction"],
                 "extraction": extraction,
                 "page_extraction": page_extraction,
                 "section_title": section_title,
             }
-            docs.append(Document(text=chunk, metadata=chunk_meta))
+            docs.append(make_rule_document(text=chunk, metadata=chunk_meta))
     return docs
 
 
@@ -363,7 +249,7 @@ def run_ingest(
             print(f"PREFLIGHT ERROR: {msg}", file=sys.stderr)
         return 1
 
-    all_docs: list[Document] = []
+    all_docs = []
 
     present = [name for name in pdf_names if pdf_path(name).exists()]
     for name in pdf_names:
@@ -394,6 +280,12 @@ def run_ingest(
                 "Install Tesseract (brew install tesseract) and re-run with --ocr."
             )
         all_docs.extend(page_docs)
+
+    from backend.rag.curated_chunks import curated_reference_documents
+
+    curated_docs = curated_reference_documents()
+    print(f"  curated tables/glossary: {len(curated_docs)} chunks")
+    all_docs.extend(curated_docs)
 
     if not all_docs:
         print("No documents to index.")
@@ -488,7 +380,7 @@ def _run_brambletrek_ingest(
         print("No Brambletrek PDF files found to index.")
         return 1
 
-    all_docs: list[Document] = []
+    all_docs = []
     print(f"Indexing {len(present)} Brambletrek PDFs...")
     for idx, name in enumerate(present, 1):
         path = pdf_path(name)

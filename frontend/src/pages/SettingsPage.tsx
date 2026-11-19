@@ -19,6 +19,8 @@ export default function SettingsPage() {
   const [settings, setSettings] = useState({ include_faerun: false, use_rerank: true });
   const [health, setHealth] = useState<{
     indexed: boolean;
+    indexed_by_game?: Record<string, boolean>;
+    chunk_counts?: Record<string, number>;
     claude_configured: boolean;
     claude_model?: string;
   } | null>(null);
@@ -44,12 +46,20 @@ export default function SettingsPage() {
     }
   };
 
-  const reindex = async (includeFaerun: boolean, confirmDropFaerun = false) => {
+  const reindex = async (
+    includeFaerun: boolean,
+    confirmDropFaerun = false,
+    targetGameId = 'dnd5e',
+  ) => {
     setIndexing(true);
     setIndexStatus('Indexing rulebooks. This window keeps the Cloud Run instance awake.');
     setMessage(null);
     try {
-      const result: { ok?: boolean; chunk_count?: number } = {};
+      const result: {
+        ok?: boolean;
+        chunk_count?: number;
+        chunk_counts?: Record<string, number>;
+      } = {};
       let streamError = '';
       await api.reindex(
         includeFaerun,
@@ -63,10 +73,17 @@ export default function SettingsPage() {
           }
         },
         confirmDropFaerun,
+        targetGameId,
       );
       if (streamError) throw new Error(streamError);
       const ok = Boolean(result.ok);
-      const msg = ok ? `Indexed ${result.chunk_count ?? 0} chunks` : 'Indexing failed';
+      const counts = result.chunk_counts;
+      const countText = counts
+        ? Object.entries(counts)
+            .map(([id, n]) => `${id}: ${n}`)
+            .join(', ')
+        : String(result.chunk_count ?? 0);
+      const msg = ok ? `Indexed ${countText} chunks` : 'Indexing failed';
       if (ok) toast.success(msg);
       else toast.error(msg);
       setMessage(ok ? `${msg}.` : msg);
@@ -88,8 +105,20 @@ export default function SettingsPage() {
       {health && (
         <m.div variants={fadeUp} className="flex flex-wrap gap-2">
           <StatusBadge
-            status={health.indexed ? 'ok' : 'warn'}
-            label={health.indexed ? 'Rules index ready' : 'Not indexed'}
+            status={health.indexed_by_game?.dnd5e || health.indexed ? 'ok' : 'warn'}
+            label={
+              health.indexed_by_game?.dnd5e || health.indexed
+                ? `D&D 5e index ready${health.chunk_counts?.dnd5e != null ? ` (${health.chunk_counts.dnd5e})` : ''}`
+                : 'D&D 5e not indexed'
+            }
+          />
+          <StatusBadge
+            status={health.indexed_by_game?.brambletrek ? 'ok' : 'warn'}
+            label={
+              health.indexed_by_game?.brambletrek
+                ? `Brambletrek index ready${health.chunk_counts?.brambletrek != null ? ` (${health.chunk_counts.brambletrek})` : ''}`
+                : 'Brambletrek not indexed'
+            }
           />
           <StatusBadge
             status={health.claude_configured ? 'ok' : 'error'}
@@ -148,10 +177,35 @@ export default function SettingsPage() {
           Save admin settings
         </button>
         <p className="text-sm text-muted leading-relaxed">
-          Index core only removes Heroes of Faerun and Adventures in Faerun from the index. Prefer Index core + Faerun
-          unless you intend to drop those books.
+          Index core only removes Heroes of Faerun and Adventures in Faerun from the D&D index. Prefer
+          Index core + Faerun, or Index all books, unless you intend to drop those books. Brambletrek
+          lives in a separate index, so D&D indexing does not replace it.
         </p>
         <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="btn-primary"
+            disabled={indexing}
+            onClick={() => void reindex(true, false, 'all')}
+          >
+            {indexing ? 'Indexing…' : 'Index all books (D&D + Faerun + Brambletrek)'}
+          </button>
+          <button
+            type="button"
+            className="btn-ghost"
+            disabled={indexing}
+            onClick={() => void reindex(true, false, 'dnd5e')}
+          >
+            {indexing ? 'Indexing…' : 'Index core + Faerun'}
+          </button>
+          <button
+            type="button"
+            className="btn-ghost"
+            disabled={indexing}
+            onClick={() => void reindex(false, false, 'brambletrek')}
+          >
+            {indexing ? 'Indexing…' : 'Index Brambletrek'}
+          </button>
           <button
             type="button"
             className="btn-ghost"
@@ -160,16 +214,11 @@ export default function SettingsPage() {
               const ok = window.confirm(
                 'Index core only deletes Faerun books from the rules index. Continue only if you want that.',
               );
-              if (ok) void reindex(false, true);
+              if (ok) void reindex(false, true, 'dnd5e');
             }}
           >
             {indexing ? 'Indexing…' : 'Index core (PHB, DMG, MM)'}
           </button>
-          {gameId === 'dnd5e' && (
-            <button type="button" className="btn-ghost" disabled={indexing} onClick={() => reindex(true)}>
-              {indexing ? 'Indexing…' : 'Index core + Faerûn'}
-            </button>
-          )}
         </div>
       </m.div>
 

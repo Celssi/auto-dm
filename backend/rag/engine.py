@@ -29,15 +29,21 @@ class RagResult:
 
 
 def _format_context(nodes: list[NodeWithScore]) -> str:
+    from backend.rag.pages import pdf_to_printed
+
     parts: list[str] = []
     for i, nws in enumerate(nodes, 1):
         meta = nws.node.metadata or {}
         label = meta.get("source_label", meta.get("source_file", "Unknown"))
-        page = meta.get("page", "?")
+        source_file = str(meta.get("source_file", "") or "")
+        pdf_page = meta.get("pdf_page") or meta.get("page", "?")
+        page = meta.get("printed_page") or (
+            pdf_to_printed(source_file, pdf_page) if pdf_page not in (None, "", "?") else "?"
+        )
         section = meta.get("section_title", "")
         header = f"[{i}] {label} p.{page}"
         if section:
-            header += f" — {section}"
+            header += f": {section}"
         parts.append(f"{header}\n{nws.node.get_content()}")
     return "\n\n---\n\n".join(parts)
 

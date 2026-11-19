@@ -9,6 +9,7 @@ from backend.gcs_sync import pdf_available
 
 # Add to the printed page to get the 1-based PDF page. CDE: printed N is PDF index N-2.
 PAGE_OFFSETS: dict[str, int] = {
+    "dnd5e/player.pdf": 2,
     "brambletrek/Brambletrek_-_Complete_Digital_Edition.pdf": -1,
 }
 

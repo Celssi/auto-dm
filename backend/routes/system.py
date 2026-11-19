@@ -38,12 +38,29 @@ class SettingsBody(BaseModel):
 class RulesSearchBody(BaseModel):
     question: str
     include_faerun: bool = False
+    game_id: str = "dnd5e"
+    generate_answer: bool = True
 
 
 class IngestBody(BaseModel):
     include_faerun: bool = False
     force_ocr: bool = False
     confirm_drop_faerun: bool = False
+    game_id: str = "dnd5e"
+
+
+def _chunk_count(game_id: str) -> int:
+    collection = get_collection(game_id)
+    return collection.count() if collection else 0
+
+
+def _index_status() -> dict:
+    counts = {game["id"]: _chunk_count(game["id"]) for game in list_games()}
+    return {
+        "chunk_counts": counts,
+        "indexed_by_game": {gid: count > 0 for gid, count in counts.items()},
+        "indexed": any(count > 0 for count in counts.values()),
+    }
 
 
 class GlossaryLookupBody(BaseModel):
@@ -74,11 +91,12 @@ def keepalive():
 
 @router.get("/health")
 def health():
-    collection = get_collection()
-    indexed = collection is not None and collection.count() > 0
+    status = _index_status()
     return {
         "status": "ok",
-        "indexed": indexed,
+        "indexed": status["indexed"],
+        "indexed_by_game": status["indexed_by_game"],
+        "chunk_counts": status["chunk_counts"],
         "collection": COLLECTION_NAME,
         "claude_configured": bool(ANTHROPIC_API_KEY),
         "claude_model": resolve_claude_model(),
@@ -97,30 +115,65 @@ def reindex(body: IngestBody):
 
     def worker() -> None:
         try:
-            if not body.include_faerun and not body.confirm_drop_faerun:
+            game_id = (body.game_id or "dnd5e").strip().lower()
+            known = {game["id"] for game in list_games()} | {"all"}
+            if game_id not in known:
+                emit("error", {"detail": f"Unknown game: {body.game_id}"})
+                return
+
+            targets = [g["id"] for g in list_games()] if game_id == "all" else [game_id]
+            needs_dnd = "dnd5e" in targets
+            if needs_dnd and not body.include_faerun and not body.confirm_drop_faerun:
                 emit(
                     "error",
                     {
                         "detail": (
-                            "Indexing core only would delete Faerun books from the production index. "
-                            "Use Index core + Faerun, or confirm dropping Faerun."
+                            "Indexing D&D 5e core only would delete Faerun books from the production index. "
+                            "Use Index core + Faerun, Index all books, or confirm dropping Faerun."
                         )
                     },
                 )
                 return
-            emit("progress", {"message": "Indexing rulebooks. This can take a long time."})
-            code = run_ingest(
-                core_only=not body.include_faerun,
-                include_faerun=body.include_faerun,
-                reset=True,
-                force_ocr=body.force_ocr,
-            )
+
             from backend.rag.engine import clear_retrieval_caches
 
+            ok = True
+            for target in targets:
+                label = "D&D 5e" if target == "dnd5e" else get_game(target).label
+                emit("progress", {"message": f"Indexing {label} books. This can take a long time."})
+                if target == "dnd5e":
+                    code = run_ingest(
+                        core_only=not body.include_faerun,
+                        include_faerun=body.include_faerun,
+                        reset=True,
+                        force_ocr=body.force_ocr,
+                        game_id="dnd5e",
+                        skip_audit=True,
+                    )
+                else:
+                    code = run_ingest(
+                        reset=True,
+                        force_ocr=body.force_ocr,
+                        game_id=target,
+                        skip_audit=True,
+                    )
+                if code != 0:
+                    ok = False
+                    emit("progress", {"message": f"{label} indexing failed."})
+                    break
             clear_retrieval_caches()
-            collection = get_collection()
-            count = collection.count() if collection else 0
-            emit("done", {"ok": code == 0, "chunk_count": count})
+            status = _index_status()
+            emit(
+                "done",
+                {
+                    "ok": ok,
+                    "chunk_count": status["chunk_counts"].get("dnd5e", 0)
+                    if game_id == "dnd5e"
+                    else status["chunk_counts"].get(game_id, sum(status["chunk_counts"].values())),
+                    "chunk_counts": status["chunk_counts"],
+                    "indexed_by_game": status["indexed_by_game"],
+                },
+            )
         except Exception as exc:
             emit("error", {"detail": str(exc)})
         finally:
@@ -152,13 +205,23 @@ def glossary_lookup(body: GlossaryLookupBody):
     return {"entries": lookup_entries(body.names, use_rag=body.use_rag)}
 
 
+def _search_factions(game_id: str, include_faerun: bool) -> list[str]:
+    plugin = get_game(game_id)
+    if game_id != "dnd5e" or include_faerun:
+        return plugin.get_all_factions()
+    return ["player", "dm", "monsters"]
+
+
 @router.post("/rules/search")
 def rules_search(body: RulesSearchBody):
-    if body.include_faerun:
-        factions = get_game().get_all_factions()
-    else:
-        factions = ["player", "dm", "monsters"]
-    result = query_rules(body.question, factions=factions, use_rerank=True)
+    factions = _search_factions(body.game_id, body.include_faerun)
+    result = query_rules(
+        body.question,
+        game_id=body.game_id,
+        factions=factions,
+        use_rerank=True,
+        generate_answer=body.generate_answer,
+    )
     return {"answer": result.answer, "sources": result.sources}
 
 

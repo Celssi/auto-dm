@@ -173,7 +173,14 @@ async function readSse(path: string, body: unknown, onEvent: StreamHandler): Pro
 }
 
 export const api = {
-  health: () => request<{ indexed: boolean; claude_configured: boolean; claude_model: string }>('/health'),
+  health: () =>
+    request<{
+      indexed: boolean;
+      indexed_by_game?: Record<string, boolean>;
+      chunk_counts?: Record<string, number>;
+      claude_configured: boolean;
+      claude_model: string;
+    }>('/health'),
   keepalive: () => request<{ ok: boolean; ts: number }>('/keepalive'),
 
   getSettings: () => request<{ settings: { include_faerun: boolean; use_rerank: boolean } }>('/settings'),
@@ -365,13 +372,32 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  searchRules: (question: string, include_faerun = false) =>
+  searchRules: (
+    question: string,
+    include_faerun = false,
+    gameId = 'dnd5e',
+    generateAnswer = true,
+  ) =>
     request<{ answer: string; sources: Source[] }>('/rules/search', {
       method: 'POST',
-      body: JSON.stringify({ question, include_faerun }),
+      body: JSON.stringify({
+        question,
+        include_faerun,
+        game_id: gameId,
+        generate_answer: generateAnswer,
+      }),
     }),
-  reindex: (include_faerun = false, onEvent?: StreamHandler, confirmDropFaerun = false) =>
-    readSse('/index/reindex', { include_faerun, confirm_drop_faerun: confirmDropFaerun }, onEvent ?? (() => undefined)),
+  reindex: (
+    include_faerun = false,
+    onEvent?: StreamHandler,
+    confirmDropFaerun = false,
+    gameId = 'dnd5e',
+  ) =>
+    readSse(
+      '/index/reindex',
+      { include_faerun, confirm_drop_faerun: confirmDropFaerun, game_id: gameId },
+      onEvent ?? (() => undefined),
+    ),
   getGlossary: () => request<{ count: number; entries: Record<string, unknown> }>('/glossary'),
   lookupGlossary: (names: string[], use_rag = true) =>
     request<{
@@ -760,6 +786,8 @@ export interface Oracle {
 export interface Source {
   source_label?: string;
   page?: string;
+  printed_page?: string;
+  pdf_page?: string;
   text?: string;
 }
 
