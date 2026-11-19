@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any
 
-QUERIES_PATH = Path(__file__).resolve().parents[1] / "tests" / "data" / "saruman_queries.json"
+QUERIES_PATH = Path(__file__).resolve().parent / "saruman_queries.json"
 
 
 def load_audit_queries(path: Path | None = None) -> list[dict[str, Any]]:

@@ -101,13 +101,10 @@ def test_curated_weapon_chunks_keep_name_with_mastery():
 def test_saruman_queries_are_answered_by_curated_chunks():
     import json
 
-    from pathlib import Path
-
     from backend.games.dnd5e.dm.structured_lookup import lookup_curated_rules, rewrite_rules_query
+    from backend.rag.recall_audit import QUERIES_PATH
 
-    queries = json.loads(
-        (Path(__file__).parent / "data" / "saruman_queries.json").read_text(encoding="utf-8")
-    )
+    queries = json.loads(QUERIES_PATH.read_text(encoding="utf-8"))
     docs = curated_reference_documents()
     blob = "\n".join(d.text for d in docs).lower()
     for row in queries:
