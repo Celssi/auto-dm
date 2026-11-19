@@ -40,7 +40,7 @@ export const BEGINNER_TIPS: Record<string, BeginnerTip> = {
     title: 'Heroic Inspiration',
     kind: 'rules',
     summary:
-      '2024 Inspiration. Spend it to reroll one die (d20, damage, and similar). Humans with Resourceful gain it when they finish a Long Rest. This is not the 2014 Inspiration rule.',
+      '2024 Heroic Inspiration: spend it to reroll one die (d20, damage, and similar). Humans with Resourceful gain it when they finish a Long Rest.',
   },
   'death-saves': {
     title: 'Death Saving Throws',
@@ -148,7 +148,7 @@ export const BEGINNER_TIPS: Record<string, BeginnerTip> = {
     title: 'Exhaustion',
     kind: 'rules',
     summary:
-      '2024: each level of Exhaustion subtracts 2 from d20 tests (attacks, checks, saves). Six levels is death. A Long Rest removes one level. This is not the 2014 six-row chart.',
+      'Each level of Exhaustion subtracts 2 from d20 tests (attacks, checks, saves). Six levels is death. A Long Rest removes one level.',
   },
   spellcasting: {
     title: 'Spellcasting',

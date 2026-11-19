@@ -292,7 +292,7 @@ def run_shortcut(
         user = f"**Saving throw** ({ability.upper()})\n\n{result['summary']}{luck_note}"
         prompt = (
             f"D&D 5e saving throw for {build}, {ability.upper()} save {mod:+d}. "
-            f"{result['summary']}. Explain save DC, success, and effects using PHB rules."
+            f"{result['summary']}. Explain save DC, success, and effects using 2024 PHB rules."
         )
         out = {"user_message": user, "prompt": prompt, "dice": result, "task": "saving_throw"}
         if luck_updates:
@@ -684,10 +684,10 @@ def run_shortcut(
 
     if shortcut_id == "rules_help":
         prompt = (
-            "Explain how to run D&D 5e solo as player and DM: ability checks, saves, combat, "
+            "Explain how to run D&D 5e (2024) solo as player and DM: ability checks, saves, combat, "
             "rests, death saves, and using oracle tables for unknown outcomes. "
-            "Reference Player's Handbook and DMG; use Faerûn "
-            "supplements only when the campaign is set in Faerûn."
+            "Use only the 2024 Player's Handbook and DMG. Never fall back to 2014 rules. "
+            "Use Faerûn supplements only when the campaign is set in Faerûn."
         )
         return {"user_message": "**D&D 5e rules**", "prompt": prompt, "rag_only": True}
 

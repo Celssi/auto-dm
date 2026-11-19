@@ -16,6 +16,17 @@ from backend.games.dnd5e.characters.character_builder import rebuild_character
 from backend.games.dnd5e.characters.entity import character_from_dict, character_to_dict
 from backend.storage import CHARACTERS_DIR, get_character, list_characters, save_character
 
+
+def _hydrate_from_gcs() -> None:
+    """Pull character saves from gs://celssi-auto-dm when credentials exist."""
+    try:
+        from backend.gcs_sync import download_prefix
+
+        count = download_prefix("saves/characters/", CHARACTERS_DIR)
+        print(f"GCS hydrate: {count} character files.")
+    except Exception as exc:
+        print(f"GCS hydrate skipped: {exc}")
+
 LARRY_NAMES = {"larry swordstein", "larry"}
 
 
@@ -41,6 +52,7 @@ def _needs_repair(data: dict) -> bool:
 
 
 def main() -> int:
+    _hydrate_from_gcs()
     char_id = _find_larry()
     if not char_id:
         print("Larry Swordstein not found in this environment. No production write.")
@@ -55,6 +67,14 @@ def main() -> int:
     if path.is_file():
         shutil.copy2(path, backup)
         print(f"Backup: {backup}")
+        try:
+            from backend.gcs_sync import upload_blob
+
+            rel = backup.resolve().relative_to(CHARACTERS_DIR.parent.resolve()).as_posix()
+            upload_blob(f"saves/{rel}", backup)
+            print(f"Backup uploaded to gs://celssi-auto-dm/saves/{rel}")
+        except Exception as exc:
+            print(f"GCS backup upload skipped: {exc}")
     if not _needs_repair(data):
         print(f"{char_id} already looks consistent. No write.")
         return 0

@@ -133,6 +133,16 @@ def test_death_save_summary_has_no_question_mark_placeholder():
     assert "success" in result["summary"]
 
 
+def test_system_prompt_is_2024_only():
+    from backend.games.dnd5e.prompts import dnd5e_stable_system_prompt
+
+    text = dnd5e_stable_system_prompt()
+    lower = text.lower()
+    assert "d&d 5e (2024)" in lower
+    assert "never apply 2014" in lower
+    assert "2014 fallback" in lower
+
+
 def test_weapon_glossary_has_no_em_dash():
     hit = lookup_entry("greatsword", use_rag=False)
     summary = hit.get("summary") or ""

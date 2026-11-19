@@ -601,7 +601,7 @@ def format_for_prompt(
         feats = feats + (", " if feats != "(none)" else "") + ", ".join(style_feats)
     origin_effects = "; ".join(f"{e['feat']}: {e['effect']}" for e in origin_lines) or "(none)"
     lines = [
-        "Current D&D 5e character:",
+        "Current D&D 5e (2024) character:",
         f"- Name: {char.name or 'unnamed'}",
         f"- Species: {char.species or '(not set)'} ({char.size})",
         f"- Class: {char.class_name or '(not set)'} / "
