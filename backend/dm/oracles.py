@@ -162,7 +162,7 @@ def scene_setup() -> dict[str, Any]:
 def generate_npc() -> dict[str, Any]:
     trait = random.choice(NPC_TRAITS)
     mood = random.choice(NPC_MOODS)
-    summary = f"**NPC:** {trait} — mood: **{mood}**."
+    summary = f"**NPC:** {trait}, mood: **{mood}**."
     return {"trait": trait, "mood": mood, "summary": summary}
 
 

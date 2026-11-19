@@ -80,8 +80,8 @@ function HomeFirstTime({ gameId }: { gameId: string }) {
       <p className="label-text">First time here?</p>
       <p className="text-sm text-muted leading-relaxed">
         {gameId === 'brambletrek'
-          ? 'Create a Gnawborn, then start a campaign from Play. Hover dotted labels for short explanations of Health, Morale, Supplies, Legacy, and oracles.'
-          : 'Create a character, then start a campaign from Play. Hover dotted labels on the sheet for short explanations of Armor Class, proficiency, and similar terms. Oracles answer yes/no without inventing the story.'}
+          ? 'Create a Gnawborn, then start a campaign from Play. Tap or focus dotted labels for short explanations of Health, Morale, Supplies, Legacy, and journey tools.'
+          : 'Create a character, then start a campaign from Play. Tap or focus dotted labels on the sheet for short explanations of Armor Class, proficiency, and similar terms. Oracles answer yes/no without inventing the story.'}
       </p>
       <Link to="/characters/new" className="btn-ghost inline-flex w-fit">
         Create a character

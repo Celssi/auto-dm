@@ -112,6 +112,11 @@ function fallbackEntry(name: string, summary?: string, kind?: string): GlossaryE
   return { kind: kind || 'rules', title: name, summary };
 }
 
+function prefersHover(): boolean {
+  if (typeof window === 'undefined') return true;
+  return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+}
+
 export default function GlossaryTip({
   name,
   children,
@@ -193,11 +198,19 @@ export default function GlossaryTip({
     if (!open) return;
     updatePlacement();
     const onScrollOrResize = () => updatePlacement();
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (triggerRef.current?.contains(target)) return;
+      if (tipRef.current?.contains(target)) return;
+      dismiss();
+    };
     window.addEventListener('scroll', onScrollOrResize, true);
     window.addEventListener('resize', onScrollOrResize);
+    document.addEventListener('pointerdown', onPointerDown);
     return () => {
       window.removeEventListener('scroll', onScrollOrResize, true);
       window.removeEventListener('resize', onScrollOrResize);
+      document.removeEventListener('pointerdown', onPointerDown);
     };
   }, [open, updatePlacement, entry]);
 
@@ -229,7 +242,9 @@ export default function GlossaryTip({
                 transform: placement.above ? 'translateY(-100%)' : undefined,
                 zIndex: 9999,
               }}
-              className="flex flex-col p-3 panel-glow shadow-glow pointer-events-none"
+              className="flex flex-col p-3 panel-glow shadow-glow"
+              onMouseEnter={cancelHide}
+              onMouseLeave={scheduleHide}
             >
               <p className="font-medium text-accent text-sm mb-1.5 shrink-0">{displayLabel(entry?.title || name)}</p>
               <GlossaryEntryBody entry={entry} loading={loading} maxHeight={placement.maxHeight} />
@@ -241,14 +256,24 @@ export default function GlossaryTip({
 
   const triggerHandlers = {
     onMouseEnter: () => {
+      if (!prefersHover()) return;
       cancelHide();
       scheduleShow();
     },
-    onMouseLeave: scheduleHide,
-    onMouseDown: dismiss,
+    onMouseLeave: () => {
+      if (!prefersHover()) return;
+      scheduleHide();
+    },
+    onClick: (event: { preventDefault: () => void; stopPropagation: () => void }) => {
+      if (prefersHover()) return;
+      event.preventDefault();
+      event.stopPropagation();
+      if (open) dismiss();
+      else void show();
+    },
     onFocus: () => {
       cancelHide();
-      show();
+      void show();
     },
     onBlur: scheduleHide,
   };
@@ -269,7 +294,7 @@ export default function GlossaryTip({
           type="button"
           className={`relative inline-block group/gtip border-0 bg-transparent p-0 font-inherit text-inherit ${wrapperClassName}`}
           {...triggerHandlers}
-          aria-label={`${label}, hover for details`}
+          aria-label={`${label}, tap or focus for details`}
         >
           {trigger}
         </button>

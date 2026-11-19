@@ -278,6 +278,15 @@ function PlayNewCampaignTab({
       <p className="text-sm text-muted leading-relaxed">
         Generate a campaign, adventure, journal entries, and opening scene, then jump straight into play.
       </p>
+      {characters.length === 0 && (
+        <p className="text-sm text-muted rounded-lg border border-border bg-bg/40 px-3 py-2">
+          You need a character first.{' '}
+          <Link to="/characters/new" className="text-accent hover:underline">
+            Create one
+          </Link>
+          , then come back here.
+        </p>
+      )}
       <Field label="Character">
         <ChoiceGroup
           value={newCampaign.character_id}

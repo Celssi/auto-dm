@@ -120,7 +120,7 @@ def _class_summary(c: dict[str, Any]) -> str:
     if spell:
         parts.append(f"{str(spell).title()} spellcaster.")
     else:
-        parts.append("Martial — no spellcasting.")
+        parts.append("Martial, no spellcasting.")
     if armor:
         parts.append(f"Armor: {armor}.")
     if sc:
@@ -172,7 +172,7 @@ def _armor_summary(a: dict[str, Any]) -> str:
         extra = " + Dex"
     if a.get("strength"):
         extra += f". Requires Str {a['strength']}"
-    return f"{a.get('label', 'Armor')} — {cat.title()} armor. Base AC {ac}{extra}."
+    return f"{a.get('label', 'Armor')}: {cat.title()} armor. Base AC {ac}{extra}."
 
 
 @lru_cache(maxsize=1)
@@ -231,7 +231,7 @@ def build_glossary_index() -> dict[str, dict[str, Any]]:
         index[key] = {
             "kind": "language",
             "title": label,
-            "summary": f"{label} — A language your character may speak, read, or write.",
+            "summary": f"{label}: a language your character may speak, read, or write.",
         }
 
     for sk in skills_data().get("skills") or []:
@@ -245,7 +245,7 @@ def build_glossary_index() -> dict[str, dict[str, Any]]:
         index[key] = {
             "kind": "skill",
             "title": label,
-            "summary": f"{label} ({ab}) — D&D skill check using your {ab} modifier.",
+            "summary": f"{label} ({ab}): a D&D skill check using your {ab} modifier.",
         }
 
     # Common gear phrases (partial coverage for starting equipment)

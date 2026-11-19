@@ -17,7 +17,6 @@ from backend.dm.stream_turn import stream_dm_turn
 from backend.dm.trace import audit_session_context
 from backend.games.registry import get_game, resolve_game_id
 from backend.session_locks import session_lock
-from backend.settings_store import load_settings
 from backend.storage import (
     append_session_log,
     create_session,
@@ -126,12 +125,11 @@ def world(session_id: str, refresh: bool = False):
 
 @router.post("")
 def create(body: SessionCreateBody):
-    prefs = load_settings()
     session_id = create_session(
         character_id=body.character_id,
         adventure_id=body.adventure_id,
         name=body.name,
-        include_faerun=body.include_faerun or prefs.get("include_faerun", False),
+        include_faerun=body.include_faerun,
     )
     return {"id": session_id, "session": get_session(session_id)}
 
@@ -231,7 +229,8 @@ def run_session_oracle(session_id: str, body: OracleBody):
             result = run_oracle(body.oracle_id, likelihood_level=body.likelihood_level)
         except ValueError as e:
             raise HTTPException(400, str(e)) from e
-        summary = str(result.get("summary", ""))
+        summary = sanitize_narration_dashes(str(result.get("summary", "")))
+        result["summary"] = summary
         messages = list(sess.get("messages") or [])
         messages.append({"role": "user", "content": f"[oracle: {body.oracle_id}]"})
         messages.append({"role": "assistant", "content": summary})

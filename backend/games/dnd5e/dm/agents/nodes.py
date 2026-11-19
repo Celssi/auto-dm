@@ -40,7 +40,6 @@ from backend.llm import (
     stream_chat_llm,
 )
 from backend.rag.engine import query_rules
-from backend.settings_store import load_settings
 
 COMBAT_SHORTCUTS = frozenset({"attack_roll", "initiative", "death_save"})
 COMBAT_KEYWORDS = (
@@ -287,8 +286,7 @@ def rules_referee_node(state: DMState) -> DMState:
         msg = state.get("user_message", "")
         if state.get("mechanics_summary"):
             msg = f"{msg}\n\nMechanics: {state['mechanics_summary']}"
-    prefs = load_settings()
-    include_faerun = state.get("include_faerun", False) or prefs.get("include_faerun", False)
+    include_faerun = bool(state.get("include_faerun", False))
     factions = factions_for(include_faerun, "dnd5e")
     generate = shortcut.get("task") in rag_tasks
     from backend.games.dnd5e.dm.structured_lookup import (
@@ -404,8 +402,7 @@ def narrator_dm_node(state: DMState) -> DMState:
     char_dict = state.get("character") or {}
     char = char_from_dict(char_dict)
     adventure = state.get("adventure") or {}
-    prefs = load_settings()
-    include_faerun = state.get("include_faerun", False) or prefs.get("include_faerun", False)
+    include_faerun = bool(state.get("include_faerun", False))
     campaign_id = adventure.get("campaign_id")
     memory = build_narrative_context(adventure, campaign_id, char)
     stable = dnd5e_stable_system_prompt()

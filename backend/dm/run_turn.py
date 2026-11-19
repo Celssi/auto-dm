@@ -15,7 +15,6 @@ from backend.dm.trace import dm_turn_trace
 from backend.games.registry import get_game, resolve_game_id
 from backend.llm import ChatProvider
 from backend.session_locks import session_lock
-from backend.settings_store import load_settings
 from backend.storage import (
     append_session_log,
     get_adventure,
@@ -93,14 +92,12 @@ def _run_dm_turn_unlocked(
         pre_combat_events = list(pre_turn_result.get("pre_combat_events") or [])
 
     adventure = get_adventure(session["adventure_id"]) or {}
-    prefs = load_settings()
     state: DMState = {
         "session_id": session_id,
         "user_message": user_message,
         "character": char,
         "adventure": adventure,
-        "include_faerun": session.get("include_faerun", False)
-        or prefs.get("include_faerun", False),
+        "include_faerun": bool(session.get("include_faerun", False)),
         "messages": messages[:-1],
         "combat_events": pre_combat_events,
     }

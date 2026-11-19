@@ -256,6 +256,15 @@ function Page1Combat({
         mono
       />
       <HpBar hp={c.hp ?? 0} maxHp={c.max_hp ?? 0} />
+      {Number(c.exhaustion ?? 0) > 0 && (
+        <div className="mt-2">
+          <LabelWithTip id="exhaustion" label="Exhaustion" />
+          <div className="sheet-value font-mono mt-0.5">
+            Level {Number(c.exhaustion)}
+            {Number(c.exhaustion) >= 6 ? ' (dead)' : ''}
+          </div>
+        </div>
+      )}
       <div className="grid grid-cols-2 gap-3 mt-3">
         <div>
           <LabelWithTip id="hit-dice" label="Hit Dice" />
@@ -313,6 +322,12 @@ function Page1FeaturesGear({
             <span className="text-sm text-muted">{EMPTY_FIELD}</span>
           )}
         </div>
+        {(c.weapon_mastery || []).length > 0 && (
+          <div>
+            <LabelWithTip id="weapon-mastery" label="Weapon Mastery" className="sheet-label mb-1.5" />
+            <GlossaryTagList items={c.weapon_mastery || []} />
+          </div>
+        )}
         {c.subclass &&
           (editable ? (
             <SheetField
