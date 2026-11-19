@@ -44,20 +44,39 @@ steps:
         else
           umask 077
           openssl rand -base64 48 > /tmp/auto-dm-ticket
-          gcloud secrets create "$$SECRET_NAME" \
+          set +e
+          CREATE_OUT="$$(gcloud secrets create "$$SECRET_NAME" \
             --project="$$PROJECT" \
             --replication-policy=automatic \
-            --data-file=/tmp/auto-dm-ticket
+            --data-file=/tmp/auto-dm-ticket 2>&1)"
+          CREATE_CODE=$$?
+          set -e
           rm -f /tmp/auto-dm-ticket
-          echo "Created secret $$SECRET_NAME"
+          if [ "$$CREATE_CODE" -eq 0 ]; then
+            echo "Created secret $$SECRET_NAME"
+          elif echo "$$CREATE_OUT" | grep -qiE 'already exists|ALREADY_EXISTS'; then
+            echo "Secret $$SECRET_NAME already exists"
+          else
+            echo "$$CREATE_OUT" >&2
+            exit "$$CREATE_CODE"
+          fi
         fi
         PROJECT_NUMBER="$$(gcloud projects describe "$$PROJECT" --format='value(projectNumber)')"
         RUNTIME_SA="$$PROJECT_NUMBER-compute@developer.gserviceaccount.com"
-        gcloud secrets add-iam-policy-binding "$$SECRET_NAME" \
+        set +e
+        BIND_OUT="$$(gcloud secrets add-iam-policy-binding "$$SECRET_NAME" \
           --project="$$PROJECT" \
           --member="serviceAccount:$$RUNTIME_SA" \
           --role="roles/secretmanager.secretAccessor" \
-          --quiet
+          --quiet 2>&1)"
+        BIND_CODE=$$?
+        set -e
+        if [ "$$BIND_CODE" -eq 0 ]; then
+          echo "Granted secretAccessor to $$RUNTIME_SA"
+        else
+          echo "Could not grant secretAccessor on $$SECRET_NAME (deploy may still attach it):"
+          echo "$$BIND_OUT"
+        fi
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     args:
       - run
