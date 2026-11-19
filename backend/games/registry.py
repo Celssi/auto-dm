@@ -67,3 +67,11 @@ def get_game(game_id: str | None = None) -> GamePlugin:
 
 def list_games() -> list[dict[str, str]]:
     return [{"id": g.id, "label": g.label} for g in _load_registry().values()]
+
+
+def rebuild_character_dict(data: dict[str, Any] | None) -> dict[str, Any]:
+    """Recompute derived sheet fields without writing to disk."""
+    plugin = get_game(resolve_game_id(data))
+    obj = plugin.character_from_dict(data or {})
+    rebuilt = plugin.rebuild_character(obj)
+    return plugin.character_to_dict(rebuilt)

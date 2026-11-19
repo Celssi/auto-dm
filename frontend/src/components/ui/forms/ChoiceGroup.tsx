@@ -6,6 +6,8 @@ import { isLikelyEntityId } from '../../../lib/glossary';
 interface Option {
   value: string;
   label: string;
+  /** Short beginner description shown under the chip label. */
+  description?: string;
   /** Override glossary lookup key (defaults to value when it is a game slug). */
   glossaryName?: string;
   /** Force glossary on/off for this option. */
@@ -92,7 +94,8 @@ function ChoiceOptionGrid({
       {opts.map((opt) => {
         const chip = (
           <ChoiceChip active={value === opt.value} onClick={() => onChange(opt.value)}>
-            {optionLabel(opt)}
+            <span className="block">{optionLabel(opt)}</span>
+            {opt.description && <span className="block text-[11px] text-muted mt-0.5 leading-snug">{opt.description}</span>}
           </ChoiceChip>
         );
         if (!shouldShowGlossary(opt)) {

@@ -88,6 +88,7 @@ class Dnd5eCharacter:
     concentration: str = ""
     wild_shape_uses: int = 0
     luck_points_remaining: int = -1
+    second_wind_remaining: int = -1
     savage_attacker_used_this_turn: bool = False
     campaign_setting: str = "freeform"
     campaign_notes: str = ""
@@ -181,6 +182,9 @@ class Dnd5eCharacter:
             self.luck_points_remaining = lp_max
         else:
             self.luck_points_remaining = max(0, min(lp_max, int(self.luck_points_remaining)))
+        from backend.games.dnd5e.characters.class_resources import sync_second_wind_uses
+
+        sync_second_wind_uses(self)
         self.savage_attacker_used_this_turn = bool(self.savage_attacker_used_this_turn)
         self.equipment_notes = str(self.equipment_notes or "").strip()
         self.starting_gear_choice = str(self.starting_gear_choice or "").strip().lower()
@@ -230,6 +234,12 @@ class Dnd5eCharacter:
         if self.has_alert_feat():
             mod += self.proficiency_bonus()
         return mod
+
+    def passive_perception(self) -> int:
+        pp = 10 + self.ability_modifier("wis")
+        if "perception" in (self.skill_proficiencies or []):
+            pp += self.proficiency_bonus()
+        return pp
 
     def header_fields(self) -> dict[str, Any]:
         return {
@@ -394,7 +404,7 @@ def character_from_dict(data: dict[str, Any] | None) -> Dnd5eCharacter:
         equipment_notes=str(data.get("equipment_notes") or data.get("appearance") or "").strip(),
         starting_gear_choice=str(data.get("starting_gear_choice", "") or ""),
         asi_choices=list(data.get("asi_choices") or []),
-        feats=_clean_list(data.get("feats"), 12),
+        feats=_clean_feat_list(data.get("feats"), 12),
         death_save_successes=int(data.get("death_save_successes", 0) or 0),
         death_save_failures=int(data.get("death_save_failures", 0) or 0),
         exhaustion=int(data.get("exhaustion", 0) or 0),
@@ -402,6 +412,7 @@ def character_from_dict(data: dict[str, Any] | None) -> Dnd5eCharacter:
         concentration=str(data.get("concentration", "") or ""),
         wild_shape_uses=int(data.get("wild_shape_uses", 0) or 0),
         luck_points_remaining=int(data.get("luck_points_remaining", -1) or -1),
+        second_wind_remaining=int(data.get("second_wind_remaining", -1) or -1),
         savage_attacker_used_this_turn=bool(data.get("savage_attacker_used_this_turn", False)),
         campaign_setting=str(data.get("campaign_setting", "freeform") or "freeform"),
         campaign_notes=str(data.get("campaign_notes", "") or ""),
@@ -480,6 +491,7 @@ def character_to_dict(char: Dnd5eCharacter) -> dict[str, Any]:
         "concentration": char.concentration,
         "wild_shape_uses": char.wild_shape_uses,
         "luck_points_remaining": char.luck_points_remaining,
+        "second_wind_remaining": char.second_wind_remaining,
         "savage_attacker_used_this_turn": char.savage_attacker_used_this_turn,
         "campaign_setting": char.campaign_setting,
         "campaign_notes": char.campaign_notes,
@@ -523,6 +535,7 @@ def format_for_prompt(
     if not char:
         return ""
     scores = ", ".join(f"{k.upper()} {char.ability_scores.get(k, 10)}" for k in ABILITY_KEYS)
+    mods = ", ".join(f"{k.upper()} {char.ability_modifier(k):+d}" for k in ABILITY_KEYS)
     skills = ", ".join(char.skill_proficiencies) or "(none)"
     cantrips = ", ".join(char.cantrips) or "(none)"
     spells = ", ".join(char.prepared_spells or char.known_spells) or "(none)"
@@ -602,6 +615,9 @@ def format_for_prompt(
         f"{char.hit_dice_max - char.hit_dice_spent} left)",
         f"- AC: {char.ac} ({armor_line}) | Speed: {char.speed} ft.",
         f"- Ability scores: {scores}",
+        f"- Ability modifiers: {mods}",
+        f"- Initiative: {char.initiative_modifier():+d}",
+        f"- Passive Perception: {char.passive_perception()}",
         f"- Skill proficiencies: {skills}",
         f"- Save proficiencies: {', '.join(char.save_proficiencies) or '(none)'}",
         f"- Languages: {', '.join(char.languages) or '(none)'}",
@@ -612,6 +628,8 @@ def format_for_prompt(
         f"- Creation choices: "
         f"{'; '.join(c['label'] + ': ' + c['value_label'] for c in choice_lines) or '(none)'}",
         f"- Weapons: {weapons}",
+        f"- Inventory: {', '.join(str(i) for i in char.inventory) or '(none)'}",
+        f"- Weapon mastery: {', '.join(char.weapon_mastery) or '(none)'}",
         f"- Cantrips: {cantrips}",
         f"- Spells: {spells}",
         f"- Spell slots: {slots or '(none)'}",
@@ -624,6 +642,11 @@ def format_for_prompt(
     ]
     if ws_max > 0:
         lines.append(f"- Wild Shape uses: {char.wild_shape_uses}/{ws_max}")
+    from backend.games.dnd5e.characters.class_resources import second_wind_max
+
+    sw_max = second_wind_max(char)
+    if sw_max > 0:
+        lines.append(f"- Second Wind uses: {char.second_wind_remaining}/{sw_max}")
     lines.extend(
         [
             f"- Death saves: {char.death_save_successes} success"
@@ -632,7 +655,7 @@ def format_for_prompt(
             else "- Death saves: (not dying)",
             f"- Currency: {coins or '(none)'}",
             f"- Campaign: {char.campaign_setting or 'freeform'}"
-            + (f" — {char.campaign_notes}" if char.campaign_notes else ""),
+            + (f": {char.campaign_notes}" if char.campaign_notes else ""),
             f"- Story mode: {story_mode}",
             f"- Deck: {card_source}",
         ]

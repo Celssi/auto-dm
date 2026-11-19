@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { displayLabel, EMPTY_FIELD } from '../../../lib/displayText';
 import { GlossaryTagList } from '../../../components/ui/GlossaryTip';
 import MarkdownContent from '../../../components/ui/MarkdownContent';
+import HelpTip, { LabelWithTip } from '../../../components/ui/HelpTip';
 import { formatAbilityMod } from './sheetUtils';
 
 export function SheetSection({
@@ -132,10 +133,20 @@ export function SheetField({
   );
 }
 
-export function CombatStat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
+export function CombatStat({
+  label,
+  value,
+  accent,
+  tipId,
+}: {
+  label: string;
+  value: string;
+  accent?: boolean;
+  tipId?: string;
+}) {
   return (
     <div className={`sheet-combat-stat ${accent ? 'sheet-combat-stat-accent' : ''}`}>
-      <div className="sheet-label">{label}</div>
+      {tipId ? <LabelWithTip id={tipId} label={label} /> : <div className="sheet-label">{label}</div>}
       <div className="text-xl font-bold text-gray-100">{value}</div>
     </div>
   );
@@ -146,16 +157,34 @@ export function AbilityTile({
   score,
   save,
   proficient,
+  editable,
+  onScoreChange,
 }: {
   ab: string;
   score: number;
   save: string;
   proficient: boolean;
+  editable?: boolean;
+  onScoreChange?: (score: number) => void;
 }) {
   return (
     <div className="sheet-ability">
-      <span className="sheet-label">{ab}</span>
-      <span className="text-2xl font-bold text-accent leading-none">{score}</span>
+      <HelpTip id="ability-scores" name={ab.toUpperCase()}>
+        <span className="sheet-label cursor-help underline decoration-dotted decoration-muted/50">{ab}</span>
+      </HelpTip>
+      {editable && onScoreChange ? (
+        <input
+          type="number"
+          min={1}
+          max={20}
+          className="w-14 bg-transparent text-2xl font-bold text-accent leading-none text-center focus:outline-none border-b border-transparent focus:border-accent/40"
+          value={score}
+          onChange={(e) => onScoreChange(Math.max(1, Math.min(20, parseInt(e.target.value, 10) || 1)))}
+          aria-label={`${ab} score`}
+        />
+      ) : (
+        <span className="text-2xl font-bold text-accent leading-none">{score}</span>
+      )}
       <span className="text-sm text-gray-300">{formatAbilityMod(score)}</span>
       <span className="text-[10px] text-muted mt-1">Save {save}</span>
       {proficient && <span className="text-[9px] text-accent/80 mt-0.5">● save</span>}
@@ -166,7 +195,11 @@ export function SpellSlotPips({ level, remaining, max }: { level: string; remain
   if (max <= 0) return null;
   return (
     <div className="flex items-center gap-2">
-      <span className="text-xs text-muted w-7 shrink-0">L{level}</span>
+      <HelpTip id="spell-slots" name={`Level ${level} slots`}>
+        <span className="text-xs text-muted w-7 shrink-0 cursor-help underline decoration-dotted decoration-muted/50">
+          L{level}
+        </span>
+      </HelpTip>
       <div className="flex flex-wrap gap-1">
         {Array.from({ length: max }).map((_, i) => (
           <span
@@ -190,7 +223,15 @@ export function ResourcePips({ label, remaining, max }: { label: string; remaini
   if (max <= 0) return null;
   return (
     <div className="space-y-1">
-      <div className="sheet-label">{label}</div>
+      {label.toLowerCase().includes('luck') ? (
+        <LabelWithTip id="feats" label={label} />
+      ) : label.toLowerCase().includes('wild') ? (
+        <LabelWithTip id="spellcasting" label={label} />
+      ) : label.toLowerCase().includes('second') ? (
+        <LabelWithTip id="second-wind" label={label} />
+      ) : (
+        <div className="sheet-label">{label}</div>
+      )}
       <div className="flex items-center gap-2">
         <div className="flex gap-1">
           {Array.from({ length: max }).map((_, i) => (
@@ -217,7 +258,7 @@ export function TagList({ items, classId }: { items: string[]; classId?: string 
 export function DeathSaves({ successes, failures }: { successes: number; failures: number }) {
   return (
     <div className="sheet-field">
-      <div className="sheet-label">Death Saves</div>
+      <LabelWithTip id="death-saves" label="Death Saves" />
       <div className="flex gap-4 mt-1">
         <div className="flex items-center gap-1.5">
           <span className="text-[10px] text-muted uppercase">Success</span>

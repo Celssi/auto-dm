@@ -54,7 +54,7 @@ export interface PlayState {
   beginning: boolean;
   beginError: string;
   shortcuts: Shortcut[];
-  oracles: { id: string; label: string }[];
+  oracles: { id: string; label: string; help?: string }[];
   lonelog: string[];
   auditEvents: AuditEvent[];
   sources: Source[];

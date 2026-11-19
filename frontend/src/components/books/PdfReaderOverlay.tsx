@@ -119,17 +119,23 @@ function PdfPages({
   const { gameId } = useGame();
   const [file, setFile] = useState<RangedPdfTransport | null>(null);
   const [loadedKey, setLoadedKey] = useState<string | null>(null);
-  const [pageCount, setPageCount] = useState(1);
+  const [pageCount, setPageCount] = useState<number | null>(null);
   const [loadError, setLoadError] = useState(false);
+  const [loadErrorDetail, setLoadErrorDetail] = useState('');
   const [scale, setScale] = useState(1);
   const [width, setWidth] = useState(640);
+  const [retryNonce, setRetryNonce] = useState(0);
+  const [startedAt, setStartedAt] = useState(() => Date.now());
+  const [elapsed, setElapsed] = useState(0);
+  const [timedOut, setTimedOut] = useState(false);
+  const [docReady, setDocReady] = useState(false);
   const frameRef = useRef<HTMLDivElement>(null);
-  const requestKey = `${book.id}:${gameId}`;
+  const requestKey = `${book.id}:${gameId}:${retryNonce}`;
   const visibleFile = loadedKey === requestKey ? file : null;
   const visibleError = loadedKey === requestKey && loadError;
-  const visiblePageCount = loadedKey === requestKey ? pageCount : 1;
+  const visiblePageCount = loadedKey === requestKey ? pageCount : null;
   const pdfPage = printedToPdfPage(page, book.page_offset);
-  const maxPrinted = pdfPageToPrinted(visiblePageCount, book.page_offset);
+  const maxPrinted = visiblePageCount ? pdfPageToPrinted(visiblePageCount, book.page_offset) : Math.max(1, page);
 
   useEffect(() => {
     let cancelled = false;
@@ -153,12 +159,17 @@ function PdfPages({
         transportRef.current = next;
         setFile(next);
         setLoadError(false);
-        setPageCount(1);
+        setLoadErrorDetail('');
+        setPageCount(null);
+        setDocReady(false);
+        setTimedOut(false);
+        setStartedAt(Date.now());
         setLoadedKey(requestKey);
       } catch (error) {
         console.error(error);
         if (!cancelled) {
           setLoadError(true);
+          setLoadErrorDetail(error instanceof Error ? error.message : 'Could not open this PDF.');
           setLoadedKey(requestKey);
         }
       }
@@ -168,6 +179,16 @@ function PdfPages({
       transportRef.current?.close();
     };
   }, [book.id, gameId, requestKey]);
+
+  useEffect(() => {
+    if (docReady || visibleError || timedOut) return;
+    const tick = window.setInterval(() => {
+      const seconds = Math.round((Date.now() - startedAt) / 1000);
+      setElapsed(seconds);
+      if (seconds >= 30 && !docReady) setTimedOut(true);
+    }, 500);
+    return () => window.clearInterval(tick);
+  }, [docReady, visibleError, timedOut, startedAt]);
 
   useEffect(() => {
     const node = frameRef.current;
@@ -215,7 +236,7 @@ function PdfPages({
             onChange={(event) => go(Number(event.target.value) || 1)}
             className="w-16 min-h-11 rounded-lg border border-border bg-bg px-2 text-sm text-gray-100"
           />
-          of {maxPrinted}
+          of {docReady && visiblePageCount ? maxPrinted : '…'}
         </label>
         <button
           type="button"
@@ -249,26 +270,53 @@ function PdfPages({
       <div className="flex-1 min-h-0 flex flex-col md:flex-row">
         <div ref={frameRef} className="flex-1 min-h-0 overflow-auto bg-bg-elevated">
           <div className="flex justify-center py-3">
-            {visibleError ? (
-              <p className="text-sm text-danger p-6">Could not load this PDF.</p>
+            {visibleError || timedOut ? (
+              <div className="p-6 text-center space-y-3 max-w-md">
+                <p className="text-sm text-danger">
+                  {timedOut && !visibleError
+                    ? 'This PDF is taking a long time to load. Large books can take 10-30 seconds.'
+                    : loadErrorDetail || 'Could not load this PDF.'}
+                </p>
+                <button type="button" className="btn-primary" onClick={() => setRetryNonce((n) => n + 1)}>
+                  Retry
+                </button>
+              </div>
             ) : visibleFile ? (
               <Document
                 file={documentFile}
                 options={documentOptions}
                 suspense={false}
-                loading={<p className="text-sm text-muted p-6">Loading PDF…</p>}
-                error={<p className="text-sm text-danger p-6">Could not load this PDF.</p>}
-                onLoadSuccess={({ numPages }) => setPageCount(numPages)}
+                loading={
+                  <p className="text-sm text-muted p-6">
+                    Loading PDF{elapsed ? ` (${elapsed}s)` : '…'}
+                    {elapsed >= 8 ? '. Large books can take 10-30 seconds.' : ''}
+                  </p>
+                }
+                error={
+                  <div className="p-6 text-center space-y-3">
+                    <p className="text-sm text-danger">Could not load this PDF.</p>
+                    <button type="button" className="btn-primary" onClick={() => setRetryNonce((n) => n + 1)}>
+                      Retry
+                    </button>
+                  </div>
+                }
+                onLoadSuccess={({ numPages }) => {
+                  setPageCount(numPages);
+                  setDocReady(true);
+                  setTimedOut(false);
+                }}
               >
                 <Page
-                  pageNumber={Math.min(pdfPage, visiblePageCount)}
+                  pageNumber={Math.min(pdfPage, visiblePageCount || pdfPage)}
                   width={width}
                   scale={scale}
                   loading={<p className="text-sm text-muted p-6">Rendering page…</p>}
                 />
               </Document>
             ) : (
-              <p className="text-sm text-muted p-6">Preparing reader…</p>
+              <p className="text-sm text-muted p-6">
+                Preparing reader{elapsed ? ` (${elapsed}s)` : '…'}
+              </p>
             )}
           </div>
         </div>

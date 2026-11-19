@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.games.dnd5e.actions import SHORTCUTS
+from backend.games.dnd5e.actions import SHORTCUTS, shortcuts_for_character
 from backend.games.dnd5e.dm.agents.nodes import detect_dnd_shortcut
 from backend.games.dnd5e.dm.pipeline import build_dnd_graph
 from backend.games.dnd5e.dm.pre_turn import handle_spell_autocomplete, run_combat_pre_turn
@@ -59,7 +59,7 @@ DND_PLAY_ADAPTER = GamePlayAdapter(
     shortcut_extras=_shortcut_extras,
     on_shortcut_result=_on_shortcut_result,
     pre_turn=_pre_turn,
-    shortcuts_for_character=lambda _char: list(SHORTCUTS),
+    shortcuts_for_character=shortcuts_for_character,
     bootstrap_campaign=_bootstrap_campaign,
     generate_opening=_generate_opening,
     build_graph=build_dnd_graph,

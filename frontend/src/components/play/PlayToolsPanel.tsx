@@ -25,7 +25,7 @@ interface Props {
   pendingJourney: PendingJourney | null;
   dragonkeep: DragonkeepState | null;
   activeAdventure: string;
-  oracles: { id: string; label: string }[];
+  oracles: { id: string; label: string; help?: string }[];
   shortcuts: Shortcut[];
   lonelog: string[];
   auditEvents: AuditEvent[];

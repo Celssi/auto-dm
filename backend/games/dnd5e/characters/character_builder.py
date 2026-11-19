@@ -8,12 +8,10 @@ from typing import Any
 from backend.games.dnd5e.characters.character_data import (
     find_third_caster,
     full_caster_slots,
-    get_armor,
     get_background,
     get_class,
     get_species,
     half_caster_slots,
-    shield_ac_bonus,
     skills_data,
     spell_list_for,
     third_caster_cantrips_cap,
@@ -513,6 +511,40 @@ def _starting_gear_snapshot(char: Dnd5eCharacter) -> str:
     )
 
 
+def backfill_missing_package_gear(char: Dnd5eCharacter) -> Dnd5eCharacter:
+    """Fill armor/weapons from the chosen starting package when those fields were never stored."""
+    if not char.class_name:
+        return char
+    from backend.games.dnd5e.characters.character_data import list_starting_gear_options
+    from backend.games.dnd5e.characters.class_resources import _norm_item
+
+    options = list_starting_gear_options(char.class_name)
+    if not options:
+        return char
+    choice = str(char.starting_gear_choice or "").strip().lower()
+    package = next((row for row in options if str(row.get("id") or "") == choice), None)
+    if not package:
+        return char
+    armor_id = str(package.get("armor") or "").strip()
+    if armor_id and (not char.armor or char.armor == "none"):
+        char.armor = armor_id
+    if package.get("shield"):
+        char.shield = True
+    owned = {_norm_item(str(w.get("name") or "")) for w in (char.weapons or []) if isinstance(w, dict)}
+    extra: list[dict[str, Any]] = []
+    for weapon in package.get("weapons") or []:
+        built = _weapon_dicts([weapon]) if isinstance(weapon, dict) else []
+        if not built:
+            continue
+        key = _norm_item(str(built[0].get("name") or ""))
+        if key and key not in owned:
+            extra.append(built[0])
+            owned.add(key)
+    if extra:
+        char.weapons = list(char.weapons or []) + extra
+    return char
+
+
 def apply_starting_equipment(char: Dnd5eCharacter, *, force: bool = False) -> Dnd5eCharacter:
     """Apply PHB class + background starting gear on creation or when gear choices change."""
     if not char.class_name:
@@ -732,6 +764,7 @@ def rebuild_character(char: Dnd5eCharacter, *, recompute_hp: bool = False) -> Dn
 
     if total_class_level(char) <= 1 and char.class_name:
         char = apply_starting_equipment(char)
+    char = backfill_missing_package_gear(char)
 
     if recompute_hp or char.max_hp <= 0:
         new_max = compute_max_hp(char)
@@ -769,27 +802,9 @@ def finalize_new_character(char: Dnd5eCharacter) -> Dnd5eCharacter:
 
 def compute_ac(char: Dnd5eCharacter) -> int:
     """AC from worn armor + shield (PHB 2024 armor table)."""
-    dex = char.ability_modifier("dex")
-    armor = get_armor(char.armor) if char.armor and char.armor != "none" else None
-    if not armor:
-        base = 10 + dex
-    else:
-        base = int(armor.get("base_ac", 10) or 10)
-        category = str(armor.get("category", "") or "")
-        if armor.get("add_dex") or category == "light":
-            base += dex
-        elif "dex_cap" in armor or category == "medium":
-            base += min(dex, int(armor.get("dex_cap", 2) or 2))
-        # heavy armor adds no DEX
-    if char.shield:
-        base += shield_ac_bonus()
-    if (
-        str(char.fighting_style_feat or "").strip().lower() == "defense"
-        and armor
-        and str(armor.get("category", "") or "") in ("light", "medium", "heavy")
-    ):
-        base += 1
-    return max(1, min(30, base))
+    from backend.games.dnd5e.characters.class_resources import compute_ac_details
+
+    return int(compute_ac_details(char)["computed"])
 
 
 def level_up(
@@ -903,7 +918,36 @@ def character_creation_summary(char: Dnd5eCharacter) -> dict[str, Any]:
         "missing_creation_choices": validate_creation_choices(char),
         "luck_points_max": luck_points_max(char),
         "luck_points_remaining": char.luck_points_remaining,
+        "second_wind_max": second_wind_max_uses(char),
+        "second_wind_remaining": char.second_wind_remaining,
+        "ac_details": ac_details_for_summary(char),
+        "equipment_display": equipment_for_summary(char),
+        "weapon_mastery_warnings": mastery_warnings_for_summary(char),
     }
+
+
+def second_wind_max_uses(char: Dnd5eCharacter) -> int:
+    from backend.games.dnd5e.characters.class_resources import second_wind_max
+
+    return second_wind_max(char)
+
+
+def ac_details_for_summary(char: Dnd5eCharacter) -> dict[str, Any]:
+    from backend.games.dnd5e.characters.class_resources import compute_ac_details
+
+    return compute_ac_details(char)
+
+
+def equipment_for_summary(char: Dnd5eCharacter) -> list[str]:
+    from backend.games.dnd5e.characters.class_resources import equipment_display_items
+
+    return equipment_display_items(char)
+
+
+def mastery_warnings_for_summary(char: Dnd5eCharacter) -> list[dict[str, str]]:
+    from backend.games.dnd5e.characters.class_resources import weapon_mastery_warnings
+
+    return weapon_mastery_warnings(char)
 
 
 def short_rest_heal(
@@ -1005,15 +1049,20 @@ def apply_short_rest(
             parts.append(heal["summary"])
         entity.update(heal.get("entity_updates") or {})
 
-    summary = " ".join(parts)
-    if summary == "Short rest.":
-        summary = "Short rest (no resources spent or recovered)."
     from backend.games.dnd5e.characters.origin_feats import reset_healer_medic_uses
+    from backend.games.dnd5e.characters.class_resources import recover_second_wind_short_rest
 
     reset_healer_medic_uses(char)
     char.savage_attacker_used_this_turn = False
     entity["savage_attacker_used_this_turn"] = False
+    sw_line = recover_second_wind_short_rest(char)
+    if sw_line:
+        parts.append(sw_line)
+        entity["second_wind_remaining"] = char.second_wind_remaining
     entity["feature_choices"] = dict(char.feature_choices or {})
+    summary = " ".join(parts)
+    if summary == "Short rest.":
+        summary = "Short rest (no resources spent or recovered)."
     record_audit(
         {
             "event": "rest",
@@ -1029,7 +1078,7 @@ def apply_short_rest(
 def elf_trance_rest_note(char: Dnd5eCharacter) -> str:
     """Narrative note only — elves finish a long rest in 4 hours of Trance (PHB 2024)."""
     if (char.species or "").strip().lower() == "elf":
-        return " Rested in **4-hour Trance** (elf trait — same benefits as an 8-hour long rest)."
+        return " Rested in **4-hour Trance** (elf trait: same benefits as an 8-hour long rest)."
     return ""
 
 
@@ -1054,6 +1103,9 @@ def long_rest_recover(char: Dnd5eCharacter) -> dict[str, Any]:
     apply_lucky_rest(char)
     reset_healer_medic_uses(char)
     char.savage_attacker_used_this_turn = False
+    from backend.games.dnd5e.characters.class_resources import recover_second_wind_long_rest
+
+    recover_second_wind_long_rest(char)
     if char.species == "human":
         char.heroic_inspiration = True
     char.clamp()
@@ -1092,6 +1144,7 @@ def long_rest_recover(char: Dnd5eCharacter) -> dict[str, Any]:
             "wild_shape_uses": char.wild_shape_uses,
             "luck_points_remaining": char.luck_points_remaining,
             "savage_attacker_used_this_turn": False,
+            "second_wind_remaining": char.second_wind_remaining,
             "feature_choices": dict(char.feature_choices or {}),
         },
     }

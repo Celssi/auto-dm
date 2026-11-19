@@ -174,12 +174,36 @@ def dungeon_room() -> dict[str, Any]:
 
 
 ORACLE_TOOLS: dict[str, dict[str, str]] = {
-    "yes_or_no": {"label": "Yes / No", "kind": "oracle"},
-    "likelihood": {"label": "Likelihood", "kind": "oracle"},
-    "scene_setup": {"label": "Scene setup", "kind": "oracle"},
-    "generate_npc": {"label": "Generate NPC", "kind": "oracle"},
-    "dungeon_room": {"label": "Dungeon room", "kind": "oracle"},
-    "oracle_d6": {"label": "Solo oracle (d6)", "kind": "oracle"},
+    "yes_or_no": {
+        "label": "Yes / No",
+        "kind": "oracle",
+        "help": "Ask a yes/no question. The app rolls so the answer is not invented.",
+    },
+    "likelihood": {
+        "label": "Likelihood",
+        "kind": "oracle",
+        "help": "Yes/no with a likelihood you choose (almost certain through almost impossible).",
+    },
+    "scene_setup": {
+        "label": "Scene setup",
+        "kind": "oracle",
+        "help": "Random place, mood, weather, and time of day to start or refresh a scene.",
+    },
+    "generate_npc": {
+        "label": "Generate NPC",
+        "kind": "oracle",
+        "help": "A random person you might meet: role, manner, and a hook.",
+    },
+    "dungeon_room": {
+        "label": "Dungeon room",
+        "kind": "oracle",
+        "help": "A random room sketch when you need a chamber and do not want to invent it.",
+    },
+    "oracle_d6": {
+        "label": "Solo oracle (d6)",
+        "kind": "oracle",
+        "help": "Classic 1d6 yes/no: 1-3 no, 4-6 yes, with optional twists.",
+    },
 }
 
 

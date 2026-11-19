@@ -65,6 +65,10 @@ def _run_dm_turn_unlocked(
     if not session:
         raise ValueError(f"Session not found: {session_id}")
     char = get_character(session["character_id"]) or {}
+    if char:
+        from backend.games.registry import rebuild_character_dict
+
+        char = rebuild_character_dict(char)
     game_id = resolve_game_id(char)
     plugin = get_game(game_id)
     adventure = get_adventure(session["adventure_id"]) or {}

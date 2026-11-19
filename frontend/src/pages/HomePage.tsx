@@ -23,6 +23,7 @@ export default function HomePage({ indexed, claudeOk, recentSession, sessionsLoa
       <PageHeader title="Auto-DM" subtitle={`${game.label}. ${game.description}`} />
       <HomeStatus indexed={indexed} claudeOk={claudeOk} />
       <HomeStart recentSession={recentSession} sessionsLoaded={sessionsLoaded} />
+      <HomeFirstTime gameId={gameId} />
       <HomeNavCards gameId={gameId} />
     </AnimatedPage>
   );
@@ -69,6 +70,22 @@ function HomeStart({ recentSession, sessionsLoaded }: Pick<Props, 'recentSession
           </p>
         </div>
       )}
+    </m.div>
+  );
+}
+
+function HomeFirstTime({ gameId }: { gameId: string }) {
+  return (
+    <m.div variants={fadeUp} className="panel p-5 space-y-2">
+      <p className="label-text">First time here?</p>
+      <p className="text-sm text-muted leading-relaxed">
+        {gameId === 'brambletrek'
+          ? 'Create a Gnawborn, then start a campaign from Play. Hover dotted labels for short explanations of Health, Morale, Supplies, Legacy, and oracles.'
+          : 'Create a character, then start a campaign from Play. Hover dotted labels on the sheet for short explanations of Armor Class, proficiency, and similar terms. Oracles answer yes/no without inventing the story.'}
+      </p>
+      <Link to="/characters/new" className="btn-ghost inline-flex w-fit">
+        Create a character
+      </Link>
     </m.div>
   );
 }

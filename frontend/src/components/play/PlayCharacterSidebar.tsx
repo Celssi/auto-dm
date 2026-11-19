@@ -1,6 +1,7 @@
 import type { BrambletrekCharacter, Character } from '../../types';
 import { displayLabel, EMPTY_FIELD } from '../../lib/displayText';
 import GlossaryTip, { GlossaryTagList } from '../ui/GlossaryTip';
+import HelpTip from '../ui/HelpTip';
 import { getGameCharacterConfig } from '../../games/registry';
 import {
   formatAbilityMod,
@@ -20,10 +21,18 @@ interface Props {
   gameId?: string;
 }
 
-function StatPill({ label, value }: { label: string; value: string }) {
+function StatPill({ label, value, tipId }: { label: string; value: string; tipId?: string }) {
   return (
     <div className="rounded-md border border-border bg-bg/60 px-2 py-1.5 text-center min-w-[3.5rem]">
-      <div className="text-[10px] uppercase tracking-wide text-muted">{label}</div>
+      {tipId ? (
+        <HelpTip id={tipId} name={label}>
+          <div className="text-[10px] uppercase tracking-wide text-muted cursor-help underline decoration-dotted decoration-muted/50">
+            {label}
+          </div>
+        </HelpTip>
+      ) : (
+        <div className="text-[10px] uppercase tracking-wide text-muted">{label}</div>
+      )}
       <div className="text-sm font-semibold text-gray-100">{value}</div>
     </div>
   );
@@ -97,11 +106,11 @@ function DndCombatPills({ character: c }: { character: Character }) {
   const spellDc = spellSaveDc(c);
   return (
     <div className="flex flex-wrap gap-1.5">
-      <StatPill label="AC" value={String(c.ac ?? 10)} />
-      <StatPill label="Init" value={formatMod(initiativeMod(c))} />
-      <StatPill label="Speed" value={`${c.speed ?? 30}`} />
-      <StatPill label="PP" value={String(passivePerception(c))} />
-      <StatPill label="HD" value={`${hitDiceMax - hitDiceSpent}d${c.hit_die ?? 8}`} />
+      <StatPill label="AC" value={String(c.ac ?? 10)} tipId="armor-class" />
+      <StatPill label="Init" value={formatMod(initiativeMod(c))} tipId="initiative" />
+      <StatPill label="Speed" value={`${c.speed ?? 30}`} tipId="speed" />
+      <StatPill label="PP" value={String(passivePerception(c))} tipId="passive-perception" />
+      <StatPill label="HD" value={`${hitDiceMax - hitDiceSpent}d${c.hit_die ?? 8}`} tipId="hit-dice" />
       {spellDc != null && <StatPill label="Spell DC" value={String(spellDc)} />}
     </div>
   );
@@ -267,12 +276,20 @@ function DndSpellList({ character: c }: { character: Character }) {
   );
 }
 
-function StatBar({ label, value, color }: { label: string; value: number; color: string }) {
+function StatBar({ label, value, color, tipId }: { label: string; value: number; color: string; tipId?: string }) {
   const pct = statPercent(value);
   return (
     <div>
       <div className="flex justify-between items-center mb-1">
-        <span className="text-xs text-muted capitalize">{label}</span>
+        {tipId ? (
+          <HelpTip id={tipId} name={label}>
+            <span className="text-xs text-muted capitalize cursor-help underline decoration-dotted decoration-muted/50">
+              {label}
+            </span>
+          </HelpTip>
+        ) : (
+          <span className="text-xs text-muted capitalize">{label}</span>
+        )}
         <span className="text-xs font-semibold tabular-nums">{value}</span>
       </div>
       <div className="h-2 rounded-full bg-bg overflow-hidden border border-border">
@@ -294,14 +311,20 @@ function BrambletrekPlaySidebar({
   return (
     <div className="space-y-3 text-sm">
       <div>
-        <h3 className="font-semibold text-accent leading-tight">{c.name || 'Unnamed Gnawborn'}</h3>
+        <h3 className="font-semibold text-accent leading-tight">
+          {c.name || (
+            <HelpTip id="gnawborn" name="Gnawborn">
+              <span className="cursor-help underline decoration-dotted decoration-muted/50">Unnamed Gnawborn</span>
+            </HelpTip>
+          )}
+        </h3>
         <p className="text-xs text-muted mt-0.5">{brambletrekSummaryLine(c, summary)}</p>
         {legacyLabel && <p className="text-xs text-muted/80">Legacy: {legacyLabel}</p>}
       </div>
 
       <div className="grid gap-2">
         {(['health', 'morale', 'supplies'] as const).map((k) => (
-          <StatBar key={k} label={k} value={Number(c[k] ?? 10)} color={STAT_COLORS[k]} />
+          <StatBar key={k} label={k} value={Number(c[k] ?? 10)} color={STAT_COLORS[k]} tipId={`bt-${k}`} />
         ))}
       </div>
 

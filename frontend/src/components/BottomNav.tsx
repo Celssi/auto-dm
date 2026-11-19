@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { BookOpen, Home, Library, MoreHorizontal, Play, ScrollText, Settings, Users } from 'lucide-react';
+import { BookOpen, Home, Library, LogOut, MoreHorizontal, Play, ScrollText, Settings, Users } from 'lucide-react';
+import { useAuth } from '../context/AuthContext';
 
 const primary = [
   { to: '/', label: 'Home', icon: Home, exact: true },
@@ -22,6 +23,7 @@ function isActive(pathname: string, to: string, exact?: boolean) {
 
 export default function BottomNav() {
   const { pathname } = useLocation();
+  const { signOut } = useAuth();
   // The More sheet is tied to the route it was opened on, so any navigation dismisses it.
   const [moreOpenOn, setMoreOpenOn] = useState<string | null>(null);
   const moreOpen = moreOpenOn === pathname;
@@ -76,6 +78,17 @@ export default function BottomNav() {
               </Link>
             );
           })}
+          <button
+            type="button"
+            className="min-h-11 inline-flex items-center justify-center gap-2 rounded-xl text-sm text-muted col-span-2 sm:col-span-3"
+            onClick={() => {
+              setMoreOpen(false);
+              void signOut();
+            }}
+          >
+            <LogOut size={16} />
+            Sign out
+          </button>
         </div>
       )}
       <div className="grid grid-cols-5">

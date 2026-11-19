@@ -49,9 +49,9 @@ def _weapon_summary(w: dict[str, Any]) -> str:
         prop_row = (weapon_mastery_data().get("properties") or {}).get(mastery_id) or {}
         ml = prop_row.get("label") or mastery_id
         ms = prop_row.get("summary") or ""
-        mastery_text = f" Mastery: {ml} — {ms}" if ms else f" Mastery: {ml}."
+        mastery_text = f" Mastery: {ml}: {ms}" if ms else f" Mastery: {ml}."
     return (
-        f"{w.get('label', 'Weapon')} — {w.get('damage', '?')} {w.get('damage_type', '')} damage "
+        f"{w.get('label', 'Weapon')}: {w.get('damage', '?')} {w.get('damage_type', '')} damage "
         f"({w.get('category', 'weapon')}).{prop_text}{mastery_text}"
     )
 

@@ -1,7 +1,8 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
 import { Library, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import { useGame } from '../context/GameContext';
 import { useBookReader } from '../context/BookReaderContext';
 import { m } from '../lib/framer';
 import GameSwitcher from './GameSwitcher';
@@ -27,8 +28,13 @@ function isActive(pathname: string, to: string, exact?: boolean) {
 export default function Layout() {
   const loc = useLocation();
   const { signOut } = useAuth();
+  const { game } = useGame();
   const { open, openReader } = useBookReader();
   const isPlaySession = /^\/play\/[^/]+/.test(loc.pathname);
+
+  useEffect(() => {
+    document.title = `Auto-DM: ${game.label}`;
+  }, [game.label]);
 
   return (
     <div className={`flex flex-col ${isPlaySession ? 'h-dvh overflow-hidden' : 'min-h-screen'}`}>
@@ -84,13 +90,13 @@ export default function Layout() {
             <GameSwitcher />
             <button
               type="button"
-              className="btn-ghost min-h-11 min-w-11 px-3 shrink-0 inline-flex items-center justify-center gap-1.5"
+              className="btn-ghost min-h-11 min-w-11 px-3 shrink-0 hidden md:inline-flex items-center justify-center gap-1.5"
               onClick={() => void signOut()}
               aria-label="Sign out"
               title="Sign out"
             >
               <LogOut size={14} aria-hidden="true" />
-              <span className="hidden sm:inline">Sign out</span>
+              <span>Sign out</span>
             </button>
           </div>
         </div>
