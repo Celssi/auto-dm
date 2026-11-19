@@ -22,6 +22,8 @@ export interface CreationChoiceDef {
 export interface CreationChoiceCatalog {
   species?: Record<string, CreationChoiceDef[]>;
   classes?: Record<string, CreationChoiceDef[]>;
+  origin?: CreationChoiceDef[];
+  backgrounds?: Record<string, CreationChoiceDef[]>;
   origin_feat_subchoices?: Record<string, { when_feat?: string[]; choices?: CreationChoiceDef[] }>;
   fighting_style_feats?: CreationChoiceOption[];
   origin_feats?: CreationChoiceOption[];
@@ -107,10 +109,32 @@ function expandChoice(
         })),
       };
     }
-    if (key === 'languages') {
+    if (key === 'languages' || key === 'standard_languages' || key === 'origin_languages' || key === 'extra_languages') {
+      const langs = ((options.languages as string[]) || []).map(String);
+      const skipCant = key === 'origin_languages' || key === 'extra_languages';
+      const skipCommon = key === 'origin_languages';
+      const standard = new Set([
+        'common',
+        'common sign language',
+        'draconic',
+        'dwarvish',
+        'elvish',
+        'giant',
+        'gnomish',
+        'goblin',
+        'halfling',
+        'orc',
+      ]);
+      const filtered = langs.filter((lang) => {
+        const low = lang.toLowerCase();
+        if (skipCant && (low === "thieves' cant" || low === 'thieves cant')) return false;
+        if (skipCommon && low === 'common') return false;
+        if (key === 'origin_languages' && !standard.has(low)) return false;
+        return true;
+      });
       return {
         ...raw,
-        options: ((options.languages as string[]) || []).map((l) => ({
+        options: filtered.map((l) => ({
           id: l.replace(/ /g, '_'),
           label: l.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
         })),
@@ -132,13 +156,49 @@ export function choicesForDraft(
   const classId = String(char.class_name || '').toLowerCase();
   const level = Number(char.level || 1);
 
+  const lineage = String(
+    ((char.feature_choices || {}) as Record<string, unknown>).elven_lineage || '',
+  )
+    .toLowerCase()
+    .replace(/ /g, '_');
+
   for (const raw of catalog.species?.[speciesId] || []) {
+    if (raw.id === 'high_elf_spell_ability' && lineage !== 'high_elf') continue;
     out.push(expandChoice(raw, options, catalog));
   }
 
+  for (const raw of catalog.origin || []) {
+    out.push(expandChoice(raw, options, catalog));
+  }
+
+  for (const raw of catalog.backgrounds?.[String(char.background || '').toLowerCase()] || []) {
+    out.push(expandChoice(raw, options, catalog));
+  }
+
+  const draftSkills = draftSkillProficiencies(char, options);
+
   for (const raw of catalog.classes?.[classId] || []) {
     const minLv = Number(raw.min_level || 1);
-    if (level >= minLv) out.push(expandChoice(raw, options, catalog));
+    if (level < minLv) continue;
+    let expanded = expandChoice(raw, options, catalog);
+    if (raw.id === 'rogue_expertise') {
+      expanded = {
+        ...expanded,
+        options: (Array.isArray(expanded.options) ? expanded.options : []).filter((opt) =>
+          draftSkills.has(String(opt.id || '').toLowerCase()),
+        ),
+      };
+    }
+    if (raw.id === 'weapon_mastery') {
+      const weapons = (options.weapons as { id: string; label?: string; category?: string; properties?: string[] }[]) || [];
+      expanded = {
+        ...expanded,
+        options: weapons
+          .filter((w) => weaponAllowedForMastery(classId, w))
+          .map((w) => ({ id: w.id, label: w.label || w.id })),
+      };
+    }
+    out.push(expanded);
   }
 
   for (const block of Object.values(catalog.origin_feat_subchoices || {})) {
@@ -189,7 +249,13 @@ export function validateChoices(char: Character, choices: CreationChoiceDef[]): 
     const val = getChoiceValue(char, choice.id);
     const count = Number(choice.count || 1);
     const kind = choice.kind;
-    if (kind === 'weapons' || kind === 'skills' || kind === 'invocations' || kind === 'spells') {
+    if (
+      kind === 'weapons' ||
+      kind === 'skills' ||
+      kind === 'invocations' ||
+      kind === 'spells' ||
+      kind === 'languages'
+    ) {
       const items = Array.isArray(val) ? val : [];
       if (items.length < count) missing.push(`${choice.label}: pick ${count}`);
     } else if (!val) {
@@ -197,4 +263,35 @@ export function validateChoices(char: Character, choices: CreationChoiceDef[]): 
     }
   }
   return missing;
+}
+
+export function draftSkillProficiencies(char: Character, options: Record<string, unknown>): Set<string> {
+  const skills = new Set<string>();
+  for (const id of char.class_skill_choices || []) skills.add(String(id).toLowerCase());
+  for (const id of char.skill_proficiencies || []) skills.add(String(id).toLowerCase());
+  const fc = (char.feature_choices || {}) as Record<string, unknown>;
+  const extra = [char.human_skill, fc.human_skill, fc.keen_senses_skill];
+  for (const id of extra) {
+    if (id) skills.add(String(id).toLowerCase());
+  }
+  const backgrounds = (options.backgrounds as { id: string; skills?: string[] }[]) || [];
+  const bg = backgrounds.find((row) => row.id === char.background);
+  for (const id of bg?.skills || []) skills.add(String(id).toLowerCase());
+  return skills;
+}
+
+function weaponAllowedForMastery(
+  classId: string,
+  weapon: { category?: string; properties?: string[] },
+): boolean {
+  const category = String(weapon.category || '').toLowerCase();
+  const props = new Set((weapon.properties || []).map((p) => String(p).toLowerCase()));
+  if (['barbarian', 'fighter', 'paladin', 'ranger'].includes(classId)) {
+    return category === 'simple' || category === 'martial';
+  }
+  if (classId === 'rogue') {
+    if (category === 'simple') return true;
+    return category === 'martial' && (props.has('finesse') || props.has('light'));
+  }
+  return false;
 }

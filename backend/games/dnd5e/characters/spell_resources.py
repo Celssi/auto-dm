@@ -313,6 +313,43 @@ def recover_pact_slots_on_short_rest(char: Dnd5eCharacter) -> str | None:
     return f"Pact Magic restored ({', '.join(restored_parts)})."
 
 
+def recover_arcane_recovery(char: Dnd5eCharacter) -> str | None:
+    """Wizard Arcane Recovery: restore slots totaling half wizard level (round up)."""
+    levels = class_levels_dict(char)
+    wizard_level = int(levels.get("wizard", 0) or 0)
+    if wizard_level <= 0:
+        return None
+    fc = dict(char.feature_choices or {})
+    if fc.get("_arcane_recovery_used"):
+        return None
+    from backend.games.dnd5e.characters.character_builder import compute_spell_slots
+
+    budget = (wizard_level + 1) // 2
+    max_slot = min(5, budget)
+    max_slots = compute_spell_slots(char)
+    slots = dict(char.spell_slots or {})
+    recovered: list[int] = []
+    remaining = budget
+    for lvl in range(max_slot, 0, -1):
+        key = str(lvl)
+        cap = int(max_slots.get(key, 0) or 0)
+        current = int(slots.get(key, 0) or 0)
+        missing = max(0, cap - current)
+        while missing > 0 and remaining >= lvl:
+            current += 1
+            missing -= 1
+            remaining -= lvl
+            recovered.append(lvl)
+            slots[key] = current
+    if not recovered:
+        return None
+    char.spell_slots = slots
+    fc["_arcane_recovery_used"] = True
+    char.feature_choices = fc
+    parts = ", ".join(f"L{n}" for n in recovered)
+    return f"Arcane Recovery restored {len(recovered)} slot(s) ({parts})."
+
+
 def apply_resource_updates(
     char: Dnd5eCharacter,
     updates: Any,

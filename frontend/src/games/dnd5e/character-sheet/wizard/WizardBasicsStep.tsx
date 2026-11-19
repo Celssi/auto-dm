@@ -14,7 +14,13 @@ interface Props {
   classes: WizardClassOption[];
   species: WizardOption[];
   backgroundGroups: { label: string; options: { value: string; label: string }[] }[];
+  backgrounds: WizardOption[];
   faerunBackgroundIds: string[];
+}
+
+function featForBackground(backgrounds: WizardOption[], id: string): string {
+  const row = backgrounds.find((b) => b.id === id);
+  return String(row?.feat || '');
 }
 
 export default function WizardBasicsStep({
@@ -25,6 +31,7 @@ export default function WizardBasicsStep({
   classes,
   species,
   backgroundGroups,
+  backgrounds,
   faerunBackgroundIds,
 }: Props) {
   return (
@@ -87,7 +94,15 @@ export default function WizardBasicsStep({
       <Field label="Background">
         <ChoiceGroup
           value={char.background}
-          onChange={(v) => patch({ background: v })}
+          onChange={(v) => {
+            patch({
+              background: v,
+              origin_feat: featForBackground(backgrounds, v),
+              background_asi_plus2: '',
+              background_asi_plus1: '',
+              background_asi_all_three: false,
+            });
+          }}
           groups={backgroundGroups.map((group) => ({
             ...group,
             options: group.options.map((opt) => ({

@@ -41,6 +41,19 @@ FIGHTING_STYLE_LABELS = {
     "unarmedfighting": "Unarmed Fighting",
 }
 
+STANDARD_LANGUAGES = (
+    "common",
+    "common sign language",
+    "draconic",
+    "dwarvish",
+    "elvish",
+    "giant",
+    "gnomish",
+    "goblin",
+    "halfling",
+    "orc",
+)
+
 # Species trait names (lowercase) mapped to creation-choice ids when the player picks a value.
 TRAIT_TO_CHOICE_ID: dict[str, str] = {
     "skillful": "human_skill",
@@ -114,6 +127,25 @@ def _resolve_options_ref(ref: str, data: dict[str, Any]) -> list[dict[str, Any]]
             {"id": str(lang).replace(" ", "_"), "label": str(lang).replace("_", " ").title()}
             for lang in langs
         ]
+    if key == "standard_languages":
+        return [
+            {"id": lang.replace(" ", "_"), "label": lang.replace("_", " ").title()}
+            for lang in STANDARD_LANGUAGES
+        ]
+    if key == "origin_languages":
+        return [
+            {"id": lang.replace(" ", "_"), "label": lang.replace("_", " ").title()}
+            for lang in STANDARD_LANGUAGES
+            if lang != "common"
+        ]
+    if key == "extra_languages":
+        skip = {"thieves' cant", "thieves cant"}
+        langs = equipment_data().get("languages") or []
+        return [
+            {"id": str(lang).replace(" ", "_"), "label": str(lang).replace("_", " ").title()}
+            for lang in langs
+            if str(lang).strip().lower() not in skip
+        ]
     if key == "fighting_style_feats":
         return data.get("fighting_style_feats") or []
     if key == "origin_feats":
@@ -182,6 +214,37 @@ def _species_choices(char: Dnd5eCharacter, data: dict[str, Any]) -> list[dict[st
     if not sid:
         return []
     rows = (data.get("species") or {}).get(sid) or []
+    out: list[dict[str, Any]] = []
+    for raw in rows:
+        if not isinstance(raw, dict):
+            continue
+        expanded = _expand_choice(raw, data)
+        if str(raw.get("id") or "") == "keen_senses_skill":
+            expanded["options"] = [
+                {"id": "insight", "label": "Insight"},
+                {"id": "perception", "label": "Perception"},
+                {"id": "survival", "label": "Survival"},
+            ]
+        lineage = str((char.feature_choices or {}).get("elven_lineage") or "").lower()
+        if str(raw.get("id") or "") == "high_elf_spell_ability" and lineage not in (
+            "high_elf",
+            "high elf",
+        ):
+            continue
+        out.append(expanded)
+    return out
+
+
+def _origin_language_choices(data: dict[str, Any]) -> list[dict[str, Any]]:
+    rows = data.get("origin") or []
+    return [_expand_choice(r, data) for r in rows if isinstance(r, dict)]
+
+
+def _background_choices(char: Dnd5eCharacter, data: dict[str, Any]) -> list[dict[str, Any]]:
+    bid = str(char.background or "").strip().lower()
+    if not bid:
+        return []
+    rows = (data.get("backgrounds") or {}).get(bid) or []
     return [_expand_choice(r, data) for r in rows if isinstance(r, dict)]
 
 
@@ -239,6 +302,10 @@ def _class_choices_for_entry(
         ):
             continue
         expanded = _expand_choice(raw, data)
+        if str(raw.get("id") or "") == "weapon_mastery":
+            from backend.games.dnd5e.characters.class_resources import mastery_weapons_for_class
+
+            expanded["options"] = mastery_weapons_for_class(cid)
         spell_list = raw.get("spell_list")
         if spell_list:
             sl = spell_list_for(str(spell_list))
@@ -282,6 +349,8 @@ def choices_for_character(
     sync_feature_choice_fields(char)
     out: list[dict[str, Any]] = []
     out.extend(_species_choices(char, data))
+    out.extend(_origin_language_choices(data))
+    out.extend(_background_choices(char, data))
     entries = normalize_class_entries(char)
     if target_class:
         tc = target_class.strip().lower()
@@ -313,7 +382,7 @@ def _is_choice_complete(char: Dnd5eCharacter, choice: dict[str, Any]) -> tuple[b
     kind = str(choice.get("kind") or "")
     count = int(choice.get("count") or 1)
     val = _choice_value(char, cid)
-    if kind in ("weapons", "skills", "invocations", "spells"):
+    if kind in ("weapons", "skills", "invocations", "spells", "languages"):
         items = val if isinstance(val, list) else []
         if len(items) < count:
             return False, f"{choice.get('label', cid)}: pick {count}"
@@ -456,20 +525,36 @@ def apply_creation_choices(char: Dnd5eCharacter) -> None:
             sk = str(val).lower()
             if sk and sk not in skills:
                 skills.append(sk)
+        if cid == "rogue_expertise":
+            picks = [str(item).strip().lower() for item in (val if isinstance(val, list) else []) if str(item).strip()]
+            char.expertise = picks
+            fc = dict(char.feature_choices or {})
+            fc["rogue_expertise"] = picks
+            char.feature_choices = fc
+            continue
         if kind == "skills" or cid in (
-            "rogue_expertise",
             "skilled_proficiencies",
             "crafter_tools",
             "musician_instruments",
         ):
             for item in val if isinstance(val, list) else []:
                 apply_proficiency_pick(str(item), skills, tools)
-        if kind == "language" or cid == "thieves_cant_language":
-            lang = str(val).lower().replace("_", " ")
+        if kind == "language" or kind == "languages" or cid in (
+            "thieves_cant_language",
+            "origin_languages",
+        ):
             langs = list(char.languages or [])
-            if lang and lang not in langs:
-                langs.append(lang)
+            values = val if isinstance(val, list) else [val]
+            for item in values:
+                lang = str(item).lower().replace("_", " ").strip()
+                if lang and lang not in langs:
+                    langs.append(lang)
             char.languages = langs
+        if cid == "gaming_set_kind":
+            kind_label = str(val).replace("_", " ").strip()
+            tools = [t for t in tools if str(t).strip().lower() not in {"gaming set", "gaming_set"}]
+            if kind_label:
+                tools.append(kind_label)
         if kind == "spells" or (kind == "spell" and cid.startswith("magic_initiate")):
             spell_level = int(choice.get("spell_level") or 0)
             if cid == "third_caster_spells" or (kind == "spells" and spell_level > 0):
@@ -505,6 +590,43 @@ def apply_creation_choices(char: Dnd5eCharacter) -> None:
     char.skill_proficiencies = skills
     char.tool_proficiencies = tools
     apply_origin_feat_proficiencies(char)
+    _grant_lineage_cantrips(char)
+    _sync_known_languages(char)
+
+
+def _grant_lineage_cantrips(char: Dnd5eCharacter) -> None:
+    fc = char.feature_choices if isinstance(char.feature_choices, dict) else {}
+    lineage = str(fc.get("elven_lineage") or "").strip().lower().replace(" ", "_")
+    if str(char.species or "").strip().lower() != "elf" or lineage != "high_elf":
+        return
+    cantrips = list(char.cantrips or [])
+    names = {normalize_spell_name(item) for item in cantrips}
+    if "prestidigitation" not in names:
+        cantrips.append("Prestidigitation")
+        char.cantrips = cantrips
+
+
+def _sync_known_languages(char: Dnd5eCharacter) -> None:
+    langs: list[str] = ["common"]
+    fc = char.feature_choices if isinstance(char.feature_choices, dict) else {}
+
+    def add(raw: Any) -> None:
+        lang = str(raw or "").strip().lower().replace("_", " ")
+        if lang and lang not in langs:
+            langs.append(lang)
+
+    for item in fc.get("origin_languages") or []:
+        add(item)
+    is_rogue = str(char.class_name or "").lower() == "rogue" or any(
+        str(entry.get("class_name") or "").lower() == "rogue"
+        for entry in char.normalized_class_entries()
+    )
+    if is_rogue:
+        add("thieves' cant")
+        extra = str(fc.get("thieves_cant_language") or "").strip()
+        if extra.lower().replace("_", " ") not in {"thieves' cant", "thieves cant"}:
+            add(extra)
+    char.languages = langs
 
 
 def fighting_style_feat_display(feat_id: str) -> str:
@@ -541,6 +663,8 @@ def creation_choices_catalog(*, include_faerun: bool = False) -> dict[str, Any]:
     out: dict[str, Any] = {
         "species": data.get("species") or {},
         "classes": data.get("classes") or {},
+        "origin": data.get("origin") or [],
+        "backgrounds": data.get("backgrounds") or {},
         "origin_feat_subchoices": data.get("origin_feat_subchoices") or {},
         "include_faerun": include_faerun,
     }

@@ -9,7 +9,7 @@ interface Props {
   patch: (p: Partial<Character>) => void;
   selectedClass?: WizardClassOption;
   classSkillOptions: { id: string; label: string }[];
-  spellLimits: { cantrips: number; known: number; prepared: number };
+  spellLimits: { cantrips: number; known: number; prepared: number; spellbook?: number };
   spellField: 'known_spells' | 'prepared_spells';
   spellList: Record<string, string[]>;
   spellOptions: string[];
@@ -25,6 +25,11 @@ export default function WizardSkillsSpellsStep({
   spellList,
   spellOptions,
 }: Props) {
+  const isWizard = selectedClass?.id === 'wizard';
+  const spellbookMax = Number(spellLimits.spellbook || 0);
+  const preparedMax = spellLimits[spellField === 'known_spells' ? 'known' : 'prepared'];
+  const preparedOptions = isWizard && (char.spellbook || []).length ? char.spellbook || [] : spellOptions;
+
   return (
     <div className="space-y-5">
       {selectedClass && (selectedClass.skill_choices || 0) > 0 && (
@@ -40,26 +45,50 @@ export default function WizardSkillsSpellsStep({
       )}
       {selectedClass?.spellcasting && (
         <>
-          <Field label={`Cantrips (max ${spellLimits.cantrips})`}>
-            <MultiChoice
-              value={char.cantrips}
-              onChange={(cantrips) => patch({ cantrips })}
-              options={spellList.cantrips || []}
-              max={spellLimits.cantrips}
-            />
-          </Field>
-          <Field
-            label={`${spellPickLabel(selectedClass.spellcasting)} (max ${
-              spellLimits[spellField === 'known_spells' ? 'known' : 'prepared']
-            })`}
-          >
-            <MultiChoice
-              value={(char[spellField] as string[]) || []}
-              onChange={(picks) => patch({ [spellField]: picks })}
-              options={spellOptions}
-              max={spellLimits[spellField === 'known_spells' ? 'known' : 'prepared']}
-            />
-          </Field>
+          {spellLimits.cantrips > 0 && (
+            <Field label={`Cantrips (max ${spellLimits.cantrips})`}>
+              <MultiChoice
+                value={char.cantrips}
+                onChange={(cantrips) => patch({ cantrips })}
+                options={spellList.cantrips || []}
+                max={spellLimits.cantrips}
+              />
+            </Field>
+          )}
+          {isWizard && spellbookMax > 0 && (
+            <Field
+              label={`Spellbook (pick ${spellbookMax} level 1 wizard spells)`}
+              hint="You copy these into your book. Prepare a subset below. Ritual Adept uses the book, not prepared spells."
+            >
+              <MultiChoice
+                value={char.spellbook || []}
+                onChange={(picks) => {
+                  const nextBook = picks.slice(0, spellbookMax);
+                  const prepared = ((char.prepared_spells || []) as string[]).filter((name) =>
+                    nextBook.includes(name),
+                  );
+                  patch({ spellbook: nextBook, prepared_spells: prepared });
+                }}
+                options={spellOptions}
+                max={spellbookMax}
+                searchable
+              />
+            </Field>
+          )}
+          {preparedMax > 0 && (
+            <Field
+              label={`${spellPickLabel(selectedClass.spellcasting)} (max ${preparedMax})`}
+              hint={isWizard ? 'Choose from your spellbook.' : undefined}
+            >
+              <MultiChoice
+                value={(char[spellField] as string[]) || []}
+                onChange={(picks) => patch({ [spellField]: picks })}
+                options={preparedOptions}
+                max={preparedMax}
+                searchable={preparedOptions.length > 12}
+              />
+            </Field>
+          )}
         </>
       )}
     </div>

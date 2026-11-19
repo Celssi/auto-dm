@@ -22,6 +22,8 @@ def _complete_fighter_human(char: Dnd5eCharacter) -> Dnd5eCharacter:
         "fighting_style_feat": "defense",
         "weapon_mastery": ["greatsword", "longsword", "spear"],
         "versatile_origin_feat": "alert",
+        "origin_languages": ["elvish", "dwarvish"],
+        "gaming_set_kind": "dice_set",
     }
     return char
 

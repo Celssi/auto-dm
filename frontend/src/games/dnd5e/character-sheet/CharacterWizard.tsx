@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useReducer, useState } from 'react';
 import { api } from '../../../api/client';
 import type { Character } from '../../../types';
-import { spellLimitsFromClass, spellListField } from '../dnd5eCharacterCreation';
+import { highestSlotLevel, spellLimitsFromClass, spellListField } from '../dnd5eCharacterCreation';
 import CharacterSheetView from './CharacterSheetView';
 import { displayLabel, normalizeChoiceList } from '../../../lib/displayText';
 import {
@@ -28,6 +28,7 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
   const [step, setStep] = useState(0);
   const [options, setOptions] = useState<Record<string, unknown>>({});
   const [previewChar, setPreviewChar] = useState<Character | null>(null);
+  const [previewSummary, setPreviewSummary] = useState<Record<string, unknown> | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [char, setChar] = useReducer(
     (state: Character, patch: Partial<Character>) => ({ ...state, ...patch }),
@@ -38,12 +39,18 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
 
   const classes = (options.classes || []) as WizardClassOption[];
   const species = (options.species || []) as WizardOption[];
-  const backgrounds = (options.backgrounds || []) as (WizardOption & { source?: string })[];
+  const backgrounds = useMemo(
+    () => (options.backgrounds || []) as (WizardOption & { source?: string; ability_scores?: string[] })[],
+    [options.backgrounds],
+  );
   const phbBackgrounds = backgrounds.filter((b) => b.source !== 'faerun');
   const faerunBackgrounds = backgrounds.filter((b) => b.source === 'faerun');
   const skills = (options.skills || []) as { id: string; label: string }[];
   const selectedClass = classes.find((c) => c.id === char.class_name);
-  const spellLimits = useMemo(() => spellLimitsFromClass(selectedClass, char.level || 1), [selectedClass, char.level]);
+  const spellLimits = useMemo(
+    () => spellLimitsFromClass({ ...selectedClass, id: selectedClass?.id }, char.level || 1),
+    [selectedClass, char.level],
+  );
   const spellField = spellListField(selectedClass?.spellcasting);
   const spellLists = useMemo(
     () => (options.spell_lists || {}) as Record<string, Record<string, string[]>>,
@@ -55,12 +62,42 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
   );
 
   const spellOptions = useMemo(() => {
+    const maxLevel = highestSlotLevel(selectedClass?.id || char.class_name || '', char.level || 1);
     const result: string[] = [];
     for (const [k, arr] of Object.entries(spellList)) {
-      if (k !== 'cantrips') result.push(...(arr as string[]));
+      if (k === 'cantrips') continue;
+      const lvl = Number(k);
+      if (!Number.isFinite(lvl) || lvl < 1 || lvl > maxLevel) continue;
+      result.push(...(arr as string[]));
     }
     return result;
-  }, [spellList]);
+  }, [spellList, selectedClass?.id, char.class_name, char.level]);
+
+  const originLanguageOptions = useMemo(() => {
+    const langs = ((options.languages as string[]) || []).filter((lang) => {
+      const low = String(lang).toLowerCase();
+      return low !== 'common' && low !== "thieves' cant" && low !== 'thieves cant';
+    });
+    const standard = new Set([
+      'common sign language',
+      'draconic',
+      'dwarvish',
+      'elvish',
+      'giant',
+      'gnomish',
+      'goblin',
+      'halfling',
+      'orc',
+    ]);
+    return langs.filter((lang) => standard.has(String(lang).toLowerCase()));
+  }, [options.languages]);
+
+  const backgroundAbilities = useMemo(() => {
+    const row = backgrounds.find((b) => b.id === char.background) as
+      | (WizardOption & { ability_scores?: string[] })
+      | undefined;
+    return (row?.ability_scores || []).map((ab) => String(ab).toLowerCase());
+  }, [backgrounds, char.background]);
 
   const includeFaerun = (char.campaign_setting || defaultWizardCharacter.campaign_setting) === 'faerun';
 
@@ -138,9 +175,11 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
     if (next === 6) {
       setPreviewLoading(true);
       setPreviewChar(null);
+      setPreviewSummary(null);
       try {
-        const { character } = await api.previewCharacter(char as Record<string, unknown>, !initial);
-        setPreviewChar(character as Character);
+        const result = await api.previewCharacter(char as Record<string, unknown>, !initial);
+        setPreviewChar(result.character as Character);
+        setPreviewSummary((result.summary as Record<string, unknown>) || null);
       } catch {
         setPreviewChar(char);
       } finally {
@@ -209,6 +248,7 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
         classes={classes}
         species={species}
         backgroundGroups={backgroundGroups}
+        backgrounds={backgrounds}
         faerunBackgroundIds={faerunBackgrounds.map((b) => b.id)}
         selectedClass={selectedClass}
         classSkillOptions={classSkillOptions}
@@ -216,11 +256,14 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
         spellField={spellField}
         spellList={spellList}
         spellOptions={spellOptions}
+        originLanguageOptions={originLanguageOptions}
+        backgroundAbilities={backgroundAbilities}
         options={options}
         startingGearOptions={startingGearOptions}
         backgroundGearOptions={backgroundGearOptions}
         previewLoading={previewLoading}
         previewChar={previewChar}
+        previewSummary={previewSummary}
         onApplyStandardArray={applyStandardArray}
       />
       <WizardNav
@@ -229,6 +272,9 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
         startingGearOptions={startingGearOptions}
         backgroundGearOptions={backgroundGearOptions}
         skillChoicesNeeded={Number(selectedClass?.skill_choices || 0)}
+        spellLimits={spellLimits}
+        spellField={spellField}
+        backgroundAbilities={backgroundAbilities}
         char={char}
         previewChar={previewChar}
         onCancel={onCancel}
@@ -247,6 +293,7 @@ function WizardStepBody({
   classes,
   species,
   backgroundGroups,
+  backgrounds,
   faerunBackgroundIds,
   selectedClass,
   classSkillOptions,
@@ -254,11 +301,14 @@ function WizardStepBody({
   spellField,
   spellList,
   spellOptions,
+  originLanguageOptions,
+  backgroundAbilities,
   options,
   startingGearOptions,
   backgroundGearOptions,
   previewLoading,
   previewChar,
+  previewSummary,
   onApplyStandardArray,
 }: {
   step: number;
@@ -268,6 +318,7 @@ function WizardStepBody({
   classes: WizardClassOption[];
   species: WizardOption[];
   backgroundGroups: { label: string; options: { value: string; label: string }[] }[];
+  backgrounds: WizardOption[];
   faerunBackgroundIds: string[];
   selectedClass: WizardClassOption | undefined;
   classSkillOptions: { id: string; label: string }[];
@@ -275,11 +326,14 @@ function WizardStepBody({
   spellField: ReturnType<typeof spellListField>;
   spellList: Record<string, string[]>;
   spellOptions: string[];
+  originLanguageOptions: string[];
+  backgroundAbilities: string[];
   options: Record<string, unknown>;
   startingGearOptions: { id: string; label: string; description?: string }[];
   backgroundGearOptions: { id: string; label: string; description?: string }[];
   previewLoading: boolean;
   previewChar: Character | null;
+  previewSummary: Record<string, unknown> | null;
   onApplyStandardArray: () => void;
 }) {
   if (step === 0) {
@@ -294,12 +348,24 @@ function WizardStepBody({
         classes={classes}
         species={species}
         backgroundGroups={backgroundGroups}
+        backgrounds={backgrounds}
         faerunBackgroundIds={faerunBackgroundIds}
       />
     );
   }
-  if (step === 1) return <WizardOriginStep char={char} patch={patch} />;
-  if (step === 2) return <WizardAbilitiesStep char={char} patch={patch} onApplyStandardArray={onApplyStandardArray} />;
+  if (step === 1) {
+    return <WizardOriginStep char={char} patch={patch} languageOptions={originLanguageOptions} />;
+  }
+  if (step === 2) {
+    return (
+      <WizardAbilitiesStep
+        char={char}
+        patch={patch}
+        onApplyStandardArray={onApplyStandardArray}
+        backgroundAbilities={backgroundAbilities}
+      />
+    );
+  }
   if (step === 3) {
     return (
       <WizardSkillsSpellsStep
@@ -328,7 +394,7 @@ function WizardStepBody({
   if (previewLoading) {
     return <p className="text-sm text-muted py-8 text-center">Building character preview…</p>;
   }
-  return <CharacterSheetView character={previewChar || char} />;
+  return <CharacterSheetView character={previewChar || char} summary={previewSummary || undefined} />;
 }
 
 function wizardNextDisabled(
@@ -338,9 +404,29 @@ function wizardNextDisabled(
   featureChoiceMissing: number,
   startingGearOptions: { id: string }[],
   backgroundGearOptions: { id: string }[],
+  spellLimits: ReturnType<typeof spellLimitsFromClass>,
+  spellField: ReturnType<typeof spellListField>,
+  backgroundAbilities: string[],
 ) {
   const skillsPicked = (char.class_skill_choices || []).length;
+  if (step === 1) {
+    const langs = ((char.feature_choices || {}) as Record<string, unknown>).origin_languages;
+    if (!Array.isArray(langs) || langs.length < 2) return true;
+  }
+  if (step === 2 && backgroundAbilities.length >= 2) {
+    if (char.background_asi_all_three) {
+      // ok
+    } else if (!char.background_asi_plus2 || !char.background_asi_plus1) {
+      return true;
+    }
+  }
   if (step === 3 && skillChoicesNeeded > 0 && skillsPicked < skillChoicesNeeded) return true;
+  if (step === 3) {
+    if (spellLimits.cantrips > 0 && (char.cantrips || []).length < spellLimits.cantrips) return true;
+    if (spellLimits.spellbook > 0 && (char.spellbook || []).length < spellLimits.spellbook) return true;
+    const needed = spellField === 'known_spells' ? spellLimits.known : spellLimits.prepared;
+    if (needed > 0 && ((char[spellField] as string[]) || []).length < needed) return true;
+  }
   if (step === 4 && featureChoiceMissing > 0) return true;
   if (step === 5 && startingGearOptions.length > 1 && !char.starting_gear_choice) return true;
   return Boolean(step === 5 && char.background && backgroundGearOptions.length > 1 && !char.background_gear_choice);
@@ -352,6 +438,9 @@ function WizardNav({
   startingGearOptions,
   backgroundGearOptions,
   skillChoicesNeeded,
+  spellLimits,
+  spellField,
+  backgroundAbilities,
   char,
   previewChar,
   onCancel,
@@ -363,6 +452,9 @@ function WizardNav({
   startingGearOptions: { id: string }[];
   backgroundGearOptions: { id: string }[];
   skillChoicesNeeded: number;
+  spellLimits: ReturnType<typeof spellLimitsFromClass>;
+  spellField: ReturnType<typeof spellListField>;
+  backgroundAbilities: string[];
   char: Character;
   previewChar: Character | null;
   onCancel?: () => void;
@@ -376,6 +468,9 @@ function WizardNav({
     featureChoiceMissing,
     startingGearOptions,
     backgroundGearOptions,
+    spellLimits,
+    spellField,
+    backgroundAbilities,
   );
   const isLast = step >= WIZARD_STEPS.length - 1;
   return (

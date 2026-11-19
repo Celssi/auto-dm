@@ -40,6 +40,7 @@ from backend.games.dnd5e.characters.spell_resources import (
     compute_wild_shape_max,
     normalize_spell_name,
     preserve_remaining_spell_slots,
+    recover_arcane_recovery,
     recover_pact_slots_on_short_rest,
     sync_wild_shape_uses,
 )
@@ -148,31 +149,38 @@ def compute_spell_slots(char: Dnd5eCharacter) -> dict[str, int]:
     return {}
 
 
-def compute_max_hp(char: Dnd5eCharacter, *, first_level: bool = False) -> int:
-    from backend.games.dnd5e.characters.origin_feats import tough_hp_bonus
+def dwarven_toughness_hp_bonus(char: Dnd5eCharacter) -> int:
+    if str(char.species or "").strip().lower() != "dwarf":
+        return 0
+    return max(1, int(char.level or 1))
 
+
+def _hit_die_hp(char: Dnd5eCharacter) -> int:
     levels = class_levels_dict(char)
     if len(levels) <= 1:
         cls = get_class(char.class_name)
         hit_die = int((cls or {}).get("hit_die", 8) or 8)
         con_mod = char.ability_modifier("con")
         if char.level <= 1:
-            base = max(1, hit_die + con_mod)
-        else:
+            return max(1, hit_die + con_mod)
+        per_level = max(1, (hit_die // 2) + 1 + con_mod)
+        return max(1, hit_die + con_mod + per_level * (char.level - 1))
+    con_mod = char.ability_modifier("con")
+    base = 0
+    for cid, lv in levels.items():
+        cls = get_class(cid) or {}
+        hit_die = int(cls.get("hit_die", 8) or 8)
+        base += max(1, hit_die + con_mod)
+        if lv > 1:
             per_level = max(1, (hit_die // 2) + 1 + con_mod)
-            base = max(1, hit_die + con_mod + per_level * (char.level - 1))
-    else:
-        con_mod = char.ability_modifier("con")
-        base = 0
-        for cid, lv in levels.items():
-            cls = get_class(cid) or {}
-            hit_die = int(cls.get("hit_die", 8) or 8)
-            base += max(1, hit_die + con_mod)
-            if lv > 1:
-                per_level = max(1, (hit_die // 2) + 1 + con_mod)
-                base += per_level * (lv - 1)
-        base = max(1, base)
-    return max(1, base + tough_hp_bonus(char))
+            base += per_level * (lv - 1)
+    return max(1, base)
+
+
+def compute_max_hp(char: Dnd5eCharacter, *, first_level: bool = False) -> int:
+    from backend.games.dnd5e.characters.origin_feats import tough_hp_bonus
+
+    return max(1, _hit_die_hp(char) + tough_hp_bonus(char) + dwarven_toughness_hp_bonus(char))
 
 
 def _normalize_tool_proficiencies(tools: list[str]) -> list[str]:
@@ -266,13 +274,19 @@ def spell_limits_for_class(
     if class_id in _PREPARED_BY_ABILITY:
         ab = _SPELLCASTING_ABILITY.get(class_id, str(cls.get("primary_ability", "wis")).lower())
         prepared = _prepared_spell_cap(class_id, level, char.ability_modifier(ab))
-        return {"cantrips": cantrips, "prepared": prepared, "known": 0}
+        out = {"cantrips": cantrips, "prepared": prepared, "known": 0}
+        if class_id == "wizard" and level > 0:
+            out["spellbook"] = 6 + 2 * (level - 1)
+        return out
     prepared = _by_level(cls.get("prepared_by_level"), level, 0)
-    return {"cantrips": cantrips, "prepared": prepared, "known": 0}
+    out = {"cantrips": cantrips, "prepared": prepared, "known": 0}
+    if class_id == "wizard" and level > 0:
+        out["spellbook"] = 6 + 2 * (level - 1)
+    return out
 
 
 def spell_limits(char: Dnd5eCharacter) -> dict[str, int]:
-    totals = {"cantrips": 0, "prepared": 0, "known": 0}
+    totals = {"cantrips": 0, "prepared": 0, "known": 0, "spellbook": 0}
     entries = normalize_class_entries(char)
     if not entries:
         entries = [{"class_name": char.class_name, "level": char.level}]
@@ -284,6 +298,7 @@ def spell_limits(char: Dnd5eCharacter) -> dict[str, int]:
         totals["cantrips"] += row["cantrips"]
         totals["prepared"] += row["prepared"]
         totals["known"] += row["known"]
+        totals["spellbook"] += int(row.get("spellbook") or 0)
     return totals
 
 
@@ -604,12 +619,9 @@ def _apply_gear_package(
         if replace:
             char.inventory = [str(i) for i in items]
         else:
-            inv = list(char.inventory or [])
-            for item in items:
-                s = str(item)
-                if s and s not in inv:
-                    inv.append(s)
-            char.inventory = inv
+            from backend.games.dnd5e.characters.class_resources import merge_counted_labels
+
+            char.inventory = merge_counted_labels(list(char.inventory or []), [str(i) for i in items])
     if weapons:
         if replace:
             char.weapons = _weapon_dicts(weapons)
@@ -773,6 +785,16 @@ def rebuild_character(char: Dnd5eCharacter, *, recompute_hp: bool = False) -> Dn
         char.max_hp = new_max
         if char.hp <= 0 or char.hp > char.max_hp:
             char.hp = char.max_hp
+    else:
+        from backend.games.dnd5e.characters.origin_feats import tough_hp_bonus
+
+        bonus = dwarven_toughness_hp_bonus(char)
+        if bonus:
+            expected_without = max(1, _hit_die_hp(char) + tough_hp_bonus(char))
+            if char.max_hp == expected_without:
+                char.max_hp = expected_without + bonus
+                if char.hp == expected_without:
+                    char.hp = char.max_hp
 
     # Armor Class from worn armor + shield, unless the player set it manually.
     if not char.ac_manual:
@@ -925,6 +947,12 @@ def character_creation_summary(char: Dnd5eCharacter) -> dict[str, Any]:
         "ac_details": ac_details_for_summary(char),
         "equipment_display": equipment_for_summary(char),
         "weapon_mastery_warnings": mastery_warnings_for_summary(char),
+        "lay_on_hands_max": lay_on_hands_pool(char),
+        "lay_on_hands_remaining": char.lay_on_hands_remaining,
+        "sneak_attack_dice": sneak_attack_dice_count(char),
+        "weapon_attacks": weapon_attacks_for_summary(char),
+        "has_weapon_mastery": character_has_mastery_feature(char),
+        "highest_spell_slot_level": highest_spell_slot_level(char),
     }
 
 
@@ -950,6 +978,36 @@ def mastery_warnings_for_summary(char: Dnd5eCharacter) -> list[dict[str, str]]:
     from backend.games.dnd5e.characters.class_resources import weapon_mastery_warnings
 
     return weapon_mastery_warnings(char)
+
+
+def lay_on_hands_pool(char: Dnd5eCharacter) -> int:
+    from backend.games.dnd5e.characters.class_resources import lay_on_hands_max
+
+    return lay_on_hands_max(char)
+
+
+def sneak_attack_dice_count(char: Dnd5eCharacter) -> int:
+    from backend.games.dnd5e.characters.class_resources import sneak_attack_dice
+
+    return sneak_attack_dice(char)
+
+
+def weapon_attacks_for_summary(char: Dnd5eCharacter) -> list[dict[str, Any]]:
+    from backend.games.dnd5e.characters.class_resources import weapon_attack_details
+
+    return weapon_attack_details(char)
+
+
+def character_has_mastery_feature(char: Dnd5eCharacter) -> bool:
+    from backend.games.dnd5e.characters.class_resources import character_has_weapon_mastery
+
+    return character_has_weapon_mastery(char)
+
+
+def highest_spell_slot_level(char: Dnd5eCharacter) -> int:
+    slots = compute_spell_slots(char)
+    levels = [int(k) for k, v in slots.items() if str(k).isdigit() and int(v or 0) > 0]
+    return max(levels) if levels else 0
 
 
 def short_rest_heal(
@@ -1033,16 +1091,26 @@ def apply_short_rest(
     *,
     dice_to_spend: int = 0,
 ) -> dict[str, Any]:
-    """Short rest: Pact Magic recovery + optional Hit Dice healing."""
+    """Short rest: Pact Magic, Arcane Recovery, and optional Hit Dice healing."""
     from backend.dm.audit import character_audit_slice, record_audit
 
     before = character_audit_slice(character_to_dict(char))
     parts: list[str] = ["Short rest."]
     entity: dict[str, Any] = {}
 
+    if dice_to_spend <= 0 and char.hp < char.max_hp:
+        available = max(0, char.hit_dice_max - char.hit_dice_spent)
+        if available > 0:
+            dice_to_spend = 1
+
     pact_line = recover_pact_slots_on_short_rest(char)
     if pact_line:
         parts.append(pact_line)
+        entity["spell_slots"] = dict(char.spell_slots)
+
+    arcane_line = recover_arcane_recovery(char)
+    if arcane_line:
+        parts.append(arcane_line)
         entity["spell_slots"] = dict(char.spell_slots)
 
     if dice_to_spend > 0:
@@ -1108,6 +1176,13 @@ def long_rest_recover(char: Dnd5eCharacter) -> dict[str, Any]:
     from backend.games.dnd5e.characters.class_resources import recover_second_wind_long_rest
 
     recover_second_wind_long_rest(char)
+    from backend.games.dnd5e.characters.class_resources import recover_lay_on_hands_long_rest
+
+    recover_lay_on_hands_long_rest(char)
+    fc = dict(char.feature_choices or {})
+    if fc.get("_arcane_recovery_used"):
+        fc.pop("_arcane_recovery_used", None)
+        char.feature_choices = fc
     if char.species == "human":
         char.heroic_inspiration = True
     char.clamp()
@@ -1147,6 +1222,7 @@ def long_rest_recover(char: Dnd5eCharacter) -> dict[str, Any]:
             "luck_points_remaining": char.luck_points_remaining,
             "savage_attacker_used_this_turn": False,
             "second_wind_remaining": char.second_wind_remaining,
+            "lay_on_hands_remaining": char.lay_on_hands_remaining,
             "feature_choices": dict(char.feature_choices or {}),
         },
     }

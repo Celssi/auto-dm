@@ -159,7 +159,8 @@ async function readSse(path: string, body: unknown, onEvent: StreamHandler): Pro
     buffer += decoder.decode(value, { stream: true });
     const lines = buffer.split('\n');
     buffer = lines.pop() ?? '';
-    for (const line of lines) {
+    for (const rawLine of lines) {
+      const line = rawLine.replace(/\r$/, '');
       if (line.startsWith('event:')) {
         currentEvent = line.slice(6).trim();
       } else if (line.startsWith('data:')) {
@@ -221,7 +222,7 @@ export const api = {
       body: JSON.stringify({ character }),
     }),
   previewCharacter: (character: Record<string, unknown>, finalize = true) =>
-    request<{ character: Record<string, unknown> }>(`/characters/preview?finalize=${finalize ? 'true' : 'false'}`, {
+    request<{ character: Record<string, unknown>; summary?: Record<string, unknown> }>(`/characters/preview?finalize=${finalize ? 'true' : 'false'}`, {
       method: 'POST',
       body: JSON.stringify({ character }),
     }),

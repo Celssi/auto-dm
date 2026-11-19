@@ -186,7 +186,11 @@ export function AbilityTile({
         <span className="text-2xl font-bold text-accent leading-none">{score}</span>
       )}
       <span className="text-sm text-gray-300">{formatAbilityMod(score)}</span>
-      <span className="text-[10px] text-muted mt-1">Save {save}</span>
+      <HelpTip id="saving-throws" name="Saving throws">
+        <span className="text-[10px] text-muted mt-1 cursor-help underline decoration-dotted decoration-muted/50">
+          Save {save}
+        </span>
+      </HelpTip>
       {proficient && <span className="text-[9px] text-accent/80 mt-0.5">● save</span>}
     </div>
   );

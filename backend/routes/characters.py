@@ -76,7 +76,10 @@ def preview(body: CharacterBody, finalize: bool = True):
         char = plugin.finalize_new_character(obj)
     else:
         char = plugin.rebuild_character(obj, recompute_hp=False)
-    return {"character": plugin.character_to_dict(char)}
+    return {
+        "character": plugin.character_to_dict(char),
+        "summary": plugin.character_creation_summary(char),
+    }
 
 
 @router.get("/{char_id}/summary")

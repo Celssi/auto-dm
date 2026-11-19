@@ -14,7 +14,7 @@ export function buildEntityMatcher(entities: JournalEntity[]): RegExp | null {
     .toSorted((a, b) => b.name.length - a.name.length)
     .map((e) => escapeRegex(e.name.trim()));
   if (!names.length) return null;
-  return new RegExp(`(${names.join('|')})`, 'gi');
+  return new RegExp(`\\b(${names.join('|')})\\b`, 'gi');
 }
 
 export function entityByMatchedName(entities: JournalEntity[], matched: string): JournalEntity | undefined {

@@ -2,14 +2,19 @@ import type { Character } from '../../../../types';
 import { Field } from '../../../../components/ui/forms/Field';
 import TextInput from '../../../../components/ui/forms/TextInput';
 import TextArea from '../../../../components/ui/forms/TextArea';
+import MultiChoice from '../../../../components/ui/forms/MultiChoice';
+import { displayLabel } from '../../../../lib/displayText';
 
 interface Props {
   char: Character;
   patch: (p: Partial<Character>) => void;
+  languageOptions: string[];
 }
 
-export default function WizardOriginStep({ char, patch }: Props) {
+export default function WizardOriginStep({ char, patch, languageOptions }: Props) {
   const appearance = String(char.appearance || char.equipment_notes || '');
+  const fc = { ...((char.feature_choices || {}) as Record<string, unknown>) };
+  const originLanguages = Array.isArray(fc.origin_languages) ? (fc.origin_languages as string[]) : [];
 
   return (
     <div className="space-y-5">
@@ -29,6 +34,23 @@ export default function WizardOriginStep({ char, patch }: Props) {
           />
         </Field>
       </div>
+      <Field
+        label="Origin languages (pick 2)"
+        hint="You know Common. Choose two more Standard Languages. Species does not add a language automatically."
+      >
+        <MultiChoice
+          value={originLanguages}
+          onChange={(next) => patch({ feature_choices: { ...fc, origin_languages: next } })}
+          options={languageOptions}
+          max={2}
+          searchable={languageOptions.length > 12}
+        />
+      </Field>
+      {originLanguages.length > 0 && (
+        <p className="text-xs text-muted -mt-2">
+          Known: Common, {originLanguages.map((id) => displayLabel(id)).join(', ')}
+        </p>
+      )}
       <Field label="Appearance & Notes">
         <TextArea
           value={appearance}

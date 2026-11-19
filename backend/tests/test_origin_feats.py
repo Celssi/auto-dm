@@ -23,6 +23,7 @@ from backend.games.dnd5e.characters.origin_feats import (
 
 
 def _fighter(level: int = 1, **kwargs) -> Dnd5eCharacter:
+    extra_fc = dict(kwargs.pop("feature_choices", None) or {})
     base = dict(
         name="Test",
         species="human",
@@ -33,6 +34,11 @@ def _fighter(level: int = 1, **kwargs) -> Dnd5eCharacter:
         ability_scores_set=True,
         class_skill_choices=["athletics", "intimidation"],
         starting_gear_choice="heavy",
+        feature_choices={
+            "origin_languages": ["elvish", "dwarvish"],
+            "gaming_set_kind": "dice_set",
+            **extra_fc,
+        },
     )
     base.update(kwargs)
     return Dnd5eCharacter(**base)

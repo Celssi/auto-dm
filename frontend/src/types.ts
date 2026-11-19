@@ -33,6 +33,13 @@ export interface Character {
   cantrips: string[];
   prepared_spells: string[];
   known_spells: string[];
+  spellbook?: string[];
+  expertise?: string[];
+  background_asi_plus2?: string;
+  background_asi_plus1?: string;
+  background_asi_all_three?: boolean;
+  background_asi_mode?: string;
+  lay_on_hands_remaining?: number;
   spell_slots: Record<string, number>;
   weapons: Array<{ name: string; damage: string; damage_type: string; ability: string }>;
   inventory: string[];
