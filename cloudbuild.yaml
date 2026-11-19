@@ -31,6 +31,34 @@ steps:
         $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
     id: Push
   - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    id: EnsureTicketSecret
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        SECRET_NAME=AUTO_DM_TICKET_SECRET
+        PROJECT="$_AR_PROJECT_ID"
+        if gcloud secrets describe "$$SECRET_NAME" --project="$$PROJECT" >/dev/null 2>&1; then
+          echo "Secret $$SECRET_NAME already exists"
+        else
+          umask 077
+          openssl rand -base64 48 > /tmp/auto-dm-ticket
+          gcloud secrets create "$$SECRET_NAME" \
+            --project="$$PROJECT" \
+            --replication-policy=automatic \
+            --data-file=/tmp/auto-dm-ticket
+          rm -f /tmp/auto-dm-ticket
+          echo "Created secret $$SECRET_NAME"
+        fi
+        PROJECT_NUMBER="$$(gcloud projects describe "$$PROJECT" --format='value(projectNumber)')"
+        RUNTIME_SA="$$PROJECT_NUMBER-compute@developer.gserviceaccount.com"
+        gcloud secrets add-iam-policy-binding "$$SECRET_NAME" \
+          --project="$$PROJECT" \
+          --member="serviceAccount:$$RUNTIME_SA" \
+          --role="roles/secretmanager.secretAccessor" \
+          --quiet
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
     args:
       - run
       - deploy
@@ -47,9 +75,33 @@ steps:
       - "--timeout=3600"
       - "--quiet"
       - "--set-env-vars=AUTO_DM_BUCKET=$_DATA_BUCKET,ALLOWED_EMAILS=$_ALLOWED_EMAILS,FIREBASE_PROJECT_ID=$_FIREBASE_PROJECT_ID,GOOGLE_CLOUD_PROJECT=$_AR_PROJECT_ID"
-      - "--set-secrets=ANTHROPIC_API_KEY=AUTO_DM_ANTHROPIC_API_KEY:latest"
+      - "--set-secrets=ANTHROPIC_API_KEY=AUTO_DM_ANTHROPIC_API_KEY:latest,AUTO_DM_TICKET_SECRET=AUTO_DM_TICKET_SECRET:latest"
     id: Deploy
     entrypoint: gcloud
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    id: VerifyTickets
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        gcloud run services describe "$_SERVICE_NAME" \
+          --region="$_DEPLOY_REGION" \
+          --project="$_AR_PROJECT_ID" \
+          --format='yaml(spec.template.spec.containers[0].env)' \
+          | grep -q AUTO_DM_TICKET_SECRET
+        echo "AUTO_DM_TICKET_SECRET is mounted on Cloud Run"
+        URL="$$(gcloud run services describe "$_SERVICE_NAME" --region="$_DEPLOY_REGION" --project="$_AR_PROJECT_ID" --format='value(status.url)')"
+        CODE="$$(curl -sS -o /tmp/ticket-body -w '%{http_code}' "$$URL/api/books/dnd5e/player.pdf/ticket?game_id=dnd5e")"
+        echo "Unauthenticated ticket HTTP $$CODE"
+        if [ "$$CODE" = "500" ]; then
+          echo "Book tickets still return 500" >&2
+          exit 1
+        fi
+        if [ "$$CODE" != "401" ] && [ "$$CODE" != "200" ]; then
+          echo "Unexpected ticket status $$CODE" >&2
+          exit 1
+        fi
 images:
   - >-
     $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA

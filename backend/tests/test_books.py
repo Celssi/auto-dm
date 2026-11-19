@@ -112,14 +112,37 @@ def test_unranged_large_file_requires_range(monkeypatch):
     assert res.headers["content-range"] == "bytes */200000"
 
 
-def test_ticket_secret_required_on_cloud_run(monkeypatch):
+def test_ticket_secret_derives_from_anthropic_on_cloud_run(monkeypatch):
+    import hashlib
+
+    from backend.routes import books
+
+    monkeypatch.setenv("K_SERVICE", "auto-dm")
+    monkeypatch.delenv("AUTO_DM_TICKET_SECRET", raising=False)
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-test-key")
+    books._TICKET_FALLBACK_WARNED = False
+
+    secret = books._ticket_secret()
+    assert secret == hashlib.sha256(b"auto-dm-file-ticket:sk-ant-test-key").digest()
+    ticket = books.issue_file_ticket("dnd5e/player.pdf")
+    assert books.verify_file_ticket(ticket, "dnd5e/player.pdf")
+
+
+def test_ticket_secret_per_instance_when_no_keys_on_cloud_run(monkeypatch):
+    from backend.routes import books
+
     monkeypatch.setenv("K_SERVICE", "auto-dm")
     monkeypatch.delenv("AUTO_DM_TICKET_SECRET", raising=False)
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
-    from backend.routes import books
+    books._INSTANCE_TICKET_SECRET = None
+    books._TICKET_FALLBACK_WARNED = False
 
-    with pytest.raises(RuntimeError, match="AUTO_DM_TICKET_SECRET"):
-        books._ticket_secret()
+    first = books._ticket_secret()
+    second = books._ticket_secret()
+    assert len(first) == 32
+    assert first == second
+    ticket = books.issue_file_ticket("dnd5e/player.pdf")
+    assert books.verify_file_ticket(ticket, "dnd5e/player.pdf")
 
 
 def test_ticket_secret_falls_back_locally(monkeypatch):
@@ -128,4 +151,6 @@ def test_ticket_secret_falls_back_locally(monkeypatch):
     monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
     from backend.routes import books
 
+    books._INSTANCE_TICKET_SECRET = None
+    books._TICKET_FALLBACK_WARNED = False
     assert books._ticket_secret() == b"auto-dm-local-ticket"
