@@ -79,6 +79,7 @@ def _run_brambletrek_ingest(
     force_ocr: bool = False,
     game_id: str = "brambletrek",
     skip_audit: bool = False,
+    skip_upload: bool = False,
 ) -> int:
     from backend.rag.ingest import run_brambletrek_ingest
 
@@ -88,6 +89,7 @@ def _run_brambletrek_ingest(
         use_ocr=use_ocr,
         force_ocr=force_ocr,
         skip_audit=skip_audit,
+        skip_upload=skip_upload,
     )
 
 

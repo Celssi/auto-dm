@@ -177,7 +177,7 @@ def journey_event_stat_preview(event: dict) -> str:
         parts.append("Combat")
     for tag in event.get("tags") or []:
         parts.append(f"({tag.upper()})")
-    return ", ".join(parts) if parts else "—"
+    return ", ".join(parts) if parts else "-"
 
 
 def _resolve_pending_event(
@@ -484,7 +484,7 @@ def draw_character_table(char_id: str, table: str, session_id: str = "") -> dict
         return {
             "card": "",
             "band": "",
-            "message": f"Physical deck — draw a card and enter it for {table}.",
+            "message": f"Physical deck: draw a card and enter it for {table}.",
         }
     result = draw_cards(count=1, game_id=GAME_ID, char_id=char_id)
     if not result.get("ok"):
@@ -590,7 +590,7 @@ def init_dragonkeep_state(session_id: str, char_id: str) -> dict[str, Any]:
     extras = _session_extras(session_id)
     reset_dragonkeep_state(extras)
     extras.pop(PENDING_JOURNEY_KEY, None)
-    log_mechanical(session_id, "Dragonkeep — began the path through the forest.")
+    log_mechanical(session_id, "Dragonkeep: began the path through the forest.")
     return _dragonkeep_response(session_id, char_id, extras)
 
 
@@ -633,7 +633,7 @@ def start_journey_combat(session_id: str, char_id: str, event_index: int) -> dic
     extras[COMBAT_STATE_KEY] = combat_state
     _set_extras(session_id, extras)
     preview = combat_preview_from_context(ctx)
-    log_mechanical(session_id, f"Combat begins — {preview}")
+    log_mechanical(session_id, f"Combat begins: {preview}")
     out: dict[str, Any] = {
         "combat_context": ctx,
         "combat_preview": preview,
@@ -731,7 +731,7 @@ def dragonkeep_action(
 
     if action == "advance_path":
         advance_path(dk)
-        log_mechanical(session_id, f"Dragonkeep path — location {dk.get('path_step', '?')}")
+        log_mechanical(session_id, f"Dragonkeep path: location {dk.get('path_step', '?')}")
     elif action == "draw_path":
         draw = draw_path_card(dk, char_id=char_id, card_source=card_source)
         log_draw(session_id, [draw["card"]], label="Path outcome")
@@ -783,7 +783,7 @@ def dragonkeep_action(
         if fin.get("finale_step") == "dragon" and ctx:
             combat_state = begin_combat(char, ctx, char_id=char_id, mode="aerith_finale")
             extras[COMBAT_STATE_KEY] = combat_state
-        log_mechanical(session_id, f"Finale — {fin.get('finale_step', 'dragon')}.")
+        log_mechanical(session_id, f"Finale: {fin.get('finale_step', 'dragon')}.")
     elif action == "advance_finale_phase":
         fin = advance_finale_phase(dk)
         _set_combat_context(
@@ -802,7 +802,7 @@ def dragonkeep_action(
             extras[COMBAT_STATE_KEY] = combat_state
             for line in lines:
                 log_mechanical(session_id, line.replace("**", ""))
-        log_mechanical(session_id, f"Aerith battle — phase {fin.get('finale_phase')}.")
+        log_mechanical(session_id, f"Aerith battle: phase {fin.get('finale_phase')}.")
 
     elif action == "start_module_combat":
         if event_index < 0:
@@ -812,7 +812,7 @@ def dragonkeep_action(
     elif action == "eolan_ally_draw":
         draw = draw_eolan_ally(dk, char_id=char_id, card_source=card_source)
         log_draw(session_id, [draw["card"]], label="Eolan tactic")
-        summary = f"**Eolan** — {draw.get('label', '')}"
+        summary = f"**Eolan**: {draw.get('label', '')}"
         out = _dragonkeep_response(session_id, char_id, extras)
         out["summary"] = summary
         out["eolan_tactic"] = draw.get("tactic")

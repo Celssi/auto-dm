@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from datetime import datetime, timezone
 
+from backend.dm.prose_style import sanitize_narration_dashes
+
 LOG_TIMESTAMP = re.compile(r"^### (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s*$")
 
 
@@ -13,11 +15,11 @@ def _now() -> str:
 
 
 def format_mechanical(text: str) -> str:
-    return f"@ {_now()} {text.strip()}"
+    return f"@ {_now()} {sanitize_narration_dashes(text.strip())}"
 
 
 def format_narrative(text: str) -> str:
-    lines = [ln.strip() for ln in text.strip().splitlines() if ln.strip()]
+    lines = [sanitize_narration_dashes(ln.strip()) for ln in text.strip().splitlines() if ln.strip()]
     return "\n".join(f"=> {ln}" for ln in lines)
 
 

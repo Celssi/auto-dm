@@ -29,7 +29,8 @@ export default function LoginPage() {
         <div className="space-y-2">
           <h1 className="font-display text-3xl font-semibold text-gradient">Auto-DM</h1>
           <p className="text-sm text-muted">
-            Sign in with Google to continue. Only the allowed account can open this app.
+            Private solo table for D&amp;D 5e 2024 and Brambletrek. Sign in with the allowed Google
+            account.
           </p>
         </div>
         <button

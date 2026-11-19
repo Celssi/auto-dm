@@ -121,6 +121,62 @@ steps:
           echo "Unexpected ticket status $$CODE" >&2
           exit 1
         fi
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    id: ProductionReindex
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        if [ ! -f cloudbuild.reindex ]; then
+          echo "Skipping production reindex (no cloudbuild.reindex marker)"
+          exit 0
+        fi
+        IMAGE="$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA"
+        echo "Deploying Cloud Run job auto-dm-reindex from $$IMAGE"
+        gcloud run jobs deploy auto-dm-reindex \
+          --project="$_AR_PROJECT_ID" \
+          --region="$_DEPLOY_REGION" \
+          --image="$$IMAGE" \
+          --tasks=1 \
+          --parallelism=1 \
+          --max-retries=0 \
+          --task-timeout=10800 \
+          --cpu=4 \
+          --memory=8Gi \
+          --command=python \
+          --args=-m,backend.rag.reindex_job \
+          --set-env-vars="AUTO_DM_BUCKET=$_DATA_BUCKET,GOOGLE_CLOUD_PROJECT=$_AR_PROJECT_ID,HF_HOME=/app/.cache/huggingface" \
+          --quiet
+        echo "Executing auto-dm-reindex (Faerun + Brambletrek). This can take a long time."
+        gcloud run jobs execute auto-dm-reindex \
+          --project="$_AR_PROJECT_ID" \
+          --region="$_DEPLOY_REGION" \
+          --wait
+        echo "Bouncing Cloud Run so chroma hydrates from GCS"
+        gcloud run services update "$_SERVICE_NAME" \
+          --project="$_AR_PROJECT_ID" \
+          --region="$_DEPLOY_REGION" \
+          --update-env-vars="CHROMA_REINDEX_SHA=$COMMIT_SHA" \
+          --quiet
+        URL="$$(gcloud run services describe "$_SERVICE_NAME" --region="$_DEPLOY_REGION" --project="$_AR_PROJECT_ID" --format='value(status.url)')"
+        echo "Waiting for health after bounce"
+        for i in $$(seq 1 36); do
+          BODY="$$(curl -sS "$$URL/api/health" || true)"
+          echo "$$BODY"
+          echo "$$BODY" | grep -q '"indexed":true' && break
+          sleep 10
+        done
+        CODE="$$(curl -sS -o /tmp/ticket-body -w '%{http_code}' "$$URL/api/books/dnd5e/player.pdf/ticket?game_id=dnd5e")"
+        echo "Unauthenticated ticket HTTP $$CODE"
+        if [ "$$CODE" = "500" ]; then
+          echo "Book tickets returned 500 after reindex bounce" >&2
+          exit 1
+        fi
+        if [ "$$CODE" != "401" ] && [ "$$CODE" != "200" ]; then
+          echo "Unexpected ticket status $$CODE after reindex bounce" >&2
+          exit 1
+        fi
 images:
   - >-
     $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA
@@ -138,7 +194,7 @@ availableSecrets:
       env: VITE_FIREBASE_MESSAGING_SENDER_ID
     - versionName: projects/$_AR_PROJECT_ID/secrets/KIRJASTO_FIREBASE_APP_ID/versions/latest
       env: VITE_FIREBASE_APP_ID
-timeout: 3600s
+timeout: 14400s
 options:
   substitutionOption: ALLOW_LOOSE
   logging: CLOUD_LOGGING_ONLY

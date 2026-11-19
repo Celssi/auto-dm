@@ -209,8 +209,10 @@ def preflight_ingest(*, pdf_names: list[str], use_ocr: bool) -> list[str]:
     if use_ocr:
         ocr_needed = any(needs_ocr(pdf_path(name)) for name in pdf_names if pdf_path(name).exists())
         if ocr_needed and not tesseract_available():
-            errors.append(
-                "Tesseract OCR not installed (needed for scanned PDFs). Run: brew install tesseract"
+            print(
+                "PREFLIGHT WARNING: Tesseract OCR is not installed. "
+                "Indexing layout text only (PyMuPDF / pypdf).",
+                file=sys.stderr,
             )
 
     return errors
@@ -225,6 +227,7 @@ def run_ingest(
     force_ocr: bool = False,
     game_id: str = "dnd5e",
     skip_audit: bool = False,
+    skip_upload: bool = False,
 ) -> int:
     from backend.games.registry import get_game
 
@@ -238,6 +241,7 @@ def run_ingest(
             force_ocr=force_ocr,
             game_id=game_id,
             skip_audit=skip_audit,
+            skip_upload=skip_upload,
         )
 
     pdf_sources = get_pdf_sources()
@@ -316,7 +320,10 @@ def run_ingest(
     print(f"Done. Index '{COLLECTION_NAME}' stored in {CHROMA_DIR}")
     from backend.gcs_sync import upload_chroma
 
-    upload_chroma()
+    if skip_upload:
+        print("GCS chroma upload: deferred")
+    else:
+        upload_chroma()
     if not skip_audit:
         _build_glossary_after_ingest()
         return _audit_dnd5e_curated_after_ingest(skip_pdf=True)
@@ -344,12 +351,14 @@ def run_brambletrek_ingest(
     use_ocr: bool = True,
     force_ocr: bool = False,
     skip_audit: bool = False,
+    skip_upload: bool = False,
 ) -> int:
     return _run_brambletrek_ingest(
         reset=reset,
         use_ocr=use_ocr,
         force_ocr=force_ocr,
         skip_audit=skip_audit,
+        skip_upload=skip_upload,
     )
 
 
@@ -359,6 +368,7 @@ def _run_brambletrek_ingest(
     use_ocr: bool = True,
     force_ocr: bool = False,
     skip_audit: bool = False,
+    skip_upload: bool = False,
 ) -> int:
     from backend.games.brambletrek.rag_config import COLLECTION, MVP_PDFS, get_pdf_sources
 
@@ -421,7 +431,10 @@ def _run_brambletrek_ingest(
     print(f"Done. Index '{collection_name}' stored in {CHROMA_DIR}")
     from backend.gcs_sync import upload_chroma
 
-    upload_chroma()
+    if skip_upload:
+        print("GCS chroma upload: deferred")
+    else:
+        upload_chroma()
     if skip_audit:
         print("Curated audit: skipped")
         return 0

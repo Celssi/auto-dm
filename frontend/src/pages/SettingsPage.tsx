@@ -146,13 +146,15 @@ export default function SettingsPage() {
           <h2 className="display-title text-base">Player</h2>
         </div>
         <p className="text-sm text-muted leading-relaxed">
-          These options change how rules search behaves while you play.
+          These options are defaults. You can still turn Faerun books on or off when you start a
+          session.
         </p>
         {gameId === 'dnd5e' && (
           <Toggle
             checked={settings.include_faerun}
             onChange={(include_faerun) => setSettings({ ...settings, include_faerun })}
             label="Include Heroes of Faerûn and Adventures in Faerûn in rules search"
+            description="Default for new D&D sessions. Forgotten Realms names and adventures stay out of search unless this is on."
           />
         )}
         <button type="button" className="btn-primary" onClick={save}>
@@ -172,6 +174,7 @@ export default function SettingsPage() {
           checked={settings.use_rerank}
           onChange={(use_rerank) => setSettings({ ...settings, use_rerank })}
           label="Use cross-encoder reranking (Quality+)"
+          description="Slower rules search, better ranking. Leave on unless a search is hanging."
         />
         <button type="button" className="btn-ghost" onClick={save}>
           Save admin settings

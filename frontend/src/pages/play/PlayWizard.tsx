@@ -62,7 +62,10 @@ export default function PlayWizard({
         title="Generating campaign"
         message="Keep this tab open. Heartbeats keep Cloud Run from scaling to zero."
       />
-      <PageHeader title="Play" subtitle="Continue an existing session or generate a new campaign." />
+      <PageHeader
+        title="Play"
+        subtitle="Continue a session, or generate a campaign from a character and a theme."
+      />
 
       <TabBar
         tabs={[
@@ -93,7 +96,6 @@ export default function PlayWizard({
         )}
         {wizardTab === 'new' && (
           <PlayNewCampaignTab
-            metaLoaded={metaLoaded}
             characters={characters}
             newCampaign={newCampaign}
             campaignPlay={campaignPlay}
@@ -193,6 +195,7 @@ function PlayContinueTab({
               checked={includeFaerun}
               onChange={onIncludeFaerunChange}
               label="Include Faerûn supplements in rules search"
+              description="On: Forgotten Realms books can answer rules questions. Off: PHB, DMG, and Monster Manual only."
             />
           )}
           <button
@@ -210,7 +213,6 @@ function PlayContinueTab({
 }
 
 function PlayNewCampaignTab({
-  metaLoaded,
   characters,
   newCampaign,
   campaignPlay,
@@ -219,7 +221,6 @@ function PlayNewCampaignTab({
   onPatchNewCampaign,
   onBootstrapAndPlay,
 }: {
-  metaLoaded: boolean;
   characters: PlayState['characters'];
   newCampaign: PlayState['newCampaign'];
   campaignPlay: ReturnType<typeof getGamePlayConfig>;
@@ -276,7 +277,8 @@ function PlayNewCampaignTab({
       className="panel-glow p-5 space-y-4"
     >
       <p className="text-sm text-muted leading-relaxed">
-        Generate a campaign, adventure, journal entries, and opening scene, then jump straight into play.
+        Generate a campaign, adventure, journal entries, and opening scene, then jump into play. Keep
+        this tab open while it generates (about 30-60 s).
       </p>
       {characters.length === 0 && (
         <p className="text-sm text-muted rounded-lg border border-border bg-bg/40 px-3 py-2">
@@ -287,7 +289,7 @@ function PlayNewCampaignTab({
           , then come back here.
         </p>
       )}
-      <Field label="Character">
+      <Field label="Character" hint="The hero the DM follows. Create one from Characters if the list is empty.">
         <ChoiceGroup
           value={newCampaign.character_id}
           onChange={(character_id) => onPatchNewCampaign({ character_id })}
@@ -300,25 +302,20 @@ function PlayNewCampaignTab({
           columns={2}
         />
       </Field>
-      {metaLoaded && characters.length === 0 && (
-        <p className="text-xs text-muted">
-          <Link to="/characters" className="text-accent hover:underline">
-            Create a character
-          </Link>{' '}
-          first.
-        </p>
-      )}
-      <Field label="Campaign type">
+      <Field
+        label="Campaign type"
+        hint="Freeform invents a story from your theme. Book module also searches adventure text from the indexed books."
+      >
         <SegmentedControl
           value={newCampaign.mode}
           onChange={(mode) => onPatchNewCampaign({ mode: mode as PlayMode })}
           options={[
             { value: 'freeform', label: 'Freeform' },
-            { value: 'module', label: 'Module (RAG)' },
+            { value: 'module', label: 'Book module' },
           ]}
         />
       </Field>
-      <Field label="Theme / hook">
+      <Field label="Theme / hook" hint="One sentence is enough. Example: a haunted mine near Waterdeep.">
         <TextArea
           placeholder="e.g. A haunted mine near Waterdeep"
           value={newCampaign.theme}
@@ -337,7 +334,8 @@ function PlayNewCampaignTab({
         <Toggle
           checked={newCampaign.include_faerun}
           onChange={(include_faerun) => onPatchNewCampaign({ include_faerun })}
-          label="Use Faerûn supplements (Heroes & Adventures)"
+          label="Use Faerûn supplements (Heroes and Adventures)"
+          description="Turn on only if this campaign is set in the Forgotten Realms. This session setting is not overwritten by Settings later."
         />
       )}
       {bootstrapError && (
