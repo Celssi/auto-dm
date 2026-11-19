@@ -77,6 +77,7 @@ def shortcuts_for_character(char: dict | None) -> list[dict[str, str]]:
     allowed = ALWAYS_SHORTCUTS | extra
     return [row for row in SHORTCUTS if row["id"] in allowed]
 
+
 SHORTCUT_IDS = frozenset(s["id"] for s in SHORTCUTS)
 
 

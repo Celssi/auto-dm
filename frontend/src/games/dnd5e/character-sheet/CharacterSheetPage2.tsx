@@ -1,3 +1,4 @@
+import { useRef } from 'react';
 import type { Character } from '../../../types';
 import { displayLabel, EMPTY_FIELD } from '../../../lib/displayText';
 import GlossaryTip from '../../../components/ui/GlossaryTip';
@@ -114,6 +115,62 @@ function Page2Gear({
   );
 }
 
+type SheetWeapon = Character['weapons'][number];
+
+function alignRowIds(rowIds: { current: string[] }, count: number) {
+  if (rowIds.current.length >= count) return;
+  const extra = Array.from({ length: count - rowIds.current.length }, () => crypto.randomUUID());
+  rowIds.current = [...rowIds.current, ...extra];
+}
+
+function WeaponNameEditor({ weapons, onPatch }: { weapons: SheetWeapon[]; onPatch: (p: Partial<Character>) => void }) {
+  const rowIds = useRef<string[]>([]);
+  alignRowIds(rowIds, weapons.length);
+  const rows = weapons.map((weapon, index) => ({ weapon, index, id: rowIds.current[index] }));
+
+  return (
+    <div className="space-y-2">
+      <span className="sheet-label">Weapons</span>
+      {rows.map((row) => (
+        <div key={row.id} className="flex gap-2">
+          <input
+            className="sheet-value-input flex-1"
+            value={row.weapon.name}
+            onChange={(e) => {
+              const next = [...weapons];
+              next[row.index] = { ...row.weapon, name: e.target.value };
+              onPatch({ weapons: next });
+            }}
+            aria-label={`Weapon ${row.index + 1} name`}
+          />
+          <button
+            type="button"
+            className="btn-ghost text-xs"
+            onClick={() => {
+              rowIds.current = rowIds.current.filter((_, i) => i !== row.index);
+              onPatch({ weapons: weapons.filter((_, i) => i !== row.index) });
+            }}
+          >
+            Remove
+          </button>
+        </div>
+      ))}
+      <button
+        type="button"
+        className="btn-ghost text-xs"
+        onClick={() => {
+          rowIds.current = [...rowIds.current, crypto.randomUUID()];
+          onPatch({
+            weapons: [...weapons, { name: '', damage: '', damage_type: '', ability: 'str' }],
+          });
+        }}
+      >
+        Add weapon
+      </button>
+    </div>
+  );
+}
+
 function Page2Equipment({
   character: c,
   editable,
@@ -147,41 +204,7 @@ function Page2Equipment({
               aria-label="Carried items"
             />
           </label>
-          <div className="space-y-2">
-            <span className="sheet-label">Weapons</span>
-            {(c.weapons || []).map((weapon, index) => (
-              <div key={`${weapon.name}-${index}`} className="flex gap-2">
-                <input
-                  className="sheet-value-input flex-1"
-                  value={weapon.name}
-                  onChange={(e) => {
-                    const next = [...(c.weapons || [])];
-                    next[index] = { ...weapon, name: e.target.value };
-                    onPatch({ weapons: next });
-                  }}
-                  aria-label={`Weapon ${index + 1} name`}
-                />
-                <button
-                  type="button"
-                  className="btn-ghost text-xs"
-                  onClick={() => onPatch({ weapons: (c.weapons || []).filter((_, i) => i !== index) })}
-                >
-                  Remove
-                </button>
-              </div>
-            ))}
-            <button
-              type="button"
-              className="btn-ghost text-xs"
-              onClick={() =>
-                onPatch({
-                  weapons: [...(c.weapons || []), { name: '', damage: '', damage_type: '', ability: 'str' }],
-                })
-              }
-            >
-              Add weapon
-            </button>
-          </div>
+          <WeaponNameEditor weapons={c.weapons || []} onPatch={onPatch} />
         </div>
       ) : items.length ? (
         <ul className="space-y-1 text-sm text-gray-300">

@@ -41,13 +41,7 @@ export default function CharacterSheetPage1({ character: c, editable, onChange, 
     <div className="space-y-4">
       {!hideHeader && <CharacterSheetHeader character={c} editable={editable} onChange={onChange} />}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Page1Abilities
-          scores={scores}
-          character={c}
-          saves={saves}
-          editable={editable}
-          onPatch={patch}
-        />
+        <Page1Abilities scores={scores} character={c} saves={saves} editable={editable} onPatch={patch} />
         <Page1Skills character={c} profs={profs} />
         <div className="lg:col-span-4 space-y-4">
           <Page1Combat
@@ -148,6 +142,84 @@ function Page1Skills({ character: c, profs }: { character: Character; profs: Set
   );
 }
 
+function shownArmorClass(character: Character, computedAc: number) {
+  if (!character.ac_manual) return computedAc;
+  return Number(character.ac ?? computedAc);
+}
+
+function CombatArmorFields({
+  character: c,
+  shownAc,
+  onPatch,
+}: {
+  character: Character;
+  shownAc: number;
+  onPatch: (p: Partial<Character>) => void;
+}) {
+  return (
+    <div className="space-y-2 mb-3">
+      <label className="block">
+        <span className="sheet-label">Worn armor</span>
+        <select
+          className="select w-full mt-1"
+          value={String(c.armor || 'none')}
+          onChange={(e) =>
+            onPatch({
+              armor: e.target.value,
+              ac_manual: false,
+              ac: computeAcDetails({ ...c, armor: e.target.value, ac_manual: false }).ac,
+            })
+          }
+          aria-label="Worn armor"
+        >
+          {ARMOR_CATALOG.map((row) => (
+            <option key={row.id} value={row.id}>
+              {row.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex items-center gap-2 text-sm text-gray-300">
+        <input
+          type="checkbox"
+          className="rounded border-border"
+          checked={Boolean(c.shield)}
+          onChange={(e) =>
+            onPatch({
+              shield: e.target.checked,
+              ac_manual: false,
+              ac: computeAcDetails({ ...c, shield: e.target.checked, ac_manual: false }).ac,
+            })
+          }
+        />
+        Shield (+2 AC)
+      </label>
+      <label className="flex items-center gap-2 text-sm text-gray-300">
+        <input
+          type="checkbox"
+          className="rounded border-border"
+          checked={Boolean(c.ac_manual)}
+          onChange={(e) => onPatch({ ac_manual: e.target.checked, ac: shownAc })}
+        />
+        Set AC manually
+      </label>
+      {c.ac_manual ? (
+        <input
+          type="number"
+          min={1}
+          max={30}
+          className="w-20 bg-transparent border-b border-border focus:border-accent/40 text-lg font-semibold"
+          value={shownAc}
+          onChange={(e) =>
+            onPatch({ ac: Math.max(1, Math.min(30, parseInt(e.target.value, 10) || 10)), ac_manual: true })
+          }
+          aria-label="Armor Class"
+        />
+      ) : null}
+    </div>
+  );
+}
+
 function Page1Combat({
   character: c,
   editable,
@@ -162,79 +234,17 @@ function Page1Combat({
   onPatch: (p: Partial<Character>) => void;
 }) {
   const ac = computeAcDetails(c);
-  const shownAc = c.ac_manual ? Number(c.ac ?? ac.ac) : ac.ac;
+  const shownAc = shownArmorClass(c, ac.ac);
+  const speed = c.speed_effective ?? c.speed ?? 30;
   return (
     <SheetSection title="Combat">
       <div className="grid grid-cols-3 gap-2 mb-3">
         <CombatStat label="Armor Class" value={String(shownAc)} accent tipId="armor-class" />
         <CombatStat label="Initiative" value={formatMod(initiativeMod(c))} tipId="initiative" />
-        <CombatStat
-          label="Speed"
-          value={`${c.speed_effective ?? c.speed ?? 30} ft`}
-          tipId="speed"
-        />
+        <CombatStat label="Speed" value={`${speed} ft`} tipId="speed" />
       </div>
       <p className="text-[11px] text-muted mb-3 leading-relaxed">{ac.formula}</p>
-      {editable && (
-        <div className="space-y-2 mb-3">
-          <label className="block">
-            <span className="sheet-label">Worn armor</span>
-            <select
-              className="select w-full mt-1"
-              value={String(c.armor || 'none')}
-              onChange={(e) =>
-                onPatch({
-                  armor: e.target.value,
-                  ac_manual: false,
-                  ac: computeAcDetails({ ...c, armor: e.target.value, ac_manual: false }).ac,
-                })
-              }
-              aria-label="Worn armor"
-            >
-              {ARMOR_CATALOG.map((row) => (
-                <option key={row.id} value={row.id}>
-                  {row.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex items-center gap-2 text-sm text-gray-300">
-            <input
-              type="checkbox"
-              className="rounded border-border"
-              checked={Boolean(c.shield)}
-              onChange={(e) =>
-                onPatch({
-                  shield: e.target.checked,
-                  ac_manual: false,
-                  ac: computeAcDetails({ ...c, shield: e.target.checked, ac_manual: false }).ac,
-                })
-              }
-            />
-            Shield (+2 AC)
-          </label>
-          <label className="flex items-center gap-2 text-sm text-gray-300">
-            <input
-              type="checkbox"
-              className="rounded border-border"
-              checked={Boolean(c.ac_manual)}
-              onChange={(e) => onPatch({ ac_manual: e.target.checked, ac: shownAc })}
-            />
-            Set AC manually
-          </label>
-          {c.ac_manual && (
-            <input
-              type="number"
-              min={1}
-              max={30}
-              className="w-20 bg-transparent border-b border-border focus:border-accent/40 text-lg font-semibold"
-              value={shownAc}
-              onChange={(e) => onPatch({ ac: Math.max(1, Math.min(30, parseInt(e.target.value, 10) || 10)), ac_manual: true })}
-              aria-label="Armor Class"
-            />
-          )}
-        </div>
-      )}
+      {editable ? <CombatArmorFields character={c} shownAc={shownAc} onPatch={onPatch} /> : null}
       <SheetField
         label="Hit Points"
         value={`${c.hp ?? 0} / ${c.max_hp ?? 0}`}

@@ -9,6 +9,7 @@ corners), maskable icons with art in the central 80% on a full-bleed tile colour
 apple-touch 180px opaque, favicon.ico at 16/32/48. Favicons use a tighter crop
 around the hedgehog so 16-32px sizes stay readable.
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -18,7 +19,7 @@ from PIL import Image, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parent.parent
 SOURCE = ROOT / "assets" / "brand" / "hedgehog-source.png"
-PUBLIC = ROOT / 'frontend/public'
+PUBLIC = ROOT / "frontend/public"
 ICONS = PUBLIC / "icons"
 APP_DIR = ROOT / "src" / "app"
 ANY_SIZES = [48, 72, 96, 128, 144, 152, 192, 256, 384, 512]
@@ -26,9 +27,12 @@ MASKABLE_SIZES = [192, 512]
 RADIUS = 0.22
 # Optional extra copies with app-specific filenames (e.g. Libris icon-192.png).
 EXTRA_ANY = []
-EXTRA_MASKABLE = [(192, 'frontend/public/icons/icon-192x192-maskable.png'), (512, 'frontend/public/icons/icon-512x512-maskable.png')]
-APPLE_PATHS = ['frontend/public/icons/apple-touch-icon.png']
-ICO_PATHS = ['frontend/public/favicon.ico']
+EXTRA_MASKABLE = [
+    (192, "frontend/public/icons/icon-192x192-maskable.png"),
+    (512, "frontend/public/icons/icon-512x512-maskable.png"),
+]
+APPLE_PATHS = ["frontend/public/icons/apple-touch-icon.png"]
+ICO_PATHS = ["frontend/public/favicon.ico"]
 ICON_PNG_PATHS = []
 
 
@@ -109,7 +113,9 @@ def square_crop(img: Image.Image, bbox) -> Image.Image:
 def main() -> None:
     src = Image.open(SOURCE).convert("RGB")
     s = min(src.size)
-    src = src.crop(((src.width - s) // 2, (src.height - s) // 2, (src.width + s) // 2, (src.height + s) // 2))
+    src = src.crop(
+        ((src.width - s) // 2, (src.height - s) // 2, (src.width + s) // 2, (src.height + s) // 2)
+    )
     if s != 1024:
         src = src.resize((1024, 1024), Image.Resampling.LANCZOS)
     cream = cream_of(src)

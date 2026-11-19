@@ -51,15 +51,19 @@ export default function SettingsPage() {
     try {
       const result: { ok?: boolean; chunk_count?: number } = {};
       let streamError = '';
-      await api.reindex(includeFaerun, (event, data) => {
-        if (event === 'progress' && data && typeof data === 'object' && 'message' in data) {
-          setIndexStatus(String((data as { message: string }).message));
-        } else if (event === 'done' && data && typeof data === 'object') {
-          Object.assign(result, data);
-        } else if (event === 'error' && data && typeof data === 'object' && 'detail' in data) {
-          streamError = String((data as { detail: string }).detail);
-        }
-      }, confirmDropFaerun);
+      await api.reindex(
+        includeFaerun,
+        (event, data) => {
+          if (event === 'progress' && data && typeof data === 'object' && 'message' in data) {
+            setIndexStatus(String((data as { message: string }).message));
+          } else if (event === 'done' && data && typeof data === 'object') {
+            Object.assign(result, data);
+          } else if (event === 'error' && data && typeof data === 'object' && 'detail' in data) {
+            streamError = String((data as { detail: string }).detail);
+          }
+        },
+        confirmDropFaerun,
+      );
       if (streamError) throw new Error(streamError);
       const ok = Boolean(result.ok);
       const msg = ok ? `Indexed ${result.chunk_count ?? 0} chunks` : 'Indexing failed';
@@ -144,8 +148,8 @@ export default function SettingsPage() {
           Save admin settings
         </button>
         <p className="text-sm text-muted leading-relaxed">
-          Index core only removes Heroes of Faerun and Adventures in Faerun from the index. Prefer Index
-          core + Faerun unless you intend to drop those books.
+          Index core only removes Heroes of Faerun and Adventures in Faerun from the index. Prefer Index core + Faerun
+          unless you intend to drop those books.
         </p>
         <div className="flex flex-wrap gap-2">
           <button

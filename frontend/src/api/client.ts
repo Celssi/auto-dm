@@ -371,11 +371,7 @@ export const api = {
       body: JSON.stringify({ question, include_faerun }),
     }),
   reindex: (include_faerun = false, onEvent?: StreamHandler, confirmDropFaerun = false) =>
-    readSse(
-      '/index/reindex',
-      { include_faerun, confirm_drop_faerun: confirmDropFaerun },
-      onEvent ?? (() => undefined),
-    ),
+    readSse('/index/reindex', { include_faerun, confirm_drop_faerun: confirmDropFaerun }, onEvent ?? (() => undefined)),
   getGlossary: () => request<{ count: number; entries: Record<string, unknown> }>('/glossary'),
   lookupGlossary: (names: string[], use_rag = true) =>
     request<{

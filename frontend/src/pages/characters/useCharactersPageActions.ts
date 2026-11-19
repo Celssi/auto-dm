@@ -46,7 +46,7 @@ export function useCharactersPageActions(
       dispatch({
         type: 'set',
         patch: {
-          character: ((sum.character || c) as Character),
+          character: (sum.character || c) as Character,
           summary: sum.summary,
           activeId: id,
           error: null,

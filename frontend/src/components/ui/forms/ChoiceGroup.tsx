@@ -95,7 +95,9 @@ function ChoiceOptionGrid({
         const chip = (
           <ChoiceChip active={value === opt.value} onClick={() => onChange(opt.value)}>
             <span className="block">{optionLabel(opt)}</span>
-            {opt.description && <span className="block text-[11px] text-muted mt-0.5 leading-snug">{opt.description}</span>}
+            {opt.description && (
+              <span className="block text-[11px] text-muted mt-0.5 leading-snug">{opt.description}</span>
+            )}
           </ChoiceChip>
         );
         if (!shouldShowGlossary(opt)) {

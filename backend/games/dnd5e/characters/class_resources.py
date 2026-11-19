@@ -17,14 +17,7 @@ _SECOND_WIND_BY_FIGHTER_LEVEL = (
 
 
 def _norm_item(name: str) -> str:
-    return (
-        str(name or "")
-        .strip()
-        .lower()
-        .replace("'", "")
-        .replace("_", " ")
-        .replace("-", " ")
-    )
+    return str(name or "").strip().lower().replace("'", "").replace("_", " ").replace("-", " ")
 
 
 def fighter_level(char: Dnd5eCharacter) -> int:
@@ -102,9 +95,10 @@ def compute_ac_details(char: Dnd5eCharacter) -> dict[str, Any]:
             if added:
                 parts.append({"label": f"Dexterity (max +{cap})", "value": added})
         # heavy armor adds no DEX
-        if (
-            str(char.fighting_style_feat or "").strip().lower() == "defense"
-            and category in ("light", "medium", "heavy")
+        if str(char.fighting_style_feat or "").strip().lower() == "defense" and category in (
+            "light",
+            "medium",
+            "heavy",
         ):
             computed += 1
             parts.append({"label": "Defense", "value": 1})

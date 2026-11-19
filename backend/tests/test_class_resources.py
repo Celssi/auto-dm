@@ -30,7 +30,9 @@ def _larry() -> Dnd5eCharacter:
         versatile_origin_feat="alert",
         starting_gear_choice="heavy",
         armor="chain_mail",
-        weapons=[{"name": "Greatsword", "damage": "2d6", "damage_type": "slashing", "ability": "str"}],
+        weapons=[
+            {"name": "Greatsword", "damage": "2d6", "damage_type": "slashing", "ability": "str"}
+        ],
         inventory=["Dungeoneer's Pack", "Flail", "Javelins (8)"],
         ability_scores={"str": 17, "dex": 12, "con": 14, "int": 14, "wis": 10, "cha": 8},
         ability_scores_set=True,
@@ -65,17 +67,20 @@ def test_second_wind_max_fighter_1():
 
 
 def test_shortcuts_hide_cast_spell_and_lucky_for_fighter():
-    ids = {row["id"] for row in shortcuts_for_character(
-        {
-            "class_name": "fighter",
-            "level": 1,
-            "origin_feat": "savage_attacker",
-            "cantrips": [],
-            "prepared_spells": [],
-            "known_spells": [],
-            "spell_slots": {},
-        }
-    )}
+    ids = {
+        row["id"]
+        for row in shortcuts_for_character(
+            {
+                "class_name": "fighter",
+                "level": 1,
+                "origin_feat": "savage_attacker",
+                "cantrips": [],
+                "prepared_spells": [],
+                "known_spells": [],
+                "spell_slots": {},
+            }
+        )
+    }
     assert "ability_check" in ids
     assert "second_wind" in ids
     assert "savage_attacker" in ids

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Bookmark, BookmarkCheck, ChevronLeft, ChevronRight, Library, Minus, Plus, X } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { Document, Page, pdfjs } from 'react-pdf';
@@ -103,6 +103,301 @@ function BookPicker({ books, onOpen }: { books: BookMeta[]; onOpen: (id: string)
   );
 }
 
+async function openBookPdf(bookId: string, gameId: string) {
+  let url = api.bookFileUrl(bookId, gameId);
+  let headers: Record<string, string> | undefined;
+  try {
+    const { ticket } = await api.createBookFileTicket(bookId, gameId);
+    url = api.bookFileUrl(bookId, gameId, ticket);
+  } catch {
+    const token = await getAuthToken();
+    if (token) headers = { Authorization: `Bearer ${token}` };
+  }
+  return createRangedPdfSource(url, headers);
+}
+
+function usePdfTransport(bookId: string, gameId: string, retryNonce: number) {
+  const [file, setFile] = useState<RangedPdfTransport | null>(null);
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const [pageCount, setPageCount] = useState<number | null>(null);
+  const [loadError, setLoadError] = useState(false);
+  const [loadErrorDetail, setLoadErrorDetail] = useState('');
+  const [timedOut, setTimedOut] = useState(false);
+  const [docReady, setDocReady] = useState(false);
+  const [startedAt, setStartedAt] = useState(() => Date.now());
+  const requestKey = `${bookId}:${gameId}:${retryNonce}`;
+
+  useEffect(() => {
+    let cancelled = false;
+    const transportRef: { current: RangedPdfTransport | null } = { current: null };
+    void openBookPdf(bookId, gameId)
+      .then((next) => {
+        if (cancelled) {
+          next.close();
+          return;
+        }
+        transportRef.current = next;
+        setFile(next);
+        setLoadError(false);
+        setLoadErrorDetail('');
+        setPageCount(null);
+        setDocReady(false);
+        setTimedOut(false);
+        setStartedAt(Date.now());
+        setLoadedKey(requestKey);
+      })
+      .catch((error: unknown) => {
+        console.error(error);
+        if (cancelled) return;
+        setLoadError(true);
+        setLoadErrorDetail(error instanceof Error ? error.message : 'Could not open this PDF.');
+        setLoadedKey(requestKey);
+      });
+    return () => {
+      cancelled = true;
+      transportRef.current?.close();
+    };
+  }, [bookId, gameId, requestKey]);
+
+  const visibleFile = loadedKey === requestKey ? file : null;
+  const visibleError = loadedKey === requestKey && loadError;
+  const visiblePageCount = loadedKey === requestKey ? pageCount : null;
+
+  return {
+    visibleFile,
+    visibleError,
+    visiblePageCount,
+    loadErrorDetail,
+    timedOut,
+    setTimedOut,
+    docReady,
+    startedAt,
+    markLoaded(numPages: number) {
+      setPageCount(numPages);
+      setDocReady(true);
+      setTimedOut(false);
+    },
+  };
+}
+
+function useLoadElapsed(active: boolean, startedAt: number, onTimeout: (timedOut: boolean) => void) {
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (!active) return;
+    const tick = window.setInterval(() => {
+      const seconds = Math.round((Date.now() - startedAt) / 1000);
+      setElapsed(seconds);
+      if (seconds >= 30) onTimeout(true);
+    }, 500);
+    return () => window.clearInterval(tick);
+  }, [active, startedAt, onTimeout]);
+  return elapsed;
+}
+
+function useFrameWidth() {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(640);
+  useEffect(() => {
+    const node = frameRef.current;
+    if (!node) return;
+    const update = () => setWidth(Math.max(280, node.clientWidth - 24));
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, []);
+  return { frameRef, width };
+}
+
+function pdfStatusLabel(prefix: string, elapsed: number, slowHint: boolean) {
+  const timer = elapsed ? ` (${elapsed}s)` : '…';
+  const hint = slowHint && elapsed >= 8 ? '. Large books can take 10-30 seconds.' : '';
+  return `${prefix}${timer}${hint}`;
+}
+
+function PdfToolbar({
+  page,
+  maxPrinted,
+  knownTotal,
+  scale,
+  onPage,
+  onScale,
+}: {
+  page: number;
+  maxPrinted: number;
+  knownTotal: boolean;
+  scale: number;
+  onPage: (page: number) => void;
+  onScale: (next: number) => void;
+}) {
+  const go = (next: number) => onPage(Math.min(maxPrinted, Math.max(1, next)));
+  return (
+    <div className="shrink-0 border-b border-border bg-panel px-3 py-2 flex flex-wrap items-center gap-2">
+      <button
+        type="button"
+        className="btn-ghost min-h-11 px-3"
+        disabled={page <= 1}
+        onClick={() => go(page - 1)}
+        aria-label="Previous page"
+      >
+        <ChevronLeft size={18} />
+      </button>
+      <label className="text-xs text-muted inline-flex items-center gap-2">
+        Page
+        <input
+          type="number"
+          min={1}
+          max={maxPrinted}
+          value={page}
+          onChange={(event) => go(Number(event.target.value) || 1)}
+          className="w-16 min-h-11 rounded-lg border border-border bg-bg px-2 text-sm text-gray-100"
+        />
+        of {knownTotal ? maxPrinted : '…'}
+      </label>
+      <button
+        type="button"
+        className="btn-ghost min-h-11 px-3"
+        disabled={page >= maxPrinted}
+        onClick={() => go(page + 1)}
+        aria-label="Next page"
+      >
+        <ChevronRight size={18} />
+      </button>
+      <div className="ml-auto flex items-center gap-1">
+        <button
+          type="button"
+          className="btn-ghost min-h-11 px-3"
+          onClick={() => onScale(Math.max(0.6, Math.round((scale - 0.1) * 10) / 10))}
+          aria-label="Zoom out"
+        >
+          <Minus size={16} />
+        </button>
+        <span className="text-xs text-muted w-10 text-center">{Math.round(scale * 100)}%</span>
+        <button
+          type="button"
+          className="btn-ghost min-h-11 px-3"
+          onClick={() => onScale(Math.min(2.4, Math.round((scale + 0.1) * 10) / 10))}
+          aria-label="Zoom in"
+        >
+          <Plus size={16} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PdfRetry({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className="p-6 text-center space-y-3 max-w-md">
+      <p className="text-sm text-danger">{message}</p>
+      <button type="button" className="btn-primary" onClick={onRetry}>
+        Retry
+      </button>
+    </div>
+  );
+}
+
+function PdfStage({
+  frameRef,
+  visibleError,
+  timedOut,
+  loadErrorDetail,
+  visibleFile,
+  documentFile,
+  documentOptions,
+  elapsed,
+  pdfPage,
+  visiblePageCount,
+  width,
+  scale,
+  onRetry,
+  onLoaded,
+}: {
+  frameRef: RefObject<HTMLDivElement | null>;
+  visibleError: boolean;
+  timedOut: boolean;
+  loadErrorDetail: string;
+  visibleFile: RangedPdfTransport | null;
+  documentFile: { range: RangedPdfTransport } | null;
+  documentOptions: { disableAutoFetch: boolean; disableStream: boolean };
+  elapsed: number;
+  pdfPage: number;
+  visiblePageCount: number | null;
+  width: number;
+  scale: number;
+  onRetry: () => void;
+  onLoaded: (numPages: number) => void;
+}) {
+  let body = <p className="text-sm text-muted p-6">{pdfStatusLabel('Preparing reader', elapsed, false)}</p>;
+  if (visibleError || timedOut) {
+    const message =
+      timedOut && !visibleError
+        ? 'This PDF is taking a long time to load. Large books can take 10-30 seconds.'
+        : loadErrorDetail || 'Could not load this PDF.';
+    body = <PdfRetry message={message} onRetry={onRetry} />;
+  } else if (visibleFile && documentFile) {
+    body = (
+      <Document
+        file={documentFile}
+        options={documentOptions}
+        suspense={false}
+        loading={<p className="text-sm text-muted p-6">{pdfStatusLabel('Loading PDF', elapsed, true)}</p>}
+        error={<PdfRetry message="Could not load this PDF." onRetry={onRetry} />}
+        onLoadSuccess={({ numPages }) => onLoaded(numPages)}
+      >
+        <Page
+          pageNumber={Math.min(pdfPage, visiblePageCount || pdfPage)}
+          width={width}
+          scale={scale}
+          loading={<p className="text-sm text-muted p-6">Rendering page…</p>}
+        />
+      </Document>
+    );
+  }
+
+  return (
+    <div ref={frameRef} className="flex-1 min-h-0 overflow-auto bg-bg-elevated">
+      <div className="flex justify-center py-3">{body}</div>
+    </div>
+  );
+}
+
+function PdfBookmarks({
+  bookmarks,
+  page,
+  onJump,
+}: {
+  bookmarks: BookBookmark[];
+  page: number;
+  onJump: (bookmark: BookBookmark) => void;
+}) {
+  if (bookmarks.length === 0) return null;
+  return (
+    <aside className="shrink-0 md:w-64 border-t md:border-t-0 md:border-l border-border bg-panel p-3 max-h-40 md:max-h-none overflow-y-auto">
+      <p className="label-text mb-2 inline-flex items-center gap-1.5">
+        <Library size={12} /> Bookmarks
+      </p>
+      <ul className="space-y-1">
+        {bookmarks
+          .toSorted((a, b) => a.page - b.page)
+          .map((mark) => (
+            <li key={mark.id}>
+              <button
+                type="button"
+                className={`w-full text-left rounded-lg px-3 py-2 text-sm min-h-11 ${
+                  mark.page === page ? 'bg-accent/15 text-accent' : 'text-gray-200 hover:bg-panel-hover'
+                }`}
+                onClick={() => onJump(mark)}
+              >
+                {mark.label || `p. ${mark.page}`}
+              </button>
+            </li>
+          ))}
+      </ul>
+    </aside>
+  );
+}
+
 function PdfPages({
   book,
   page,
@@ -117,93 +412,24 @@ function PdfPages({
   onJump: (bookmark: BookBookmark) => void;
 }) {
   const { gameId } = useGame();
-  const [file, setFile] = useState<RangedPdfTransport | null>(null);
-  const [loadedKey, setLoadedKey] = useState<string | null>(null);
-  const [pageCount, setPageCount] = useState<number | null>(null);
-  const [loadError, setLoadError] = useState(false);
-  const [loadErrorDetail, setLoadErrorDetail] = useState('');
   const [scale, setScale] = useState(1);
-  const [width, setWidth] = useState(640);
   const [retryNonce, setRetryNonce] = useState(0);
-  const [startedAt, setStartedAt] = useState(() => Date.now());
-  const [elapsed, setElapsed] = useState(0);
-  const [timedOut, setTimedOut] = useState(false);
-  const [docReady, setDocReady] = useState(false);
-  const frameRef = useRef<HTMLDivElement>(null);
-  const requestKey = `${book.id}:${gameId}:${retryNonce}`;
-  const visibleFile = loadedKey === requestKey ? file : null;
-  const visibleError = loadedKey === requestKey && loadError;
-  const visiblePageCount = loadedKey === requestKey ? pageCount : null;
+  const transport = usePdfTransport(book.id, gameId, retryNonce);
+  const { frameRef, width } = useFrameWidth();
+  const waiting = !transport.docReady && !transport.visibleError && !transport.timedOut;
+  const elapsed = useLoadElapsed(waiting, transport.startedAt, transport.setTimedOut);
   const pdfPage = printedToPdfPage(page, book.page_offset);
-  const maxPrinted = visiblePageCount ? pdfPageToPrinted(visiblePageCount, book.page_offset) : Math.max(1, page);
-
-  useEffect(() => {
-    let cancelled = false;
-    const transportRef: { current: RangedPdfTransport | null } = { current: null };
-    void (async () => {
-      try {
-        let url = api.bookFileUrl(book.id, gameId);
-        let headers: Record<string, string> | undefined;
-        try {
-          const { ticket } = await api.createBookFileTicket(book.id, gameId);
-          url = api.bookFileUrl(book.id, gameId, ticket);
-        } catch {
-          const token = await getAuthToken();
-          if (token) headers = { Authorization: `Bearer ${token}` };
-        }
-        const next = await createRangedPdfSource(url, headers);
-        if (cancelled) {
-          next.close();
-          return;
-        }
-        transportRef.current = next;
-        setFile(next);
-        setLoadError(false);
-        setLoadErrorDetail('');
-        setPageCount(null);
-        setDocReady(false);
-        setTimedOut(false);
-        setStartedAt(Date.now());
-        setLoadedKey(requestKey);
-      } catch (error) {
-        console.error(error);
-        if (!cancelled) {
-          setLoadError(true);
-          setLoadErrorDetail(error instanceof Error ? error.message : 'Could not open this PDF.');
-          setLoadedKey(requestKey);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-      transportRef.current?.close();
-    };
-  }, [book.id, gameId, requestKey]);
-
-  useEffect(() => {
-    if (docReady || visibleError || timedOut) return;
-    const tick = window.setInterval(() => {
-      const seconds = Math.round((Date.now() - startedAt) / 1000);
-      setElapsed(seconds);
-      if (seconds >= 30 && !docReady) setTimedOut(true);
-    }, 500);
-    return () => window.clearInterval(tick);
-  }, [docReady, visibleError, timedOut, startedAt]);
-
-  useEffect(() => {
-    const node = frameRef.current;
-    if (!node) return;
-    const update = () => setWidth(Math.max(280, node.clientWidth - 24));
-    update();
-    const observer = new ResizeObserver(update);
-    observer.observe(node);
-    return () => observer.disconnect();
-  }, []);
+  const maxPrinted = transport.visiblePageCount
+    ? pdfPageToPrinted(transport.visiblePageCount, book.page_offset)
+    : Math.max(1, page);
 
   // react-pdf Document (suspense=false) reloads whenever `file` / `options` identity
   // changes. An inline `{ range: file }` aborts the transport on every re-render
   // (pageCount, resize, zoom) and leaves requestDataRange as a silent no-op.
-  const documentFile = useMemo(() => (visibleFile ? { range: visibleFile } : null), [visibleFile]);
+  const documentFile = useMemo(
+    () => (transport.visibleFile ? { range: transport.visibleFile } : null),
+    [transport.visibleFile],
+  );
   const documentOptions = useMemo(
     () => ({
       disableAutoFetch: true,
@@ -212,138 +438,37 @@ function PdfPages({
     [],
   );
 
-  const go = (next: number) => onPage(Math.min(maxPrinted, Math.max(1, next)));
-
   return (
     <>
-      <div className="shrink-0 border-b border-border bg-panel px-3 py-2 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          className="btn-ghost min-h-11 px-3"
-          disabled={page <= 1}
-          onClick={() => go(page - 1)}
-          aria-label="Previous page"
-        >
-          <ChevronLeft size={18} />
-        </button>
-        <label className="text-xs text-muted inline-flex items-center gap-2">
-          Page
-          <input
-            type="number"
-            min={1}
-            max={maxPrinted}
-            value={page}
-            onChange={(event) => go(Number(event.target.value) || 1)}
-            className="w-16 min-h-11 rounded-lg border border-border bg-bg px-2 text-sm text-gray-100"
-          />
-          of {docReady && visiblePageCount ? maxPrinted : '…'}
-        </label>
-        <button
-          type="button"
-          className="btn-ghost min-h-11 px-3"
-          disabled={page >= maxPrinted}
-          onClick={() => go(page + 1)}
-          aria-label="Next page"
-        >
-          <ChevronRight size={18} />
-        </button>
-        <div className="ml-auto flex items-center gap-1">
-          <button
-            type="button"
-            className="btn-ghost min-h-11 px-3"
-            onClick={() => setScale((value) => Math.max(0.6, Math.round((value - 0.1) * 10) / 10))}
-            aria-label="Zoom out"
-          >
-            <Minus size={16} />
-          </button>
-          <span className="text-xs text-muted w-10 text-center">{Math.round(scale * 100)}%</span>
-          <button
-            type="button"
-            className="btn-ghost min-h-11 px-3"
-            onClick={() => setScale((value) => Math.min(2.4, Math.round((value + 0.1) * 10) / 10))}
-            aria-label="Zoom in"
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-      </div>
+      <PdfToolbar
+        page={page}
+        maxPrinted={maxPrinted}
+        knownTotal={Boolean(transport.docReady && transport.visiblePageCount)}
+        scale={scale}
+        onPage={onPage}
+        onScale={setScale}
+      />
       <div className="flex-1 min-h-0 flex flex-col md:flex-row">
-        <div ref={frameRef} className="flex-1 min-h-0 overflow-auto bg-bg-elevated">
-          <div className="flex justify-center py-3">
-            {visibleError || timedOut ? (
-              <div className="p-6 text-center space-y-3 max-w-md">
-                <p className="text-sm text-danger">
-                  {timedOut && !visibleError
-                    ? 'This PDF is taking a long time to load. Large books can take 10-30 seconds.'
-                    : loadErrorDetail || 'Could not load this PDF.'}
-                </p>
-                <button type="button" className="btn-primary" onClick={() => setRetryNonce((n) => n + 1)}>
-                  Retry
-                </button>
-              </div>
-            ) : visibleFile ? (
-              <Document
-                file={documentFile}
-                options={documentOptions}
-                suspense={false}
-                loading={
-                  <p className="text-sm text-muted p-6">
-                    Loading PDF{elapsed ? ` (${elapsed}s)` : '…'}
-                    {elapsed >= 8 ? '. Large books can take 10-30 seconds.' : ''}
-                  </p>
-                }
-                error={
-                  <div className="p-6 text-center space-y-3">
-                    <p className="text-sm text-danger">Could not load this PDF.</p>
-                    <button type="button" className="btn-primary" onClick={() => setRetryNonce((n) => n + 1)}>
-                      Retry
-                    </button>
-                  </div>
-                }
-                onLoadSuccess={({ numPages }) => {
-                  setPageCount(numPages);
-                  setDocReady(true);
-                  setTimedOut(false);
-                }}
-              >
-                <Page
-                  pageNumber={Math.min(pdfPage, visiblePageCount || pdfPage)}
-                  width={width}
-                  scale={scale}
-                  loading={<p className="text-sm text-muted p-6">Rendering page…</p>}
-                />
-              </Document>
-            ) : (
-              <p className="text-sm text-muted p-6">
-                Preparing reader{elapsed ? ` (${elapsed}s)` : '…'}
-              </p>
-            )}
-          </div>
-        </div>
-        {bookmarks.length > 0 && (
-          <aside className="shrink-0 md:w-64 border-t md:border-t-0 md:border-l border-border bg-panel p-3 max-h-40 md:max-h-none overflow-y-auto">
-            <p className="label-text mb-2 inline-flex items-center gap-1.5">
-              <Library size={12} /> Bookmarks
-            </p>
-            <ul className="space-y-1">
-              {bookmarks
-                .toSorted((a, b) => a.page - b.page)
-                .map((mark) => (
-                  <li key={mark.id}>
-                    <button
-                      type="button"
-                      className={`w-full text-left rounded-lg px-3 py-2 text-sm min-h-11 ${
-                        mark.page === page ? 'bg-accent/15 text-accent' : 'text-gray-200 hover:bg-panel-hover'
-                      }`}
-                      onClick={() => onJump(mark)}
-                    >
-                      {mark.label || `p. ${mark.page}`}
-                    </button>
-                  </li>
-                ))}
-            </ul>
-          </aside>
-        )}
+        <PdfStage
+          frameRef={frameRef}
+          visibleError={Boolean(transport.visibleError)}
+          timedOut={transport.timedOut}
+          loadErrorDetail={transport.loadErrorDetail}
+          visibleFile={transport.visibleFile}
+          documentFile={documentFile}
+          documentOptions={documentOptions}
+          elapsed={elapsed}
+          pdfPage={pdfPage}
+          visiblePageCount={transport.visiblePageCount}
+          width={width}
+          scale={scale}
+          onRetry={() => {
+            transport.setTimedOut(false);
+            setRetryNonce((n) => n + 1);
+          }}
+          onLoaded={transport.markLoaded}
+        />
+        <PdfBookmarks bookmarks={bookmarks} page={page} onJump={onJump} />
       </div>
     </>
   );

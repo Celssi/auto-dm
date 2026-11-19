@@ -530,7 +530,9 @@ def backfill_missing_package_gear(char: Dnd5eCharacter) -> Dnd5eCharacter:
         char.armor = armor_id
     if package.get("shield"):
         char.shield = True
-    owned = {_norm_item(str(w.get("name") or "")) for w in (char.weapons or []) if isinstance(w, dict)}
+    owned = {
+        _norm_item(str(w.get("name") or "")) for w in (char.weapons or []) if isinstance(w, dict)
+    }
     extra: list[dict[str, Any]] = []
     for weapon in package.get("weapons") or []:
         built = _weapon_dicts([weapon]) if isinstance(weapon, dict) else []
@@ -1049,8 +1051,8 @@ def apply_short_rest(
             parts.append(heal["summary"])
         entity.update(heal.get("entity_updates") or {})
 
-    from backend.games.dnd5e.characters.origin_feats import reset_healer_medic_uses
     from backend.games.dnd5e.characters.class_resources import recover_second_wind_short_rest
+    from backend.games.dnd5e.characters.origin_feats import reset_healer_medic_uses
 
     reset_healer_medic_uses(char)
     char.savage_attacker_used_this_turn = False

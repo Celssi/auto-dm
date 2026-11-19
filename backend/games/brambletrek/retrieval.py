@@ -28,7 +28,30 @@ _BRAMBLETREK_TABLE_PAGES: dict[str, list[int]] = {
 
 # Table pages before intro/legacy overview when injecting creation context.
 _BRAMBLETREK_PAGE_ORDER = [
-    24, 25, 26, 27, 12, 13, 14, 15, 16, 8, 9, 17, 18, 19, 20, 21, 22, 23, 28, 29, 30, 31, 32, 36,
+    24,
+    25,
+    26,
+    27,
+    12,
+    13,
+    14,
+    15,
+    16,
+    8,
+    9,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    28,
+    29,
+    30,
+    31,
+    32,
+    36,
 ]
 
 

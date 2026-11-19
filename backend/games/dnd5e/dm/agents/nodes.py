@@ -272,11 +272,7 @@ def combat_mechanics_node(state: DMState) -> DMState:
             lines.append("Combat rules excerpt:")
             for s in rag.sources[:2]:
                 text = str(s.get("text") or "")[:800]
-                lines.append(
-                    f"- {s.get('source_label', '?')} "
-                    f"p.{s.get('page', '?')}: "
-                    f"{text}"
-                )
+                lines.append(f"- {s.get('source_label', '?')} p.{s.get('page', '?')}: {text}")
     return {"combat_context": "\n".join(lines)}
 
 

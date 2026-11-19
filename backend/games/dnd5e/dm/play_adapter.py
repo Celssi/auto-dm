@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from backend.games.dnd5e.actions import SHORTCUTS, shortcuts_for_character
+from backend.games.dnd5e.actions import shortcuts_for_character
 from backend.games.dnd5e.dm.agents.nodes import detect_dnd_shortcut
 from backend.games.dnd5e.dm.pipeline import build_dnd_graph
 from backend.games.dnd5e.dm.pre_turn import handle_spell_autocomplete, run_combat_pre_turn

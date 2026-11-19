@@ -149,11 +149,18 @@ function normItem(name: string): string {
 }
 
 export function armorRow(armorId?: string) {
-  const id = String(armorId || 'none').trim().toLowerCase() || 'none';
+  const id =
+    String(armorId || 'none')
+      .trim()
+      .toLowerCase() || 'none';
   return ARMOR_CATALOG.find((row) => row.id === id) || ARMOR_CATALOG[0];
 }
 
-export function computeAcDetails(char: Character): { ac: number; formula: string; parts: { label: string; value: number }[] } {
+export function computeAcDetails(char: Character): {
+  ac: number;
+  formula: string;
+  parts: { label: string; value: number }[];
+} {
   const dex = abilityMod(char.ability_scores?.dex ?? 10);
   const armor = armorRow(String(char.armor || 'none'));
   const parts: { label: string; value: number }[] = [];
@@ -202,9 +209,7 @@ export function equipmentDisplayItems(char: Character): string[] {
 }
 
 export function weaponMasteryWarnings(char: Character): string[] {
-  const owned = new Set(
-    [...(char.weapons || []).map((w) => w.name), ...(char.inventory || [])].map(normItem),
-  );
+  const owned = new Set([...(char.weapons || []).map((w) => w.name), ...(char.inventory || [])].map(normItem));
   const warnings: string[] = [];
   for (const raw of char.weapon_mastery || []) {
     const label = String(raw || '').replace(/_/g, ' ');
@@ -212,9 +217,7 @@ export function weaponMasteryWarnings(char: Character): string[] {
     if (!key) continue;
     const aliases = new Set([key, normItem(String(raw))]);
     if ([...aliases].every((alias) => !owned.has(alias))) {
-      warnings.push(
-        `Weapon Mastery includes ${label}, but this character does not currently own that weapon.`,
-      );
+      warnings.push(`Weapon Mastery includes ${label}, but this character does not currently own that weapon.`);
     }
   }
   return warnings;

@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 import shutil
 from datetime import datetime, timezone
-from pathlib import Path
 
 from backend.games.dnd5e.characters.character_builder import rebuild_character
 from backend.games.dnd5e.characters.entity import character_from_dict, character_to_dict
@@ -26,6 +25,7 @@ def _hydrate_from_gcs() -> None:
         print(f"GCS hydrate: {count} character files.")
     except Exception as exc:
         print(f"GCS hydrate skipped: {exc}")
+
 
 LARRY_NAMES = {"larry swordstein", "larry"}
 
@@ -46,7 +46,10 @@ def _needs_repair(data: dict) -> bool:
         return True
     if "greatsword" not in names and str(data.get("starting_gear_choice") or "") == "heavy":
         return True
-    if int(data.get("ac") or 0) < 17 and str(data.get("fighting_style_feat") or "").lower() == "defense":
+    if (
+        int(data.get("ac") or 0) < 17
+        and str(data.get("fighting_style_feat") or "").lower() == "defense"
+    ):
         return True
     return False
 
@@ -86,7 +89,9 @@ def main() -> int:
                 "id": char_id,
                 "armor": rebuilt.get("armor"),
                 "ac": rebuilt.get("ac"),
-                "weapons": [w.get("name") for w in (rebuilt.get("weapons") or []) if isinstance(w, dict)],
+                "weapons": [
+                    w.get("name") for w in (rebuilt.get("weapons") or []) if isinstance(w, dict)
+                ],
             },
             indent=2,
         )

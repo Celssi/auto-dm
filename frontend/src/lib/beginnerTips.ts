@@ -94,7 +94,8 @@ export const BEGINNER_TIPS: Record<string, BeginnerTip> = {
   graze: {
     title: 'Graze',
     kind: 'feature',
-    summary: 'Greatsword mastery. If your attack roll misses, you still deal damage equal to the ability modifier used for the attack.',
+    summary:
+      'Greatsword mastery. If your attack roll misses, you still deal damage equal to the ability modifier used for the attack.',
   },
   sap: {
     title: 'Sap',
@@ -116,7 +117,8 @@ export const BEGINNER_TIPS: Record<string, BeginnerTip> = {
   vex: {
     title: 'Vex',
     kind: 'feature',
-    summary: 'On a hit, you have Advantage on your next attack roll against that target before the end of your next turn.',
+    summary:
+      'On a hit, you have Advantage on your next attack roll against that target before the end of your next turn.',
   },
   cleave: {
     title: 'Cleave',
@@ -217,7 +219,8 @@ export const BEGINNER_TIPS: Record<string, BeginnerTip> = {
   'bt-tactics': {
     title: 'Tactic cards',
     kind: 'rules',
-    summary: 'Your combat hand. Each tactic is a specific move (damage, guard, recover). Play one on your turn; do not invent extra effects.',
+    summary:
+      'Your combat hand. Each tactic is a specific move (damage, guard, recover). Play one on your turn; do not invent extra effects.',
   },
   lonelog: {
     title: 'Lonelog',
@@ -247,7 +250,8 @@ export const BEGINNER_TIPS: Record<string, BeginnerTip> = {
   armor: {
     title: 'Armor',
     kind: 'rules',
-    summary: 'Worn armor sets your Armor Class. Light adds all Dexterity; medium adds DEX up to +2; heavy adds none. A shield adds +2.',
+    summary:
+      'Worn armor sets your Armor Class. Light adds all Dexterity; medium adds DEX up to +2; heavy adds none. A shield adds +2.',
   },
 };
 

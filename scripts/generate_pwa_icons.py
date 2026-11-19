@@ -3,6 +3,8 @@
 
 Run:  python3 scripts/generate-icons.py
 """
+
 import runpy
 from pathlib import Path
-runpy.run_path(str(Path(__file__).with_name('generate-icons.py')), run_name='__main__')
+
+runpy.run_path(str(Path(__file__).with_name("generate-icons.py")), run_name="__main__")

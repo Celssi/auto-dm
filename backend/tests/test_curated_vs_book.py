@@ -38,7 +38,10 @@ def test_weapon_mastery_summaries_match_2024():
     assert "once per turn" in props["nick"]["summary"].lower()
     assert "does not stack" in props["slow"]["summary"].lower()
     assert "deal" in props["slow"]["summary"].lower()
-    assert "deals damage" in props["vex"]["summary"].lower() or "deal damage" in props["vex"]["summary"].lower()
+    assert (
+        "deals damage" in props["vex"]["summary"].lower()
+        or "deal damage" in props["vex"]["summary"].lower()
+    )
 
 
 def test_fighter_heavy_package_lists_chain_mail_and_greatsword():

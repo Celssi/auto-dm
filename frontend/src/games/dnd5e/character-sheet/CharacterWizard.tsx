@@ -327,6 +327,21 @@ function WizardStepBody({
   return <CharacterSheetView character={previewChar || char} />;
 }
 
+function wizardNextDisabled(
+  step: number,
+  char: Character,
+  skillChoicesNeeded: number,
+  featureChoiceMissing: number,
+  startingGearOptions: { id: string }[],
+  backgroundGearOptions: { id: string }[],
+) {
+  const skillsPicked = (char.class_skill_choices || []).length;
+  if (step === 3 && skillChoicesNeeded > 0 && skillsPicked < skillChoicesNeeded) return true;
+  if (step === 4 && featureChoiceMissing > 0) return true;
+  if (step === 5 && startingGearOptions.length > 1 && !char.starting_gear_choice) return true;
+  return Boolean(step === 5 && char.background && backgroundGearOptions.length > 1 && !char.background_gear_choice);
+}
+
 function WizardNav({
   step,
   featureChoiceMissing,
@@ -350,12 +365,14 @@ function WizardNav({
   onGoToStep: (next: number) => void;
   onSave: (char: Character) => void;
 }) {
-  const skillsPicked = (char.class_skill_choices || []).length;
-  const nextDisabled =
-    (step === 3 && skillChoicesNeeded > 0 && skillsPicked < skillChoicesNeeded) ||
-    (step === 4 && featureChoiceMissing > 0) ||
-    (step === 5 && startingGearOptions.length > 1 && !char.starting_gear_choice) ||
-    (step === 5 && Boolean(char.background) && backgroundGearOptions.length > 1 && !char.background_gear_choice);
+  const nextDisabled = wizardNextDisabled(
+    step,
+    char,
+    skillChoicesNeeded,
+    featureChoiceMissing,
+    startingGearOptions,
+    backgroundGearOptions,
+  );
   const isLast = step >= WIZARD_STEPS.length - 1;
   return (
     <div className="flex gap-2 justify-between pt-2">

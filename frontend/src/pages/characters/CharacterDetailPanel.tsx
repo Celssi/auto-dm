@@ -311,9 +311,7 @@ function DndSheetToolbar({
         <OverflowMenu
           items={[
             { label: 'Edit character setup', onSelect: onEditSetup },
-            ...(onRebuild
-              ? [{ label: 'Rebuild sheet from 2024 rules', onSelect: onRebuild }]
-              : []),
+            ...(onRebuild ? [{ label: 'Rebuild sheet from 2024 rules', onSelect: onRebuild }] : []),
             { label: 'Delete', onSelect: onDelete, danger: true },
           ]}
         />
