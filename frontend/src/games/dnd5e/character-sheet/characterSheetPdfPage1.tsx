@@ -141,7 +141,7 @@ export function buildSheetPage1(pdf: PdfModule, c: Character, unlockedFeatures?:
       <View style={[s.row, { gap: 3, marginBottom: 3 }]}>
         {[
           { label: 'Initiative', value: formatMod(initiativeMod(c)) },
-          { label: 'Speed', value: `${c.speed ?? 30} ft` },
+          { label: 'Speed', value: `${c.speed_effective ?? c.speed ?? 30} ft` },
           { label: 'Size', value: displayLabel(String(c.size || 'medium')) },
           { label: 'Passive Perception', value: String(passivePerception(c)) },
         ].map((stat) => (

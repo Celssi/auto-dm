@@ -33,9 +33,11 @@ def test_weapon_mastery_summaries_match_2024():
     assert "Large" in props["push"]["summary"]
     assert "Constitution" in props["topple"]["summary"]
     assert "Dexterity" not in props["topple"]["summary"]
+    assert "melee" in props["cleave"]["summary"].lower()
     assert "once per turn" in props["cleave"]["summary"].lower()
     assert "once per turn" in props["nick"]["summary"].lower()
     assert "does not stack" in props["slow"]["summary"].lower()
+    assert "deal" in props["slow"]["summary"].lower()
     assert "deals damage" in props["vex"]["summary"].lower() or "deal damage" in props["vex"]["summary"].lower()
 
 
@@ -117,3 +119,12 @@ def test_heroic_inspiration_spend():
     assert char.spend_heroic_inspiration() is False
     assert char.grant_heroic_inspiration() == "granted"
     assert char.grant_heroic_inspiration() == "already_has"
+
+
+def test_glossary_skips_parser_junk():
+    from backend.games.dnd5e.characters.glossary_data import glossary_db_index
+
+    index = glossary_db_index()
+    assert "slotthat" not in index
+    assert "character" not in index
+    assert "featureswhichare" not in index
