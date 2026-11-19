@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import logging
 import os
 import re
+import secrets
 import time
 from typing import Any
 
@@ -26,12 +28,16 @@ from backend.config import local_pdf_path
 from backend.gcs_sync import pdf_byte_size, read_pdf_bytes
 
 router = APIRouter(prefix="/api/books", tags=["books"])
+logger = logging.getLogger(__name__)
 
 _RANGE_RE = re.compile(r"bytes=(\d+)-(\d*)")
 _TICKET_TTL_SEC = 30 * 60
 _MAX_RANGE_BYTES = 2 * 1024 * 1024
 _FIRST_CHUNK = 64 * 1024
 _STREAM_CHUNK = 256 * 1024
+_TICKET_DERIVE_PREFIX = b"auto-dm-file-ticket:"
+_INSTANCE_TICKET_SECRET: bytes | None = None
+_TICKET_FALLBACK_WARNED = False
 
 
 class BookmarkBody(BaseModel):
@@ -52,14 +58,45 @@ class BookStateBody(BaseModel):
     lastByGame: dict[str, LastReadBody] | None = None
 
 
+def _warn_ticket_fallback(message: str) -> None:
+    global _TICKET_FALLBACK_WARNED
+    if _TICKET_FALLBACK_WARNED:
+        return
+    _TICKET_FALLBACK_WARNED = True
+    logger.warning(message)
+
+
 def _ticket_secret() -> bytes:
-    dedicated = os.environ.get("AUTO_DM_TICKET_SECRET")
+    """HMAC key for short-lived PDF file tickets.
+
+    Prefer AUTO_DM_TICKET_SECRET. If it is unset (current Cloud Run), derive a
+    stable key from ANTHROPIC_API_KEY so every instance signs the same tickets.
+    Only generate a per-process secret when neither is available: those tickets
+    fail after a restart or on another Cloud Run instance.
+    """
+    dedicated = (os.environ.get("AUTO_DM_TICKET_SECRET") or "").strip()
     if dedicated:
         return dedicated.encode()
+    anthropic = (os.environ.get("ANTHROPIC_API_KEY") or "").strip()
+    if anthropic:
+        _warn_ticket_fallback(
+            "AUTO_DM_TICKET_SECRET is unset; deriving PDF ticket HMAC from "
+            "ANTHROPIC_API_KEY. Tickets stay valid across instances until that "
+            "key rotates. Set AUTO_DM_TICKET_SECRET in Secret Manager to isolate "
+            "the ticket key."
+        )
+        return hashlib.sha256(_TICKET_DERIVE_PREFIX + anthropic.encode()).digest()
     if os.environ.get("K_SERVICE"):
-        raise RuntimeError("AUTO_DM_TICKET_SECRET is required on Cloud Run")
-    raw = os.environ.get("ANTHROPIC_API_KEY") or "auto-dm-local-ticket"
-    return raw.encode()
+        global _INSTANCE_TICKET_SECRET
+        if _INSTANCE_TICKET_SECRET is None:
+            _INSTANCE_TICKET_SECRET = secrets.token_bytes(32)
+            logger.warning(
+                "AUTO_DM_TICKET_SECRET and ANTHROPIC_API_KEY are unset; using a "
+                "per-instance PDF ticket secret. Tickets will fail after a restart "
+                "or on another Cloud Run instance."
+            )
+        return _INSTANCE_TICKET_SECRET
+    return b"auto-dm-local-ticket"
 
 
 def issue_file_ticket(book_id: str, ttl: int = _TICKET_TTL_SEC) -> str:
