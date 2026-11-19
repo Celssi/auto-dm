@@ -12,18 +12,157 @@ import { useToast } from '../components/ui/toast';
 import LongJobOverlay from '../components/LongJobOverlay';
 import { useGame } from '../context/GameContext';
 
+type Health = {
+  indexed: boolean;
+  indexed_by_game?: Record<string, boolean>;
+  chunk_counts?: Record<string, number>;
+  claude_configured: boolean;
+  claude_model?: string;
+};
+
+type AppSettings = { include_faerun: boolean; use_rerank: boolean };
+
+function indexCount(health: Health, gameId: string) {
+  const count = health.chunk_counts?.[gameId];
+  return count == null ? '' : ` (${count})`;
+}
+
+function SettingsHealth({ health }: { health: Health }) {
+  const dndReady = Boolean(health.indexed_by_game?.dnd5e || health.indexed);
+  const brambleReady = Boolean(health.indexed_by_game?.brambletrek);
+  return (
+    <m.div variants={fadeUp} className="flex flex-wrap gap-2">
+      <StatusBadge
+        status={dndReady ? 'ok' : 'warn'}
+        label={dndReady ? `D&D 5e index ready${indexCount(health, 'dnd5e')}` : 'D&D 5e not indexed'}
+      />
+      <StatusBadge
+        status={brambleReady ? 'ok' : 'warn'}
+        label={brambleReady ? `Brambletrek index ready${indexCount(health, 'brambletrek')}` : 'Brambletrek not indexed'}
+      />
+      <StatusBadge
+        status={health.claude_configured ? 'ok' : 'error'}
+        label={
+          health.claude_configured ? `Claude API configured (${health.claude_model || 'unknown'})` : 'Missing API key'
+        }
+      />
+    </m.div>
+  );
+}
+
+function applyReindexEvent(
+  event: string,
+  data: unknown,
+  result: { ok?: boolean; chunk_count?: number; chunk_counts?: Record<string, number> },
+  setIndexStatus: (status: string) => void,
+) {
+  if (event === 'progress' && data && typeof data === 'object' && 'message' in data) {
+    setIndexStatus(String((data as { message: string }).message));
+    return '';
+  }
+  if (event === 'done' && data && typeof data === 'object') {
+    Object.assign(result, data);
+    return '';
+  }
+  if (event === 'error' && data && typeof data === 'object' && 'detail' in data) {
+    return String((data as { detail: string }).detail);
+  }
+  return '';
+}
+
+async function saveAppSettings(
+  settings: AppSettings,
+  toast: { success: (message: string) => void; error: (message: string) => void },
+  setSettings: (settings: AppSettings) => void,
+  setMessage: (message: string | null) => void,
+) {
+  try {
+    const r = await api.updateSettings(settings);
+    setSettings(r.settings);
+    setMessage(null);
+    toast.success('Settings saved');
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Failed to save settings';
+    toast.error(msg);
+    setMessage(msg);
+  }
+}
+
+async function runReindex(
+  includeFaerun: boolean,
+  confirmDropFaerun: boolean,
+  targetGameId: string,
+  toast: { success: (message: string) => void; error: (message: string) => void },
+  setIndexing: (indexing: boolean) => void,
+  setIndexStatus: (status: string) => void,
+  setMessage: (message: string | null) => void,
+  setHealth: (health: Health) => void,
+) {
+  setIndexing(true);
+  setIndexStatus('Indexing rulebooks. This window keeps the Cloud Run instance awake.');
+  setMessage(null);
+  try {
+    const result: { ok?: boolean; chunk_count?: number; chunk_counts?: Record<string, number> } = {};
+    let streamError = '';
+    await api.reindex(
+      includeFaerun,
+      (event, data) => {
+        const error = applyReindexEvent(event, data, result, setIndexStatus);
+        if (error) streamError = error;
+      },
+      confirmDropFaerun,
+      targetGameId,
+    );
+    if (streamError) throw new Error(streamError);
+    const ok = Boolean(result.ok);
+    const msg = indexedMessage(result);
+    if (ok) toast.success(msg);
+    else toast.error(msg);
+    setMessage(ok ? `${msg}.` : msg);
+    setHealth(await api.health());
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : 'Indexing failed';
+    toast.error(msg);
+    setMessage(msg);
+  } finally {
+    setIndexing(false);
+  }
+}
+
+function IndexButton({
+  busy,
+  label,
+  primary,
+  onClick,
+}: {
+  busy: boolean;
+  label: string;
+  primary?: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button type="button" className={primary ? 'btn-primary' : 'btn-ghost'} disabled={busy} onClick={onClick}>
+      {busy ? 'Indexing…' : label}
+    </button>
+  );
+}
+
+function indexedMessage(result: { ok?: boolean; chunk_count?: number; chunk_counts?: Record<string, number> }) {
+  const counts = result.chunk_counts;
+  const countText = counts
+    ? Object.entries(counts)
+        .map(([id, n]) => `${id}: ${n}`)
+        .join(', ')
+    : String(result.chunk_count ?? 0);
+  return result.ok ? `Indexed ${countText} chunks` : 'Indexing failed';
+}
+
 export default function SettingsPage() {
   const { gameId } = useGame();
   const toast = useToast();
   const { isInstallable, isInstalled, installPWA } = usePWA();
-  const [settings, setSettings] = useState({ include_faerun: false, use_rerank: true });
-  const [health, setHealth] = useState<{
-    indexed: boolean;
-    indexed_by_game?: Record<string, boolean>;
-    chunk_counts?: Record<string, number>;
-    claude_configured: boolean;
-    claude_model?: string;
-  } | null>(null);
+  const [settings, setSettings] = useState<AppSettings>({ include_faerun: false, use_rerank: true });
+  const [health, setHealth] = useState<Health | null>(null);
   const [indexing, setIndexing] = useState(false);
   const [indexStatus, setIndexStatus] = useState('Indexing rulebooks.');
   const [message, setMessage] = useState<string | null>(null);
@@ -33,103 +172,24 @@ export default function SettingsPage() {
     api.health().then(setHealth);
   }, []);
 
-  const save = async () => {
-    try {
-      const r = await api.updateSettings(settings);
-      setSettings(r.settings);
-      setMessage(null);
-      toast.success('Settings saved');
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Failed to save settings';
-      toast.error(msg);
-      setMessage(msg);
-    }
-  };
-
-  const reindex = async (
-    includeFaerun: boolean,
-    confirmDropFaerun = false,
-    targetGameId = 'dnd5e',
-  ) => {
-    setIndexing(true);
-    setIndexStatus('Indexing rulebooks. This window keeps the Cloud Run instance awake.');
-    setMessage(null);
-    try {
-      const result: {
-        ok?: boolean;
-        chunk_count?: number;
-        chunk_counts?: Record<string, number>;
-      } = {};
-      let streamError = '';
-      await api.reindex(
-        includeFaerun,
-        (event, data) => {
-          if (event === 'progress' && data && typeof data === 'object' && 'message' in data) {
-            setIndexStatus(String((data as { message: string }).message));
-          } else if (event === 'done' && data && typeof data === 'object') {
-            Object.assign(result, data);
-          } else if (event === 'error' && data && typeof data === 'object' && 'detail' in data) {
-            streamError = String((data as { detail: string }).detail);
-          }
-        },
-        confirmDropFaerun,
-        targetGameId,
-      );
-      if (streamError) throw new Error(streamError);
-      const ok = Boolean(result.ok);
-      const counts = result.chunk_counts;
-      const countText = counts
-        ? Object.entries(counts)
-            .map(([id, n]) => `${id}: ${n}`)
-            .join(', ')
-        : String(result.chunk_count ?? 0);
-      const msg = ok ? `Indexed ${countText} chunks` : 'Indexing failed';
-      if (ok) toast.success(msg);
-      else toast.error(msg);
-      setMessage(ok ? `${msg}.` : msg);
-      const h = await api.health();
-      setHealth(h);
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : 'Indexing failed';
-      toast.error(msg);
-      setMessage(msg);
-    } finally {
-      setIndexing(false);
-    }
-  };
+  const save = () => void saveAppSettings(settings, toast, setSettings, setMessage);
+  const reindex = (includeFaerun: boolean, confirmDropFaerun: boolean, targetGameId: string) =>
+    void runReindex(
+      includeFaerun,
+      confirmDropFaerun,
+      targetGameId,
+      toast,
+      setIndexing,
+      setIndexStatus,
+      setMessage,
+      setHealth,
+    );
 
   return (
     <AnimatedPage className="max-w-2xl space-y-8">
       <PageHeader title="Settings" subtitle="Player preferences, then admin tools for this app." />
 
-      {health && (
-        <m.div variants={fadeUp} className="flex flex-wrap gap-2">
-          <StatusBadge
-            status={health.indexed_by_game?.dnd5e || health.indexed ? 'ok' : 'warn'}
-            label={
-              health.indexed_by_game?.dnd5e || health.indexed
-                ? `D&D 5e index ready${health.chunk_counts?.dnd5e != null ? ` (${health.chunk_counts.dnd5e})` : ''}`
-                : 'D&D 5e not indexed'
-            }
-          />
-          <StatusBadge
-            status={health.indexed_by_game?.brambletrek ? 'ok' : 'warn'}
-            label={
-              health.indexed_by_game?.brambletrek
-                ? `Brambletrek index ready${health.chunk_counts?.brambletrek != null ? ` (${health.chunk_counts.brambletrek})` : ''}`
-                : 'Brambletrek not indexed'
-            }
-          />
-          <StatusBadge
-            status={health.claude_configured ? 'ok' : 'error'}
-            label={
-              health.claude_configured
-                ? `Claude API configured (${health.claude_model || 'unknown'})`
-                : 'Missing API key'
-            }
-          />
-        </m.div>
-      )}
+      {health ? <SettingsHealth health={health} /> : null}
 
       {isInstallable && !isInstalled && (
         <m.div variants={fadeUp}>
@@ -146,8 +206,7 @@ export default function SettingsPage() {
           <h2 className="display-title text-base">Player</h2>
         </div>
         <p className="text-sm text-muted leading-relaxed">
-          These options are defaults. You can still turn Faerun books on or off when you start a
-          session.
+          These options are defaults. You can still turn Faerun books on or off when you start a session.
         </p>
         {gameId === 'dnd5e' && (
           <Toggle
@@ -180,48 +239,29 @@ export default function SettingsPage() {
           Save admin settings
         </button>
         <p className="text-sm text-muted leading-relaxed">
-          Index core only removes Heroes of Faerun and Adventures in Faerun from the D&D index. Prefer
-          Index core + Faerun, or Index all books, unless you intend to drop those books. Brambletrek
-          lives in a separate index, so D&D indexing does not replace it.
+          Index core only removes Heroes of Faerun and Adventures in Faerun from the D&D index. Prefer Index core +
+          Faerun, or Index all books, unless you intend to drop those books. Brambletrek lives in a separate index, so
+          D&D indexing does not replace it.
         </p>
         <div className="flex flex-wrap gap-2">
-          <button
-            type="button"
-            className="btn-primary"
-            disabled={indexing}
-            onClick={() => void reindex(true, false, 'all')}
-          >
-            {indexing ? 'Indexing…' : 'Index all books (D&D + Faerun + Brambletrek)'}
-          </button>
-          <button
-            type="button"
-            className="btn-ghost"
-            disabled={indexing}
-            onClick={() => void reindex(true, false, 'dnd5e')}
-          >
-            {indexing ? 'Indexing…' : 'Index core + Faerun'}
-          </button>
-          <button
-            type="button"
-            className="btn-ghost"
-            disabled={indexing}
-            onClick={() => void reindex(false, false, 'brambletrek')}
-          >
-            {indexing ? 'Indexing…' : 'Index Brambletrek'}
-          </button>
-          <button
-            type="button"
-            className="btn-ghost"
-            disabled={indexing}
+          <IndexButton
+            busy={indexing}
+            primary
+            label="Index all books (D&D + Faerun + Brambletrek)"
+            onClick={() => reindex(true, false, 'all')}
+          />
+          <IndexButton busy={indexing} label="Index core + Faerun" onClick={() => reindex(true, false, 'dnd5e')} />
+          <IndexButton busy={indexing} label="Index Brambletrek" onClick={() => reindex(false, false, 'brambletrek')} />
+          <IndexButton
+            busy={indexing}
+            label="Index core (PHB, DMG, MM)"
             onClick={() => {
               const ok = window.confirm(
                 'Index core only deletes Faerun books from the rules index. Continue only if you want that.',
               );
-              if (ok) void reindex(false, true, 'dnd5e');
+              if (ok) reindex(false, true, 'dnd5e');
             }}
-          >
-            {indexing ? 'Indexing…' : 'Index core (PHB, DMG, MM)'}
-          </button>
+          />
         </div>
       </m.div>
 

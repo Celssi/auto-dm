@@ -220,6 +220,55 @@ function CombatArmorFields({
   );
 }
 
+function parseHpPair(value: string, fallbackMax: number) {
+  const [cur, max] = value.split('/').map((part) => parseInt(part.trim(), 10) || 0);
+  return { hp: cur, max_hp: max || fallbackMax };
+}
+
+function CombatResources({
+  character: c,
+  hitDiceMax,
+  hitDiceSpent,
+}: {
+  character: Character;
+  hitDiceMax: number;
+  hitDiceSpent: number;
+}) {
+  const exhaustion = Number(c.exhaustion ?? 0);
+  const hitDie = c.hit_die ?? 8;
+  return (
+    <>
+      {exhaustion > 0 ? (
+        <div className="mt-2">
+          <LabelWithTip id="exhaustion" label="Exhaustion" />
+          <div className="sheet-value font-mono mt-0.5">
+            Level {exhaustion}
+            {exhaustion >= 6 ? ' (dead)' : ''}
+          </div>
+        </div>
+      ) : null}
+      <div className="grid grid-cols-2 gap-3 mt-3">
+        <div>
+          <LabelWithTip id="hit-dice" label="Hit Dice" />
+          <div className="sheet-value font-mono mt-0.5">{`${hitDiceMax - hitDiceSpent}d${hitDie}`}</div>
+        </div>
+        <div className="sheet-field flex items-center justify-between">
+          <div>
+            <LabelWithTip id="heroic-inspiration" label="Heroic Inspiration" />
+            {String(c.species || '').toLowerCase() === 'human' ? (
+              <div className="text-[9px] text-muted mt-0.5">Resourceful · Long Rest</div>
+            ) : null}
+            <div className="text-xl mt-0.5">{c.heroic_inspiration ? '★' : '☆'}</div>
+          </div>
+        </div>
+      </div>
+      <div className="mt-3">
+        <DeathSaves successes={Number(c.death_save_successes ?? 0)} failures={Number(c.death_save_failures ?? 0)} />
+      </div>
+    </>
+  );
+}
+
 function Page1Combat({
   character: c,
   editable,
@@ -236,6 +285,7 @@ function Page1Combat({
   const ac = computeAcDetails(c);
   const shownAc = shownArmorClass(c, ac.ac);
   const speed = c.speed_effective ?? c.speed ?? 30;
+  const hpLabel = `${c.hp ?? 0} / ${c.max_hp ?? 0}`;
   return (
     <SheetSection title="Combat">
       <div className="grid grid-cols-3 gap-2 mb-3">
@@ -247,42 +297,13 @@ function Page1Combat({
       {editable ? <CombatArmorFields character={c} shownAc={shownAc} onPatch={onPatch} /> : null}
       <SheetField
         label="Hit Points"
-        value={`${c.hp ?? 0} / ${c.max_hp ?? 0}`}
+        value={hpLabel}
         editable={editable}
-        onChange={(v) => {
-          const [cur, max] = v.split('/').map((s) => parseInt(s.trim()) || 0);
-          onPatch({ hp: cur, max_hp: max || c.max_hp });
-        }}
+        onChange={(value) => onPatch(parseHpPair(value, c.max_hp ?? 0))}
         mono
       />
       <HpBar hp={c.hp ?? 0} maxHp={c.max_hp ?? 0} />
-      {Number(c.exhaustion ?? 0) > 0 && (
-        <div className="mt-2">
-          <LabelWithTip id="exhaustion" label="Exhaustion" />
-          <div className="sheet-value font-mono mt-0.5">
-            Level {Number(c.exhaustion)}
-            {Number(c.exhaustion) >= 6 ? ' (dead)' : ''}
-          </div>
-        </div>
-      )}
-      <div className="grid grid-cols-2 gap-3 mt-3">
-        <div>
-          <LabelWithTip id="hit-dice" label="Hit Dice" />
-          <div className="sheet-value font-mono mt-0.5">{`${hitDiceMax - hitDiceSpent}d${c.hit_die ?? 8}`}</div>
-        </div>
-        <div className="sheet-field flex items-center justify-between">
-          <div>
-            <LabelWithTip id="heroic-inspiration" label="Heroic Inspiration" />
-            {String(c.species || '').toLowerCase() === 'human' && (
-              <div className="text-[9px] text-muted mt-0.5">Resourceful · Long Rest</div>
-            )}
-            <div className="text-xl mt-0.5">{c.heroic_inspiration ? '★' : '☆'}</div>
-          </div>
-        </div>
-      </div>
-      <div className="mt-3">
-        <DeathSaves successes={Number(c.death_save_successes ?? 0)} failures={Number(c.death_save_failures ?? 0)} />
-      </div>
+      <CombatResources character={c} hitDiceMax={hitDiceMax} hitDiceSpent={hitDiceSpent} />
     </SheetSection>
   );
 }
