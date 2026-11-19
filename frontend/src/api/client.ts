@@ -748,6 +748,7 @@ export interface SpellConfirmation {
   requested: string;
   suggested: string;
   spell_name: string;
+  free_use?: boolean;
 }
 
 export interface ChatResult {

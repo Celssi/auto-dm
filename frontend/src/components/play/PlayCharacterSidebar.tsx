@@ -252,7 +252,7 @@ function DndKeySkills({ character: c }: { character: Character }) {
 
 function DndSpellList({ character: c }: { character: Character }) {
   const prepared = c.prepared_spells?.length ? c.prepared_spells : c.known_spells || [];
-  if (!c.cantrips?.length && !c.prepared_spells?.length) return null;
+  if (!c.cantrips?.length && !c.prepared_spells?.length && !c.spellbook?.length) return null;
   return (
     <details className="rounded-md border border-border bg-bg/40 p-2 group">
       <summary className="text-[10px] uppercase tracking-wide text-muted cursor-pointer hover:text-accent">
@@ -263,6 +263,12 @@ function DndSpellList({ character: c }: { character: Character }) {
           <div>
             <span className="text-muted block mb-1">Cantrips</span>
             <GlossaryTagList items={c.cantrips} />
+          </div>
+        ) : null}
+        {c.spellbook?.length ? (
+          <div>
+            <span className="text-muted block mb-1">Spellbook</span>
+            <GlossaryTagList items={c.spellbook} />
           </div>
         ) : null}
         {prepared.length > 0 && (

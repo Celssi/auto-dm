@@ -115,12 +115,20 @@ def spend_second_wind(char: Dnd5eCharacter) -> bool:
 
 
 def compute_ac_details(char: Dnd5eCharacter) -> dict[str, Any]:
-    """PHB 2024 AC: armor table + DEX + shield + Defense fighting style."""
+    """PHB 2024 AC: armor table + DEX + shield + Defense fighting style + Mage Armor."""
     dex = char.ability_modifier("dex")
     armor_id = str(char.armor or "none").strip().lower() or "none"
     armor = get_armor(armor_id) if armor_id != "none" else None
     parts: list[dict[str, Any]] = []
-    if not armor:
+    from backend.games.dnd5e.characters.spell_resources import mage_armor_active
+
+    unarmored = not armor
+    if unarmored and mage_armor_active(char):
+        computed = 13 + dex
+        parts.append({"label": "Mage Armor", "value": 13})
+        if dex:
+            parts.append({"label": "Dexterity", "value": dex})
+    elif not armor:
         computed = 10 + dex
         parts.append({"label": "Unarmored", "value": 10})
         if dex:

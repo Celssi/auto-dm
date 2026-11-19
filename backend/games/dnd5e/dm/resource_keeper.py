@@ -7,7 +7,7 @@ import re
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 
-from backend.games.dnd5e.characters.character_builder import apply_short_rest
+from backend.games.dnd5e.characters.character_builder import apply_short_rest, long_rest_recover
 from backend.games.dnd5e.characters.entity import (
     Dnd5eCharacter,
     character_from_dict,
@@ -30,11 +30,34 @@ _SHORT_REST_TRIGGERS = (
     "tunnin lepo",
 )
 
+_REST_REFUSAL = re.compile(
+    r"(not possible|not applied|cannot rest|can't rest|can not rest|"
+    r"no time to rest|too dangerous|not (a )?safe (place|time|moment)|"
+    r"keep moving|rest will have to wait|no chance to rest|"
+    r"do not rest|don't rest|no short rest|no long rest|"
+    r"enemy .{0,80}approach|interrupted)",
+    re.IGNORECASE,
+)
+_SHORT_REST_GRANT = re.compile(
+    r"(you (take|finish|complete|settle) .{0,40}rest|after (a |the )?short rest|"
+    r"an hour (passes|later)|for an hour|hour passes|feel refreshed|"
+    r"arcane recovery|hit dice|hit die|you rest)",
+    re.IGNORECASE,
+)
+_LONG_REST_GRANT = re.compile(
+    r"(you (take|finish|complete) .{0,40}long rest|after (a |the )?long rest|"
+    r"eight hours|8 hours|you sleep|trance)",
+    re.IGNORECASE,
+)
+
 
 class SpellCast(BaseModel):
     spell_name: str
     slot_level: int = Field(default=0, description="0 = default spell level; higher = upcast")
-    ritual: bool = Field(default=False, description="Ritual cast — no slot spent")
+    ritual: bool = Field(default=False, description="Ritual cast, no slot spent")
+    free_use: bool | None = Field(
+        default=None, description="True if Magic Initiate free cast was used"
+    )
 
 
 class ResourceTurnUpdates(BaseModel):
@@ -52,11 +75,73 @@ class ResourceTurnUpdates(BaseModel):
     )
 
 
-def narrative_short_rest_detected(user_message: str, dm_response: str) -> bool:
-    combined = f"{user_message}\n{dm_response}".lower()
-    if "long rest" in combined or "long-rest" in combined:
+def rest_refused(dm_response: str) -> bool:
+    return bool(_REST_REFUSAL.search(dm_response or ""))
+
+
+def rest_granted(dm_response: str, *, kind: str = "short") -> bool:
+    if rest_refused(dm_response):
         return False
-    return any(trigger in combined for trigger in _SHORT_REST_TRIGGERS)
+    text = dm_response or ""
+    if kind == "long":
+        return bool(_LONG_REST_GRANT.search(text))
+    return bool(_SHORT_REST_GRANT.search(text))
+
+
+def narrative_short_rest_detected(user_message: str, dm_response: str) -> bool:
+    """True only when the DM actually grants a short rest, not merely when the player asks."""
+    dm = (dm_response or "").lower()
+    user = (user_message or "").lower()
+    if "long rest" in dm or "long-rest" in dm:
+        return False
+    if rest_refused(dm_response):
+        return False
+    if rest_granted(dm_response, kind="short"):
+        return True
+    if any(trigger in user for trigger in _SHORT_REST_TRIGGERS) and rest_granted(
+        dm_response, kind="short"
+    ):
+        return True
+    return False
+
+
+def parse_pc_hp_from_narration(
+    dm_response: str,
+    *,
+    name: str,
+    max_hp: int,
+    current_hp: int,
+) -> int | None:
+    """Read the player character's HP from DM prose when clearly stated."""
+    text = dm_response or ""
+    if not text.strip() or max_hp <= 0:
+        return None
+    name_pat = re.escape((name or "").strip()) if (name or "").strip() else ""
+    patterns: list[re.Pattern[str]] = [
+        re.compile(r"\byour (?:hp|hit points?)\s*(?:are|is|now|:)?\s*(\d+)\s*/\s*(\d+)", re.I),
+        re.compile(r"\byou (?:are|drop|are reduced) (?:to|down to)\s*(\d+)\s*(?:hp|hit points?)\b", re.I),
+        re.compile(r"\b(?:hp|hit points?)\s*(\d+)\s*/\s*(\d+)\b", re.I),
+        re.compile(r"\b(\d+)\s*/\s*(\d+)\s*(?:hp|hit points?)\b", re.I),
+        re.compile(r"\bleave things at\s+(\d+)\s*(?:hp|hit points?)\b", re.I),
+        re.compile(r"\bat\s+(\d+)\s*(?:hp|hit points?)\b", re.I),
+    ]
+    if name_pat:
+        patterns.insert(
+            0,
+            re.compile(
+                rf"{name_pat}.{{0,48}}(?:hp|hit points?)\s*(?:are|is|now|:)?\s*(\d+)\s*(?:/\s*(\d+))?",
+                re.I,
+            ),
+        )
+    for pattern in patterns:
+        for match in pattern.finditer(text):
+            hp = int(match.group(1))
+            mx = int(match.group(2)) if match.lastindex and match.lastindex >= 2 and match.group(2) else max_hp
+            if mx == max_hp and 0 <= hp <= max_hp:
+                if hp != current_hp:
+                    return hp
+                return hp
+    return None
 
 
 def parse_hit_dice_to_spend(user_message: str, dm_response: str) -> int:
@@ -132,6 +217,44 @@ def run_resource_keeper(
         return {}, []
     char = character_from_dict(character)
 
+    if rest_refused(dm_response):
+        entity: dict = {}
+        logs: list[str] = ["Rest not applied: the DM did not grant a rest."]
+        hp = parse_pc_hp_from_narration(
+            dm_response, name=char.name, max_hp=char.max_hp, current_hp=char.hp
+        )
+        if hp is not None and hp != char.hp:
+            char.hp = hp
+            entity["hp"] = hp
+            logs.append(f"HP set to {hp}/{char.max_hp} from DM narration.")
+        return entity, logs
+
+    from backend.games.dnd5e.dm.spell_autocomplete import extract_cast_query, resolve_spell_query
+    from backend.games.dnd5e.characters.spell_resources import apply_spell_cast
+
+    query = extract_cast_query(user_message)
+    if query:
+        resolution = resolve_spell_query(char, query)
+        if resolution.status == "exact" and resolution.spell_name:
+            ok, msg = apply_spell_cast(
+                char,
+                resolution.spell_name,
+                requested_text=user_message,
+                inferred=False,
+                audit_source="resource_keeper",
+            )
+            entity, logs = apply_resource_updates(char, ResourceTurnUpdates())
+            if msg:
+                logs = [msg if ok else f"⚠ {msg}"] + logs
+            hp = parse_pc_hp_from_narration(
+                dm_response, name=char.name, max_hp=char.max_hp, current_hp=char.hp
+            )
+            if hp is not None:
+                char.hp = hp
+                entity["hp"] = hp
+                logs.append(f"HP set to {hp}/{char.max_hp} from DM narration.")
+            return entity, logs
+
     if narrative_short_rest_detected(user_message, dm_response):
         dice = parse_hit_dice_to_spend(user_message, dm_response)
         return _apply_short_rest_updates(char, dice_to_spend=dice)
@@ -139,13 +262,40 @@ def run_resource_keeper(
     updates = extract_resource_updates(
         char=char, user_message=user_message, dm_response=dm_response
     )
-    if updates.short_rest:
+    if updates.short_rest and not rest_refused(dm_response):
         return _apply_short_rest_updates(char, dice_to_spend=updates.spend_hit_dice)
 
     entity_updates, logs = apply_resource_updates(char, updates)
+    hp = parse_pc_hp_from_narration(
+        dm_response, name=char.name, max_hp=char.max_hp, current_hp=char.hp
+    )
+    if hp is not None and hp != char.hp:
+        char.hp = hp
+        entity_updates["hp"] = hp
+        logs.append(f"HP set to {hp}/{char.max_hp} from DM narration.")
     if not entity_updates and not logs:
         return {}, []
     return entity_updates, logs
+
+
+def apply_pending_rest(
+    character: dict,
+    pending: dict,
+    dm_response: str,
+) -> tuple[dict, list[str]]:
+    """Apply a shortcut rest only after the DM grants it."""
+    kind = str(pending.get("kind") or "short").strip().lower()
+    if rest_refused(dm_response) or not rest_granted(dm_response, kind=kind):
+        reason = "the DM did not grant a rest"
+        if rest_refused(dm_response):
+            reason = "the DM refused the rest"
+        return {}, [f"Rest not applied: {reason}."]
+    char = character_from_dict(character)
+    if kind == "long":
+        rest = long_rest_recover(char)
+        return dict(rest.get("entity_updates") or {}), [str(rest.get("summary") or "Long rest.")]
+    dice = int(pending.get("dice_to_spend") or 0)
+    return _apply_short_rest_updates(char, dice_to_spend=dice)
 
 
 def apply_cast_spell_shortcut(
@@ -155,9 +305,12 @@ def apply_cast_spell_shortcut(
     slot_level: int = 0,
     ritual: bool = False,
     audit_source: str = "shortcut",
+    free_use: bool | None = None,
+    requested_text: str = "",
 ) -> tuple[dict, list[str]]:
     """Deterministic spell cast without LLM (shortcut)."""
     char = character_from_dict(character)
+    from backend.games.dnd5e.characters.class_resources import compute_ac_details
     from backend.games.dnd5e.characters.spell_resources import apply_spell_cast
 
     ok, msg = apply_spell_cast(
@@ -167,10 +320,17 @@ def apply_cast_spell_shortcut(
         ritual=ritual,
         audit_source=audit_source,
         inferred=False,
+        free_use=free_use,
+        requested_text=requested_text,
     )
+    if not char.ac_manual:
+        char.ac = int(compute_ac_details(char)["computed"])
     entity = {
         "spell_slots": dict(char.spell_slots),
         "concentration": char.concentration,
         "wild_shape_uses": char.wild_shape_uses,
+        "feature_choices": dict(char.feature_choices or {}),
+        "ac": char.ac,
+        "hp": char.hp,
     }
     return entity, [msg if ok else f"⚠ {msg}"]

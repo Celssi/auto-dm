@@ -75,3 +75,40 @@ def rebuild_character_dict(data: dict[str, Any] | None) -> dict[str, Any]:
     obj = plugin.character_from_dict(data or {})
     rebuilt = plugin.rebuild_character(obj)
     return plugin.character_to_dict(rebuilt)
+
+
+def _migration_fields(data: dict[str, Any] | None) -> dict[str, Any]:
+    raw = data or {}
+    fc = raw.get("feature_choices") if isinstance(raw.get("feature_choices"), dict) else {}
+    return {
+        "origin_languages": [
+            str(item).strip().lower().replace("_", " ")
+            for item in (fc.get("origin_languages") or [])
+            if str(item).strip()
+        ],
+        "high_elf_spell_ability": str(fc.get("high_elf_spell_ability") or "").strip().lower(),
+        "spellbook": sorted(
+            str(item).strip().lower() for item in (raw.get("spellbook") or []) if str(item).strip()
+        ),
+        "languages": sorted(
+            str(item).strip().lower() for item in (raw.get("languages") or []) if str(item).strip()
+        ),
+    }
+
+
+def rebuild_character_dict_persisting(
+    char_id: str,
+    data: dict[str, Any] | None,
+) -> dict[str, Any]:
+    """Rebuild derived fields and persist safe 2024 backfills when they changed."""
+    from backend.storage import save_character
+
+    rebuilt = rebuild_character_dict(data)
+    if resolve_game_id(data) != "dnd5e":
+        return rebuilt
+    if _migration_fields(data) != _migration_fields(rebuilt):
+        save_character(char_id, rebuilt)
+        from backend.storage import get_character
+
+        return get_character(char_id) or rebuilt
+    return rebuilt

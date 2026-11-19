@@ -17,6 +17,14 @@ import type { Character, DragonkeepState, PendingJourney } from '../../types';
 export type PlayMode = 'freeform' | 'module';
 export type Advantage = 'normal' | 'advantage' | 'disadvantage';
 
+export interface SpellCastModalState {
+  spellName: string;
+  slotLevel: number;
+  freeUse: boolean;
+  ritual: boolean;
+  submitting: boolean;
+}
+
 export interface DiceModalState {
   shortcutId: string;
   label: string;
@@ -87,6 +95,8 @@ export interface PlayState {
   combatState: CombatStateSnapshot | null;
   brambletrekCombat: import('../../types').BrambletrekCombatState | null;
   diceModal: DiceModalState | null;
+  spellCastModal: SpellCastModalState | null;
+  sheetUpdating: boolean;
   pendingJourney: PendingJourney | null;
   dragonkeep: DragonkeepState | null;
 }
@@ -151,6 +161,8 @@ export function createInitialPlayState(sessionId = '', wizardTab: 'continue' | '
     combatState: null,
     brambletrekCombat: null,
     diceModal: null,
+    spellCastModal: null,
+    sheetUpdating: false,
     pendingJourney: null,
     dragonkeep: null,
   };

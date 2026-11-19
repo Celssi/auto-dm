@@ -6,7 +6,6 @@ from typing import Literal
 
 from backend.dm.audit import record_audit
 from backend.dm.dice import roll_advantage_d20, roll_death_saves
-from backend.games.dnd5e.characters.character_builder import apply_short_rest, long_rest_recover
 from backend.games.dnd5e.characters.entity import (
     Dnd5eCharacter,
     character_from_dict,
@@ -435,73 +434,68 @@ def run_shortcut(
         }
 
     if shortcut_id == "short_rest":
-        char = _char_from_kwargs(
-            name=name,
-            species=species,
-            class_name=class_name,
-            level=level,
-            hp=hp,
-            max_hp=max_hp,
-            hit_die=hit_die,
-            hit_dice_max=hit_dice_max or level,
-            hit_dice_spent=hit_dice_spent,
-            ability_scores=ability_scores,
-            spell_slots=spell_slots,
-        )
         char = character_from_dict(
             {
-                **character_to_dict(char),
-                "classes": _kwargs.get("classes") or [],
-                "subclass": _kwargs.get("subclass") or "",
+                "name": name,
+                "species": species,
+                "class_name": class_name,
+                "level": level,
+                "hp": hp,
+                "max_hp": max_hp,
+                "hit_die": hit_die,
+                "hit_dice_max": hit_dice_max or level,
+                "hit_dice_spent": hit_dice_spent,
+                "ability_scores": ability_scores or {},
+                "spell_slots": spell_slots or {},
+                **_kwargs,
             }
         )
-        rest = apply_short_rest(char, dice_to_spend=hit_dice_to_spend)
-        user = f"**Short rest**\n\n{rest['summary']}"
+        dice = int(hit_dice_to_spend or 0)
+        if dice <= 0 and char.hp < char.max_hp:
+            available = max(0, char.hit_dice_max - char.hit_dice_spent)
+            if available > 0:
+                dice = 1
+        user = (
+            "**Short rest**\n\n"
+            "The player tries to take a short rest. Apply it only if the scene is safe."
+        )
         prompt = (
-            f"D&D 5e short rest for {build}. {rest['summary']}. "
-            "Explain remaining short rest options: more Hit Dice, class features, "
-            "and limitations per 2024 PHB."
+            f"D&D 5e short rest request for {build}. "
+            "If enemies are nearby, the scene is unsafe, or there is no time, refuse the rest "
+            "and do not recover Hit Dice or slots. If the scene is safe, narrate a short rest "
+            "(about 1 hour) and the recovery."
         )
         return {
             "user_message": user,
             "prompt": prompt,
-            "dice": {"summary": rest["summary"]},
-            "entity_updates": rest.get("entity_updates") or {},
+            "dice": {"summary": "Short rest requested."},
+            "entity_updates": {},
+            "pending_rest": {"kind": "short", "dice_to_spend": dice},
             "task": "short_rest",
         }
 
     if shortcut_id == "long_rest":
-        char = _char_from_kwargs(
-            name=name,
-            species=species,
-            class_name=class_name,
-            level=level,
-            hp=hp,
-            max_hp=max_hp,
-            hit_die=hit_die,
-            hit_dice_max=hit_dice_max or level,
-            hit_dice_spent=hit_dice_spent,
-            ability_scores=ability_scores,
-            spell_slots=spell_slots,
-        )
-        rest = long_rest_recover(char)
-        user = f"**Long rest**\n\n{rest['summary']}"
         trance_dm = ""
         if (species or "").strip().lower() == "elf":
             trance_dm = (
-                " The character is an elf: narrate this as a 4-hour Trance "
+                " The character is an elf: if the rest is granted, narrate a 4-hour Trance "
                 "(meditative rest, not sleep), per PHB 2024 Trance trait. "
             )
+        user = (
+            "**Long rest**\n\n"
+            "The player tries to take a long rest. Apply it only if the scene is safe."
+        )
         prompt = (
-            f"D&D 5e long rest for {build}. {rest['summary']}.{trance_dm} "
-            "Explain long rest limits and anything not recovered per 2024 PHB."
+            f"D&D 5e long rest request for {build}.{trance_dm} "
+            "If the scene is unsafe, refuse the rest. If safe, narrate the rest and recovery."
         )
         return {
             "user_message": user,
             "prompt": prompt,
             "static": False,
             "rag_only": True,
-            "entity_updates": rest.get("entity_updates") or {},
+            "entity_updates": {},
+            "pending_rest": {"kind": "long", "dice_to_spend": 0},
             "task": "long_rest",
         }
 
@@ -669,6 +663,20 @@ def run_shortcut(
 
     if shortcut_id == "cast_spell":
         spell_name = str(_kwargs.get("spell_name") or "").strip()
+        if not spell_name:
+            return {
+                "user_message": (
+                    "**Cast spell**\n\n"
+                    "No spell named. Pick a prepared spell, cantrip, or Magic Initiate spell first."
+                ),
+                "prompt": (
+                    "The player used Cast spell without naming a spell. "
+                    "Ask which prepared or Magic Initiate spell to cast. Do not invent a spell."
+                ),
+                "static": True,
+                "entity_updates": {},
+                "task": "cast_spell",
+            }
         char_dict = character_to_dict(
             character_from_dict(
                 {
@@ -680,22 +688,26 @@ def run_shortcut(
                     "hp": hp,
                     "max_hp": max_hp,
                     "hit_die": hit_die,
+                    "ability_scores": ability_scores or {},
                     "spell_slots": spell_slots or {},
-                    "cantrips": _kwargs.get("cantrips") or [],
-                    "prepared_spells": _kwargs.get("prepared_spells") or [],
-                    "known_spells": _kwargs.get("known_spells") or [],
-                    "classes": _kwargs.get("classes") or [],
-                    "wild_shape_uses": int(_kwargs.get("wild_shape_uses") or 0),
-                    "concentration": _kwargs.get("concentration") or "",
+                    **_kwargs,
                 }
             )
         )
         slot_level = int(_kwargs.get("slot_level") or 0)
+        free_use = _kwargs.get("free_use")
+        if isinstance(free_use, str):
+            free_use = free_use.strip().lower() in {"1", "true", "yes"}
+        elif free_use is not None:
+            free_use = bool(free_use)
+        requested_text = str(_kwargs.get("requested_text") or _kwargs.get("user_message") or "")
         entity, logs = apply_cast_spell_shortcut(
             char_dict,
             spell_name,
             slot_level=slot_level,
             ritual=bool(_kwargs.get("ritual")),
+            free_use=free_use,
+            requested_text=requested_text,
         )
         summary = logs[0] if logs else f"Cast {spell_name or '(no spell)'}."
         user = f"**Cast spell**\n\n{summary}"

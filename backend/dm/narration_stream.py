@@ -6,7 +6,7 @@ from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from contextvars import ContextVar
 
-NarrationEmit = Callable[[str, str], None]
+NarrationEmit = Callable[[str, object], None]
 
 _SINK: ContextVar[NarrationEmit | None] = ContextVar("narration_sink", default=None)
 
@@ -30,6 +30,13 @@ def emit_narration_replace(text: str) -> None:
     sink = _SINK.get()
     if sink:
         sink("narration_replace", text)
+
+
+def emit_ready(payload: dict) -> None:
+    """Unlock the play input once narrative text is final; post-processing continues."""
+    sink = _SINK.get()
+    if sink and payload:
+        sink("ready", payload)
 
 
 def narration_enabled() -> bool:

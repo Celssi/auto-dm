@@ -14,7 +14,9 @@ from backend.games.dnd5e.characters.entity import (
     character_to_dict,
 )
 from backend.games.dnd5e.characters.spell_resources import (
-    _subclass_always_prepared,
+    character_spell_groups,
+    magic_initiate_free_available,
+    match_spell_name,
     normalize_spell_name,
 )
 from backend.games.dnd5e.dm.resource_keeper import apply_cast_spell_shortcut
@@ -23,6 +25,7 @@ _CAST_PATTERNS = (
     re.compile(r"^/cast\s+(.+)$", re.IGNORECASE),
     re.compile(r"^cast\s+(.+)$", re.IGNORECASE),
     re.compile(r"\bi\s+cast\s+(.+?)(?:\s+at\b|\s+on\b|\s+against\b|[.!,]|$)", re.IGNORECASE),
+    re.compile(r"\bcast\s+(.+?)(?:\s+at\b|\s+on\b|\s+against\b|[.!,]|$)", re.IGNORECASE),
     re.compile(r"\bcasting\s+(.+?)(?:\s+at\b|\s+on\b|\s+against\b|[.!,]|$)", re.IGNORECASE),
 )
 
@@ -56,18 +59,27 @@ class SpellQueryResolution:
 def list_character_spells(char: Dnd5eCharacter) -> list[str]:
     seen: set[str] = set()
     names: list[str] = []
-    for group in (
-        char.cantrips,
-        char.prepared_spells,
-        char.known_spells,
-        _subclass_always_prepared(char),
-    ):
+    for group in character_spell_groups(char):
         for name in group:
             key = normalize_spell_name(str(name))
             if key and key not in seen:
                 seen.add(key)
                 names.append(str(name).strip())
     return names
+
+
+def request_wants_free_cast(text: str) -> bool:
+    lower = (text or "").strip().lower()
+    return any(
+        token in lower
+        for token in (
+            "magic initiate",
+            "free use",
+            "free cast",
+            "no slot",
+            "without a slot",
+        )
+    )
 
 
 def _similarity(a: str, b: str) -> float:
@@ -100,6 +112,11 @@ def extract_cast_query(message: str) -> str | None:
 
 def resolve_spell_query(char: Dnd5eCharacter, query: str) -> SpellQueryResolution:
     requested = query.strip()
+    matched = match_spell_name(char, requested)
+    if matched:
+        return SpellQueryResolution(
+            status="exact", spell_name=matched, requested=requested, score=1.0
+        )
     normalized = normalize_spell_name(requested)
     if not normalized:
         return SpellQueryResolution(status="unknown", requested=requested)
@@ -152,10 +169,20 @@ def confirmation_message(resolution: SpellQueryResolution) -> str:
     )
 
 
-def execute_confirmed_cast(char: Dnd5eCharacter, spell_name: str) -> tuple[dict, str, list[str]]:
+def execute_confirmed_cast(
+    char: Dnd5eCharacter,
+    spell_name: str,
+    *,
+    free_use: bool | None = None,
+    requested_text: str = "",
+) -> tuple[dict, str, list[str]]:
     char_dict = character_to_dict(char)
     entity, logs = apply_cast_spell_shortcut(
-        char_dict, spell_name, audit_source="spell_autocomplete"
+        char_dict,
+        spell_name,
+        audit_source="spell_autocomplete",
+        free_use=free_use,
+        requested_text=requested_text,
     )
     updated = dict(char_dict)
     updated.update(entity)
