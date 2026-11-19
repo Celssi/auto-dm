@@ -41,7 +41,7 @@ RUN pip install --no-cache-dir .
 COPY data/curated ./data/curated
 COPY --from=frontend /frontend/dist ./frontend/dist
 
-RUN python -c "from backend.embeddings import build_embed_model; build_embed_model()"
+RUN python -c "from backend.embeddings import build_embed_model; build_embed_model().get_text_embedding('ping')"
 
 EXPOSE 8080
 CMD ["sh", "-c", "if [ \"${AUTO_DM_JOB:-}\" = reindex ]; then exec python -m backend.rag.reindex_job; else exec uvicorn backend.main:app --host 0.0.0.0 --port ${PORT:-8080}; fi"]
