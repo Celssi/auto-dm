@@ -1,4 +1,4 @@
-# Player combat tactic cards by Legacy (Core Rulebook pp. 30-31).
+# Player combat tactic cards by Legacy (Core Rulebook pp. 31-32).
 player_tactics:
   seer:
     '2': Arcane Shield — reduce next attack damage by 2.
@@ -63,7 +63,7 @@ player_tactics:
     '5': Confusing Blow — 2 damage; opponent damage −2 for 2 turns.
     '6': Rapid Strike — 6 damage split across 3 hits.
     '7': Steal and Stab — 2 damage; draw card (face/Ace = item after combat).
-    '8': Shadow Strike — 5 if unhurt this combat else 2.
+    '8': "Poisoned Blade: 1 damage per turn for the next 3 turns."
     '9': Shadow Strike — 5 if unhurt this combat else 2.
     '10': Hidden Blade — +5 on next attack.
     jack: Misty Movement — you or ally avoid next attack.

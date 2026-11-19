@@ -222,6 +222,8 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ character }),
     }),
+  rebuildCharacter: (id: string) =>
+    request<{ character: Record<string, unknown> }>(`/characters/${id}/rebuild`, { method: 'POST' }),
   getLevelUpPreview: (id: string, className?: string) =>
     request<{ preview: LevelUpPreview }>(
       `/characters/${id}/level-up-preview${className ? `?class_name=${encodeURIComponent(className)}` : ''}`,
@@ -368,8 +370,12 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ question, include_faerun }),
     }),
-  reindex: (include_faerun = false, onEvent?: StreamHandler) =>
-    readSse('/index/reindex', { include_faerun }, onEvent ?? (() => undefined)),
+  reindex: (include_faerun = false, onEvent?: StreamHandler, confirmDropFaerun = false) =>
+    readSse(
+      '/index/reindex',
+      { include_faerun, confirm_drop_faerun: confirmDropFaerun },
+      onEvent ?? (() => undefined),
+    ),
   getGlossary: () => request<{ count: number; entries: Record<string, unknown> }>('/glossary'),
   lookupGlossary: (names: string[], use_rag = true) =>
     request<{

@@ -22,7 +22,8 @@ export const BEGINNER_TIPS: Record<string, BeginnerTip> = {
   speed: {
     title: 'Speed',
     kind: 'rules',
-    summary: 'How far you can walk on your turn, in feet. A normal Human walk speed is 30 feet.',
+    summary:
+      'How far you can walk on your turn, in feet. A normal Human walk speed is 30 feet. Exhaustion reduces Speed by 5 feet per level.',
   },
   'hit-points': {
     title: 'Hit Points',

@@ -88,6 +88,16 @@ def retrieve_nodes(
     )
 
 
+def clear_retrieval_caches() -> None:
+    """Drop in-process RAG caches after a reindex."""
+    from backend.rag.retrieval_core import _BM25_CACHE, _LEXICAL_CACHE, _get_chroma_client
+
+    _retrieve_nodes_cached.cache_clear()
+    _BM25_CACHE.clear()
+    _LEXICAL_CACHE.clear()
+    _get_chroma_client.cache_clear()
+
+
 @lru_cache(maxsize=256)
 def _retrieve_nodes_cached(
     _key: str,

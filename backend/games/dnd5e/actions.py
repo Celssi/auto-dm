@@ -32,6 +32,7 @@ SHORTCUTS: list[dict[str, str]] = [
     {"id": "cast_spell", "label": "Cast spell", "kind": "static"},
     {"id": "lucky", "label": "Spend Luck point", "kind": "static"},
     {"id": "second_wind", "label": "Second Wind", "kind": "roll"},
+    {"id": "heroic_inspiration", "label": "Spend Heroic Inspiration", "kind": "static"},
     {"id": "savage_attacker", "label": "Savage Attacker (reroll damage)", "kind": "roll"},
     {"id": "healer_medic", "label": "Healer: Battle Medic", "kind": "roll"},
     {"id": "rules_help", "label": "D&D 5e rules help", "kind": "rag_only"},
@@ -71,6 +72,8 @@ def shortcuts_for_character(char: dict | None) -> list[dict[str, str]]:
         extra.add("healer_medic")
     if second_wind_max(obj) > 0:
         extra.add("second_wind")
+    if obj.heroic_inspiration:
+        extra.add("heroic_inspiration")
     allowed = ALWAYS_SHORTCUTS | extra
     return [row for row in SHORTCUTS if row["id"] in allowed]
 
@@ -546,6 +549,28 @@ def run_shortcut(
                 "second_wind_remaining": char.second_wind_remaining,
             },
             "task": "second_wind",
+        }
+
+    if shortcut_id == "heroic_inspiration":
+        char = _shortcut_char(name=name, class_name=class_name, level=level, extra=_kwargs)
+        if not char.spend_heroic_inspiration():
+            return {
+                "user_message": "**Heroic Inspiration**: you do not have it to spend.",
+                "prompt": "Heroic Inspiration is not available.",
+                "static": True,
+            }
+        return {
+            "user_message": (
+                "**Heroic Inspiration spent.** Reroll one die you just rolled and use the new result. "
+                "You cannot have more than one Heroic Inspiration at a time."
+            ),
+            "prompt": (
+                f"{build} spends Heroic Inspiration (2024): reroll one die immediately after rolling "
+                "it and keep the new roll. They now have none."
+            ),
+            "entity_updates": {"heroic_inspiration": False},
+            "task": "heroic_inspiration",
+            "static": True,
         }
 
     if shortcut_id == "lucky":

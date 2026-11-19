@@ -251,8 +251,18 @@ def combat_mechanics_node(state: DMState) -> DMState:
     if state.get("in_combat"):
         game_id = "dnd5e"
         factions = factions_for(state.get("include_faerun", False), game_id)
+        from backend.games.dnd5e.dm.structured_lookup import (
+            format_curated_context,
+            lookup_curated_rules,
+            rewrite_rules_query,
+        )
+
+        combat_query = rewrite_rules_query(state.get("user_message", "") or "")
+        curated = lookup_curated_rules(combat_query)
+        if curated:
+            lines.append(format_curated_context(curated))
         rag = query_rules(
-            f"Combat rules for: {state.get('user_message', '')}",
+            combat_query or f"Combat rules for: {state.get('user_message', '')}",
             factions=["player", "monsters"] + (["dm"] if "dm" not in factions else []),
             top_k=3,
             use_rerank=True,
@@ -261,10 +271,11 @@ def combat_mechanics_node(state: DMState) -> DMState:
         if rag.sources:
             lines.append("Combat rules excerpt:")
             for s in rag.sources[:2]:
+                text = str(s.get("text") or "")[:800]
                 lines.append(
                     f"- {s.get('source_label', '?')} "
                     f"p.{s.get('page', '?')}: "
-                    f"{s.get('text', '')[:200]}"
+                    f"{text}"
                 )
     return {"combat_context": "\n".join(lines)}
 
@@ -284,8 +295,17 @@ def rules_referee_node(state: DMState) -> DMState:
     include_faerun = state.get("include_faerun", False) or prefs.get("include_faerun", False)
     factions = factions_for(include_faerun, "dnd5e")
     generate = shortcut.get("task") in rag_tasks
+    from backend.games.dnd5e.dm.structured_lookup import (
+        format_curated_context,
+        lookup_curated_rules,
+        rewrite_rules_query,
+    )
+
+    search_msg = rewrite_rules_query(msg)
+    curated = lookup_curated_rules(search_msg)
+    curated_block = format_curated_context(curated)
     result = query_rules(
-        msg,
+        search_msg,
         game_id="dnd5e",
         factions=factions,
         use_rerank=prefs.get("use_rerank", True),
@@ -301,19 +321,25 @@ def rules_referee_node(state: DMState) -> DMState:
     )
     if shortcut.get("task") in rag_tasks and result.answer:
         user_msg = shortcut.get("user_message", "")
-        combined = f"{user_msg}\n\n{result.answer}" if user_msg else result.answer
+        answer = result.answer
+        if curated_block:
+            answer = f"{curated_block}\n\n{answer}"
+        combined = f"{user_msg}\n\n{answer}" if user_msg else answer
         return {
-            "rules_context": result.answer,
+            "rules_context": answer,
             "rules_sources": result.sources,
             "response": combined,
         }
-    if not result.sources:
+    if not result.sources and not curated_block:
         return {"rules_context": "", "rules_sources": []}
     chunks = []
+    if curated_block:
+        chunks.append(curated_block)
     for i, src in enumerate(result.sources[:5], 1):
+        text = str(src.get("text") or "")
         chunks.append(
             f"[{i}] {src.get('source_label', src.get('label', '?'))} p.{src.get('page', '?')}\n"
-            f"{src.get('text', '')[:800]}"
+            f"{text[:1200]}"
         )
     return {
         "rules_context": "\n\n".join(chunks),

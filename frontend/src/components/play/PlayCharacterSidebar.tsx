@@ -108,7 +108,7 @@ function DndCombatPills({ character: c }: { character: Character }) {
     <div className="flex flex-wrap gap-1.5">
       <StatPill label="AC" value={String(c.ac ?? 10)} tipId="armor-class" />
       <StatPill label="Init" value={formatMod(initiativeMod(c))} tipId="initiative" />
-      <StatPill label="Speed" value={`${c.speed ?? 30}`} tipId="speed" />
+      <StatPill label="Speed" value={`${c.speed_effective ?? c.speed ?? 30}`} tipId="speed" />
       <StatPill label="PP" value={String(passivePerception(c))} tipId="passive-perception" />
       <StatPill label="HD" value={`${hitDiceMax - hitDiceSpent}d${c.hit_die ?? 8}`} tipId="hit-dice" />
       {spellDc != null && <StatPill label="Spell DC" value={String(spellDc)} />}
