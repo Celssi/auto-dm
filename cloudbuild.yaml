@@ -133,26 +133,48 @@ steps:
           exit 0
         fi
         IMAGE="$_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA"
-        echo "Deploying Cloud Run job auto-dm-reindex from $$IMAGE"
+        PROJECT_NUMBER="$$(gcloud projects describe "$_AR_PROJECT_ID" --format='value(projectNumber)')"
+        RUNTIME_SA="$$PROJECT_NUMBER-compute@developer.gserviceaccount.com"
+        echo "AUTO_DM_REINDEX deploying job image=$$IMAGE sa=$$RUNTIME_SA"
         gcloud run jobs deploy auto-dm-reindex \
           --project="$_AR_PROJECT_ID" \
           --region="$_DEPLOY_REGION" \
           --image="$$IMAGE" \
+          --service-account="$$RUNTIME_SA" \
           --tasks=1 \
           --parallelism=1 \
           --max-retries=0 \
-          --task-timeout=10800 \
-          --cpu=4 \
+          --task-timeout=3h \
+          --cpu=2 \
           --memory=8Gi \
-          --command=python \
-          --args=-m,backend.rag.reindex_job \
+          --command=sh \
+          --args=-c,exec python -m backend.rag.reindex_job \
           --set-env-vars="AUTO_DM_BUCKET=$_DATA_BUCKET,GOOGLE_CLOUD_PROJECT=$_AR_PROJECT_ID,HF_HOME=/app/.cache/huggingface" \
           --quiet
-        echo "Executing auto-dm-reindex (Faerun + Brambletrek). This can take a long time."
+        echo "AUTO_DM_REINDEX executing Faerun + Brambletrek job"
+        set +e
         gcloud run jobs execute auto-dm-reindex \
           --project="$_AR_PROJECT_ID" \
           --region="$_DEPLOY_REGION" \
           --wait
+        EXEC_CODE=$$?
+        set -e
+        if [ "$$EXEC_CODE" -ne 0 ]; then
+          echo "AUTO_DM_REINDEX execute failed code=$$EXEC_CODE" >&2
+          gcloud run jobs executions list \
+            --job=auto-dm-reindex \
+            --project="$_AR_PROJECT_ID" \
+            --region="$_DEPLOY_REGION" \
+            --limit=1 \
+            --format='yaml(metadata.name,status)' || true
+          gcloud logging read \
+            'resource.type="cloud_run_job" AND resource.labels.job_name="auto-dm-reindex"' \
+            --project="$_AR_PROJECT_ID" \
+            --limit=40 \
+            --freshness=2h \
+            --format='value(textPayload)' || true
+          exit "$$EXEC_CODE"
+        fi
         echo "Bouncing Cloud Run so chroma hydrates from GCS"
         gcloud run services update "$_SERVICE_NAME" \
           --project="$_AR_PROJECT_ID" \
