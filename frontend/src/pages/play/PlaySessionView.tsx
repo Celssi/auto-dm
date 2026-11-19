@@ -281,7 +281,7 @@ function PlaySessionLayout({
               onChange={(value) => onTabletSide(value as TabletSide)}
               options={[
                 { value: 'sheet', label: 'Character' },
-                { value: 'tools', label: 'Oracles & rolls' },
+                { value: 'tools', label: 'Tools' },
               ]}
             />
             <div className="flex-1 min-h-0 flex flex-col">{tabletSide === 'sheet' ? sheet : tools}</div>
@@ -300,7 +300,7 @@ function PlayPaneBar({ active, onChange }: { active: PlayPane; onChange: (pane: 
   const panes: { id: PlayPane; label: string; icon: typeof MessageSquare }[] = [
     { id: 'chat', label: 'Chat', icon: MessageSquare },
     { id: 'sheet', label: 'Character', icon: UserRound },
-    { id: 'tools', label: 'Oracles', icon: Wrench },
+    { id: 'tools', label: 'Tools', icon: Wrench },
   ];
   return (
     <div className="shrink-0 grid grid-cols-3 rounded-xl border border-border bg-panel/80">

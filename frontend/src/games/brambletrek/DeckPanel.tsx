@@ -57,7 +57,7 @@ export default function DeckPanel({ characterId, remaining, onAction, embedded }
         <button
           type="button"
           className="btn-ghost flex items-center gap-1"
-          onClick={() => onAction(`Roll ${rollExpr} (use chat or oracle)`)}
+          onClick={() => onAction(`Roll ${rollExpr} (use chat or Tools)`)}
         >
           <Dices className="w-3.5 h-3.5" />
           Roll

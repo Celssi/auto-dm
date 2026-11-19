@@ -20,6 +20,11 @@ interface Placement {
   above: boolean;
 }
 
+function prefersHover(): boolean {
+  if (typeof window === 'undefined') return true;
+  return window.matchMedia('(hover: hover) and (pointer: fine)').matches;
+}
+
 function computePlacement(trigger: DOMRect): Placement {
   const vw = window.innerWidth;
   const vh = window.innerHeight;
@@ -49,6 +54,7 @@ export default function JournalTip({ entity, text }: Props) {
   const [open, setOpen] = useState(false);
   const [placement, setPlacement] = useState<Placement | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
   const showTimerRef = useRef<number | null>(null);
   const hideTimerRef = useRef<number | null>(null);
 
@@ -84,11 +90,19 @@ export default function JournalTip({ entity, text }: Props) {
     if (!open) return;
     updatePlacement();
     const onScrollOrResize = () => updatePlacement();
+    const onPointerDown = (event: PointerEvent) => {
+      const target = event.target as Node | null;
+      if (triggerRef.current?.contains(target)) return;
+      if (tipRef.current?.contains(target)) return;
+      dismiss();
+    };
     window.addEventListener('scroll', onScrollOrResize, true);
     window.addEventListener('resize', onScrollOrResize);
+    document.addEventListener('pointerdown', onPointerDown);
     return () => {
       window.removeEventListener('scroll', onScrollOrResize, true);
       window.removeEventListener('resize', onScrollOrResize);
+      document.removeEventListener('pointerdown', onPointerDown);
     };
   }, [open, updatePlacement]);
 
@@ -99,6 +113,7 @@ export default function JournalTip({ entity, text }: Props) {
       ? createPortal(
           <AnimatePresence>
             <m.div
+              ref={tipRef}
               initial={{ opacity: 0, y: placement.above ? 6 : -6 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: placement.above ? 6 : -6 }}
@@ -112,7 +127,9 @@ export default function JournalTip({ entity, text }: Props) {
                 transform: placement.above ? 'translateY(-100%)' : undefined,
                 zIndex: 9999,
               }}
-              className="flex flex-col p-3 panel-glow shadow-glow pointer-events-none"
+              className="flex flex-col p-3 panel-glow shadow-glow"
+              onMouseEnter={cancelHide}
+              onMouseLeave={scheduleHide}
             >
               <p className="font-medium text-accent text-sm mb-1.5 shrink-0">{entity.name}</p>
               <p className="text-[10px] uppercase tracking-wider text-accent/80 mb-1.5 shrink-0">
@@ -141,17 +158,27 @@ export default function JournalTip({ entity, text }: Props) {
         type="button"
         className="border-0 bg-transparent p-0 font-inherit text-inherit underline decoration-dotted decoration-accent/40 cursor-pointer"
         onMouseEnter={() => {
+          if (!prefersHover()) return;
           cancelHide();
           scheduleShow();
         }}
-        onMouseLeave={scheduleHide}
-        onMouseDown={dismiss}
+        onMouseLeave={() => {
+          if (!prefersHover()) return;
+          scheduleHide();
+        }}
+        onClick={(event) => {
+          if (prefersHover()) return;
+          event.preventDefault();
+          event.stopPropagation();
+          if (open) dismiss();
+          else setOpen(true);
+        }}
         onFocus={() => {
           cancelHide();
           setOpen(true);
         }}
         onBlur={scheduleHide}
-        aria-label={`${entity.name}, ${KIND_LABEL[entity.kind] || entity.kind}`}
+        aria-label={`${entity.name}, tap or focus for details`}
       >
         {text}
       </button>

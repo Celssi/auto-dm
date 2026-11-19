@@ -243,7 +243,7 @@ function PdfToolbar({
         <ChevronLeft size={18} />
       </button>
       <label className="text-xs text-muted inline-flex items-center gap-2">
-        Page
+        Printed page
         <input
           type="number"
           min={1}
@@ -251,6 +251,7 @@ function PdfToolbar({
           value={page}
           onChange={(event) => go(Number(event.target.value) || 1)}
           className="w-16 min-h-11 rounded-lg border border-border bg-bg px-2 text-sm text-gray-100"
+          aria-label="Printed page number"
         />
         of {knownTotal ? maxPrinted : '…'}
       </label>

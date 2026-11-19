@@ -50,7 +50,7 @@ function HomeWrapper() {
       .health()
       .then((h) => {
         if (cancelled) return;
-        setIndexed(h.indexed);
+        setIndexed(h.indexed_by_game?.[gameId] ?? h.indexed);
         setClaudeOk(h.claude_configured);
       })
       .catch((err: unknown) => {
@@ -62,7 +62,7 @@ function HomeWrapper() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [gameId]);
 
   useEffect(() => {
     let cancelled = false;

@@ -123,17 +123,20 @@ export const BEGINNER_TIPS: Record<string, BeginnerTip> = {
   cleave: {
     title: 'Cleave',
     kind: 'feature',
-    summary: 'On a hit, you can make an attack roll against a second creature within 5 feet of the first target.',
+    summary:
+      'Melee hit: make one extra attack against a second creature within 5 feet of the first and within your reach. Do not add your ability modifier to that damage unless it is negative. Once per turn.',
   },
   push: {
     title: 'Push',
     kind: 'feature',
-    summary: 'On a hit, the target must succeed on a Strength save or be pushed up to 10 feet away from you.',
+    summary:
+      'On a hit, you can push a Large or smaller target up to 10 feet straight away from you. No saving throw.',
   },
   topple: {
     title: 'Topple',
     kind: 'feature',
-    summary: 'On a hit, the target must succeed on a Dexterity save or have the Prone condition.',
+    summary:
+      'On a hit, the target makes a Constitution save (DC 8 + the attack ability modifier + your Proficiency Bonus) or has the Prone condition.',
   },
   feats: {
     title: 'Feats',
@@ -145,13 +148,13 @@ export const BEGINNER_TIPS: Record<string, BeginnerTip> = {
     title: 'Conditions',
     kind: 'rules',
     summary:
-      'Temporary states such as Poisoned, Prone, or Frightened. Each one changes what you can do. Hover a condition name for a short reminder.',
+      'Temporary states such as Poisoned, Prone, or Frightened. Each one changes what you can do. Tap or focus a condition name for a short reminder.',
   },
   exhaustion: {
     title: 'Exhaustion',
     kind: 'rules',
     summary:
-      'Each level of Exhaustion subtracts 2 from d20 tests (attacks, checks, saves). Six levels is death. A Long Rest removes one level.',
+      'Each level of Exhaustion subtracts 2 from d20 tests (attacks, checks, saves) and reduces Speed by 5 feet. Six levels is death. A Long Rest removes one level.',
   },
   spellcasting: {
     title: 'Spellcasting',

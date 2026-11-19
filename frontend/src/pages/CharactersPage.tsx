@@ -367,7 +367,7 @@ function CharactersRoster({
           <EmptyState
             icon={<Users size={32} />}
             title="No characters yet"
-            description={`Create a ${game.label} character to start playing.`}
+            description={`Create a ${game.label} character, then start a campaign from Play. You can make several heroes and pick one each session.`}
             action={
               <button type="button" className="btn-primary" onClick={onCreate}>
                 Create your first character

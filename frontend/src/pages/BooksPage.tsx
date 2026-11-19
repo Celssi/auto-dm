@@ -42,7 +42,10 @@ export default function BooksPage() {
 
   return (
     <AnimatedPage className="space-y-8">
-      <PageHeader title="Books" subtitle={`Open ${game.label} rulebooks and jump to a bookmark.`} />
+      <PageHeader
+        title="Books"
+        subtitle={`Open ${game.label} rulebooks. The page number is the printed page, so it matches citations in play.`}
+      />
 
       {lastBook && (
         <m.div variants={fadeUp}>

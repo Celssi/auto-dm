@@ -27,7 +27,6 @@ from backend.journal_storage import (
 )
 from backend.llm import structured_llm
 from backend.rag.engine import query_rules
-from backend.settings_store import load_settings
 from backend.storage import (
     create_session,
     get_adventure,
@@ -132,8 +131,6 @@ def generate_bootstrap_spec(
         raise ValueError(f"Character not found: {character_id}")
     plugin = _plugin_for_character(char)
     _require_campaign_plan(char)
-    prefs = load_settings()
-    include_faerun = include_faerun or prefs.get("include_faerun", False)
     context, _ = rag_context_for_theme(
         mode=mode, theme=theme, include_faerun=include_faerun, game_id=plugin.id
     )
@@ -222,8 +219,6 @@ def generate_adventure_spec_for_campaign(
         raise ValueError(f"Character not found: {character_id}")
     plugin = _plugin_for_character(char)
     _require_campaign_plan(char)
-    prefs = load_settings()
-    include_faerun = include_faerun or prefs.get("include_faerun", False)
     context, _ = rag_context_for_theme(
         mode=mode, theme=theme, include_faerun=include_faerun, game_id=plugin.id
     )
@@ -346,8 +341,6 @@ def generate_campaign_plan(
     include_faerun: bool = False,
     campaign_name: str = "",
 ) -> tuple[CampaignPlanSpec, list[dict]]:
-    prefs = load_settings()
-    include_faerun = include_faerun or prefs.get("include_faerun", False)
     count = max(1, min(adventure_count, 8))
 
     game_id = None

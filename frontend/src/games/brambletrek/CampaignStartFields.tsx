@@ -83,7 +83,7 @@ export default function BrambletrekCampaignStartFields({
       <Field label="Character">
         {btCharacters.length === 0 ? (
           <p className="text-sm text-muted">
-            <Link to="/characters" className="text-accent hover:underline">
+            <Link to="/characters/new" className="text-accent hover:underline">
               Create a Gnawborn
             </Link>{' '}
             first.

@@ -38,6 +38,7 @@ export default function GameSwitcher() {
         className="btn-ghost min-h-11 inline-flex items-center gap-1.5 max-w-full min-w-0 px-3"
         aria-haspopup="listbox"
         aria-expanded={open}
+        aria-label={`Current game ${game.label}. Switch game.`}
         onClick={() => setOpen((value) => !value)}
       >
         <span className="truncate">{game.label}</span>

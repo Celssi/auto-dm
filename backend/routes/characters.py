@@ -10,7 +10,6 @@ from pydantic import BaseModel
 from backend.dm.graph import level_up_character
 from backend.games.dnd5e.characters.character_data import multiclass_prerequisites
 from backend.games.registry import DEFAULT_GAME_ID, get_game, resolve_game_id
-from backend.settings_store import load_settings
 from backend.storage import delete_character, get_character, list_characters, save_character
 
 router = APIRouter(prefix="/api/characters", tags=["characters"])
@@ -49,10 +48,8 @@ def list_all():
 
 @router.get("/options")
 def options(include_faerun: bool = False, game_id: str | None = None):
-    prefs = load_settings()
-    use_faerun = include_faerun or prefs.get("include_faerun", False)
     plugin = get_game(game_id)
-    payload = plugin.character_options_payload(include_faerun=use_faerun)
+    payload = plugin.character_options_payload(include_faerun=include_faerun)
     if plugin.id == DEFAULT_GAME_ID:
         payload["multiclass_prerequisites"] = {
             cid: multiclass_prerequisites(cid)

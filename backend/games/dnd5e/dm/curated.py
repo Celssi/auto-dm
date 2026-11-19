@@ -36,5 +36,5 @@ def lookup_oracle(roll: int) -> dict[str, str]:
 def roll_oracle() -> dict[str, Any]:
     roll = random.randint(1, 6)
     row = lookup_oracle(roll)
-    summary = f"Solo oracle d6 = **{roll}** — **{row['text']}**"
+    summary = f"Solo oracle d6 = **{roll}**: **{row['text']}**"
     return {"roll": roll, **row, "summary": summary}

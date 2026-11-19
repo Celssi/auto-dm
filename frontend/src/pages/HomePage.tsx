@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { m } from '../lib/framer';
-import { BookOpen, Swords, Users, Play, Sparkles } from 'lucide-react';
+import { BookOpen, Library, Swords, Users, Play, Sparkles } from 'lucide-react';
 import PageHeader from '../components/ui/PageHeader';
 import StatusBadge from '../components/ui/StatusBadge';
 import AnimatedPage from '../components/ui/AnimatedPage';
@@ -66,7 +66,7 @@ function HomeStart({ recentSession, sessionsLoaded }: Pick<Props, 'recentSession
       {sessionsLoaded && !recentSession && (
         <div className="panel p-5 flex items-center min-h-[10.5rem]">
           <p className="text-sm text-muted">
-            No active sessions yet. Start a new campaign or create a character first.
+            No sessions yet. Create a character, then start a campaign from Play.
           </p>
         </div>
       )}
@@ -80,8 +80,8 @@ function HomeFirstTime({ gameId }: { gameId: string }) {
       <p className="label-text">First time here?</p>
       <p className="text-sm text-muted leading-relaxed">
         {gameId === 'brambletrek'
-          ? 'Create a Gnawborn, then start a campaign from Play. Hover dotted labels for short explanations of Health, Morale, Supplies, Legacy, and oracles.'
-          : 'Create a character, then start a campaign from Play. Hover dotted labels on the sheet for short explanations of Armor Class, proficiency, and similar terms. Oracles answer yes/no without inventing the story.'}
+          ? 'Create a Gnawborn, then start a campaign from Play. Tap or focus dotted labels for short explanations of Health, Morale, Supplies, Legacy, and journey tools. Books opens the rulebook PDFs.'
+          : 'Create a character, then start a campaign from Play. Tap or focus dotted labels on the sheet for Armor Class, proficiency, Exhaustion, and Weapon Mastery. Books opens the 2024 rulebooks on printed page numbers. Tools answers yes/no without inventing the story.'}
       </p>
       <Link to="/characters/new" className="btn-ghost inline-flex w-fit">
         Create a character
@@ -114,10 +114,19 @@ function HomeNavCards({ gameId }: { gameId: string }) {
       title: 'Play',
       desc: 'Start or resume a solo session.',
     },
+    {
+      to: '/books',
+      icon: Library,
+      title: 'Books',
+      desc:
+        gameId === 'brambletrek'
+          ? 'Open the Complete Digital Edition and jump to a bookmark.'
+          : 'Open the 2024 rulebooks. Page numbers match the printed book.',
+    },
   ];
 
   return (
-    <m.div variants={staggerContainer} className="grid grid-cols-1 md:grid-cols-3 gap-4">
+    <m.div variants={staggerContainer} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
       {cards.map(({ to, icon: Icon, title, desc }) => (
         <m.div key={to} variants={fadeUp}>
           <Link

@@ -138,8 +138,9 @@ def reindex(body: IngestBody):
             from backend.rag.engine import clear_retrieval_caches
 
             ok = True
-            for target in targets:
+            for index, target in enumerate(targets):
                 label = "D&D 5e" if target == "dnd5e" else get_game(target).label
+                last = index == len(targets) - 1
                 emit("progress", {"message": f"Indexing {label} books. This can take a long time."})
                 if target == "dnd5e":
                     code = run_ingest(
@@ -149,6 +150,7 @@ def reindex(body: IngestBody):
                         force_ocr=body.force_ocr,
                         game_id="dnd5e",
                         skip_audit=True,
+                        skip_upload=not last,
                     )
                 else:
                     code = run_ingest(
@@ -156,6 +158,7 @@ def reindex(body: IngestBody):
                         force_ocr=body.force_ocr,
                         game_id=target,
                         skip_audit=True,
+                        skip_upload=not last,
                     )
                 if code != 0:
                     ok = False
