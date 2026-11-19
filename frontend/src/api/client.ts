@@ -180,6 +180,7 @@ export const api = {
       chunk_counts?: Record<string, number>;
       claude_configured: boolean;
       claude_model: string;
+      last_recall?: { hits?: number; total?: number; recall?: number } | null;
     }>('/health'),
   keepalive: () => request<{ ok: boolean; ts: number }>('/keepalive'),
 
@@ -372,12 +373,7 @@ export const api = {
       method: 'POST',
       body: JSON.stringify(body),
     }),
-  searchRules: (
-    question: string,
-    include_faerun = false,
-    gameId = 'dnd5e',
-    generateAnswer = true,
-  ) =>
+  searchRules: (question: string, include_faerun = false, gameId = 'dnd5e', generateAnswer = true) =>
     request<{ answer: string; sources: Source[] }>('/rules/search', {
       method: 'POST',
       body: JSON.stringify({
@@ -387,12 +383,7 @@ export const api = {
         generate_answer: generateAnswer,
       }),
     }),
-  reindex: (
-    include_faerun = false,
-    onEvent?: StreamHandler,
-    confirmDropFaerun = false,
-    gameId = 'dnd5e',
-  ) =>
+  reindex: (include_faerun = false, onEvent?: StreamHandler, confirmDropFaerun = false, gameId = 'dnd5e') =>
     readSse(
       '/index/reindex',
       { include_faerun, confirm_drop_faerun: confirmDropFaerun, game_id: gameId },

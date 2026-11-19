@@ -196,6 +196,22 @@ steps:
           echo "Unexpected ticket status $$CODE after reindex bounce" >&2
           exit 1
         fi
+  - name: "gcr.io/google.com/cloudsdktool/cloud-sdk:slim"
+    id: VerifyRecall
+    timeout: 700s
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -euo pipefail
+        URL="$$(gcloud run services describe "$_SERVICE_NAME" --region="$_DEPLOY_REGION" --project="$_AR_PROJECT_ID" --format='value(status.url)')"
+        echo "Scoring live D&D retrieval with the Saruman query set"
+        curl -sS --fail --max-time 600 "$$URL/api/recall-audit?refresh=1" | tee /tmp/recall.json
+        if command -v python3 >/dev/null; then
+          python3 -c "import json; r=json.load(open('/tmp/recall.json')); print('RECALL %s/%s (%.0f%%) misses=%s' % (r['hits'], r['total'], 100*float(r['recall']), r.get('misses')))"
+        else
+          echo "Recall JSON written to /tmp/recall.json"
+        fi
 images:
   - >-
     $_AR_HOSTNAME/$_AR_PROJECT_ID/$_AR_REPOSITORY/$_REPO_NAME/$_SERVICE_NAME:$COMMIT_SHA

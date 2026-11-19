@@ -8,7 +8,7 @@ import threading
 import time
 from collections.abc import Iterator
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -24,10 +24,13 @@ from backend.glossary import glossary_payload, lookup_entries
 from backend.llm import resolve_claude_model
 from backend.rag.engine import query_rules
 from backend.rag.ingest import run_ingest
+from backend.rag.recall_audit import load_recall_report, run_recall_audit, save_recall_report
 from backend.rag.retrieval_core import get_collection
 from backend.settings_store import load_settings, save_settings
 
 router = APIRouter(prefix="/api", tags=["system"])
+_recall_lock = threading.Lock()
+_recall_cache: dict | None = None
 
 
 class SettingsBody(BaseModel):
@@ -63,6 +66,24 @@ def _index_status() -> dict:
     }
 
 
+def _cached_recall() -> dict | None:
+    global _recall_cache
+    if _recall_cache:
+        return _recall_cache
+    loaded = load_recall_report()
+    if loaded:
+        _recall_cache = loaded
+    return loaded
+
+
+def _run_and_cache_recall() -> dict:
+    global _recall_cache
+    report = run_recall_audit(include_faerun=True)
+    compact = save_recall_report(report)
+    _recall_cache = compact
+    return compact
+
+
 class GlossaryLookupBody(BaseModel):
     names: list[str]
     use_rag: bool = True
@@ -92,6 +113,7 @@ def keepalive():
 @router.get("/health")
 def health():
     status = _index_status()
+    last_recall = _cached_recall()
     return {
         "status": "ok",
         "indexed": status["indexed"],
@@ -103,7 +125,21 @@ def health():
         "langsmith_enabled": LANGSMITH_ENABLED,
         "langsmith_project": LANGSMITH_PROJECT or None,
         "langsmith_endpoint": LANGSMITH_ENDPOINT or None,
+        "last_recall": last_recall,
     }
+
+
+@router.get("/recall-audit")
+def recall_audit_endpoint(refresh: bool = Query(False)):
+    status = _index_status()
+    if not status["indexed_by_game"].get("dnd5e"):
+        raise HTTPException(status_code=503, detail="D&D 5e index is empty")
+    with _recall_lock:
+        if not refresh:
+            cached = _cached_recall()
+            if cached:
+                return cached
+        return _run_and_cache_recall()
 
 
 @router.post("/index/reindex")

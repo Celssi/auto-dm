@@ -29,6 +29,10 @@ export default function WizardBasicsStep({
 }: Props) {
   return (
     <div className="space-y-5">
+      <p className="text-sm text-muted leading-relaxed">
+        This wizard uses D&D 5e 2024 rules only, not the 2014 rulebooks. Dotted labels on the finished sheet explain
+        Armor Class, Exhaustion, Heroic Inspiration, and Weapon Mastery.
+      </p>
       <Field label="Campaign setting">
         <SegmentedControl
           value={char.campaign_setting || 'freeform'}

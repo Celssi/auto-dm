@@ -7,11 +7,70 @@ from pathlib import Path
 from typing import Any
 
 QUERIES_PATH = Path(__file__).resolve().parent / "saruman_queries.json"
+COMPACT_KEYS = (
+    "game_id",
+    "chunk_count",
+    "hits",
+    "total",
+    "recall",
+    "page_hits",
+    "page_recall",
+    "misses",
+    "page_misses",
+)
+
+
+def recall_path() -> Path:
+    from backend.config import SAVES_DIR
+
+    return SAVES_DIR / "recall_audit.json"
 
 
 def load_audit_queries(path: Path | None = None) -> list[dict[str, Any]]:
     target = path or QUERIES_PATH
     return json.loads(target.read_text(encoding="utf-8"))
+
+
+def compact_report(report: dict[str, Any]) -> dict[str, Any]:
+    compact = {key: report.get(key) for key in COMPACT_KEYS}
+    compact["results"] = [
+        {
+            "id": row.get("id"),
+            "hit": row.get("hit"),
+            "page_hit": row.get("page_hit"),
+            "query": row.get("query"),
+            "top_sections": row.get("top_sections") or [],
+            "top_pages": row.get("top_pages") or [],
+        }
+        for row in report.get("results") or []
+    ]
+    return compact
+
+
+def save_recall_report(report: dict[str, Any], *, upload: bool = True) -> dict[str, Any]:
+    compact = compact_report(report)
+    path = recall_path()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(compact, ensure_ascii=True), encoding="utf-8")
+    if upload:
+        try:
+            from backend.gcs_sync import upload_saves_path
+
+            upload_saves_path(path)
+        except Exception as exc:
+            print(f"AUTO_DM_RECALL_UPLOAD_SKIP {exc}", flush=True)
+    return compact
+
+
+def load_recall_report() -> dict[str, Any] | None:
+    path = recall_path()
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return data if isinstance(data, dict) and data.get("total") else None
 
 
 def score_sources(sources: list[dict[str, Any]], spec: dict[str, Any]) -> dict[str, Any]:
