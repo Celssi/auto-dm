@@ -223,6 +223,16 @@ function DndCharacterDetail({
           charOptions={charOptions}
           onToggle={() => setChoicesOpen((value) => !value)}
           onChange={onChange}
+          onRebuild={
+            activeId
+              ? () => {
+                  void (async () => {
+                    const { character: rebuilt } = await api.rebuildCharacter(activeId);
+                    await onSave(rebuilt as Character, { alreadyPersisted: true });
+                  })();
+                }
+              : undefined
+          }
         />
       )}
 
@@ -328,6 +338,7 @@ function MissingChoicesPanel({
   charOptions,
   onToggle,
   onChange,
+  onRebuild,
 }: {
   missingChoices: string[];
   choicesOpen: boolean;
@@ -336,6 +347,7 @@ function MissingChoicesPanel({
   charOptions: Record<string, unknown>;
   onToggle: () => void;
   onChange: (c: Character) => void;
+  onRebuild?: () => void;
 }) {
   return (
     <div className="panel p-4 space-y-3">
@@ -346,6 +358,11 @@ function MissingChoicesPanel({
       {choicesOpen && (
         <>
           <p className="text-xs text-muted">Still needed: {missingChoices.join('; ')}</p>
+          {onRebuild && (
+            <button type="button" className="btn-ghost text-xs" onClick={onRebuild}>
+              Rebuild sheet
+            </button>
+          )}
           {editing ? (
             <CreationChoicesForm
               char={character}
@@ -353,7 +370,9 @@ function MissingChoicesPanel({
               patch={(p) => onChange({ ...character, ...p })}
             />
           ) : (
-            <p className="text-xs text-muted">Edit the sheet to complete these choices.</p>
+            <p className="text-xs text-muted">
+              Edit the sheet to complete remaining picks. Rebuild sheet keeps HP, slots, and choices already made.
+            </p>
           )}
         </>
       )}

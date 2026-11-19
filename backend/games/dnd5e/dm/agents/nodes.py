@@ -4,7 +4,12 @@ from __future__ import annotations
 
 from backend.dm.continuity_guard import apply_continuity_guard
 from backend.dm.encounters import CombatState, combat_state_view, load_combat_state
-from backend.dm.narration_stream import emit_narration, emit_narration_replace, narration_enabled
+from backend.dm.narration_stream import (
+    emit_narration,
+    emit_narration_replace,
+    emit_ready,
+    narration_enabled,
+)
 from backend.dm.prose_style import sanitize_narration_dashes
 from backend.dm.state import DMState, char_from_dict, factions_for, game_plugin
 from backend.dm.story_director import (
@@ -64,6 +69,9 @@ _RESOURCE_SIGNALS = (
     "short rest",
     "long rest",
     "hit dice",
+    "hit point",
+    " hp",
+    "hp/",
     "ritual",
 )
 
@@ -135,13 +143,13 @@ def _needs_continuity_guard(state: DMState) -> bool:
 def _needs_resource_keeper(state: DMState) -> bool:
     if is_dice_only_turn(state):
         return False
-    rag_tasks = frozenset({"rules_help"})
-    if state.get("shortcut_result", {}).get("task") in (
-        *rag_tasks,
-        "long_rest",
-        "short_rest",
-        "cast_spell",
-    ):
+    shortcut = state.get("shortcut_result") or {}
+    task = shortcut.get("task")
+    if task == "rules_help":
+        return False
+    if task in ("long_rest", "short_rest") or shortcut.get("pending_rest"):
+        return True
+    if task == "cast_spell":
         return False
     combined = (
         f"{state.get('user_message', '')}\n{state.get('response') or state.get('narrative') or ''}"
@@ -405,6 +413,7 @@ def story_director_update_node(state: DMState) -> DMState:
 def narrator_dm_node(state: DMState) -> DMState:
     shortcut_task = state.get("shortcut_result", {}).get("task")
     if state.get("response") and shortcut_task == "rules_help":
+        emit_ready({"response": state["response"]})
         return {"narrative": state["response"], "response": state["response"]}
     char_dict = state.get("character") or {}
     char = char_from_dict(char_dict)
@@ -451,6 +460,7 @@ def narrator_dm_node(state: DMState) -> DMState:
         response = invoke_chat_llm(llm, lc_messages, agent="narrator_dm", provider="claude")
         text = message_text(response)
     text = sanitize_narration_dashes(text.strip())
+    emit_ready({"response": text})
     return {
         "narrative": text,
         "response": text,
@@ -477,6 +487,7 @@ def continuity_guard_node(state: DMState) -> DMState:
     if issues:
         log_agent("continuity_guard", "revised", issues=issues)
         emit_narration_replace(final)
+        emit_ready({"response": final})
     result: DMState = {"narrative": final, "response": final}
     if issues:
         result["continuity_issues"] = issues
@@ -488,17 +499,32 @@ def resource_keeper_node(state: DMState) -> DMState:
         return {}
     shortcut = state.get("shortcut_result") or {}
     task = shortcut.get("task")
-    if task in ("rules_help", "long_rest", "short_rest", "cast_spell"):
+    if task in ("rules_help", "cast_spell"):
         return {}
     dm_response = state.get("response") or state.get("narrative") or ""
     if not dm_response.strip():
         return {}
     char_dict = state.get("character") or {}
-    updates, logs = run_resource_keeper(
-        character=char_dict,
-        user_message=state.get("user_message") or "",
-        dm_response=dm_response,
-    )
+    pending_rest = shortcut.get("pending_rest")
+    if pending_rest:
+        from backend.games.dnd5e.dm.resource_keeper import apply_pending_rest, parse_pc_hp_from_narration
+
+        updates, logs = apply_pending_rest(char_dict, pending_rest, dm_response)
+        hp = parse_pc_hp_from_narration(
+            dm_response,
+            name=str(char_dict.get("name") or ""),
+            max_hp=int(char_dict.get("max_hp") or 0),
+            current_hp=int(updates.get("hp", char_dict.get("hp") or 0)),
+        )
+        if hp is not None:
+            updates = dict(updates)
+            updates["hp"] = hp
+    else:
+        updates, logs = run_resource_keeper(
+            character=char_dict,
+            user_message=state.get("user_message") or "",
+            dm_response=dm_response,
+        )
     if not updates and not logs:
         return {}
     merged = dict(state.get("character_updates") or {})

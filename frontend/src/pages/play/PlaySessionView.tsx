@@ -15,9 +15,10 @@ import AnimatedPage from '../../components/ui/AnimatedPage';
 import ChatMarkdown from '../../components/play/ChatMarkdown';
 import ErrorBoundary from '../../components/ui/ErrorBoundary';
 import { getGamePlayConfig } from '../../games/play/registry';
-import type { DiceModalState, PlayState } from './playState';
+import type { DiceModalState, PlayState, SpellCastModalState } from './playState';
 import type { JournalEntity } from '../../api/client';
 import DiceRollModal from '../../components/play/DiceRollModal';
+import SpellCastModal from '../../components/play/SpellCastModal';
 import SegmentedControl from '../../components/ui/forms/SegmentedControl';
 import { useViewport } from '../../hooks/useViewport';
 
@@ -38,6 +39,9 @@ interface Props {
   onDiceModalUpdate: (patch: Partial<DiceModalState>) => void;
   onDiceModalSubmit: (preRolled?: number[]) => void;
   onDiceModalClose: () => void;
+  onSpellCastModalUpdate: (patch: Partial<SpellCastModalState>) => void;
+  onSpellCastModalSubmit: () => void;
+  onSpellCastModalClose: () => void;
   onJourneyApply: (index: number) => Promise<{ summary?: string; item_error?: string | null }>;
   onJourneyDrawItem: (index: number) => Promise<{ item_error?: string | null }>;
   onJourneyFinish: () => Promise<void>;
@@ -63,6 +67,9 @@ export default function PlaySessionView({
   onDiceModalUpdate,
   onDiceModalSubmit,
   onDiceModalClose,
+  onSpellCastModalUpdate,
+  onSpellCastModalSubmit,
+  onSpellCastModalClose,
   onJourneyApply,
   onJourneyDrawItem,
   onJourneyFinish,
@@ -105,6 +112,8 @@ export default function PlaySessionView({
     combatState,
     brambletrekCombat,
     diceModal,
+    spellCastModal,
+    sheetUpdating,
     pendingJourney,
     dragonkeep,
     sessionId,
@@ -162,6 +171,7 @@ export default function PlaySessionView({
             <PlayChatInput
               input={input}
               loading={loading}
+              sheetUpdating={sheetUpdating}
               chatError={chatError}
               spellConfirm={spellConfirm}
               onInputChange={onInputChange}
@@ -212,6 +222,15 @@ export default function PlaySessionView({
             onUpdate={onDiceModalUpdate}
             onSubmit={onDiceModalSubmit}
             onClose={onDiceModalClose}
+          />
+        )}
+        {spellCastModal && character && (
+          <SpellCastModal
+            modal={spellCastModal}
+            character={character}
+            onUpdate={onSpellCastModalUpdate}
+            onSubmit={onSpellCastModalSubmit}
+            onClose={onSpellCastModalClose}
           />
         )}
       </AnimatePresence>
@@ -494,7 +513,7 @@ function PlayChatArea({
             </m.div>
           ))}
         </AnimatePresence>
-        {loading && (
+        {loading && !(messages[messages.length - 1]?.role === 'assistant' && messages[messages.length - 1]?.content) && (
           <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
             <div className="rounded-xl px-4 py-3 bg-bg/80 border border-border border-l-2 border-l-accent/60">
               <p className="text-sm text-muted animate-pulse">DM is thinking…</p>
@@ -595,6 +614,7 @@ function AdventureCompleteBanner({
 function PlayChatInput({
   input,
   loading,
+  sheetUpdating,
   chatError,
   spellConfirm,
   onInputChange,
@@ -604,6 +624,7 @@ function PlayChatInput({
 }: {
   input: string;
   loading: boolean;
+  sheetUpdating: boolean;
   chatError: string;
   spellConfirm: SpellConfirmation | null;
   onInputChange: (value: string) => void;
@@ -621,10 +642,12 @@ function PlayChatInput({
           <p className="text-muted mb-2">
             Cast <span className="font-semibold text-gray-100">{displayLabel(spellConfirm.suggested)}</span> (you wrote
             “{displayLabel(spellConfirm.requested)}”)?
+            {spellConfirm.free_use ? ' Magic Initiate free cast, no slot.' : ''}
           </p>
           <div className="flex flex-wrap gap-2">
             <button type="button" className="btn-primary text-xs" onClick={onConfirmSpellCast} disabled={loading}>
               Cast {displayLabel(spellConfirm.suggested)}
+              {spellConfirm.free_use ? ' (free)' : ''}
             </button>
             <button type="button" className="btn-ghost text-xs" onClick={onCancelSpellCast} disabled={loading}>
               No, narrative only
@@ -651,6 +674,7 @@ function PlayChatInput({
           Send
         </button>
       </div>
+      {sheetUpdating && !loading && <p className="text-xs text-muted">Updating sheet in the background…</p>}
     </div>
   );
 }

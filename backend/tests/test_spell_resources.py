@@ -198,11 +198,11 @@ def test_narrative_short_rest_via_resource_keeper(monkeypatch):
     assert logs and "Short rest" in logs[0]
 
 
-def test_resource_keeper_node_skips_short_rest_shortcut():
+def test_resource_keeper_node_skips_cast_spell_shortcut():
     state = {
-        "shortcut_result": {"task": "short_rest"},
-        "response": "You rest.",
+        "shortcut_result": {"task": "cast_spell"},
+        "response": "You cast a spell.",
         "character": _warlock_char(),
-        "user_message": "short rest",
+        "user_message": "/cast_spell",
     }
     assert resource_keeper_node(state) == {}

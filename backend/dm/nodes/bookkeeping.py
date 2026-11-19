@@ -7,7 +7,6 @@ import re
 from backend.dm.audit import character_audit_slice, diff_character_slices, record_audit
 from backend.dm.journal_keeper import run_journal_keeper
 from backend.dm.lonelog import format_mechanical, format_narrative
-from backend.dm.narrator import synthesize_lonelog_summary
 from backend.dm.state import DMState, char_from_dict, game_plugin
 from backend.dm.story_memory import increment_summary
 from backend.dm.turn_kind import is_dice_only_turn
@@ -19,6 +18,18 @@ from backend.storage import (
 )
 
 _MIN_RESPONSE_FOR_BOOKKEEPING = 120
+
+
+def _cheap_lonelog_summary(narrative: str) -> str:
+    text = re.sub(r"\s+", " ", (narrative or "").strip())
+    if not text:
+        return ""
+    parts = re.split(r"(?<=[.!?])\s+", text)
+    summary = " ".join(parts[:2]).strip()
+    if len(summary) > 280:
+        clipped = summary[:277].rsplit(" ", 1)[0].rstrip(".,;:")
+        summary = clipped + "."
+    return summary
 
 
 def _rag_direct_tasks(state: DMState) -> frozenset[str]:
@@ -64,7 +75,7 @@ def scribe_node(state: DMState) -> DMState:
         lines.append(format_mechanical(mechanics))
     task = (state.get("shortcut_result") or {}).get("task")
     if narrative and task not in rag_tasks and not is_dice_only_turn(state):
-        summary = synthesize_lonelog_summary(narrative, chat_provider="claude")
+        summary = _cheap_lonelog_summary(narrative)
         log_entry = summary
         lines.append(format_narrative(summary))
         adventure = state.get("adventure") or {}

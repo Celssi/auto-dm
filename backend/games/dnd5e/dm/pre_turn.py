@@ -18,6 +18,7 @@ from backend.games.dnd5e.dm.spell_autocomplete import (
     is_spell_cancel,
     is_spell_confirmation,
     list_character_spells,
+    request_wants_free_cast,
     resolve_spell_query,
 )
 from backend.storage import (
@@ -85,9 +86,14 @@ def handle_spell_autocomplete(
                 clear_pending=True,
             )
         if is_spell_confirmation(user_message) and spell_name:
+            free_use = pending.get("free_use")
+            if request_wants_free_cast(user_message):
+                free_use = True
             updated_char, response, lonelog = execute_confirmed_cast(
                 char_from_dict(char),
                 spell_name,
+                free_use=free_use if free_use is not None else None,
+                requested_text=str(pending.get("requested") or user_message),
             )
             return _finish_early_turn(
                 session_id,
@@ -118,6 +124,7 @@ def handle_spell_autocomplete(
                     "requested": resolution.requested,
                     "suggested": resolution.spell_name,
                     "spell_name": resolution.spell_name,
+                    "free_use": request_wants_free_cast(user_message),
                 }
             },
         )
@@ -131,6 +138,7 @@ def handle_spell_autocomplete(
                 "requested": resolution.requested,
                 "suggested": resolution.spell_name,
                 "spell_name": resolution.spell_name,
+                "free_use": request_wants_free_cast(user_message),
             },
         )
 

@@ -732,10 +732,12 @@ def rebuild_character(char: Dnd5eCharacter, *, recompute_hp: bool = False) -> Dn
     from backend.games.dnd5e.characters.creation_choices import (
         apply_creation_choices,
         collect_derived_feats,
+        migrate_legacy_sheet,
         sync_feature_choice_fields,
     )
 
     sync_feature_choice_fields(char)
+    migrate_legacy_sheet(char)
     apply_creation_choices(char)
 
     sp = get_species(char.species)
@@ -1182,7 +1184,9 @@ def long_rest_recover(char: Dnd5eCharacter) -> dict[str, Any]:
     fc = dict(char.feature_choices or {})
     if fc.get("_arcane_recovery_used"):
         fc.pop("_arcane_recovery_used", None)
-        char.feature_choices = fc
+    fc.pop("_magic_initiate_free_used", None)
+    fc.pop("_mage_armor_active", None)
+    char.feature_choices = fc
     if char.species == "human":
         char.heroic_inspiration = True
     char.clamp()

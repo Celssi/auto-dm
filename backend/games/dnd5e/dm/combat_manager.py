@@ -32,9 +32,16 @@ SHIELD_AC_BONUS = 5
 
 
 def _prepared_spell_names(char_dict: dict) -> set[str]:
+    from backend.games.dnd5e.characters.spell_resources import character_spell_groups, normalize_spell_name
+
     char = character_from_dict(char_dict)
-    names = list(char.prepared_spells or []) + list(char.known_spells or [])
-    return {str(name).strip().lower() for name in names if str(name).strip()}
+    names: set[str] = set()
+    for group in character_spell_groups(char):
+        for name in group:
+            key = normalize_spell_name(str(name))
+            if key:
+                names.add(key)
+    return names
 
 
 def _first_level_slots(char_dict: dict) -> int:
@@ -51,8 +58,30 @@ def _spend_first_level_slot(char_dict: dict) -> dict:
     return character_to_dict(char)
 
 
+def _cast_shield_reaction(char_dict: dict, user_message: str) -> tuple[dict, str]:
+    from backend.games.dnd5e.characters.spell_resources import apply_spell_cast
+
+    char = character_from_dict(char_dict)
+    ok, msg = apply_spell_cast(
+        char,
+        "Shield",
+        audit_source="combat_reaction",
+        inferred=False,
+        requested_text=user_message,
+    )
+    updated = character_to_dict(char)
+    return updated, msg if ok else f"⚠ {msg}"
+
+
 def _shield_prepared(char_dict: dict) -> bool:
-    return "shield" in _prepared_spell_names(char_dict) and _first_level_slots(char_dict) > 0
+    from backend.games.dnd5e.characters.spell_resources import magic_initiate_free_available
+
+    if "shield" not in _prepared_spell_names(char_dict):
+        return False
+    char = character_from_dict(char_dict)
+    if _first_level_slots(char_dict) > 0:
+        return True
+    return magic_initiate_free_available(char, "Shield", requested_free=True)
 
 
 def _message_uses_shield(message: str) -> bool:
@@ -75,12 +104,11 @@ def resolve_pending_reaction(
         return state, char_dict, []
     events: list[str] = []
     if _message_uses_shield(user_message) and _shield_prepared(char_dict):
-        char_dict = _spend_first_level_slot(char_dict)
+        char_dict, cast_msg = _cast_shield_reaction(char_dict, user_message)
         ac = int(pending.get("target_ac") or 10) + SHIELD_AC_BONUS
         events.append(
             f"**Shield** reaction: AC {pending.get('target_ac')} → {ac}. "
-            f"{pending.get('attacker', 'The attack')} misses. 1st-level slot spent "
-            f"(L1 {_first_level_slots(char_dict)} remaining)."
+            f"{pending.get('attacker', 'The attack')} misses. {cast_msg}"
         )
         state.pending_reaction = None
         return state, char_dict, events

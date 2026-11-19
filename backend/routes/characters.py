@@ -100,9 +100,9 @@ def get_one(char_id: str):
     char = get_character(char_id)
     if not char:
         raise HTTPException(404, "Character not found")
-    from backend.games.registry import rebuild_character_dict
+    from backend.games.registry import rebuild_character_dict_persisting
 
-    return {"character": rebuild_character_dict(char)}
+    return {"character": rebuild_character_dict_persisting(char_id, char)}
 
 
 @router.post("")

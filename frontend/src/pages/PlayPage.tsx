@@ -31,6 +31,9 @@ export default function PlayPage() {
     handleDiceModalUpdate,
     handleDiceModalSubmit,
     handleDiceModalClose,
+    handleSpellCastModalUpdate,
+    handleSpellCastModalSubmit,
+    handleSpellCastModalClose,
     startNextAdventure,
     handleJourneyApply,
     handleJourneyDrawItem,
@@ -96,7 +99,9 @@ export default function PlayPage() {
       onBegin={beginSession}
       onInputChange={(input) => dispatch({ type: 'set', patch: { input } })}
       onSend={() => sendMessage(state.input)}
-      onConfirmSpellCast={() => state.spellConfirm && sendMessage('yes')}
+      onConfirmSpellCast={() =>
+        state.spellConfirm && sendMessage(state.spellConfirm.free_use ? 'yes, Magic Initiate free' : 'yes')
+      }
       onCancelSpellCast={() => sendMessage('cancel spell')}
       onRunOracle={runOracle}
       onRunShortcut={runShortcut}
@@ -104,6 +109,9 @@ export default function PlayPage() {
       onDiceModalUpdate={handleDiceModalUpdate}
       onDiceModalSubmit={handleDiceModalSubmit}
       onDiceModalClose={handleDiceModalClose}
+      onSpellCastModalUpdate={handleSpellCastModalUpdate}
+      onSpellCastModalSubmit={handleSpellCastModalSubmit}
+      onSpellCastModalClose={handleSpellCastModalClose}
       onJourneyApply={handleJourneyApply}
       onJourneyDrawItem={handleJourneyDrawItem}
       onJourneyFinish={handleJourneyFinish}

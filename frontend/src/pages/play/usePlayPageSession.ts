@@ -3,7 +3,8 @@ import { useKeepAlive } from '../../hooks/useKeepAlive';
 import { useNavigate } from 'react-router-dom';
 import { api, type ChatResult } from '../../api/client';
 import type { Character } from '../../types';
-import { type DiceModalState, type PlayAction, type PlayState } from './playState';
+import { type DiceModalState, type PlayAction, type PlayState, type SpellCastModalState } from './playState';
+import { listCastableSpells } from '../../components/play/SpellCastModal';
 import { getPlaySessionExtensions } from '../../games/brambletrek/playSession';
 import { DEFAULT_GAME_ID } from '../../games/registry';
 import { getGamePlayConfig } from '../../games/play/registry';
@@ -356,11 +357,17 @@ export function usePlayPageSession(
           dispatch({ type: 'appendAssistantDelta', delta: data });
         } else if (event === 'narration_replace' && typeof data === 'string') {
           dispatch({ type: 'replaceLastAssistant', content: data });
+        } else if (event === 'ready' && data && typeof data === 'object' && 'response' in data) {
+          const payload = data as { response?: string };
+          if (payload.response) {
+            dispatch({ type: 'replaceLastAssistant', content: payload.response });
+          }
+          dispatch({ type: 'set', patch: { loading: false, sheetUpdating: true } });
         } else if (event === 'done') {
           const result = data as ChatResult;
           done[0] = result;
           dispatch({ type: 'replaceLastAssistant', content: result.response });
-          dispatch({ type: 'set', patch: applyChatResultPatch(result) });
+          dispatch({ type: 'set', patch: { sheetUpdating: false, ...applyChatResultPatch(result) } });
         } else if (event === 'error') {
           streamError = streamErrorDetail(data);
         }
@@ -405,7 +412,7 @@ export function usePlayPageSession(
         patch: { chatError: e instanceof Error ? e.message : 'Something went wrong talking to the DM.' },
       });
     } finally {
-      dispatch({ type: 'set', patch: { loading: false } });
+      dispatch({ type: 'set', patch: { loading: false, sheetUpdating: false } });
     }
   };
 
@@ -432,6 +439,19 @@ export function usePlayPageSession(
     const gameId = state.character?.game_id ?? 'dnd5e';
     const ext = getPlaySessionExtensions(gameId);
     if (await ext.runShortcut(state.sessionId, id, dispatch, refreshSessionLogs)) {
+      return;
+    }
+    if (id === 'cast_spell' && state.character) {
+      const spells = listCastableSpells(state.character);
+      const first = spells[0];
+      const modal: SpellCastModalState = {
+        spellName: first?.name || '',
+        slotLevel: first?.cantrip ? 0 : 1,
+        freeUse: Boolean(first?.magicInitiate),
+        ritual: false,
+        submitting: false,
+      };
+      dispatch({ type: 'set', patch: { spellCastModal: modal } });
       return;
     }
     if (!DICE_SHORTCUTS.has(id) || !state.character) {
@@ -508,11 +528,20 @@ export function usePlayPageSession(
           dispatch({ type: 'appendAssistantDelta', delta: data });
         } else if (event === 'narration_replace' && typeof data === 'string') {
           dispatch({ type: 'replaceLastAssistant', content: data });
+        } else if (event === 'ready' && data && typeof data === 'object' && 'response' in data) {
+          const payload = data as { response?: string };
+          if (payload.response) {
+            dispatch({ type: 'replaceLastAssistant', content: payload.response });
+          }
+          dispatch({ type: 'set', patch: { loading: false, sheetUpdating: true, diceModal: null } });
         } else if (event === 'done') {
           const result = data as ChatResult;
           done[0] = result;
           dispatch({ type: 'replaceLastAssistant', content: result.response });
-          dispatch({ type: 'set', patch: { diceModal: null, ...applyChatResultPatch(result) } });
+          dispatch({
+            type: 'set',
+            patch: { diceModal: null, sheetUpdating: false, ...applyChatResultPatch(result) },
+          });
         } else if (event === 'error') {
           streamError = streamErrorDetail(data);
         }
@@ -620,6 +649,92 @@ export function usePlayPageSession(
 
   const handleDiceModalClose = () => {
     dispatch({ type: 'set', patch: { diceModal: null } });
+  };
+
+  const handleSpellCastModalUpdate = (patch: Partial<SpellCastModalState>) => {
+    if (!state.spellCastModal) return;
+    dispatch({ type: 'set', patch: { spellCastModal: { ...state.spellCastModal, ...patch } } });
+  };
+
+  const handleSpellCastModalClose = () => {
+    dispatch({ type: 'set', patch: { spellCastModal: null } });
+  };
+
+  const handleSpellCastModalSubmit = async () => {
+    const modal = state.spellCastModal;
+    if (!modal || !state.sessionId || !modal.spellName.trim()) return;
+    dispatch({ type: 'set', patch: { spellCastModal: { ...modal, submitting: true }, chatError: '' } });
+    try {
+      const done: ChatResult[] = [];
+      let streamError = '';
+      dispatch({ type: 'set', patch: { loading: true, spellCastModal: null } });
+      dispatch({
+        type: 'appendMessages',
+        messages: [
+          {
+            role: 'user',
+            content: `**Cast spell**\n\n${modal.spellName}${modal.freeUse ? ' (Magic Initiate free)' : ''}`,
+          },
+          { role: 'assistant', content: '' },
+        ],
+      });
+      await api.rollShortcutStream(
+        state.sessionId,
+        'cast_spell',
+        {
+          spell_name: modal.spellName,
+          slot_level: modal.slotLevel,
+          free_use: modal.freeUse,
+          ritual: modal.ritual,
+          requested_text: modal.freeUse ? `${modal.spellName} Magic Initiate free` : modal.spellName,
+        },
+        undefined,
+        (event, data) => {
+          if (event === 'narration' && typeof data === 'string') {
+            dispatch({ type: 'appendAssistantDelta', delta: data });
+          } else if (event === 'narration_replace' && typeof data === 'string') {
+            dispatch({ type: 'replaceLastAssistant', content: data });
+          } else if (event === 'ready' && data && typeof data === 'object' && 'response' in data) {
+            const payload = data as { response?: string };
+            if (payload.response) {
+              dispatch({ type: 'replaceLastAssistant', content: payload.response });
+            }
+            dispatch({ type: 'set', patch: { loading: false, sheetUpdating: true } });
+          } else if (event === 'done') {
+            const result = data as ChatResult;
+            done[0] = result;
+            dispatch({ type: 'replaceLastAssistant', content: result.response });
+            dispatch({
+              type: 'set',
+              patch: { sheetUpdating: false, ...applyChatResultPatch(result) },
+            });
+          } else if (event === 'error') {
+            streamError = streamErrorDetail(data);
+          }
+        },
+      );
+      if (streamError) throw new Error(streamError);
+      if (!done[0]) throw new Error('The DM closed the stream without a reply.');
+      await refreshSessionLogs(state.sessionId);
+      if (state.characterId) {
+        try {
+          const fresh = await api.getCharacter(state.characterId);
+          dispatch({ type: 'set', patch: { character: fresh.character as Character } });
+        } catch (err: unknown) {
+          console.warn('Failed to refresh character after spell cast', err);
+        }
+      }
+    } catch (e) {
+      dispatch({
+        type: 'set',
+        patch: {
+          spellCastModal: null,
+          chatError: e instanceof Error ? e.message : 'Spell cast failed.',
+        },
+      });
+    } finally {
+      dispatch({ type: 'set', patch: { loading: false, sheetUpdating: false } });
+    }
   };
 
   const startNextAdventure = async () => {
@@ -770,6 +885,9 @@ export function usePlayPageSession(
     handleDiceModalUpdate,
     handleDiceModalSubmit,
     handleDiceModalClose,
+    handleSpellCastModalUpdate,
+    handleSpellCastModalSubmit,
+    handleSpellCastModalClose,
     startNextAdventure,
     handleJourneyApply,
     handleJourneyDrawItem,

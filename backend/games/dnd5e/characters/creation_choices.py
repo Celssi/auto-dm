@@ -594,6 +594,78 @@ def apply_creation_choices(char: Dnd5eCharacter) -> None:
     _sync_known_languages(char)
 
 
+def _norm_lang(raw: Any) -> str:
+    return str(raw or "").strip().lower().replace("_", " ")
+
+
+def _is_rogue(char: Dnd5eCharacter) -> bool:
+    if str(char.class_name or "").lower() == "rogue":
+        return True
+    return any(
+        str(entry.get("class_name") or "").lower() == "rogue"
+        for entry in char.normalized_class_entries()
+    )
+
+
+def _reserved_language_names(char: Dnd5eCharacter, fc: dict[str, Any]) -> set[str]:
+    reserved = {"common", "thieves' cant", "thieves cant"}
+    extra = _norm_lang(fc.get("thieves_cant_language") or "")
+    if extra:
+        reserved.add(extra)
+    return reserved
+
+
+def migrate_legacy_sheet(char: Dnd5eCharacter) -> bool:
+    """Backfill origin languages, High Elf ability, and wizard spellbook without wiping picks."""
+    changed = False
+    fc = dict(char.feature_choices or {})
+    existing_langs = [_norm_lang(item) for item in (char.languages or []) if _norm_lang(item)]
+
+    origin = fc.get("origin_languages") or []
+    origin_list = [_norm_lang(item) for item in origin if _norm_lang(item)]
+    if not origin_list:
+        reserved = _reserved_language_names(char, fc)
+        inferred = [lang for lang in existing_langs if lang not in reserved]
+        # Keep at most the two origin-language picks; do not invent names.
+        inferred = inferred[:2]
+        if inferred:
+            fc["origin_languages"] = inferred
+            origin_list = inferred
+            changed = True
+
+    lineage = str(fc.get("elven_lineage") or "").strip().lower().replace(" ", "_")
+    if (
+        str(char.species or "").strip().lower() == "elf"
+        and lineage == "high_elf"
+        and not str(fc.get("high_elf_spell_ability") or "").strip()
+    ):
+        from backend.games.dnd5e.characters.character_data import get_class
+
+        cls = get_class(char.class_name) or {}
+        fc["high_elf_spell_ability"] = str(cls.get("primary_ability") or "int").lower()
+        changed = True
+
+    is_wizard = str(char.class_name or "").lower() == "wizard" or any(
+        str(entry.get("class_name") or "").lower() == "wizard"
+        for entry in char.normalized_class_entries()
+    )
+    if is_wizard:
+        book = list(char.spellbook or [])
+        seen = {normalize_spell_name(item) for item in book}
+        for name in char.prepared_spells or []:
+            key = normalize_spell_name(str(name))
+            if key and key not in seen:
+                book.append(str(name).strip())
+                seen.add(key)
+                changed = True
+        if book != list(char.spellbook or []):
+            char.spellbook = book
+
+    if changed:
+        char.feature_choices = fc
+    return changed
+
+
 def _grant_lineage_cantrips(char: Dnd5eCharacter) -> None:
     fc = char.feature_choices if isinstance(char.feature_choices, dict) else {}
     lineage = str(fc.get("elven_lineage") or "").strip().lower().replace(" ", "_")
@@ -607,25 +679,25 @@ def _grant_lineage_cantrips(char: Dnd5eCharacter) -> None:
 
 
 def _sync_known_languages(char: Dnd5eCharacter) -> None:
-    langs: list[str] = ["common"]
     fc = char.feature_choices if isinstance(char.feature_choices, dict) else {}
+    langs: list[str] = []
 
     def add(raw: Any) -> None:
-        lang = str(raw or "").strip().lower().replace("_", " ")
+        lang = _norm_lang(raw)
         if lang and lang not in langs:
             langs.append(lang)
 
+    add("common")
     for item in fc.get("origin_languages") or []:
         add(item)
-    is_rogue = str(char.class_name or "").lower() == "rogue" or any(
-        str(entry.get("class_name") or "").lower() == "rogue"
-        for entry in char.normalized_class_entries()
-    )
-    if is_rogue:
+    if _is_rogue(char):
         add("thieves' cant")
         extra = str(fc.get("thieves_cant_language") or "").strip()
         if extra.lower().replace("_", " ") not in {"thieves' cant", "thieves cant"}:
             add(extra)
+    # Keep languages the player already recorded so rebuild does not wipe them.
+    for item in char.languages or []:
+        add(item)
     char.languages = langs
 
 
