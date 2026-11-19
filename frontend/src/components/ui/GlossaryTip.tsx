@@ -18,6 +18,9 @@ interface Props {
   placementMode?: 'auto' | 'below' | 'above';
   /** Align tooltip with the start (left) edge of the trigger instead of centering. */
   align?: 'center' | 'start';
+  /** Shown when the glossary has no entry (short beginner explanations). */
+  fallbackSummary?: string;
+  fallbackKind?: string;
 }
 
 const KIND_LABEL: Record<string, string> = {
@@ -104,6 +107,11 @@ function GlossaryEntryBody({
   );
 }
 
+function fallbackEntry(name: string, summary?: string, kind?: string): GlossaryEntry | null {
+  if (!summary) return null;
+  return { kind: kind || 'rules', title: name, summary };
+}
+
 export default function GlossaryTip({
   name,
   children,
@@ -113,6 +121,8 @@ export default function GlossaryTip({
   classId,
   placementMode = 'auto',
   align = 'center',
+  fallbackSummary,
+  fallbackKind,
 }: Props) {
   const { getEntry, fetchEntry } = useGlossary();
   const [open, setOpen] = useState(false);
@@ -132,9 +142,15 @@ export default function GlossaryTip({
 
   const show = useCallback(async () => {
     const staticEntry = getEntry(name, classId);
-    if (isLikelyEntityId(name) && !staticEntry?.summary) return;
+    const local = fallbackEntry(name, fallbackSummary, fallbackKind);
+    if (isLikelyEntityId(name) && !staticEntry?.summary && !local?.summary) return;
     if (staticEntry?.summary) {
       setEntry(staticEntry);
+      setOpen(true);
+      return;
+    }
+    if (local?.summary) {
+      setEntry(local);
       setOpen(true);
       return;
     }
@@ -143,7 +159,7 @@ export default function GlossaryTip({
     const fetched = await fetchEntry(name, classId);
     setEntry(fetched);
     setLoading(false);
-  }, [name, classId, getEntry, fetchEntry]);
+  }, [name, classId, getEntry, fetchEntry, fallbackSummary, fallbackKind]);
 
   const scheduleShow = () => {
     if (hideTimerRef.current) window.clearTimeout(hideTimerRef.current);

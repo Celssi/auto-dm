@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react';
+import HelpTip from '../ui/HelpTip';
 
 export type PlayLogTab = 'lonelog' | 'audit' | 'journey' | 'deck' | 'dragonkeep' | 'combat';
 
@@ -32,7 +33,13 @@ export default function PlayLogTabs({ tabs, active, onChange, children }: Props)
               }`}
               onClick={() => onChange(tab)}
             >
-              {TAB_LABELS[tab]}
+              {tab === 'lonelog' || tab === 'audit' ? (
+                <HelpTip id={tab} name={TAB_LABELS[tab]}>
+                  <span className="underline decoration-dotted decoration-muted/50">{TAB_LABELS[tab]}</span>
+                </HelpTip>
+              ) : (
+                TAB_LABELS[tab]
+              )}
             </button>
           </span>
         ))}

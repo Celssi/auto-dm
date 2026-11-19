@@ -93,5 +93,5 @@ def roll_death_saves(pre_rolled: int | None = None) -> dict[str, Any]:
         "ok": True,
         "roll": roll,
         "outcome": outcome,
-        "summary": f"Death save: **{roll}** ? {outcome}",
+        "summary": f"Death save: **{roll}**, {outcome}",
     }

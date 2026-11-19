@@ -9,6 +9,7 @@ import MulticlassPanel from '../../games/dnd5e/character-sheet/MulticlassPanel';
 import UnlockedFeaturesPanel from '../../games/dnd5e/character-sheet/UnlockedFeaturesPanel';
 import { getGameCharacterConfig } from '../../games/registry';
 import { GameCharacterSetup } from '../../games/components';
+import BrambletrekSheetView from '../../games/brambletrek/BrambletrekSheetView';
 import { brambletrekSummaryLine } from '../../games/brambletrek/sheetUtils';
 import { fadeUp } from '../../components/ui/motion';
 import OverflowMenu from '../../components/ui/OverflowMenu';
@@ -83,6 +84,19 @@ function BrambletrekCharacterDetail({
 }: Omit<Props, 'charOptions' | 'onLevelUp'>) {
   const gameId = character.game_id || 'brambletrek';
   const bt = character as unknown as BrambletrekCharacter;
+  const [editing, setEditing] = useState(false);
+  const snapshotRef = useRef<Character | null>(null);
+
+  const startEdit = () => {
+    snapshotRef.current = character;
+    setEditing(true);
+  };
+  const cancelEdit = () => {
+    if (snapshotRef.current) onChange(snapshotRef.current);
+    snapshotRef.current = null;
+    setEditing(false);
+  };
+
   return (
     <m.div variants={fadeUp} className="space-y-5">
       <div className="flex flex-wrap items-center gap-2 panel-glow p-3">
@@ -90,11 +104,22 @@ function BrambletrekCharacterDetail({
           ← Back
         </button>
         <div className="w-px h-6 bg-border hidden sm:block" />
-        <button type="button" className="btn-ghost" onClick={onEdit}>
-          Edit
-        </button>
+        {editing ? (
+          <button type="button" className="btn-ghost" onClick={cancelEdit}>
+            Cancel
+          </button>
+        ) : (
+          <button type="button" className="btn-ghost" onClick={startEdit}>
+            Edit
+          </button>
+        )}
         <div className="ml-auto">
-          <OverflowMenu items={[{ label: 'Delete', onSelect: onDelete, danger: true }]} />
+          <OverflowMenu
+            items={[
+              { label: 'Open full editor', onSelect: onEdit },
+              { label: 'Delete', onSelect: onDelete, danger: true },
+            ]}
+          />
         </div>
       </div>
 
@@ -106,13 +131,21 @@ function BrambletrekCharacterDetail({
         )}
       </div>
 
-      <GameCharacterSetup
-        gameId={gameId}
-        characterId={activeId}
-        entity={character as Record<string, unknown>}
-        onChange={(entity) => onChange(entity as Character)}
-        onSaved={(entity) => onSave(entity as Character, { silentToast: true, alreadyPersisted: true })}
-      />
+      {editing ? (
+        <GameCharacterSetup
+          gameId={gameId}
+          characterId={activeId}
+          entity={character as Record<string, unknown>}
+          onChange={(entity) => onChange(entity as Character)}
+          onSaved={(entity) => {
+            snapshotRef.current = null;
+            setEditing(false);
+            void onSave(entity as Character, { silentToast: true, alreadyPersisted: true });
+          }}
+        />
+      ) : (
+        <BrambletrekSheetView character={bt} summary={summary} />
+      )}
     </m.div>
   );
 }

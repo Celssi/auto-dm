@@ -1,6 +1,8 @@
 import type { Character } from '../../../types';
 import { displayLabel, EMPTY_FIELD } from '../../../lib/displayText';
 import GlossaryTip from '../../../components/ui/GlossaryTip';
+import { LabelWithTip } from '../../../components/ui/HelpTip';
+import { equipmentDisplayItems, weaponMasteryWarnings } from './sheetUtils';
 import { ResourcePips, SheetField, SheetSection, SpellSlotPips, TagList } from './characterSheetViewParts';
 
 interface Page2Props {
@@ -33,6 +35,8 @@ function page2Model(c: Character, summary?: Record<string, unknown>) {
   const wildShapeMax = Number(summary?.wild_shape_max ?? 0);
   const luckPointsMax = Number(summary?.luck_points_max ?? 0);
   const luckPointsRemaining = Number(c.luck_points_remaining ?? summary?.luck_points_remaining ?? luckPointsMax);
+  const secondWindMax = Number(summary?.second_wind_max ?? 0);
+  const secondWindRemaining = Number(c.second_wind_remaining ?? summary?.second_wind_remaining ?? secondWindMax);
   const showWildShape = wildShapeMax > 0 || (c.wild_shape_uses ?? 0) > 0;
   const preparedSpells = c.prepared_spells?.length ? c.prepared_spells : c.known_spells || [];
   const unlocked = summary?.unlocked_features as
@@ -43,6 +47,8 @@ function page2Model(c: Character, summary?: Record<string, unknown>) {
     wildShapeMax,
     luckPointsMax,
     luckPointsRemaining,
+    secondWindMax,
+    secondWindRemaining,
     showWildShape,
     preparedSpells,
     speciesTraits: unlocked?.species_traits || [],
@@ -63,13 +69,15 @@ export default function CharacterSheetPage2({ character: c, summary, editable, o
           wildShapeMax={model.wildShapeMax}
           luckPointsMax={model.luckPointsMax}
           luckPointsRemaining={model.luckPointsRemaining}
+          secondWindMax={model.secondWindMax}
+          secondWindRemaining={model.secondWindRemaining}
           showWildShape={model.showWildShape}
         />
         <SheetSection title="Prepared Spells" className="lg:col-span-8">
           <TagList items={model.preparedSpells} classId={c.class_name} />
         </SheetSection>
       </div>
-      <Page2Gear character={c} attuned={model.attuned} />
+      <Page2Gear character={c} attuned={model.attuned} editable={editable} onPatch={patch} />
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:items-stretch">
         <Page2Languages character={c} />
         <Page2Identity
@@ -86,23 +94,98 @@ export default function CharacterSheetPage2({ character: c, summary, editable, o
   );
 }
 
-function Page2Gear({ character: c, attuned }: { character: Character; attuned: string[] }) {
+function Page2Gear({
+  character: c,
+  attuned,
+  editable,
+  onPatch,
+}: {
+  character: Character;
+  attuned: string[];
+  editable?: boolean;
+  onPatch: (p: Partial<Character>) => void;
+}) {
   return (
     <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-      <Page2Equipment character={c} />
+      <Page2Equipment character={c} editable={editable} onPatch={onPatch} />
       <Page2Attuned attuned={attuned} />
-      <Page2Currency character={c} />
+      <Page2Currency character={c} editable={editable} onPatch={onPatch} />
     </div>
   );
 }
 
-function Page2Equipment({ character: c }: { character: Character }) {
-  const inventory = c.inventory || [];
+function Page2Equipment({
+  character: c,
+  editable,
+  onPatch,
+}: {
+  character: Character;
+  editable?: boolean;
+  onPatch: (p: Partial<Character>) => void;
+}) {
+  const items = equipmentDisplayItems(c);
+  const warnings = weaponMasteryWarnings(c);
   return (
     <SheetSection title="Equipment" className="lg:col-span-6">
-      {inventory.length ? (
+      <LabelWithTip id="equipment" label="Equipment" className="sr-only" />
+      {editable ? (
+        <div className="space-y-3">
+          <label className="block">
+            <span className="sheet-label">Carried items (one per line)</span>
+            <textarea
+              className="sheet-value-textarea mt-1"
+              rows={6}
+              value={(c.inventory || []).join('\n')}
+              onChange={(e) =>
+                onPatch({
+                  inventory: e.target.value
+                    .split('\n')
+                    .map((line) => line.trim())
+                    .filter(Boolean),
+                })
+              }
+              aria-label="Carried items"
+            />
+          </label>
+          <div className="space-y-2">
+            <span className="sheet-label">Weapons</span>
+            {(c.weapons || []).map((weapon, index) => (
+              <div key={`${weapon.name}-${index}`} className="flex gap-2">
+                <input
+                  className="sheet-value-input flex-1"
+                  value={weapon.name}
+                  onChange={(e) => {
+                    const next = [...(c.weapons || [])];
+                    next[index] = { ...weapon, name: e.target.value };
+                    onPatch({ weapons: next });
+                  }}
+                  aria-label={`Weapon ${index + 1} name`}
+                />
+                <button
+                  type="button"
+                  className="btn-ghost text-xs"
+                  onClick={() => onPatch({ weapons: (c.weapons || []).filter((_, i) => i !== index) })}
+                >
+                  Remove
+                </button>
+              </div>
+            ))}
+            <button
+              type="button"
+              className="btn-ghost text-xs"
+              onClick={() =>
+                onPatch({
+                  weapons: [...(c.weapons || []), { name: '', damage: '', damage_type: '', ability: 'str' }],
+                })
+              }
+            >
+              Add weapon
+            </button>
+          </div>
+        </div>
+      ) : items.length ? (
         <ul className="space-y-1 text-sm text-gray-300">
-          {inventory.map((item) => (
+          {items.map((item) => (
             <li key={item} className="flex gap-2 items-start">
               <span className="text-accent/60 shrink-0">•</span>
               <GlossaryTip name={item} variant="inline" />
@@ -111,6 +194,13 @@ function Page2Equipment({ character: c }: { character: Character }) {
         </ul>
       ) : (
         <p className="text-sm text-muted">{EMPTY_FIELD}</p>
+      )}
+      {warnings.length > 0 && (
+        <ul className="mt-3 space-y-1 text-[11px] text-amber-200/90 leading-relaxed">
+          {warnings.map((warning) => (
+            <li key={warning}>{warning}</li>
+          ))}
+        </ul>
       )}
     </SheetSection>
   );
@@ -130,14 +220,38 @@ function Page2Attuned({ attuned }: { attuned: string[] }) {
   );
 }
 
-function Page2Currency({ character: c }: { character: Character }) {
+function Page2Currency({
+  character: c,
+  editable,
+  onPatch,
+}: {
+  character: Character;
+  editable?: boolean;
+  onPatch: (p: Partial<Character>) => void;
+}) {
   return (
     <SheetSection title="Currency" className="lg:col-span-3">
+      <LabelWithTip id="currency" label="Currency" className="sr-only" />
       <div className="grid grid-cols-5 gap-1 text-center">
         {(['cp', 'sp', 'ep', 'gp', 'pp'] as const).map((k) => (
           <div key={k} className="sheet-combat-stat !p-2">
             <div className="text-[9px] text-muted uppercase">{k}</div>
-            <div className="text-sm font-semibold tabular-nums">{c.currency?.[k] || 0}</div>
+            {editable ? (
+              <input
+                type="number"
+                min={0}
+                className="w-full bg-transparent text-sm font-semibold tabular-nums text-center focus:outline-none border-b border-transparent focus:border-accent/40"
+                value={c.currency?.[k] || 0}
+                onChange={(e) =>
+                  onPatch({
+                    currency: { ...c.currency, [k]: Math.max(0, parseInt(e.target.value, 10) || 0) },
+                  })
+                }
+                aria-label={`${k} coins`}
+              />
+            ) : (
+              <div className="text-sm font-semibold tabular-nums">{c.currency?.[k] || 0}</div>
+            )}
           </div>
         ))}
       </div>
@@ -203,6 +317,8 @@ function Page2Resources({
   wildShapeMax,
   luckPointsMax,
   luckPointsRemaining,
+  secondWindMax,
+  secondWindRemaining,
   showWildShape,
 }: {
   character: Character;
@@ -210,16 +326,25 @@ function Page2Resources({
   wildShapeMax: number;
   luckPointsMax: number;
   luckPointsRemaining: number;
+  secondWindMax: number;
+  secondWindRemaining: number;
   showWildShape: boolean;
 }) {
   const empty =
-    Object.entries(c.spell_slots || {}).length === 0 && !showWildShape && !c.concentration && luckPointsMax <= 0;
+    Object.entries(c.spell_slots || {}).length === 0 &&
+    !showWildShape &&
+    !c.concentration &&
+    luckPointsMax <= 0 &&
+    secondWindMax <= 0;
   return (
     <SheetSection title="Resources" className="lg:col-span-4">
       {empty ? (
-        <p className="text-sm text-muted">No spellcasting resources.</p>
+        <p className="text-sm text-muted">No class or spellcasting resources.</p>
       ) : (
         <div className="space-y-3">
+          {secondWindMax > 0 && (
+            <ResourcePips label="Second Wind" remaining={secondWindRemaining} max={secondWindMax} />
+          )}
           {luckPointsMax > 0 && (
             <ResourcePips label="Luck points" remaining={luckPointsRemaining} max={luckPointsMax} />
           )}

@@ -165,7 +165,7 @@ export function usePlayPageSession(
 
         if (!session.adventure_id) {
           if (seq !== loadSeqRef.current) return;
-          const [{ character: ch }, { summary }, log, audit] = await fetchCore();
+          const [{ character: ch }, { summary, character: rebuilt }, log, audit] = await fetchCore();
           const gameId = String((ch as Character).game_id || 'dnd5e');
           setGameId(gameId);
           const { shortcuts: sessionShortcuts } = await api.getShortcuts(gameId, session.character_id);
@@ -176,7 +176,7 @@ export function usePlayPageSession(
               messages: session.messages || [],
               includeFaerun: !!session.include_faerun,
               characterId: session.character_id,
-              character: ch as Character,
+              character: (rebuilt || ch) as Character,
               characterSummary: summary,
               lonelog: log.lines,
               auditEvents: audit.events,
@@ -200,7 +200,7 @@ export function usePlayPageSession(
         }
 
         if (seq !== loadSeqRef.current) return;
-        const [[{ character: ch }, { summary }, log, audit], adventureResult] = await Promise.all([
+        const [[{ character: ch }, { summary, character: rebuilt }, log, audit], adventureResult] = await Promise.all([
           fetchCore(),
           api.getAdventure(session.adventure_id).catch(() => null),
         ]);
@@ -234,7 +234,7 @@ export function usePlayPageSession(
             messages: session.messages || [],
             includeFaerun: !!session.include_faerun,
             characterId: session.character_id,
-            character: ch as Character,
+            character: (rebuilt || ch) as Character,
             characterSummary: summary,
             lonelog: log.lines,
             auditEvents: audit.events,

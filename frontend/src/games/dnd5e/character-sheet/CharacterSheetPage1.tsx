@@ -2,7 +2,10 @@ import type { Character } from '../../../types';
 import { EMPTY_FIELD } from '../../../lib/displayText';
 import GlossaryTip, { GlossaryTagList } from '../../../components/ui/GlossaryTip';
 import { ABILITIES, SKILLS } from './sheetConstants';
+import { LabelWithTip } from '../../../components/ui/HelpTip';
 import {
+  ARMOR_CATALOG,
+  computeAcDetails,
   formatMod,
   initiativeMod,
   passivePerception,
@@ -38,7 +41,13 @@ export default function CharacterSheetPage1({ character: c, editable, onChange, 
     <div className="space-y-4">
       {!hideHeader && <CharacterSheetHeader character={c} editable={editable} onChange={onChange} />}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Page1Abilities scores={scores} character={c} saves={saves} />
+        <Page1Abilities
+          scores={scores}
+          character={c}
+          saves={saves}
+          editable={editable}
+          onPatch={patch}
+        />
         <Page1Skills character={c} profs={profs} />
         <div className="lg:col-span-4 space-y-4">
           <Page1Combat
@@ -68,18 +77,42 @@ function Page1Abilities({
   scores,
   character: c,
   saves,
+  editable,
+  onPatch,
 }: {
   scores: Record<string, number>;
   character: Character;
   saves: Set<string>;
+  editable?: boolean;
+  onPatch: (p: Partial<Character>) => void;
 }) {
   return (
     <SheetSection title="Abilities" className="lg:col-span-3">
       <div className="grid grid-cols-2 gap-2">
         {ABILITIES.map((ab) => (
-          <AbilityTile key={ab} ab={ab} score={scores[ab] ?? 10} save={saveBonus(c, ab)} proficient={saves.has(ab)} />
+          <AbilityTile
+            key={ab}
+            ab={ab}
+            score={scores[ab] ?? 10}
+            save={saveBonus(c, ab)}
+            proficient={saves.has(ab)}
+            editable={editable}
+            onScoreChange={(score) => {
+              const next = { ...(c.base_ability_scores || c.ability_scores), [ab]: score };
+              onPatch({
+                base_ability_scores: next,
+                ability_scores: { ...c.ability_scores, [ab]: score },
+                ability_scores_set: true,
+              });
+            }}
+          />
         ))}
       </div>
+      {editable && (
+        <p className="text-[11px] text-muted mt-2 leading-relaxed">
+          Editing a score here changes the stored base. Background ability increases still apply on save.
+        </p>
+      )}
     </SheetSection>
   );
 }
@@ -108,7 +141,7 @@ function Page1Skills({ character: c, profs }: { character: Character; profs: Set
         ))}
       </div>
       <div className="mt-3 pt-3 border-t border-border flex justify-between text-sm">
-        <span className="text-muted">Passive Perception</span>
+        <LabelWithTip id="passive-perception" label="Passive Perception" className="text-muted" />
         <span className="font-semibold text-accent">{passivePerception(c)}</span>
       </div>
     </SheetSection>
@@ -128,13 +161,76 @@ function Page1Combat({
   hitDiceSpent: number;
   onPatch: (p: Partial<Character>) => void;
 }) {
+  const ac = computeAcDetails(c);
+  const shownAc = c.ac_manual ? Number(c.ac ?? ac.ac) : ac.ac;
   return (
     <SheetSection title="Combat">
       <div className="grid grid-cols-3 gap-2 mb-3">
-        <CombatStat label="Armor Class" value={String(c.ac ?? 10)} accent />
-        <CombatStat label="Initiative" value={formatMod(initiativeMod(c))} />
-        <CombatStat label="Speed" value={`${c.speed ?? 30} ft`} />
+        <CombatStat label="Armor Class" value={String(shownAc)} accent tipId="armor-class" />
+        <CombatStat label="Initiative" value={formatMod(initiativeMod(c))} tipId="initiative" />
+        <CombatStat label="Speed" value={`${c.speed ?? 30} ft`} tipId="speed" />
       </div>
+      <p className="text-[11px] text-muted mb-3 leading-relaxed">{ac.formula}</p>
+      {editable && (
+        <div className="space-y-2 mb-3">
+          <label className="block">
+            <span className="sheet-label">Worn armor</span>
+            <select
+              className="select w-full mt-1"
+              value={String(c.armor || 'none')}
+              onChange={(e) =>
+                onPatch({
+                  armor: e.target.value,
+                  ac_manual: false,
+                  ac: computeAcDetails({ ...c, armor: e.target.value, ac_manual: false }).ac,
+                })
+              }
+              aria-label="Worn armor"
+            >
+              {ARMOR_CATALOG.map((row) => (
+                <option key={row.id} value={row.id}>
+                  {row.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-300">
+            <input
+              type="checkbox"
+              className="rounded border-border"
+              checked={Boolean(c.shield)}
+              onChange={(e) =>
+                onPatch({
+                  shield: e.target.checked,
+                  ac_manual: false,
+                  ac: computeAcDetails({ ...c, shield: e.target.checked, ac_manual: false }).ac,
+                })
+              }
+            />
+            Shield (+2 AC)
+          </label>
+          <label className="flex items-center gap-2 text-sm text-gray-300">
+            <input
+              type="checkbox"
+              className="rounded border-border"
+              checked={Boolean(c.ac_manual)}
+              onChange={(e) => onPatch({ ac_manual: e.target.checked, ac: shownAc })}
+            />
+            Set AC manually
+          </label>
+          {c.ac_manual && (
+            <input
+              type="number"
+              min={1}
+              max={30}
+              className="w-20 bg-transparent border-b border-border focus:border-accent/40 text-lg font-semibold"
+              value={shownAc}
+              onChange={(e) => onPatch({ ac: Math.max(1, Math.min(30, parseInt(e.target.value, 10) || 10)), ac_manual: true })}
+              aria-label="Armor Class"
+            />
+          )}
+        </div>
+      )}
       <SheetField
         label="Hit Points"
         value={`${c.hp ?? 0} / ${c.max_hp ?? 0}`}
@@ -147,10 +243,13 @@ function Page1Combat({
       />
       <HpBar hp={c.hp ?? 0} maxHp={c.max_hp ?? 0} />
       <div className="grid grid-cols-2 gap-3 mt-3">
-        <SheetField label="Hit Dice" value={`${hitDiceMax - hitDiceSpent}d${c.hit_die ?? 8}`} mono />
+        <div>
+          <LabelWithTip id="hit-dice" label="Hit Dice" />
+          <div className="sheet-value font-mono mt-0.5">{`${hitDiceMax - hitDiceSpent}d${c.hit_die ?? 8}`}</div>
+        </div>
         <div className="sheet-field flex items-center justify-between">
           <div>
-            <div className="sheet-label">Heroic Inspiration</div>
+            <LabelWithTip id="heroic-inspiration" label="Heroic Inspiration" />
             {String(c.species || '').toLowerCase() === 'human' && (
               <div className="text-[9px] text-muted mt-0.5">Resourceful · Long Rest</div>
             )}
@@ -183,7 +282,7 @@ function Page1FeaturesGear({
           <GlossaryTagList items={c.cantrips || []} classId={c.class_name} />
         </div>
         <div>
-          <div className="sheet-label mb-1.5">Feats</div>
+          <LabelWithTip id="feats" label="Feats" className="sheet-label mb-1.5" />
           <GlossaryTagList
             items={[c.origin_feat, c.versatile_origin_feat, ...(c.feats || [])].filter(Boolean) as string[]}
           />

@@ -29,7 +29,18 @@ def test_brambletrek_play_adapter_pipeline():
 def test_dnd_shortcuts_for_character():
     play = get_game("dnd5e").play
     shortcuts = play.shortcuts_for_character({})
-    assert any(s["id"] == "ability_check" for s in shortcuts)
+    ids = {s["id"] for s in shortcuts}
+    assert "ability_check" in ids
+    assert "cast_spell" not in ids
+    assert "healer_medic" not in ids
+
+
+def test_dnd_shortcuts_for_fighter_include_second_wind():
+    play = get_game("dnd5e").play
+    shortcuts = play.shortcuts_for_character({"class_name": "fighter", "level": 1})
+    ids = {s["id"] for s in shortcuts}
+    assert "second_wind" in ids
+    assert "cast_spell" not in ids
 
 
 def test_brambletrek_shortcuts_for_character():

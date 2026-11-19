@@ -752,6 +752,7 @@ export interface Oracle {
   id: string;
   label: string;
   kind: string;
+  help?: string;
 }
 
 export interface Source {

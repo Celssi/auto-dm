@@ -4,7 +4,7 @@ import TextInput from '../../../../components/ui/forms/TextInput';
 import ChoiceGroup from '../../../../components/ui/forms/ChoiceGroup';
 import SegmentedControl from '../../../../components/ui/forms/SegmentedControl';
 import { displayLabel } from '../../../../lib/displayText';
-import type { WizardClassOption, WizardOption } from './wizardConstants';
+import { BACKGROUND_BLURBS, CLASS_BLURBS, type WizardClassOption, type WizardOption } from './wizardConstants';
 
 interface Props {
   char: Character;
@@ -61,6 +61,7 @@ export default function WizardBasicsStep({
             options={classes.map((c) => ({
               value: c.id,
               label: c.label || displayLabel(c.id),
+              description: CLASS_BLURBS[c.id],
             }))}
             allowEmpty
             columns={2}
@@ -83,7 +84,13 @@ export default function WizardBasicsStep({
         <ChoiceGroup
           value={char.background}
           onChange={(v) => patch({ background: v })}
-          groups={backgroundGroups}
+          groups={backgroundGroups.map((group) => ({
+            ...group,
+            options: group.options.map((opt) => ({
+              ...opt,
+              description: BACKGROUND_BLURBS[opt.value],
+            })),
+          }))}
           allowEmpty
           columns={2}
         />

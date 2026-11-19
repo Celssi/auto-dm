@@ -42,7 +42,7 @@ export default function CharacterSheetHeader({ character: c, editable, onChange 
         </div>
         <div className="flex flex-wrap gap-2 shrink-0">
           <CombatStat label="Level" value={String(c.level || 1)} />
-          <CombatStat label="Proficiency" value={formatMod(pb)} />
+          <CombatStat label="Proficiency" value={formatMod(pb)} tipId="proficiency-bonus" />
           <CombatStat label="XP" value={String(c.xp || 0)} />
         </div>
       </div>

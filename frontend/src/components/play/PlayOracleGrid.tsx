@@ -1,5 +1,5 @@
 interface Props {
-  oracles: { id: string; label: string }[];
+  oracles: { id: string; label: string; help?: string }[];
   loading: boolean;
   onRun: (id: string) => void;
 }
@@ -16,6 +16,7 @@ export default function PlayOracleGrid({ oracles, loading, onRun }: Props) {
             className="play-chip text-left"
             onClick={() => onRun(o.id)}
             disabled={loading}
+            title={o.help || o.label}
           >
             {o.label}
           </button>

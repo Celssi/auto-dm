@@ -19,6 +19,9 @@ export interface Character {
   hp: number;
   max_hp: number;
   ac: number;
+  armor?: string;
+  shield?: boolean;
+  ac_manual?: boolean;
   speed: number;
   hit_die: number;
   ability_scores: Record<string, number>;
@@ -47,6 +50,7 @@ export interface Character {
   equipment_notes?: string;
   wild_shape_uses?: number;
   luck_points_remaining?: number;
+  second_wind_remaining?: number;
   savage_attacker_used_this_turn?: boolean;
   concentration?: string;
   conditions?: string[];

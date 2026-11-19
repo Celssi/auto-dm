@@ -31,10 +31,48 @@ SHORTCUTS: list[dict[str, str]] = [
     {"id": "long_rest", "label": "Long rest", "kind": "roll_rag"},
     {"id": "cast_spell", "label": "Cast spell", "kind": "static"},
     {"id": "lucky", "label": "Spend Luck point", "kind": "static"},
+    {"id": "second_wind", "label": "Second Wind", "kind": "roll"},
     {"id": "savage_attacker", "label": "Savage Attacker (reroll damage)", "kind": "roll"},
     {"id": "healer_medic", "label": "Healer: Battle Medic", "kind": "roll"},
     {"id": "rules_help", "label": "D&D 5e rules help", "kind": "rag_only"},
 ]
+
+ALWAYS_SHORTCUTS = frozenset(
+    {
+        "ability_check",
+        "saving_throw",
+        "attack_roll",
+        "initiative",
+        "death_save",
+        "oracle",
+        "short_rest",
+        "long_rest",
+        "rules_help",
+    }
+)
+
+
+def shortcuts_for_character(char: dict | None) -> list[dict[str, str]]:
+    """Hide class/feat shortcuts the sheet cannot use."""
+    from backend.games.dnd5e.characters.character_builder import compute_spell_slots
+    from backend.games.dnd5e.characters.class_resources import second_wind_max
+    from backend.games.dnd5e.characters.entity import character_from_dict
+    from backend.games.dnd5e.characters.origin_feats import has_origin_feat
+
+    obj = character_from_dict(char or {})
+    extra: set[str] = set()
+    if compute_spell_slots(obj) or obj.cantrips or obj.prepared_spells or obj.known_spells:
+        extra.add("cast_spell")
+    if has_origin_feat(obj, "lucky"):
+        extra.add("lucky")
+    if has_origin_feat(obj, "savage_attacker"):
+        extra.add("savage_attacker")
+    if has_origin_feat(obj, "healer"):
+        extra.add("healer_medic")
+    if second_wind_max(obj) > 0:
+        extra.add("second_wind")
+    allowed = ALWAYS_SHORTCUTS | extra
+    return [row for row in SHORTCUTS if row["id"] in allowed]
 
 SHORTCUT_IDS = frozenset(s["id"] for s in SHORTCUTS)
 
@@ -100,6 +138,7 @@ def _char_from_kwargs(**kwargs) -> Dnd5eCharacter:
             "inventory": kwargs.get("inventory") or [],
             "weapons": kwargs.get("weapons") or [],
             "luck_points_remaining": kwargs.get("luck_points_remaining", -1),
+            "second_wind_remaining": kwargs.get("second_wind_remaining", -1),
             "savage_attacker_used_this_turn": kwargs.get("savage_attacker_used_this_turn", False),
             "feature_choices": kwargs.get("feature_choices") or {},
         }
@@ -253,7 +292,7 @@ def run_shortcut(
         user = f"**Saving throw** ({ability.upper()})\n\n{result['summary']}{luck_note}"
         prompt = (
             f"D&D 5e saving throw for {build}, {ability.upper()} save {mod:+d}. "
-            f"{result['summary']}. Explain save DC, success, and effects using PHB rules."
+            f"{result['summary']}. Explain save DC, success, and effects using 2024 PHB rules."
         )
         out = {"user_message": user, "prompt": prompt, "dice": result, "task": "saving_throw"}
         if luck_updates:
@@ -462,19 +501,66 @@ def run_shortcut(
             "task": "long_rest",
         }
 
+    if shortcut_id == "second_wind":
+        char = _shortcut_char(
+            name=name,
+            class_name=class_name,
+            level=level,
+            hp=hp,
+            max_hp=max_hp,
+            extra=_kwargs,
+        )
+        from backend.games.dnd5e.characters.class_resources import (
+            fighter_level,
+            second_wind_max,
+            spend_second_wind,
+        )
+
+        mx = second_wind_max(char)
+        if mx <= 0:
+            return {
+                "user_message": "**Second Wind**: this character has no Fighter Second Wind uses.",
+                "prompt": "Second Wind is not available.",
+                "static": True,
+            }
+        if not spend_second_wind(char):
+            return {
+                "user_message": "**Second Wind**: no uses remaining (regain 1 on a Short Rest, all on a Long Rest).",
+                "prompt": "No Second Wind uses left.",
+                "static": True,
+            }
+        fl = max(1, fighter_level(char) or int(level or 1))
+        heal_roll = roll_dice(f"1d10+{fl}", caller="shortcut.second_wind")
+        healing = int(heal_roll.get("total", 0) or 0)
+        new_hp = min(max_hp or char.max_hp, (hp or char.hp) + healing)
+        user = (
+            f"**Second Wind** ({char.second_wind_remaining}/{mx} remaining)\n\n"
+            f"{heal_roll.get('summary', '')} HP restored: **{hp or char.hp} → {new_hp}**"
+        )
+        return {
+            "user_message": user,
+            "prompt": f"Second Wind for {build}: restored {healing} HP. Remaining uses {char.second_wind_remaining}/{mx}.",
+            "dice": heal_roll,
+            "entity_updates": {
+                "hp": new_hp,
+                "second_wind_remaining": char.second_wind_remaining,
+            },
+            "task": "second_wind",
+        }
+
     if shortcut_id == "lucky":
         char = _shortcut_char(name=name, class_name=class_name, level=level, extra=_kwargs)
         from backend.games.dnd5e.characters.origin_feats import luck_points_max, spend_luck_point
 
         if luck_points_max(char) <= 0:
             return {
-                "user_message": "**Lucky** — feat not active on this character.",
+                "user_message": "**Lucky**: feat not active on this character.",
                 "prompt": "Lucky feat is not available.",
                 "static": True,
             }
         if not spend_luck_point(char):
             return {
-                "user_message": "**Lucky** — no Luck points remaining (recharge on long rest).",
+                "user_message": "**Lucky**: no Luck points remaining (recharge on long rest).",
                 "prompt": "No luck points left.",
                 "static": True,
             }
@@ -495,20 +581,20 @@ def run_shortcut(
 
         if not has_origin_feat(char, "savage_attacker"):
             return {
-                "user_message": "**Savage Attacker** — feat not active.",
+                "user_message": "**Savage Attacker**: feat not active.",
                 "prompt": "Savage Attacker not available.",
                 "static": True,
             }
         if char.savage_attacker_used_this_turn:
             return {
-                "user_message": "**Savage Attacker** — already used this turn.",
+                "user_message": "**Savage Attacker**: already used this turn.",
                 "prompt": "Savage Attacker once per turn.",
                 "static": True,
             }
         dice = str(damage_dice or "1d8").strip() or "1d8"
         result = roll_dice(f"{dice} reroll", caller="shortcut.savage_attacker")
         char.savage_attacker_used_this_turn = True
-        user = f"**Savage Attacker** — reroll weapon damage ({dice})\n\n{result.get('summary', '')}"
+        user = f"**Savage Attacker**: reroll weapon damage ({dice})\n\n{result.get('summary', '')}"
         return {
             "user_message": user,
             "prompt": (
@@ -531,7 +617,7 @@ def run_shortcut(
         if not can_healer_medic(char, target):
             reason = "Healer feat, healer's kit, and once-per-target-per-short-rest required."
             return {
-                "user_message": f"**Battle Medic** — cannot heal **{target}** ({reason})",
+                "user_message": f"**Battle Medic**: cannot heal **{target}** ({reason})",
                 "prompt": reason,
                 "static": True,
             }
@@ -598,10 +684,10 @@ def run_shortcut(
 
     if shortcut_id == "rules_help":
         prompt = (
-            "Explain how to run D&D 5e solo as player and DM: ability checks, saves, combat, "
+            "Explain how to run D&D 5e (2024) solo as player and DM: ability checks, saves, combat, "
             "rests, death saves, and using oracle tables for unknown outcomes. "
-            "Reference Player's Handbook and DMG; use Faerûn "
-            "supplements only when the campaign is set in Faerûn."
+            "Use only the 2024 Player's Handbook and DMG. Never fall back to 2014 rules. "
+            "Use Faerûn supplements only when the campaign is set in Faerûn."
         )
         return {"user_message": "**D&D 5e rules**", "prompt": prompt, "rag_only": True}
 

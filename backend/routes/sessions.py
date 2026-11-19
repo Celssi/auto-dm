@@ -75,6 +75,10 @@ def list_all(include_archived: bool = False):
 def shortcuts(game_id: str | None = None, character_id: str | None = None):
     plugin = get_game(game_id)
     char = get_character(character_id) if character_id else None
+    if char:
+        from backend.games.registry import rebuild_character_dict
+
+        char = rebuild_character_dict(char)
     return {"shortcuts": plugin.play.shortcuts_for_character(char or {})}
 
 

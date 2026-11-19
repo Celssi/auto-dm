@@ -45,7 +45,12 @@ export function useCharactersPageActions(
       const [{ character: c }, sum] = await Promise.all([api.getCharacter(id), api.getCharacterSummary(id)]);
       dispatch({
         type: 'set',
-        patch: { character: c as Character, summary: sum.summary, activeId: id, error: null },
+        patch: {
+          character: ((sum.character || c) as Character),
+          summary: sum.summary,
+          activeId: id,
+          error: null,
+        },
       });
     },
     [dispatch],
