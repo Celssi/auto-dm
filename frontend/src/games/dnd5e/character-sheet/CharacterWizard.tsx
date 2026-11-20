@@ -177,7 +177,7 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
       setPreviewChar(null);
       setPreviewSummary(null);
       try {
-        const result = await api.previewCharacter(char as Record<string, unknown>, !initial);
+        const result = await api.previewCharacter(char as Record<string, unknown>, false);
         setPreviewChar(result.character as Character);
         setPreviewSummary((result.summary as Record<string, unknown>) || null);
       } catch {

@@ -643,8 +643,6 @@ _WIZARD_BOOK_EXTRAS = (
     "Find Familiar",
     "Color Spray",
 )
-_MI_WIZARD_CANTRIPS = ("Minor Illusion", "Acid Splash", "Light", "Ray of Frost")
-
 
 def _reserved_language_names(char: Dnd5eCharacter, fc: dict[str, Any]) -> set[str]:
     reserved = {"common", "thieves' cant", "thieves cant"}
@@ -731,58 +729,19 @@ def _fill_elf_defaults(char: Dnd5eCharacter, fc: dict[str, Any]) -> bool:
 
 
 def _fill_magic_initiate(char: Dnd5eCharacter, fc: dict[str, Any]) -> bool:
+    """Keep existing Magic Initiate picks. Do not invent Shield or class prepared spells."""
     feat = f"{char.origin_feat or ''} {char.versatile_origin_feat or ''}".lower()
     if "magic initiate" not in feat:
         return False
-    changed = False
+    if str(fc.get("magic_initiate_ability") or "").strip():
+        return False
     list_id = "wizard"
     if "cleric" in feat:
         list_id = "cleric"
     elif "druid" in feat:
         list_id = "druid"
-    cantrips = fc.get("magic_initiate_cantrips") or []
-    cantrip_list = [str(item).strip() for item in cantrips if str(item).strip()]
-    if len(cantrip_list) < 2:
-        known = {normalize_spell_name(item) for item in (char.cantrips or [])}
-        known.update(normalize_spell_name(item) for item in cantrip_list)
-        extras = list(cantrip_list)
-        from backend.games.dnd5e.characters.character_data import spell_list_for
-
-        pool = list(_MI_WIZARD_CANTRIPS if list_id == "wizard" else []) + list(
-            spell_list_for(list_id).get("cantrips") or []
-        )
-        for name in pool:
-            key = normalize_spell_name(name)
-            if not key or key in known:
-                continue
-            extras.append(name)
-            known.add(key)
-            if len(extras) >= 2:
-                break
-        if extras:
-            changed = _set_choice(fc, "magic_initiate_cantrips", extras[:2]) or changed
-    if not str(fc.get("magic_initiate_level1") or "").strip():
-        prepared = [str(item).strip() for item in (char.prepared_spells or []) if str(item).strip()]
-        pick = ""
-        for name in prepared:
-            if normalize_spell_name(name) == "shield":
-                pick = name
-                break
-        if not pick:
-            for name in prepared:
-                if normalize_spell_name(name) != "magearmor":
-                    pick = name
-                    break
-        if not pick and prepared:
-            pick = prepared[0]
-        if not pick:
-            pick = "Shield" if list_id == "wizard" else ""
-        if pick:
-            changed = _set_choice(fc, "magic_initiate_level1", pick) or changed
-    if not str(fc.get("magic_initiate_ability") or "").strip():
-        ability = "int" if list_id == "wizard" else "wis"
-        changed = _set_choice(fc, "magic_initiate_ability", ability) or changed
-    return changed
+    ability = "int" if list_id == "wizard" else "wis"
+    return _set_choice(fc, "magic_initiate_ability", ability)
 
 
 def _fill_wizard_spellbook(char: Dnd5eCharacter) -> bool:

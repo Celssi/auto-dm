@@ -28,6 +28,17 @@ _CAST_PATTERNS = (
     re.compile(r"\bcast\s+(.+?)(?:\s+at\b|\s+on\b|\s+against\b|[.!,]|$)", re.IGNORECASE),
     re.compile(r"\bcasting\s+(.+?)(?:\s+at\b|\s+on\b|\s+against\b|[.!,]|$)", re.IGNORECASE),
 )
+_SHORTCUT_HEADER = re.compile(r"^\*\*(cast spell|short rest|long rest)\*\*", re.IGNORECASE)
+_EMPTY_CAST_QUERIES = frozenset(
+    {
+        "no slot spent",
+        "no spell",
+        "no spell named",
+        "spell",
+        "/cast_spell",
+        "cast_spell",
+    }
+)
 
 _CONFIRM_WORDS = frozenset(
     {"yes", "y", "yeah", "yep", "confirm", "confirmed", "do it", "cast it", "jep", "kyllä", "kylla"}
@@ -101,12 +112,19 @@ def extract_cast_query(message: str) -> str | None:
     text = (message or "").strip()
     if not text:
         return None
+    if text.lower() in {"/cast_spell", "/cast"}:
+        return None
+    if _SHORTCUT_HEADER.match(text):
+        return None
+    scrubbed = re.sub(r"\bfree\s+cast\b", "free-use", text, flags=re.IGNORECASE)
     for pattern in _CAST_PATTERNS:
-        match = pattern.search(text)
+        match = pattern.search(scrubbed)
         if match:
-            query = match.group(1).strip()
-            if query:
-                return query
+            query = match.group(1).strip().strip("\"'")
+            query = re.sub(r"^[\(\[]+|[\)\]]+$", "", query).strip()
+            if not query or query.lower() in _EMPTY_CAST_QUERIES:
+                return None
+            return query
     return None
 
 

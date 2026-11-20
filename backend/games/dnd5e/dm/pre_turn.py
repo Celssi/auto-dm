@@ -106,6 +106,8 @@ def handle_spell_autocomplete(
                 persist_character=True,
             )
 
+    if (user_message or "").strip().lower().startswith("**cast spell**"):
+        return None
     query = extract_cast_query(user_message)
     if not query:
         return None

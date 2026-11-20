@@ -141,16 +141,6 @@ def preserve_live_resources(stored: dict[str, Any] | None, rebuilt: dict[str, An
         if key in stored_fc:
             merged_fc[key] = stored_fc[key]
     out["feature_choices"] = merged_fc
-    armor = str(out.get("armor") or "none").strip().lower()
-    if armor in ("", "none") and not merged_fc.get("_mage_armor_active"):
-        try:
-            dex = int((out.get("ability_scores") or {}).get("dex") or 10)
-        except (TypeError, ValueError):
-            dex = 10
-        stored_ac = int(src.get("ac") or 0)
-        if stored_ac >= 13 + ((dex - 10) // 2):
-            merged_fc["_mage_armor_active"] = True
-            out["feature_choices"] = merged_fc
     if resolve_game_id(out) == "dnd5e" and not out.get("ac_manual"):
         from backend.games.dnd5e.characters.entity import character_from_dict
         from backend.games.dnd5e.characters.class_resources import compute_ac_details

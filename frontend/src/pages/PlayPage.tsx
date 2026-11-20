@@ -44,6 +44,7 @@ export default function PlayPage() {
     handleDragonkeepInit,
     handleBrambletrekCombatAction,
     handleCombatAction,
+    rebuildSheet,
     renameSession,
     archiveSession,
   } = usePlayPageSession(state, dispatch, loadSeqRef, campaignIdRef);
@@ -121,6 +122,7 @@ export default function PlayPage() {
       onDragonkeepInit={handleDragonkeepInit}
       onBrambletrekCombatAction={handleBrambletrekCombatAction}
       onCombatAction={handleCombatAction}
+      onRebuildSheet={() => void rebuildSheet()}
     />
   );
 }

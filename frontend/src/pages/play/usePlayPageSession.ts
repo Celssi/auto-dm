@@ -44,11 +44,33 @@ function applyChatResultPatch(result: ChatResult) {
   };
 }
 
+function preferLiveSheet(fetched: Character, streamed: Character | null): Character {
+  if (!streamed) return fetched;
+  const next = { ...fetched };
+  const streamedHp = Number(streamed.hp);
+  const fetchedHp = Number(fetched.hp);
+  if (Number.isFinite(streamedHp) && streamedHp < fetchedHp) {
+    next.hp = streamedHp;
+  }
+  const streamedAc = Number(streamed.ac);
+  if (Number.isFinite(streamedAc) && streamedAc > 0) {
+    next.ac = streamedAc;
+  }
+  next.feature_choices = {
+    ...((fetched.feature_choices || {}) as Record<string, unknown>),
+    ...((streamed.feature_choices || {}) as Record<string, unknown>),
+  };
+  if (streamed.spell_slots) next.spell_slots = streamed.spell_slots;
+  if (streamed.hit_dice_spent != null) next.hit_dice_spent = streamed.hit_dice_spent;
+  return next;
+}
+
 function applyPlayStreamEvent(
   event: string,
   data: unknown,
   dispatch: Dispatch<PlayAction>,
   done: ChatResult[],
+  lastSheet?: MutableRefObject<Character | null>,
 ): string {
   if (event === 'narration' && typeof data === 'string') {
     dispatch({ type: 'appendAssistantDelta', delta: data });
@@ -57,18 +79,20 @@ function applyPlayStreamEvent(
   } else if (event === 'sheet' && data && typeof data === 'object' && 'character' in data) {
     const payload = data as { character?: Character };
     if (payload.character) {
-      dispatch({ type: 'set', patch: { character: payload.character } });
+      if (lastSheet) lastSheet.current = payload.character;
+      dispatch({ type: 'set', patch: { character: payload.character, sheetUpdating: false } });
     }
   } else if (event === 'ready' && data && typeof data === 'object' && 'response' in data) {
     const payload = data as { response?: string; character?: Character };
     if (payload.response) {
       dispatch({ type: 'replaceLastAssistant', content: payload.response });
     }
+    if (payload.character && lastSheet) lastSheet.current = payload.character;
     dispatch({
       type: 'set',
       patch: {
         loading: false,
-        sheetUpdating: true,
+        sheetUpdating: !payload.character,
         ...(payload.character ? { character: payload.character } : {}),
       },
     });
@@ -102,6 +126,7 @@ export function usePlayPageSession(
   useKeepAlive(state.loading || state.bootstrapping);
   const inFlightRef = useRef(false);
   const pendingSendsRef = useRef<{ text: string; shown: boolean }[]>([]);
+  const lastSheetRef = useRef<Character | null>(null);
 
   const refreshSessionLogs = useCallback(
     async (sessionId: string) => {
@@ -391,7 +416,7 @@ export function usePlayPageSession(
         dispatch({ type: 'appendMessages', messages: [{ role: 'user', content: text }] });
       }
       pendingSendsRef.current.push({ text, shown: true });
-      dispatch({ type: 'set', patch: { input: '' } });
+      dispatch({ type: 'set', patch: { input: '', queuedCount: pendingSendsRef.current.length } });
       return;
     }
     inFlightRef.current = true;
@@ -405,7 +430,7 @@ export function usePlayPageSession(
       const done: ChatResult[] = [];
       let streamError = '';
       await api.chatStream(sessionId, text, (event, data) => {
-        const err = applyPlayStreamEvent(event, data, dispatch, done);
+        const err = applyPlayStreamEvent(event, data, dispatch, done, lastSheetRef);
         if (err) streamError = err;
       });
       if (streamError) throw new Error(streamError);
@@ -415,7 +440,10 @@ export function usePlayPageSession(
       if (state.characterId) {
         try {
           const fresh = await api.getCharacter(state.characterId);
-          dispatch({ type: 'set', patch: { character: fresh.character as Character } });
+          dispatch({
+            type: 'set',
+            patch: { character: preferLiveSheet(fresh.character as Character, lastSheetRef.current) },
+          });
         } catch (err: unknown) {
           console.warn('Failed to refresh character after chat', err);
         }
@@ -449,9 +477,13 @@ export function usePlayPageSession(
       });
     } finally {
       inFlightRef.current = false;
-      dispatch({ type: 'set', patch: { loading: false, sheetUpdating: false } });
+      dispatch({
+        type: 'set',
+        patch: { loading: false, sheetUpdating: false, queuedCount: pendingSendsRef.current.length },
+      });
       const next = pendingSendsRef.current.shift();
       if (next) {
+        dispatch({ type: 'set', patch: { queuedCount: pendingSendsRef.current.length } });
         void sendMessage(next.text, { alreadyShown: next.shown });
       }
     }
@@ -482,13 +514,14 @@ export function usePlayPageSession(
     if (await ext.runShortcut(state.sessionId, id, dispatch, refreshSessionLogs)) {
       return;
     }
-    if (id === 'cast_spell' && state.character) {
+    if (id === 'cast_spell') {
+      if (!state.character) return;
       const spells = listCastableSpells(state.character);
       const first = spells[0];
       const modal: SpellCastModalState = {
         spellName: first?.name || '',
         slotLevel: first?.cantrip ? 0 : 1,
-        freeUse: Boolean(first?.magicInitiate),
+        freeUse: false,
         ritual: false,
         submitting: false,
       };
@@ -566,7 +599,7 @@ export function usePlayPageSession(
       let uiReady = false;
 
       const applyEvent = (event: string, data: unknown) => {
-        const err = applyPlayStreamEvent(event, data, dispatch, done);
+        const err = applyPlayStreamEvent(event, data, dispatch, done, lastSheetRef);
         if (err) streamError = err;
         if (event === 'ready' || event === 'done') {
           dispatch({ type: 'set', patch: { diceModal: null } });
@@ -637,7 +670,10 @@ export function usePlayPageSession(
       if (state.characterId) {
         try {
           const fresh = await api.getCharacter(state.characterId);
-          dispatch({ type: 'set', patch: { character: fresh.character as Character } });
+          dispatch({
+            type: 'set',
+            patch: { character: preferLiveSheet(fresh.character as Character, lastSheetRef.current) },
+          });
         } catch (err: unknown) {
           console.warn('Failed to refresh character after dice shortcut', err);
         }
@@ -672,8 +708,12 @@ export function usePlayPageSession(
       });
     } finally {
       inFlightRef.current = false;
+      dispatch({ type: 'set', patch: { queuedCount: pendingSendsRef.current.length } });
       const next = pendingSendsRef.current.shift();
-      if (next) void sendMessage(next.text, { alreadyShown: next.shown });
+      if (next) {
+        dispatch({ type: 'set', patch: { queuedCount: pendingSendsRef.current.length } });
+        void sendMessage(next.text, { alreadyShown: next.shown });
+      }
     }
   };
 
@@ -721,7 +761,7 @@ export function usePlayPageSession(
         },
         undefined,
         (event, data) => {
-          const err = applyPlayStreamEvent(event, data, dispatch, done);
+          const err = applyPlayStreamEvent(event, data, dispatch, done, lastSheetRef);
           if (err) streamError = err;
         },
       );
@@ -731,7 +771,10 @@ export function usePlayPageSession(
       if (state.characterId) {
         try {
           const fresh = await api.getCharacter(state.characterId);
-          dispatch({ type: 'set', patch: { character: fresh.character as Character } });
+          dispatch({
+            type: 'set',
+            patch: { character: preferLiveSheet(fresh.character as Character, lastSheetRef.current) },
+          });
         } catch (err: unknown) {
           console.warn('Failed to refresh character after spell cast', err);
         }
@@ -746,9 +789,15 @@ export function usePlayPageSession(
       });
     } finally {
       inFlightRef.current = false;
-      dispatch({ type: 'set', patch: { loading: false, sheetUpdating: false } });
+      dispatch({
+        type: 'set',
+        patch: { loading: false, sheetUpdating: false, queuedCount: pendingSendsRef.current.length },
+      });
       const next = pendingSendsRef.current.shift();
-      if (next) void sendMessage(next.text, { alreadyShown: next.shown });
+      if (next) {
+        dispatch({ type: 'set', patch: { queuedCount: pendingSendsRef.current.length } });
+        void sendMessage(next.text, { alreadyShown: next.shown });
+      }
     }
   };
 
@@ -873,6 +922,17 @@ export function usePlayPageSession(
     await loadMeta();
   };
 
+  const rebuildSheet = useCallback(async () => {
+    if (!state.characterId) return;
+    try {
+      const { character: rebuilt } = await api.rebuildCharacter(state.characterId);
+      lastSheetRef.current = rebuilt as Character;
+      dispatch({ type: 'set', patch: { character: rebuilt as Character } });
+    } catch (err: unknown) {
+      console.warn('Failed to rebuild character sheet', err);
+    }
+  }, [dispatch, state.characterId]);
+
   const handleCombatAction = useCallback(
     async (action: string, targetId?: string) => {
       if (!state.sessionId) return;
@@ -913,6 +973,7 @@ export function usePlayPageSession(
     handleDragonkeepInit,
     handleBrambletrekCombatAction,
     handleCombatAction,
+    rebuildSheet,
     renameSession,
     archiveSession,
   };
