@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from backend.dm.memory_dedupe import condense_body
 from backend.journal_storage import (
     get_campaign,
@@ -17,6 +19,20 @@ MAX_NPCS = 10
 MAX_LOCATIONS = 8
 MAX_PRIOR_SUMMARY = 1500
 MAX_PRIOR_ADVENTURES = 5
+
+
+_DEAD_STATUS = frozenset({"dead", "deceased", "killed", "slain"})
+_DEAD_BODY = re.compile(
+    r"\b(is dead|was killed|has died|died|slain|now a corpse|deceased|lies dead)\b",
+    re.IGNORECASE,
+)
+
+
+def npc_is_dead(npc: dict) -> bool:
+    status = str(npc.get("status") or "").strip().lower()
+    if status in _DEAD_STATUS:
+        return True
+    return bool(_DEAD_BODY.search(str(npc.get("body") or "")))
 
 
 def _clip(text: str, limit: int = MAX_BODY) -> str:
@@ -99,12 +115,24 @@ def world_context_for_campaign(
 
     npc_rows = list_campaign_npcs(campaign_id)[:MAX_NPCS]
     if npc_rows:
-        parts.append("\n### Key NPCs")
+        alive: list[str] = []
+        dead: list[str] = []
         for row in npc_rows:
             npc = get_campaign_npc(campaign_id, row["id"])
             if not npc:
                 continue
-            parts.append(f"\n**{npc.get('name', row['id'])}**\n{_clip_memory(npc.get('body', ''))}")
+            name = str(npc.get("name") or row["id"])
+            if npc_is_dead(npc):
+                dead.append(name)
+            else:
+                alive.append(f"\n**{name}**\n{_clip_memory(npc.get('body', ''))}")
+        if alive:
+            parts.append("\n### Key NPCs")
+            parts.extend(alive)
+        if dead:
+            parts.append(
+                "\n### Deceased (do not portray as alive)\n" + ", ".join(dead)
+            )
 
     loc_rows = list_campaign_locations(campaign_id)[:MAX_LOCATIONS]
     if loc_rows:

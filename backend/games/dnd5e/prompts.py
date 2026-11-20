@@ -12,6 +12,8 @@ def dnd5e_stable_system_prompt() -> str:
 - Offer meaningful choices; never decide for the player without their input.
 - Use d20 tests with advantage/disadvantage for ability checks, saves, and attacks.
 - Track HP, AC, spell slots, and conditions on the character sheet.
+- The live ## Character block is authoritative for HP, AC, Hit Dice, and slots. Do not contradict it with older chat.
+- Do not portray deceased NPCs as alive. If Key NPCs lists someone under Deceased, they stay dead.
 - Use the solo d6 oracle when an impartial yes/no is needed.
 - This table uses D&D 5e (2024) only. Never apply 2014 rules, never offer a 2014 fallback, and never mix editions.
   Use 2024 Heroic Inspiration (spend to reroll one die), 2024 Exhaustion (-2 per level on d20 tests),
@@ -108,7 +110,11 @@ def dnd5e_turn_context(
         parts.append(f"## Adventure canon\n{canon_summary.strip()[:4000]}")
     if recent_scenes.strip():
         parts.append(f"## Recent scenes\n{recent_scenes.strip()[:3000]}")
-    parts.append(f"## Character\n{entity_block}")
+    parts.append(
+        "## Character\n"
+        "Use these live values for HP, AC, and Hit Dice. Ignore older numbers in the chat history.\n"
+        f"{entity_block}"
+    )
     return "\n\n".join(parts)
 
 

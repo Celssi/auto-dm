@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 from typing import Any, Literal
 
@@ -75,6 +76,36 @@ def save_story_progress(adventure_id: str, progress: StoryProgress) -> None:
     after_write(path)
 
 
+def parse_outline_to_progress_heuristic(outline: str) -> StoryProgress | None:
+    """Build checkpoints from markdown headings without an extra LLM call."""
+    titles: list[str] = []
+    for raw in re.findall(r"^#{1,3}\s+(.+)$", outline or "", re.MULTILINE):
+        title = str(raw).strip().strip("*").strip()
+        if not title or title.lower() in {"premise", "outline"}:
+            continue
+        titles.append(title[:80])
+    if len(titles) < 3:
+        paras = [p.strip() for p in re.split(r"\n\s*\n", outline or "") if p.strip()]
+        for para in paras:
+            line = para.split("\n", 1)[0].strip().strip("*").strip()
+            if line and line not in titles:
+                titles.append(line[:80])
+            if len(titles) >= 6:
+                break
+    if len(titles) < 3:
+        return None
+    checkpoints = [
+        Checkpoint(
+            id=f"cp-{i}",
+            title=title,
+            dm_notes="",
+            status="active" if i == 1 else "pending",
+        )
+        for i, title in enumerate(titles[:10], start=1)
+    ]
+    return StoryProgress(stage_label="Act 1", checkpoints=checkpoints)
+
+
 def parse_outline_to_progress(outline: str) -> StoryProgress:
     llm = structured_llm(OutlineCheckpoints)
     prompt = f"""Break this D&D adventure outline into ordered story checkpoints for a solo DM.
@@ -109,7 +140,7 @@ def reset_story_progress(adventure_id: str) -> None:
 
 
 def ensure_story_progress(
-    adventure_id: str, outline: str, *, force: bool = False
+    adventure_id: str, outline: str, *, force: bool = False, allow_llm: bool = True
 ) -> StoryProgress | None:
     outline = (outline or "").strip()
     if not outline:
@@ -119,7 +150,18 @@ def ensure_story_progress(
     existing = load_story_progress(adventure_id)
     if existing and existing.checkpoints:
         return existing
-    progress = parse_outline_to_progress(outline)
+    progress = parse_outline_to_progress_heuristic(outline)
+    if progress is None and allow_llm:
+        progress = parse_outline_to_progress(outline)
+    if progress is None:
+        progress = StoryProgress(
+            stage_label="Act 1",
+            checkpoints=[
+                Checkpoint(id="cp-1", title="Opening", dm_notes="", status="active"),
+                Checkpoint(id="cp-2", title="Rising action", dm_notes="", status="pending"),
+                Checkpoint(id="cp-3", title="Climax", dm_notes="", status="pending"),
+            ],
+        )
     save_story_progress(adventure_id, progress)
     return progress
 

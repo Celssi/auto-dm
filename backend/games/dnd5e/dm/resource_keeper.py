@@ -267,8 +267,22 @@ def overlay_live_resources(character: dict, dm_response: str) -> dict:
     return updates
 
 
+_NO_HIT_DICE = re.compile(
+    r"(no hit dice|without (spending |using )?hit dice|do not spend .{0,24}hit dice|"
+    r"don't spend .{0,24}hit dice|already at full|full hit points|"
+    r"no need (to spend|for) hit dice|hit dice .{0,20}not needed)",
+    re.IGNORECASE,
+)
+
+
+def no_hit_dice_requested(user_message: str, dm_response: str) -> bool:
+    return bool(_NO_HIT_DICE.search(f"{user_message}\n{dm_response}"))
+
+
 def parse_hit_dice_to_spend(user_message: str, dm_response: str) -> int:
     text = f"{user_message}\n{dm_response}"
+    if no_hit_dice_requested(user_message, dm_response):
+        return 0
     for pattern in (
         r"spend\s+(\d+)\s+hit\s+dice",
         r"spend\s+(\d+)\s+hit\s+die",
@@ -357,7 +371,7 @@ def run_resource_keeper(
     from backend.games.dnd5e.characters.spell_resources import apply_spell_cast
 
     query = extract_cast_query(user_message)
-    if query:
+    if query and not cast_refused(dm_response):
         resolution = resolve_spell_query(char, query)
         if resolution.status == "exact" and resolution.spell_name:
             ok, msg = apply_spell_cast(
@@ -421,6 +435,7 @@ def apply_pending_rest(
     dm_response: str,
     *,
     combat_active: bool = False,
+    user_message: str = "",
 ) -> tuple[dict, list[str]]:
     """Apply a shortcut rest only after the DM grants it, and never during combat."""
     kind = str(pending.get("kind") or "short").strip().lower()
@@ -431,12 +446,61 @@ def apply_pending_rest(
         if rest_refused(dm_response):
             reason = "the DM refused the rest"
         return {}, [f"Rest not applied: {reason}."]
-    char = character_from_dict(character)
+    live = overlay_live_resources(character, dm_response)
+    live.pop("_logs", None)
+    merged = {**character, **live}
+    char = character_from_dict(merged)
+    hp = parse_pc_hp_from_narration(
+        dm_response, name=char.name, max_hp=char.max_hp, current_hp=char.hp
+    )
+    if hp is not None:
+        char.hp = hp
     if kind == "long":
         rest = long_rest_recover(char)
         return dict(rest.get("entity_updates") or {}), [str(rest.get("summary") or "Long rest.")]
     dice = int(pending.get("dice_to_spend") or 0)
+    parsed = parse_hit_dice_to_spend(user_message, dm_response)
+    if parsed:
+        dice = parsed
+    if no_hit_dice_requested(user_message, dm_response) or char.hp >= char.max_hp:
+        dice = 0
     return _apply_short_rest_updates(char, dice_to_spend=dice)
+
+
+_CAST_REFUSAL = re.compile(
+    r"(already active|already in effect|still holds|still in effect|"
+    r"no need to (re)?cast|do not (re)?cast|don't (re)?cast|"
+    r"cannot cast|can't cast|ward still|remains in effect|"
+    r"no slot (is )?spent|without spending a slot|"
+    r"ei tarvitse loitsia|jo voimassa)",
+    re.IGNORECASE,
+)
+
+
+def cast_refused(dm_response: str) -> bool:
+    return bool(_CAST_REFUSAL.search(dm_response or ""))
+
+
+def apply_pending_cast(
+    character: dict,
+    pending: dict,
+    dm_response: str,
+) -> tuple[dict, list[str]]:
+    """Spend a shortcut cast only if the DM did not refuse it."""
+    if cast_refused(dm_response):
+        return {}, ["Cast not applied: the DM refused the spell."]
+    spell_name = str(pending.get("spell_name") or "").strip()
+    if not spell_name:
+        return {}, ["Cast not applied: no spell named."]
+    return apply_cast_spell_shortcut(
+        character,
+        spell_name,
+        slot_level=int(pending.get("slot_level") or 0),
+        ritual=bool(pending.get("ritual")),
+        free_use=pending.get("free_use"),
+        requested_text=str(pending.get("requested_text") or ""),
+        audit_source="pending_cast",
+    )
 
 
 def apply_cast_spell_shortcut(

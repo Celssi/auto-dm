@@ -329,6 +329,8 @@ def apply_spell_cast(
     if level is None:
         return False, f"Unknown spell level: {spell_name}"
     display = " ".join(part.capitalize() for part in str(resolved or spell_name).replace("_", " ").split())
+    if normalize_spell_name(display) == "magearmor" and mage_armor_active(char):
+        return False, "Mage Armor is already active (no slot spent)."
     if level == 0:
         record_audit(
             {

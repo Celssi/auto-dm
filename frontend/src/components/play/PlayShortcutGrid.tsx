@@ -14,9 +14,17 @@ interface Props {
   onRun: (id: string) => void;
   grouped?: boolean;
   shortcutLoading?: string | null;
+  sheetReady?: boolean;
 }
 
-export default function PlayShortcutGrid({ shortcuts, loading, onRun, grouped, shortcutLoading }: Props) {
+export default function PlayShortcutGrid({
+  shortcuts,
+  loading,
+  onRun,
+  grouped,
+  shortcutLoading,
+  sheetReady = true,
+}: Props) {
   if (grouped) {
     return (
       <div className="shrink-0">
@@ -41,7 +49,8 @@ export default function PlayShortcutGrid({ shortcuts, loading, onRun, grouped, s
                   type="button"
                   className="play-chip text-left"
                   onClick={() => onRun(s.id)}
-                  disabled={loading}
+                  disabled={loading || (s.id === 'cast_spell' && !sheetReady)}
+                  title={s.id === 'cast_spell' && !sheetReady ? 'Spells are still loading' : undefined}
                 >
                   {s.label}
                 </button>

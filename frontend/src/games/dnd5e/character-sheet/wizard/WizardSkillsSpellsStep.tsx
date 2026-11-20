@@ -3,6 +3,8 @@ import { spellPickLabel } from '../../dnd5eCharacterCreation';
 import { Field } from '../../../../components/ui/forms/Field';
 import MultiChoice from '../../../../components/ui/forms/MultiChoice';
 import type { WizardClassOption } from './wizardConstants';
+import CreationChoicesForm from '../CreationChoicesForm';
+import { choicesForDraft, type CreationChoiceCatalog } from '../../../../lib/creationChoices';
 
 interface Props {
   char: Character;
@@ -13,6 +15,7 @@ interface Props {
   spellField: 'known_spells' | 'prepared_spells';
   spellList: Record<string, string[]>;
   spellOptions: string[];
+  options?: Record<string, unknown>;
 }
 
 export default function WizardSkillsSpellsStep({
@@ -24,11 +27,16 @@ export default function WizardSkillsSpellsStep({
   spellField,
   spellList,
   spellOptions,
+  options = {},
 }: Props) {
   const isWizard = selectedClass?.id === 'wizard';
   const spellbookMax = Number(spellLimits.spellbook || 0);
   const preparedMax = spellLimits[spellField === 'known_spells' ? 'known' : 'prepared'];
   const preparedOptions = isWizard && (char.spellbook || []).length ? char.spellbook || [] : spellOptions;
+  const catalog = (options.creation_choice_catalog || {}) as CreationChoiceCatalog;
+  const magicInitiateChoices = choicesForDraft(char, options, catalog).filter((choice) =>
+    String(choice.id || '').startsWith('magic_initiate'),
+  );
 
   return (
     <div className="space-y-5">
@@ -90,6 +98,15 @@ export default function WizardSkillsSpellsStep({
             </Field>
           )}
         </>
+      )}
+      {magicInitiateChoices.length > 0 && (
+        <div className="space-y-3 rounded-lg border border-border p-4">
+          <p className="text-sm text-muted leading-relaxed">
+            Sage and other Magic Initiate backgrounds pick two cantrips and one 1st-level spell here. You can cast
+            the 1st-level spell once per Long Rest without a slot.
+          </p>
+          <CreationChoicesForm char={char} options={options} patch={patch} choices={magicInitiateChoices} />
+        </div>
       )}
     </div>
   );

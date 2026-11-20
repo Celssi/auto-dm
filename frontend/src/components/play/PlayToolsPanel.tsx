@@ -44,6 +44,7 @@ interface Props {
   onDragonkeepInit: () => Promise<void>;
   onBrambletrekCombatAction: (action: string, handIndex?: number) => Promise<void>;
   onCombatAction: (action: string, targetId?: string) => Promise<void>;
+  sheetReady?: boolean;
 }
 
 export default function PlayToolsPanel({
@@ -72,6 +73,7 @@ export default function PlayToolsPanel({
   onDragonkeepInit,
   onBrambletrekCombatAction,
   onCombatAction,
+  sheetReady = true,
 }: Props) {
   const config = getGamePlayConfig(gameId);
   const toolTabs: PlayLogTab[] = [...config.extraToolTabs];
@@ -131,6 +133,7 @@ export default function PlayToolsPanel({
         onRun={runShortcut}
         grouped={config.shortcutGroups}
         shortcutLoading={shortcutLoading}
+        sheetReady={sheetReady}
       />
       <PlayLogTabs tabs={tabs} active={activeLogTab} onChange={setLogTab}>
         <PlayToolTabContent

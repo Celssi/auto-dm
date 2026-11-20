@@ -7,15 +7,10 @@ from typing import Any, Literal
 from langchain_core.messages import HumanMessage
 from pydantic import BaseModel, Field
 
-from backend.dm.campaign_repair import (
-    extract_encounters_from_outline,
-    extract_journal_from_text,
-)
-from backend.dm.encounters import load_adventure_encounters, save_adventure_encounters
+from backend.dm.campaign_repair import extract_journal_from_text
 from backend.dm.prose_style import NARRATION_STYLE_RULES, sanitize_narration_dashes
 from backend.dm.session_opening import attach_opening_to_session
 from backend.dm.story_director import ensure_story_progress
-from backend.dm.story_memory import generate_opening_summary
 from backend.dm.world_context import prior_adventures_context, world_context_for_campaign
 from backend.games.registry import get_game, resolve_game_id
 from backend.journal_storage import (
@@ -63,6 +58,18 @@ def _require_campaign_plan(char: dict[str, Any] | None) -> None:
 
 def _clean_opening(text: str) -> str:
     return sanitize_narration_dashes((text or "").strip())
+
+
+def _heuristic_opening_summary(opening: str) -> str:
+    paras = [p.strip() for p in (opening or "").split("\n\n") if p.strip()]
+    return (
+        "## Premise\n"
+        f"{paras[0] if paras else 'The adventure has begun.'}\n\n"
+        "## Major beats (chronological)\n"
+        "- Opening scene played.\n\n"
+        "## Current situation\n"
+        f"{paras[-1] if paras else 'Play resumes from the opening.'}\n"
+    )
 
 
 class JournalEntrySpec(BaseModel):
@@ -138,7 +145,7 @@ def generate_bootstrap_spec(
     setting = "Faerûn (Forgotten Realms)" if include_faerun else "freeform/homebrew"
     name_hint = f'\nPreferred campaign name: "{campaign_name}".' if campaign_name.strip() else ""
 
-    prompt = f"""Design a complete D&D 5e (2024) SOLO campaign package.
+    prompt = f"""Design a compact D&D 5e (2024) SOLO campaign package. Be concise.
 
 Mode: {mode}
 Theme/hook: {theme}
@@ -148,16 +155,16 @@ Setting: {setting}
 Player character:
 {_char_prompt(char)}
 
-Rulebook reference (use for tone and facts when relevant):
-{context[:4000]}
+Rulebook reference:
+{context[:1800]}
 
 Requirements:
-- story_arc: main plot, mysteries, factions, long-term hooks (300-800 words)
-- adventure_outline: markdown with Premise, Act 1, Key conflicts, Possible endings
-- npcs: 4-8 entries with rich ChatDM-style bodies (appearance, personality, motivations, role)
-- locations: 3-6 entries with atmosphere, features, current state
-- opening_scene: drop the player INTO the action; end with a clear choice; no meta commentary
-- Names must be consistent across outline, NPCs, locations, and opening scene
+- story_arc: 120-220 words (plot, one mystery, two factions)
+- adventure_outline: markdown with Premise, Act 1, Act 2, Possible ending (under 350 words)
+- npcs: 3-4 entries, 2-3 sentences each (appearance, role, motive)
+- locations: 2-3 entries, 2 sentences each
+- opening_scene: 2 short paragraphs, drop INTO the action, end with one clear choice
+- Names must match across outline, NPCs, locations, and opening
 
 {NARRATION_STYLE_RULES}
 """
@@ -363,8 +370,8 @@ def generate_campaign_plan(
         theme if mode == "module" else f"D&D campaign arc: {theme}",
         game_id=rag_plugin.id,
         factions=rag_plugin.get_all_factions() if include_faerun else ["player", "dm", "monsters"],
-        top_k=10 if mode == "module" else 6,
-        use_rerank=True,
+        top_k=4,
+        use_rerank=False,
         generate_answer=False,
     )
     context = "\n\n".join(
@@ -391,8 +398,7 @@ Mode is FREEFORM: invent an original campaign arc and exactly {count} linked adv
 - Leave source_module null on all entries.
 """
 
-    prompt = f"""Design a complete D&D 5e (2024) SOLO campaign PLAN \
-(story arc + multiple adventures).
+    prompt = f"""Design a compact D&D 5e (2024) SOLO campaign PLAN. Be concise.
 
 Theme/hook: {theme}
 Setting: {setting}
@@ -403,17 +409,16 @@ Adventure count: {count}
 Player character:
 {char_section}
 
-Rulebook reference (use for tone and facts when relevant):
-{context[:5000]}
+Rulebook reference:
+{context[:1800]}
 
 Requirements:
-- story_arc: main plot, mysteries, factions, long-term hooks (400-900 words)
-- adventures: exactly {count} entries, sequence 1..{count}, each with name,
-  theme, and markdown outline
-- Each outline: Premise, Act 1, Key conflicts, Possible endings (150-400 words each)
-- Adventures must connect: later ones pay off threads from earlier ones
-- npcs: 4-8 recurring entries with rich bodies (appearance, personality, motivations, role)
-- locations: 3-6 entries with atmosphere, features, current state
+- story_arc: 120-220 words (plot, one mystery, two factions)
+- adventures: exactly {count} entries, sequence 1..{count}, each with name, theme,
+  and a short markdown outline (Premise, Act 1, Possible ending; under 250 words)
+- Adventures must connect: later ones pay off earlier threads
+- npcs: 3-4 recurring entries, 2-3 sentences each
+- locations: 2-3 entries, 2 sentences each
 - Names must be consistent across story_arc, adventures, NPCs, and locations
 """
     llm = structured_llm(CampaignPlanSpec, side=False)
@@ -501,9 +506,6 @@ def materialize_campaign_plan(
             outline=adv.outline,
             log=f"# Adventure log\n\n_Planned adventure {adv.sequence} in {camp_name}._\n",
         )
-        encounters = extract_encounters_from_outline(adv.outline, adv.name)
-        if encounters:
-            save_adventure_encounters(adv_id, encounters)
         adventure_ids.append(adv_id)
 
     result: dict[str, Any] = {
@@ -569,17 +571,8 @@ def flesh_out_planned_adventure(
         log=f"# Adventure log\n\n{opening}\n",
     )
 
-    summary = generate_opening_summary(
-        log=opening,
-        opening_scene=opening,
-    )
-    write_adventure_summary(adventure_id, summary)
-
-    ensure_story_progress(adventure_id, outline)
-    if not load_adventure_encounters(adventure_id):
-        encounters = extract_encounters_from_outline(outline, adv.get("name", adventure_id))
-        if encounters:
-            save_adventure_encounters(adventure_id, encounters)
+    write_adventure_summary(adventure_id, _heuristic_opening_summary(opening))
+    ensure_story_progress(adventure_id, outline, allow_llm=False)
 
     adv_name = adv.get("name", adventure_id)
     session_id = create_session(
@@ -745,13 +738,8 @@ def bootstrap_adventure_for_campaign(
         ),
     )
 
-    summary = generate_opening_summary(
-        log=opening,
-        opening_scene=opening,
-    )
-    write_adventure_summary(adventure_id, summary)
-
-    ensure_story_progress(adventure_id, spec.adventure_outline)
+    write_adventure_summary(adventure_id, _heuristic_opening_summary(opening))
+    ensure_story_progress(adventure_id, spec.adventure_outline, allow_llm=False)
 
     session_num = len(list_adventures_for_campaign(campaign_id))
     session_id = create_session(

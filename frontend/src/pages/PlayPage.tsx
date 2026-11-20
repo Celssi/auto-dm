@@ -6,6 +6,7 @@ import { createInitialPlayState, playReducer } from './play/playState';
 import { usePlayPageSession } from './play/usePlayPageSession';
 import { useLoadedCharacterAdventure } from '../games/brambletrek/CampaignStartFields';
 import { useGame } from '../context/GameContext';
+import ErrorBoundary from '../components/ui/ErrorBoundary';
 
 export default function PlayPage() {
   const { sessionId: paramId } = useParams();
@@ -94,6 +95,16 @@ export default function PlayPage() {
   }
 
   return (
+    <ErrorBoundary
+      fallback={
+        <div className="max-w-xl mx-auto p-6">
+          <p className="text-sm text-danger rounded-lg border border-danger/30 bg-danger/10 px-4 py-3" role="alert">
+            The play screen hit an error. Reload this page to restore the session. Your last queued message is kept
+            and will send after reload.
+          </p>
+        </div>
+      }
+    >
     <PlaySessionView
       state={state}
       bottomRef={bottomRef}
@@ -124,5 +135,6 @@ export default function PlayPage() {
       onCombatAction={handleCombatAction}
       onRebuildSheet={() => void rebuildSheet()}
     />
+    </ErrorBoundary>
   );
 }
