@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import MarkdownContent from '../ui/MarkdownContent';
 import { visibleLonelogLines } from './lonelogUtils';
 
 export default function PlayLonelogView({ lonelog }: { lonelog: string[] }) {
@@ -12,12 +11,12 @@ export default function PlayLonelogView({ lonelog }: { lonelog: string[] }) {
   return (
     <div className="space-y-2">
       {visibleLog.map((line) => (
-        <div
+        <p
           key={`log-${line.slice(0, 40)}-${line.length}`}
-          className="text-xs leading-relaxed text-gray-400 border-b border-border/40 pb-2 last:border-0 last:pb-0"
+          className="text-xs leading-relaxed text-gray-400 border-b border-border/40 pb-2 last:border-0 last:pb-0 whitespace-pre-wrap"
         >
-          <MarkdownContent content={line} className="text-xs" />
-        </div>
+          {line}
+        </p>
       ))}
     </div>
   );

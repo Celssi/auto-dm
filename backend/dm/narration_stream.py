@@ -46,5 +46,19 @@ def emit_sheet(payload: dict) -> None:
         sink("sheet", payload)
 
 
+def emit_logs(payload: dict) -> None:
+    """Push lonelog/audit as soon as scribe/keeper finish, before slow journal work."""
+    sink = _SINK.get()
+    if sink and payload:
+        sink("logs", payload)
+
+
+def emit_world(payload: dict) -> None:
+    """Ask the client to refresh NPCs/locations when the journal catch-up finishes."""
+    sink = _SINK.get()
+    if sink and payload:
+        sink("world", payload)
+
+
 def narration_enabled() -> bool:
     return _SINK.get() is not None

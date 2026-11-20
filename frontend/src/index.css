@@ -343,15 +343,66 @@
 }
 
 .sheet-combat-stat {
-  @apply rounded-lg border border-border bg-bg/40 px-3 py-2 text-center;
+  @apply rounded-lg border border-border bg-bg/40 px-3 py-2 text-center flex flex-col items-center;
+}
+
+.sheet-combat-stat-label {
+  @apply h-4 flex items-center justify-center leading-none;
+}
+
+.sheet-combat-stat-label .sheet-label {
+  @apply leading-none underline-offset-2;
+}
+
+.sheet-combat-stat-value {
+  @apply text-xl font-bold text-gray-100 leading-none mt-1;
 }
 
 .sheet-combat-stat-accent {
   @apply border-accent/30 bg-accent/5;
 }
 
-.sheet-combat-stat-accent .text-xl {
+.sheet-combat-stat-accent .sheet-combat-stat-value {
   @apply text-accent;
+}
+
+.sheet-masonry {
+  column-count: 1;
+  column-gap: 1rem;
+}
+
+@media (min-width: 768px) {
+  .sheet-masonry {
+    column-count: 2;
+  }
+}
+
+@media (min-width: 1024px) {
+  .sheet-masonry {
+    column-count: 3;
+  }
+}
+
+.sheet-masonry > * {
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  page-break-inside: avoid;
+  display: inline-block;
+  width: 100%;
+  margin-bottom: 1rem;
+  vertical-align: top;
+}
+
+.sheet-menu {
+  @apply isolate min-w-[12rem] rounded-xl border border-border bg-panel p-1 shadow-lg;
+}
+
+.sheet-menu-item {
+  @apply w-full text-left rounded-lg px-3 py-2 text-sm min-h-11 text-gray-100 bg-panel hover:bg-panel-hover;
+}
+
+.sheet-menu-item-danger {
+  @apply text-danger hover:bg-panel-hover;
 }
 
 .sheet-ability {

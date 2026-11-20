@@ -8,6 +8,22 @@ from datetime import datetime, timezone
 from backend.dm.prose_style import sanitize_narration_dashes
 
 LOG_TIMESTAMP = re.compile(r"^### (\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s*$")
+_MD_BOLD = re.compile(r"\*\*(.+?)\*\*")
+_MD_ITALIC = re.compile(r"(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)")
+_MD_CODE = re.compile(r"`([^`]+)`")
+_MD_HEADING = re.compile(r"^#+\s*", re.MULTILINE)
+_MD_LINK = re.compile(r"\[([^\]]+)\]\([^)]+\)")
+
+
+def strip_markdown(text: str) -> str:
+    """Drop markdown markers so lonelog lines stay readable as plain text."""
+    cleaned = text or ""
+    cleaned = _MD_BOLD.sub(r"\1", cleaned)
+    cleaned = _MD_ITALIC.sub(r"\1", cleaned)
+    cleaned = _MD_CODE.sub(r"\1", cleaned)
+    cleaned = _MD_HEADING.sub("", cleaned)
+    cleaned = _MD_LINK.sub(r"\1", cleaned)
+    return cleaned
 
 
 def _now() -> str:
@@ -49,8 +65,12 @@ def sanitize_lonelog_content(content: str) -> str:
 
 
 def format_narrative(text: str) -> str:
-    lines = [sanitize_narration_dashes(ln.strip()) for ln in text.strip().splitlines() if ln.strip()]
-    return "\n".join(f"=> {ln}" for ln in lines)
+    lines = [
+        sanitize_narration_dashes(strip_markdown(ln).strip())
+        for ln in text.strip().splitlines()
+        if ln.strip()
+    ]
+    return "\n".join(f"=> {ln}" for ln in lines if ln)
 
 
 def read_tail(content: str, n_lines: int = 50) -> list[str]:

@@ -14,6 +14,7 @@ import BrambletrekSheetView from '../../games/brambletrek/BrambletrekSheetView';
 import { brambletrekSummaryLine } from '../../games/brambletrek/sheetUtils';
 import { fadeUp } from '../../components/ui/motion';
 import OverflowMenu from '../../components/ui/OverflowMenu';
+import { useToast } from '../../components/ui/toast';
 
 type UnlockedFeatures = import('../../games/dnd5e/character-sheet/UnlockedFeaturesPanel').UnlockedFeatures;
 
@@ -165,7 +166,9 @@ function DndCharacterDetail({
 }: Props) {
   const [choicesOpen, setChoicesOpen] = useState(true);
   const [editing, setEditing] = useState(false);
+  const [exportingPdf, setExportingPdf] = useState(false);
   const snapshotRef = useRef<Character | null>(null);
+  const toast = useToast();
   const unlockedFeatures = summary.unlocked_features as UnlockedFeatures | undefined;
   const missingChoices = (summary.missing_creation_choices as string[]) || [];
 
@@ -193,11 +196,21 @@ function DndCharacterDetail({
         onCancelEdit={cancelEdit}
         onSaveEdit={() => void saveEdit()}
         onLevelUp={onLevelUp}
+        exportingPdf={exportingPdf}
         onExportPdf={() => {
+          if (exportingPdf) return;
           void (async () => {
-            const { downloadCharacterPdf } = await import('../../games/dnd5e/character-sheet/CharacterSheetPdf');
-            const feats = summary?.unlocked_features as PdfUnlockedFeatures | undefined;
-            downloadCharacterPdf(character, undefined, feats);
+            setExportingPdf(true);
+            try {
+              const { downloadCharacterPdf } = await import('../../games/dnd5e/character-sheet/CharacterSheetPdf');
+              const feats = summary?.unlocked_features as PdfUnlockedFeatures | undefined;
+              await downloadCharacterPdf(character, undefined, feats);
+            } catch (err) {
+              const message = err instanceof Error && err.message ? err.message : 'Could not export PDF.';
+              toast.error(message);
+            } finally {
+              setExportingPdf(false);
+            }
           })();
         }}
         onEditSetup={onEdit}
@@ -284,6 +297,7 @@ function DndCharacterDetail({
 
 function DndSheetToolbar({
   editing,
+  exportingPdf,
   onBack,
   onStartEdit,
   onCancelEdit,
@@ -295,6 +309,7 @@ function DndSheetToolbar({
   onRebuild,
 }: {
   editing: boolean;
+  exportingPdf?: boolean;
   onBack: () => void;
   onStartEdit: () => void;
   onCancelEdit: () => void;
@@ -323,8 +338,14 @@ function DndSheetToolbar({
       <button type="button" className="btn-primary" onClick={onLevelUp}>
         Level up
       </button>
-      <button type="button" className="btn-ghost" onClick={onExportPdf}>
-        Export PDF
+      <button
+        type="button"
+        className="btn-ghost disabled:opacity-50"
+        onClick={onExportPdf}
+        disabled={exportingPdf}
+        aria-busy={exportingPdf}
+      >
+        {exportingPdf ? 'Exporting PDF...' : 'Export PDF'}
       </button>
       {onRebuild && (
         <button type="button" className="btn-ghost" onClick={onRebuild}>

@@ -31,11 +31,14 @@ _SHORT_REST_TRIGGERS = (
 )
 
 _REST_REFUSAL = re.compile(
-    r"(not possible|not applied|cannot rest|can't rest|can not rest|"
-    r"no time to rest|too dangerous|not (a )?safe (place|time|moment)|"
-    r"keep moving|rest will have to wait|no chance to rest|"
-    r"do not rest|don't rest|no short rest|no long rest|"
-    r"enemy .{0,80}approach|interrupted|"
+    r"(cannot rest|can't rest|can not rest|no time to rest|"
+    r"too dangerous to rest|not (a )?safe (place|time|moment) to rest|"
+    r"rest will have to wait|no chance to rest|"
+    r"(do not|don't) (take a |take the )?(short |long )?rest|"
+    r"no short rest|no long rest|"
+    r"(rest|lepo).{0,48}(not possible|not applied|interrupted)|"
+    r"(not possible|not applied|interrupted).{0,48}(rest|lepo)|"
+    r"enemy .{0,80}approach|"
     r"lepo saisi|saisi odottaa|kesken taistelun|"
     r"ei (voi |voida )?levät|ei lepoa|liian vaarallista|"
     r"taistelu(n)? (kesken|käynnissä))",
@@ -46,11 +49,12 @@ _SHORT_REST_GRANT = re.compile(
     r"you settle .{0,40}(rest|hour)|"
     r"after (a |the )?short rest|"
     r"(a |the )?short rest (is |was )?(complete|done|over|finished)|"
-    r"an hour (passes|later)|hour passes|feel refreshed|"
+    r"an hour (passes|later)|after an hour|hour passes|feel refreshed|"
     r"you rest\b|"
     r"hit (?:die|dice) (spent|used|rolled)|"
     r"spent .{0,24}hit (?:die|dice)|"
     r"arcane recovery|"
+    r"prone ended|no longer prone|"
     r"lepä(ät|ätte|si)|tunnin lepo|tunti kuluu|virkisty)",
     re.IGNORECASE,
 )
@@ -156,6 +160,32 @@ def _hp_value_fits(hp: int, mx: int, max_hp: int) -> bool:
     return mx in (0, max_hp) or abs(mx - max_hp) <= 2
 
 
+_THIS_TURN_DAMAGE = re.compile(
+    r"(?:falling|fall damage|bludgeoning)[^.\n]{0,80}?(?:1d6|d6)\s*=\s*(\d+)"
+    r"|(?:1d6|d6)\s*=\s*(\d+)[^.\n]{0,48}(?:fall|falling|bludgeoning)"
+    r"|(?:take|takes|taken|deal|deals|suffer|suffers)\s+(\d+)\s+(?:points? of )?damage",
+    re.IGNORECASE,
+)
+_HP_ARROW = re.compile(
+    r"\bhp\s+(\d+)\s*(?:/\s*\d+)?\s*(?:->|to)\s*(\d+)\s*/\s*(\d+)",
+    re.IGNORECASE,
+)
+_FRAC_ARROW = re.compile(
+    r"\b(\d+)\s*/\s*(\d+)\s*(?:->|to)\s*(\d+)\s*/\s*(\d+)",
+    re.IGNORECASE,
+)
+
+
+def parse_this_turn_damage(dm_response: str) -> int | None:
+    """Last fall/damage roll in this reply. Ignores earlier recap dice."""
+    found: int | None = None
+    for match in _THIS_TURN_DAMAGE.finditer(dm_response or ""):
+        for group in match.groups():
+            if group:
+                found = int(group)
+    return found
+
+
 def parse_pc_hp_from_narration(
     dm_response: str,
     *,
@@ -167,20 +197,16 @@ def parse_pc_hp_from_narration(
     text = dm_response or ""
     if not text.strip() or max_hp <= 0:
         return None
-    hp_arrow = re.search(
-        r"\bhp\s+(\d+)\s*(?:/\s*\d+)?\s*(?:->|to)\s*(\d+)\s*/\s*(\d+)", text, re.I
-    )
-    if hp_arrow:
-        hp, mx = int(hp_arrow.group(2)), int(hp_arrow.group(3))
+    hits: list[tuple[int, int]] = []
+
+    def add(start: int, hp: int, mx: int) -> None:
         if _hp_value_fits(hp, mx, max_hp):
-            return hp
-    frac_arrow = re.search(
-        r"\b(\d+)\s*/\s*(\d+)\s*(?:->|to)\s*(\d+)\s*/\s*(\d+)", text, re.I
-    )
-    if frac_arrow:
-        hp, mx = int(frac_arrow.group(3)), int(frac_arrow.group(4))
-        if _hp_value_fits(hp, mx, max_hp):
-            return hp
+            hits.append((start, hp))
+
+    for match in _HP_ARROW.finditer(text):
+        add(match.start(), int(match.group(2)), int(match.group(3)))
+    for match in _FRAC_ARROW.finditer(text):
+        add(match.start(), int(match.group(3)), int(match.group(4)))
     name_pat = re.escape((name or "").strip()) if (name or "").strip() else ""
     patterns: list[re.Pattern[str]] = [
         re.compile(r"\byour (?:hp|hit points?)\s*(?:are|is|now|:)?\s*(\d+)\s*/\s*(\d+)", re.I),
@@ -188,7 +214,6 @@ def parse_pc_hp_from_narration(
         re.compile(r"\b(?:hp|hit points?|osumapiste(?:et|itä)?|op)\s*(?:are|is|now|on|nyt|:)?\s*(\d+)\s*/\s*(\d+)", re.I),
         re.compile(r"\b(\d+)\s*/\s*(\d+)\s*(?:hp|hit points?|osumapist)\b", re.I),
         re.compile(r"\bleave things at\s+(\d+)\s*(?:hp|hit points?)\b", re.I),
-        re.compile(r"\bat\s+(\d+)\s*(?:hp|hit points?)\b", re.I),
         re.compile(r"HP\s*[:=]?\s*(\d+)\s*/\s*(\d+)", re.I),
     ]
     if name_pat:
@@ -199,15 +224,24 @@ def parse_pc_hp_from_narration(
                 re.I,
             ),
         )
-    found: int | None = None
     for pattern in patterns:
         for match in pattern.finditer(text):
             hp = int(match.group(1))
             mx = int(match.group(2)) if match.lastindex and match.lastindex >= 2 and match.group(2) else max_hp
-            if _hp_value_fits(hp, mx, max_hp):
-                found = hp
-                if hp != current_hp:
-                    return hp
+            add(match.start(), hp, mx)
+    hits.sort()
+    candidates = [hp for _, hp in hits]
+    differing = [hp for hp in candidates if hp != current_hp]
+    found = differing[-1] if differing else (candidates[-1] if candidates else None)
+    damage = parse_this_turn_damage(text)
+    if damage is not None:
+        from_dice = max(0, min(max_hp, current_hp - damage))
+        if found is None:
+            return from_dice
+        implied = current_hp - found
+        if implied > damage + 1:
+            return from_dice
+        return found
     return found
 
 
@@ -256,10 +290,29 @@ _SHEET_CONDITIONS = (
 )
 
 
+def _pc_gains_condition(lower: str, token: str) -> bool:
+    if token == "prone" and re.search(
+        r"\b(fall|falls|falling|knocked|land|lands)\b.{0,80}\bprone\b|"
+        r"\bprone\b.{0,24}\b(you|your)\b|"
+        r"\byou\b.{0,40}\bprone\b",
+        lower,
+    ):
+        return True
+    return bool(
+        re.search(
+            rf"\b(you|you're|you are|your)\b.{{0,48}}\b{token}\b|"
+            rf"\bbecome[s]?\s+{token}\b|"
+            rf"\bgain[s]?\s+(?:the\s+)?{token}\b|"
+            rf"\bnow\s+{token}\b",
+            lower,
+        )
+    )
+
+
 def parse_conditions_from_narration(
     dm_response: str, current: list | None = None
 ) -> list[str]:
-    """Merge D&D 2024 conditions named in the final DM reply onto the sheet list."""
+    """Merge D&D 2024 conditions that actually apply to the player this turn."""
     lower = (dm_response or "").lower()
     out: list[str] = []
     seen: set[str] = set()
@@ -273,12 +326,13 @@ def parse_conditions_from_narration(
             out.append(key)
     if not lower.strip():
         return out
-    stood_up = bool(re.search(r"\bstands? up\b|\bstand up\b|\bgetting up\b", lower))
+    stood_up = bool(re.search(r"\bstands? up\b|\bstand up\b|\bgetting up\b|\bprone ended\b", lower))
     for cond in _SHEET_CONDITIONS:
         token = cond.lower()
         cleared = bool(
             re.search(
-                rf"\b(?:no longer|not|isn't|is not|aren't|are not)\s+{token}\b",
+                rf"\b(?:no longer|not|isn't|is not|aren't|are not)\s+{token}\b|"
+                rf"\b{token}\s+ended\b",
                 lower,
             )
         )
@@ -288,7 +342,7 @@ def parse_conditions_from_narration(
             out = [item for item in out if item.lower() != token]
             seen.discard(token)
             continue
-        if re.search(rf"\b{token}\b", lower) and token not in seen:
+        if token not in seen and _pc_gains_condition(lower, token):
             seen.add(token)
             out.append(cond)
     return out

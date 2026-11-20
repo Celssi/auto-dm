@@ -3,7 +3,7 @@ import { displayLabel, displayLabels, EMPTY_FIELD, formatChoiceValue } from '../
 import { formatMod, initiativeMod, passivePerception, proficiencyBonus, spellAttackBonus, uniqueFeatLabels } from './sheetUtils';
 import type { PdfModule } from './characterSheetPdfTypes';
 import { pdfStyles as s } from './characterSheetPdfStyles';
-import { classLine, weaponAttack } from './characterSheetPdfUtils';
+import { classLine, featureGroupLines, weaponAttack } from './characterSheetPdfUtils';
 import { createPdfParts } from './characterSheetPdfParts';
 import { createPdfShapes, formatHitDice, stackLabel } from './characterSheetPdfShapes';
 
@@ -39,12 +39,8 @@ export function buildSheetPage1(pdf: PdfModule, c: Character, unlockedFeatures?:
     notes: '',
   }));
   const attackRows = [...weaponRows, ...cantripRows];
-  const classFeatureLines = Object.entries(unlockedFeatures?.class_features || {}).flatMap(([cid, feats]) =>
-    (feats as string[]).map((f) => `${displayLabel(cid)}: ${displayLabel(f)}`),
-  );
-  const subclassFeatureLines = Object.entries(unlockedFeatures?.subclass_features || {}).flatMap(([key, feats]) =>
-    (feats as string[]).map((f) => `${displayLabel(key)}: ${displayLabel(f)}`),
-  );
+  const classFeatureLines = featureGroupLines(unlockedFeatures?.class_features);
+  const subclassFeatureLines = featureGroupLines(unlockedFeatures?.subclass_features);
   const features = [
     ...classFeatureLines,
     ...subclassFeatureLines,

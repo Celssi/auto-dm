@@ -104,10 +104,30 @@ def condense_body(body: str) -> str:
     return kept
 
 
+_CONDITION_NAMES = {
+    "blinded",
+    "charmed",
+    "deafened",
+    "frightened",
+    "grappled",
+    "incapacitated",
+    "invisible",
+    "paralyzed",
+    "petrified",
+    "poisoned",
+    "prone",
+    "restrained",
+    "stunned",
+    "unconscious",
+}
+
+
 def looks_like_entity_name(name: str) -> bool:
     """Reject player options such as "Ask Dalla to come with you" posing as names."""
     cleaned = re.sub(r"\s+", " ", (name or "").strip().strip("*").strip())
     if len(cleaned) < 2 or len(cleaned) > 60:
+        return False
+    if cleaned.lower() in _CONDITION_NAMES:
         return False
     words = cleaned.split(" ")
     if len(words) > 6:

@@ -13,7 +13,7 @@ export type PdfUnlockedFeatures = {
 export function buildSheetDocument(pdf: PdfModule, c: Character, unlockedFeatures?: PdfUnlockedFeatures) {
   const { Document } = pdf;
   return (
-    <Document title={`${c.name || 'Character'} - D&D Character Sheet`}>
+    <Document title={`${c.name || 'Character'} | D&D 5e (2024) Character Sheet`}>
       {buildSheetPage1(pdf, c, unlockedFeatures)}
       {buildSheetPage2(pdf, c)}
     </Document>

@@ -42,14 +42,20 @@ export function LabelWithTip({
   id,
   label,
   className = 'sheet-label',
+  wrapperClassName = '',
 }: {
   id: string;
   label: string;
   className?: string;
+  wrapperClassName?: string;
 }) {
   return (
-    <HelpTip id={id} name={label}>
-      <span className={`${className} cursor-help underline decoration-dotted decoration-muted/50`}>{label}</span>
+    <HelpTip id={id} name={label} wrapperClassName={wrapperClassName}>
+      <span
+        className={`${className} cursor-help underline decoration-dotted decoration-muted/50 underline-offset-2`}
+      >
+        {label}
+      </span>
     </HelpTip>
   );
 }

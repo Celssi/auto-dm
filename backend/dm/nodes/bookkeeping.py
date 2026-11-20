@@ -6,8 +6,8 @@ import re
 
 from backend.dm.audit import character_audit_slice, diff_character_slices, record_audit
 from backend.dm.journal_keeper import run_journal_keeper
-from backend.dm.lonelog import format_mechanical, format_narrative, is_empty_spell_warning
-from backend.dm.narration_stream import emit_sheet
+from backend.dm.lonelog import format_mechanical, format_narrative, is_empty_spell_warning, strip_markdown
+from backend.dm.narration_stream import emit_logs, emit_sheet, emit_world
 from backend.dm.state import DMState, char_from_dict, game_plugin
 from backend.dm.story_memory import increment_summary
 from backend.dm.turn_kind import is_dice_only_turn
@@ -22,7 +22,7 @@ _MIN_RESPONSE_FOR_BOOKKEEPING = 120
 
 
 def _cheap_lonelog_summary(narrative: str) -> str:
-    text = re.sub(r"\s+", " ", (narrative or "").strip())
+    text = re.sub(r"\s+", " ", strip_markdown(narrative or "").strip())
     if not text:
         return ""
     parts = re.split(r"(?<=[.!?])\s+", text)
@@ -70,6 +70,11 @@ def character_keeper_node(state: DMState) -> DMState:
     after_slice = character_audit_slice(after_dict)
     diff = diff_character_slices(before_slice, after_slice)
     if diff:
+        hp_before = before_slice.get("hp")
+        hp_after = after_slice.get("hp")
+        damage = None
+        if isinstance(hp_before, int) and isinstance(hp_after, int) and hp_after < hp_before:
+            damage = hp_before - hp_after
         record_audit(
             {
                 "event": "character_patch",
@@ -77,10 +82,16 @@ def character_keeper_node(state: DMState) -> DMState:
                 "before": before_slice,
                 "after": after_slice,
                 "diff": diff,
-                "detail": {"fields": list(updates.keys()), "inferred": False},
+                "detail": {
+                    "fields": list(updates.keys()),
+                    "inferred": False,
+                    "damage": damage,
+                    "notes": list(state.get("resource_log") or []),
+                },
             },
             session_id=state.get("session_id") or None,
         )
+        emit_logs({"refresh": True})
     cid = after_dict.get("id")
     if cid:
         from backend.storage import save_character
@@ -118,6 +129,8 @@ def scribe_node(state: DMState) -> DMState:
         if session_id:
             append_session_log(session_id, formatted)
         lines.append(formatted)
+    if lines:
+        emit_logs({"lines": lines, "refresh": True})
     return {"lonelog_lines": lines, "scribe_log_entry": log_entry}
 
 
@@ -164,6 +177,7 @@ def journal_keeper_node(state: DMState) -> DMState:
         user_message=user_message,
         dm_response=dm_response,
     )
+    emit_world({"refresh": True, "counts": counts or {}})
     return {"journal_updates": counts} if counts else {}
 
 

@@ -114,12 +114,15 @@ Player: {user_message[:1500]}
 DM response: {dm_response[:3000]}
 """
     llm = structured_llm(JournalTurnUpdates)
-    return llm.invoke(
+    updates = llm.invoke(
         [
             cached_system(dnd5e_stable_system_prompt()),
             HumanMessage(content=prompt),
         ]
     )
+    updates.new_npcs = list(updates.new_npcs or [])[:4]
+    updates.new_locations = list(updates.new_locations or [])[:3]
+    return updates
 
 
 def _apply_entry_updates(
