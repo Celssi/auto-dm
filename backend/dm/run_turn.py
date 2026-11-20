@@ -20,6 +20,7 @@ from backend.storage import (
     get_adventure,
     get_character,
     get_session,
+    persist_user_message,
     save_character,
     save_session_messages,
 )
@@ -73,6 +74,7 @@ def _run_dm_turn_unlocked(
     adventure = get_adventure(session["adventure_id"]) or {}
     messages = session.get("messages") or []
     messages.append({"role": "user", "content": user_message})
+    persist_user_message(session_id, user_message)
     character_id = session["character_id"]
 
     pre_turn_result = plugin.play.pre_turn(
@@ -119,8 +121,13 @@ def _run_dm_turn_unlocked(
     if updated_char != char:
         save_character(character_id, updated_char)
 
-    messages.append({"role": "assistant", "content": response})
-    save_session_messages(session_id, messages)
+    disk = list((get_session(session_id) or {}).get("messages") or [])
+    if disk and disk[-1].get("role") == "assistant":
+        response = str(disk[-1].get("content") or response)
+        messages = disk
+    else:
+        messages.append({"role": "assistant", "content": response})
+        save_session_messages(session_id, messages)
     for line in pre_combat_events + post_events:
         append_session_log(session_id, format_mechanical(line))
 
@@ -135,6 +142,17 @@ def _run_dm_turn_unlocked(
         "next_adventure": result.get("next_adventure"),
         "player_progress": result.get("player_progress") or {},
         "combat_state": combat_view,
+        "_deferred": {
+            "session_id": session_id,
+            "user_message": user_message,
+            "response": response,
+            "character": updated_char,
+            "adventure": result.get("adventure") or adventure,
+            "shortcut_result": result.get("shortcut_result") or precomputed_shortcut or {},
+            "scribe_log_entry": result.get("scribe_log_entry") or "",
+            "story_progress": result.get("story_progress"),
+            "lonelog_lines": result.get("lonelog_lines") or [],
+        },
     }
 
 

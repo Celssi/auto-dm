@@ -463,6 +463,38 @@ def save_session_messages(session_id: str, messages: list[dict]) -> None:
     _write_json(SESSIONS_DIR / session_id / "messages.json", messages)
 
 
+def persist_user_message(session_id: str, user_message: str) -> None:
+    """Write the player's line immediately so a reload during the turn keeps it."""
+    text = (user_message or "").strip()
+    if not text:
+        return
+    messages = list(_read_json(SESSIONS_DIR / session_id / "messages.json", []) or [])
+    if messages and messages[-1].get("role") == "user" and messages[-1].get("content") == text:
+        return
+    messages.append({"role": "user", "content": text})
+    save_session_messages(session_id, messages)
+
+
+def persist_shown_reply(session_id: str, user_message: str, assistant_text: str) -> None:
+    """Persist exactly the reply that streamed. Never replace a shown assistant turn."""
+    user = (user_message or "").strip()
+    shown = assistant_text or ""
+    messages = list(_read_json(SESSIONS_DIR / session_id / "messages.json", []) or [])
+    if messages and messages[-1].get("role") == "assistant":
+        prev_user = messages[-2].get("content") if len(messages) >= 2 else ""
+        if prev_user == user and messages[-1].get("content"):
+            return
+        if prev_user == user:
+            messages[-1] = {"role": "assistant", "content": shown}
+            save_session_messages(session_id, messages)
+            return
+    if not messages or messages[-1].get("role") != "user" or messages[-1].get("content") != user:
+        if user:
+            messages.append({"role": "user", "content": user})
+    messages.append({"role": "assistant", "content": shown})
+    save_session_messages(session_id, messages)
+
+
 def get_session_lonelog(session_id: str) -> str:
     from backend.dm.lonelog import sanitize_lonelog_content
 

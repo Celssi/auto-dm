@@ -57,7 +57,9 @@ function DndPlaySidebar({ character: c, summary }: { character: Character; summa
       <DndHitPoints character={c} />
       <DndConditions character={c} />
       <DndCombatPills character={c} />
+      <DndResources character={c} summary={summary} />
       <DndSpellSlots character={c} summary={summary} />
+      <DndGear character={c} />
       <DndAbilities character={c} />
       <DndKeySkills character={c} />
       <DndSpellList character={c} />
@@ -134,6 +136,71 @@ function DndCombatPills({ character: c }: { character: Character }) {
   );
 }
 
+function formatCurrency(currency?: Record<string, number>) {
+  const order = ['pp', 'gp', 'ep', 'sp', 'cp'] as const;
+  const parts = order
+    .map((key) => {
+      const n = Number(currency?.[key] ?? 0);
+      return n ? `${n} ${key}` : '';
+    })
+    .filter(Boolean);
+  return parts.join(', ') || '0 gp';
+}
+
+function DndResources({ character: c, summary }: { character: Character; summary?: Record<string, unknown> }) {
+  const paladinLevel = Number(
+    (c.classes || []).find((entry) => String(entry.class_name || '').toLowerCase() === 'paladin')?.level
+      ?? (String(c.class_name || '').toLowerCase() === 'paladin' ? c.level : 0),
+  );
+  const lohMax = Number(summary?.lay_on_hands_max ?? (paladinLevel > 0 ? paladinLevel * 5 : 0));
+  const loh = Number(c.lay_on_hands_remaining ?? (lohMax > 0 ? lohMax : -1));
+  const effects = Array.isArray(c.active_effects) ? (c.active_effects as Array<Record<string, unknown>>) : [];
+  return (
+    <div className="rounded-md border border-border bg-bg/40 p-2 space-y-1">
+      <div className="text-[10px] uppercase tracking-wide text-muted">Focus</div>
+      <p className="text-xs text-gray-200">
+        Concentration:{' '}
+        {c.concentration ? (
+          <GlossaryTip name={String(c.concentration)} variant="inline" className="font-medium" />
+        ) : (
+          <span className="text-muted">None</span>
+        )}
+      </p>
+      {lohMax > 0 && (
+        <p className="text-xs text-gray-200">
+          Lay on Hands: {Math.max(0, loh)}/{lohMax}
+        </p>
+      )}
+      {effects.length > 0 && (
+        <p className="text-xs text-gray-300">
+          {effects
+            .map((item) => {
+              const name = String(item.name || '').trim();
+              const dc = item.save_dc;
+              return name && dc != null ? `${name} DC ${dc}` : name;
+            })
+            .filter(Boolean)
+            .join(', ')}
+        </p>
+      )}
+    </div>
+  );
+}
+
+function DndGear({ character: c }: { character: Character }) {
+  const items = (c.inventory || []).map((item) => String(item).trim()).filter(Boolean);
+  return (
+    <div className="rounded-md border border-border bg-bg/40 p-2 space-y-1">
+      <div className="text-[10px] uppercase tracking-wide text-muted">Gear</div>
+      <p className="text-xs text-gray-200">Coins: {formatCurrency(c.currency)}</p>
+      <p className="text-xs text-gray-300 leading-snug">
+        {items.length ? items.slice(0, 8).join(', ') : 'Inventory empty'}
+        {items.length > 8 ? ` +${items.length - 8} more` : ''}
+      </p>
+    </div>
+  );
+}
+
 function DndSpellSlots({ character: c, summary }: { character: Character; summary?: Record<string, unknown> }) {
   const slots = c.spell_slots || {};
   const spellSlotsMax = (summary?.spell_slots_max as Record<string, number> | undefined) || {};
@@ -147,11 +214,6 @@ function DndSpellSlots({ character: c, summary }: { character: Character; summar
           <SpellSlotChip key={lvl} level={lvl} remaining={n} max={spellSlotsMax[lvl]} />
         ))}
       </div>
-      {c.concentration && (
-        <p className="text-xs mt-2 text-accent/90">
-          Concentration: <GlossaryTip name={String(c.concentration)} variant="inline" className="font-medium" />
-        </p>
-      )}
       {(wildShapeMax > 0 || (c.wild_shape_uses ?? 0) > 0) && (
         <p className="text-xs mt-1 text-muted">
           Wild Shape: {c.wild_shape_uses ?? 0}

@@ -94,6 +94,7 @@ _LIVE_RESOURCE_KEYS = (
     "second_wind_remaining",
     "lay_on_hands_remaining",
     "wild_shape_uses",
+    "active_effects",
 )
 
 

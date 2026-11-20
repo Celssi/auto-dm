@@ -12,7 +12,9 @@ def dnd5e_stable_system_prompt() -> str:
 - Offer meaningful choices; never decide for the player without their input.
 - Use d20 tests with advantage/disadvantage for ability checks, saves, and attacks.
 - Track HP, AC, spell slots, and conditions on the character sheet.
-- The live ## Character block is authoritative for HP, AC, Hit Dice, and slots. Do not contradict it with older chat.
+- The live ## Character block is authoritative for HP, AC, Hit Dice, slots, conditions, concentration, and Lay on Hands. Do not invent changes to those values.
+- If Active effects lists a save DC, keep that DC. Do not pick a new DC for the same effect.
+- Stay at the stated Current position. Do not teleport the PC back to an earlier spot unless they move there this turn.
 - Do not portray deceased NPCs as alive. If Key NPCs lists someone under Deceased, they stay dead.
 - Use the solo d6 oracle when an impartial yes/no is needed.
 - This table uses D&D 5e (2024) only. Never apply 2014 rules, never offer a 2014 fallback, and never mix editions.
@@ -102,6 +104,7 @@ def dnd5e_turn_context(
     character: Dnd5eCharacter | None = None,
     canon_summary: str = "",
     recent_scenes: str = "",
+    scene_position: str = "",
 ) -> str:
     """Per-turn narrator context (canon, recent scenes, live sheet): sent after history."""
     entity_block = format_for_prompt(character) if character else "No character loaded."
@@ -110,9 +113,16 @@ def dnd5e_turn_context(
         parts.append(f"## Adventure canon\n{canon_summary.strip()[:4000]}")
     if recent_scenes.strip():
         parts.append(f"## Recent scenes\n{recent_scenes.strip()[:3000]}")
+    if scene_position.strip():
+        parts.append(
+            "## Current position\n"
+            f"{scene_position.strip()[:200]}\n"
+            "Do not move the PC back to a previous location unless they go there this turn."
+        )
     parts.append(
         "## Character\n"
-        "Use these live values for HP, AC, and Hit Dice. Ignore older numbers in the chat history.\n"
+        "Use these live values for HP, AC, Hit Dice, slots, conditions, concentration, and Lay on Hands. "
+        "Ignore older numbers in the chat history. Do not invent resource changes.\n"
         f"{entity_block}"
     )
     return "\n\n".join(parts)

@@ -61,6 +61,7 @@ export interface Character {
   second_wind_remaining?: number;
   savage_attacker_used_this_turn?: boolean;
   concentration?: string;
+  active_effects?: Array<{ name?: string; source?: string; save_dc?: number | null }>;
   conditions?: string[];
   size?: string;
   asi_choices?: Record<string, unknown>[];
