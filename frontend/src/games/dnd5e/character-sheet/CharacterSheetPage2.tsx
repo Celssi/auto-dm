@@ -91,13 +91,14 @@ export default function CharacterSheetPage2({ character: c, summary, editable, o
           layOnHandsRemaining={model.layOnHandsRemaining}
           sneakAttackDice={model.sneakAttackDice}
         />
-        <SheetSection title="Prepared Spells" className="lg:col-span-8">
+        <SheetSection title="Spells" className="lg:col-span-8">
           {model.spellbook.length > 0 && (
             <div className="mb-3">
               <div className="sheet-label mb-1">Spellbook</div>
               <TagList items={model.spellbook} classId={c.class_name} />
             </div>
           )}
+          <div className="sheet-label mb-1">Prepared</div>
           <TagList items={model.preparedSpells} classId={c.class_name} />
         </SheetSection>
       </div>

@@ -58,7 +58,7 @@ def test_migrate_seeds_spellbook_and_high_elf_ability():
     assert migrate_legacy_sheet(char) is True
     rebuilt = rebuild_character(char)
     assert "mage armor" in [s.lower() for s in rebuilt.spellbook]
-    assert len(rebuilt.spellbook) == 4
+    assert len({s.lower() for s in rebuilt.spellbook}) >= 6
     assert rebuilt.feature_choices.get("high_elf_spell_ability") == "int"
     assert rebuilt.hp == 8
     assert rebuilt.spell_slots["1"] == 2

@@ -61,12 +61,14 @@ export default function SpellCastModal({ modal, character, onUpdate, onSubmit, o
     .toSorted((a, b) => a - b);
   const remaining = (lvl: number) => Number(character.spell_slots?.[String(lvl)] ?? 0);
   const miUsed = Boolean(character.feature_choices?._magic_initiate_free_used);
+  const miSpell = String(character.feature_choices?.magic_initiate_level1 || '').trim();
   const showFree = Boolean(
     selected &&
       !selected.cantrip &&
       originHasMagicInitiate(character) &&
       !miUsed &&
-      (selected.magicInitiate || !String(character.feature_choices?.magic_initiate_level1 || '').trim()),
+      miSpell &&
+      norm(selected.name) === norm(miSpell),
   );
 
   return (

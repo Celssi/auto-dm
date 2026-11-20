@@ -1,4 +1,4 @@
-import { useCallback, type Dispatch, type MutableRefObject } from 'react';
+import { useCallback, useRef, type Dispatch, type MutableRefObject } from 'react';
 import { useKeepAlive } from '../../hooks/useKeepAlive';
 import { useNavigate } from 'react-router-dom';
 import { api, type ChatResult } from '../../api/client';
@@ -44,6 +44,45 @@ function applyChatResultPatch(result: ChatResult) {
   };
 }
 
+function applyPlayStreamEvent(
+  event: string,
+  data: unknown,
+  dispatch: Dispatch<PlayAction>,
+  done: ChatResult[],
+): string {
+  if (event === 'narration' && typeof data === 'string') {
+    dispatch({ type: 'appendAssistantDelta', delta: data });
+  } else if (event === 'narration_replace' && typeof data === 'string') {
+    dispatch({ type: 'replaceLastAssistant', content: data });
+  } else if (event === 'sheet' && data && typeof data === 'object' && 'character' in data) {
+    const payload = data as { character?: Character };
+    if (payload.character) {
+      dispatch({ type: 'set', patch: { character: payload.character } });
+    }
+  } else if (event === 'ready' && data && typeof data === 'object' && 'response' in data) {
+    const payload = data as { response?: string; character?: Character };
+    if (payload.response) {
+      dispatch({ type: 'replaceLastAssistant', content: payload.response });
+    }
+    dispatch({
+      type: 'set',
+      patch: {
+        loading: false,
+        sheetUpdating: true,
+        ...(payload.character ? { character: payload.character } : {}),
+      },
+    });
+  } else if (event === 'done') {
+    const result = data as ChatResult;
+    done[0] = result;
+    dispatch({ type: 'replaceLastAssistant', content: result.response });
+    dispatch({ type: 'set', patch: { sheetUpdating: false, ...applyChatResultPatch(result) } });
+  } else if (event === 'error') {
+    return streamErrorDetail(data);
+  }
+  return '';
+}
+
 const SHORTCUT_LABELS: Record<string, string> = {
   ability_check: 'Ability Check',
   saving_throw: 'Saving Throw',
@@ -61,6 +100,8 @@ export function usePlayPageSession(
   const navigate = useNavigate();
   const { setGameId } = useGame();
   useKeepAlive(state.loading || state.bootstrapping);
+  const inFlightRef = useRef(false);
+  const pendingSendsRef = useRef<{ text: string; shown: boolean }[]>([]);
 
   const refreshSessionLogs = useCallback(
     async (sessionId: string) => {
@@ -177,7 +218,7 @@ export function usePlayPageSession(
               messages: session.messages || [],
               includeFaerun: !!session.include_faerun,
               characterId: session.character_id,
-              character: (rebuilt || ch) as Character,
+              character: (ch || rebuilt) as Character,
               characterSummary: summary,
               lonelog: log.lines,
               auditEvents: audit.events,
@@ -235,7 +276,7 @@ export function usePlayPageSession(
             messages: session.messages || [],
             includeFaerun: !!session.include_faerun,
             characterId: session.character_id,
-            character: (rebuilt || ch) as Character,
+            character: (ch || rebuilt) as Character,
             characterSummary: summary,
             lonelog: log.lines,
             auditEvents: audit.events,
@@ -341,36 +382,31 @@ export function usePlayPageSession(
     }
   };
 
-  const sendMessage = async (msg: string) => {
-    const { sessionId, loading } = state;
-    if (!sessionId || !msg.trim() || loading) return;
+  const sendMessage = async (msg: string, opts?: { alreadyShown?: boolean }) => {
+    const { sessionId } = state;
+    if (!sessionId || !msg.trim()) return;
     const text = msg.trim();
+    if (inFlightRef.current) {
+      if (!opts?.alreadyShown) {
+        dispatch({ type: 'appendMessages', messages: [{ role: 'user', content: text }] });
+      }
+      pendingSendsRef.current.push({ text, shown: true });
+      dispatch({ type: 'set', patch: { input: '' } });
+      return;
+    }
+    inFlightRef.current = true;
     dispatch({ type: 'set', patch: { input: '', spellConfirm: null, chatError: '' } });
-    dispatch({ type: 'appendMessages', messages: [{ role: 'user', content: text }] });
+    if (!opts?.alreadyShown) {
+      dispatch({ type: 'appendMessages', messages: [{ role: 'user', content: text }] });
+    }
     dispatch({ type: 'set', patch: { loading: true } });
     dispatch({ type: 'appendMessages', messages: [{ role: 'assistant', content: '' }] });
     try {
       const done: ChatResult[] = [];
       let streamError = '';
       await api.chatStream(sessionId, text, (event, data) => {
-        if (event === 'narration' && typeof data === 'string') {
-          dispatch({ type: 'appendAssistantDelta', delta: data });
-        } else if (event === 'narration_replace' && typeof data === 'string') {
-          dispatch({ type: 'replaceLastAssistant', content: data });
-        } else if (event === 'ready' && data && typeof data === 'object' && 'response' in data) {
-          const payload = data as { response?: string };
-          if (payload.response) {
-            dispatch({ type: 'replaceLastAssistant', content: payload.response });
-          }
-          dispatch({ type: 'set', patch: { loading: false, sheetUpdating: true } });
-        } else if (event === 'done') {
-          const result = data as ChatResult;
-          done[0] = result;
-          dispatch({ type: 'replaceLastAssistant', content: result.response });
-          dispatch({ type: 'set', patch: { sheetUpdating: false, ...applyChatResultPatch(result) } });
-        } else if (event === 'error') {
-          streamError = streamErrorDetail(data);
-        }
+        const err = applyPlayStreamEvent(event, data, dispatch, done);
+        if (err) streamError = err;
       });
       if (streamError) throw new Error(streamError);
       const result = done[0];
@@ -412,7 +448,12 @@ export function usePlayPageSession(
         patch: { chatError: e instanceof Error ? e.message : 'Something went wrong talking to the DM.' },
       });
     } finally {
+      inFlightRef.current = false;
       dispatch({ type: 'set', patch: { loading: false, sheetUpdating: false } });
+      const next = pendingSendsRef.current.shift();
+      if (next) {
+        void sendMessage(next.text, { alreadyShown: next.shown });
+      }
     }
   };
 
@@ -498,6 +539,7 @@ export function usePlayPageSession(
   const handleDiceModalSubmit = async (preRolled?: number[]) => {
     const modal = state.diceModal;
     if (!modal || !state.sessionId) return;
+    inFlightRef.current = true;
 
     const isAutoRoll = !preRolled;
 
@@ -524,26 +566,10 @@ export function usePlayPageSession(
       let uiReady = false;
 
       const applyEvent = (event: string, data: unknown) => {
-        if (event === 'narration' && typeof data === 'string') {
-          dispatch({ type: 'appendAssistantDelta', delta: data });
-        } else if (event === 'narration_replace' && typeof data === 'string') {
-          dispatch({ type: 'replaceLastAssistant', content: data });
-        } else if (event === 'ready' && data && typeof data === 'object' && 'response' in data) {
-          const payload = data as { response?: string };
-          if (payload.response) {
-            dispatch({ type: 'replaceLastAssistant', content: payload.response });
-          }
-          dispatch({ type: 'set', patch: { loading: false, sheetUpdating: true, diceModal: null } });
-        } else if (event === 'done') {
-          const result = data as ChatResult;
-          done[0] = result;
-          dispatch({ type: 'replaceLastAssistant', content: result.response });
-          dispatch({
-            type: 'set',
-            patch: { diceModal: null, sheetUpdating: false, ...applyChatResultPatch(result) },
-          });
-        } else if (event === 'error') {
-          streamError = streamErrorDetail(data);
+        const err = applyPlayStreamEvent(event, data, dispatch, done);
+        if (err) streamError = err;
+        if (event === 'ready' || event === 'done') {
+          dispatch({ type: 'set', patch: { diceModal: null } });
         }
       };
 
@@ -644,6 +670,10 @@ export function usePlayPageSession(
           chatError: e instanceof Error ? e.message : 'Dice roll failed.',
         },
       });
+    } finally {
+      inFlightRef.current = false;
+      const next = pendingSendsRef.current.shift();
+      if (next) void sendMessage(next.text, { alreadyShown: next.shown });
     }
   };
 
@@ -663,6 +693,7 @@ export function usePlayPageSession(
   const handleSpellCastModalSubmit = async () => {
     const modal = state.spellCastModal;
     if (!modal || !state.sessionId || !modal.spellName.trim()) return;
+    inFlightRef.current = true;
     dispatch({ type: 'set', patch: { spellCastModal: { ...modal, submitting: true }, chatError: '' } });
     try {
       const done: ChatResult[] = [];
@@ -690,27 +721,8 @@ export function usePlayPageSession(
         },
         undefined,
         (event, data) => {
-          if (event === 'narration' && typeof data === 'string') {
-            dispatch({ type: 'appendAssistantDelta', delta: data });
-          } else if (event === 'narration_replace' && typeof data === 'string') {
-            dispatch({ type: 'replaceLastAssistant', content: data });
-          } else if (event === 'ready' && data && typeof data === 'object' && 'response' in data) {
-            const payload = data as { response?: string };
-            if (payload.response) {
-              dispatch({ type: 'replaceLastAssistant', content: payload.response });
-            }
-            dispatch({ type: 'set', patch: { loading: false, sheetUpdating: true } });
-          } else if (event === 'done') {
-            const result = data as ChatResult;
-            done[0] = result;
-            dispatch({ type: 'replaceLastAssistant', content: result.response });
-            dispatch({
-              type: 'set',
-              patch: { sheetUpdating: false, ...applyChatResultPatch(result) },
-            });
-          } else if (event === 'error') {
-            streamError = streamErrorDetail(data);
-          }
+          const err = applyPlayStreamEvent(event, data, dispatch, done);
+          if (err) streamError = err;
         },
       );
       if (streamError) throw new Error(streamError);
@@ -733,7 +745,10 @@ export function usePlayPageSession(
         },
       });
     } finally {
+      inFlightRef.current = false;
       dispatch({ type: 'set', patch: { loading: false, sheetUpdating: false } });
+      const next = pendingSendsRef.current.shift();
+      if (next) void sendMessage(next.text, { alreadyShown: next.shown });
     }
   };
 

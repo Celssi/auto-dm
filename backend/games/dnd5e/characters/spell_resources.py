@@ -208,8 +208,10 @@ def magic_initiate_free_available(
     return False
 
 
-def mark_magic_initiate_free_used(char: Dnd5eCharacter) -> None:
+def mark_magic_initiate_free_used(char: Dnd5eCharacter, spell_name: str = "") -> None:
     fc = dict(char.feature_choices or {})
+    if spell_name.strip() and not str(fc.get("magic_initiate_level1") or "").strip():
+        fc["magic_initiate_level1"] = spell_name.strip()
     fc["_magic_initiate_free_used"] = True
     char.feature_choices = fc
 
@@ -319,6 +321,8 @@ def apply_spell_cast(
     requested_text: str = "",
 ) -> tuple[bool, str]:
     resolved = match_spell_name(char, spell_name) or str(spell_name or "").strip()
+    if not str(resolved or spell_name or "").strip():
+        return False, ""
     if not is_spell_available(char, resolved or spell_name):
         return False, f"Spell not on character list: {spell_name}"
     level = spell_level_for(char, resolved)
@@ -372,7 +376,7 @@ def apply_spell_cast(
         else:
             use_free = magic_initiate_free_available(char, display, requested_free=False)
     if use_free:
-        mark_magic_initiate_free_used(char)
+        mark_magic_initiate_free_used(char, display)
         if normalize_spell_name(display) == "magearmor":
             set_mage_armor_active(char, True)
         record_audit(
@@ -512,9 +516,12 @@ def apply_resource_updates(
     before_slice = character_audit_slice(character_to_dict_for_audit(char))
 
     for cast in getattr(updates, "casts", None) or []:
+        spell_name = str(getattr(cast, "spell_name", "") or "").strip()
+        if not spell_name:
+            continue
         ok, msg = apply_spell_cast(
             char,
-            cast.spell_name,
+            spell_name,
             slot_level=getattr(cast, "slot_level", 0) or 0,
             ritual=bool(getattr(cast, "ritual", False)),
             audit_source=audit_source,

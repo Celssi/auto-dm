@@ -475,6 +475,24 @@ def _combatant_by_id(state: CombatState, cid: str) -> Combatant | None:
     return next((c for c in state.combatants if c.id == cid), None)
 
 
+def sync_player_combatant(state: CombatState, char_dict: dict) -> dict:
+    """Keep the player combatant and character sheet on the same HP/AC."""
+    player = _combatant_by_id(state, "player")
+    if not player:
+        return char_dict
+    char = character_from_dict(char_dict)
+    out = dict(char_dict)
+    sheet_hp = int(out.get("hp") if out.get("hp") is not None else char.hp)
+    if player.hp >= 0 and player.hp < sheet_hp:
+        out["hp"] = player.hp
+        char.hp = player.hp
+    else:
+        player.hp = sheet_hp
+    player.max_hp = int(out.get("max_hp") or char.max_hp or player.max_hp)
+    player.ac = int(out.get("ac") or char.ac or player.ac)
+    return out
+
+
 def advance_turn(state: CombatState) -> CombatState:
     if not state.order:
         return state

@@ -39,5 +39,12 @@ def emit_ready(payload: dict) -> None:
         sink("ready", payload)
 
 
+def emit_sheet(payload: dict) -> None:
+    """Push the live character sheet as soon as resources are known."""
+    sink = _SINK.get()
+    if sink and payload:
+        sink("sheet", payload)
+
+
 def narration_enabled() -> bool:
     return _SINK.get() is not None
