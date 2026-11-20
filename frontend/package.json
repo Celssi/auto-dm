@@ -11,7 +11,8 @@
     "format:check": "prettier --check .",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
-    "doctor": "react-doctor"
+    "doctor": "react-doctor",
+    "test:pdf": "npx --yes tsx scripts/assert-character-pdf.ts"
   },
   "dependencies": {
     "@react-pdf/renderer": "^4.9.0",

@@ -2,6 +2,13 @@ import type { Character } from '../../../types';
 import { displayLabel, EMPTY_FIELD } from '../../../lib/displayText';
 import { abilityMod, formatMod, proficiencyBonus } from './sheetUtils';
 
+export function featureGroupLines(groups?: Record<string, unknown>): string[] {
+  return Object.entries(groups || {}).flatMap(([cid, feats]) => {
+    const list = Array.isArray(feats) ? feats : [];
+    return list.map((feat) => `${displayLabel(cid)}: ${displayLabel(String(feat))}`);
+  });
+}
+
 export function classLine(c: Character): string {
   const entries = c.classes?.length ? c.classes : [{ class_name: c.class_name, level: c.level, subclass: c.subclass }];
   return (

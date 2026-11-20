@@ -1,7 +1,7 @@
 import type { BrambletrekCharacter, Character } from '../../types';
 import { displayLabel, EMPTY_FIELD } from '../../lib/displayText';
 import GlossaryTip, { GlossaryTagList } from '../ui/GlossaryTip';
-import HelpTip from '../ui/HelpTip';
+import HelpTip, { LabelWithTip } from '../ui/HelpTip';
 import { getGameCharacterConfig } from '../../games/registry';
 import {
   computeAcDetails,
@@ -55,6 +55,7 @@ function DndPlaySidebar({ character: c, summary }: { character: Character; summa
     <div className="space-y-2 text-sm">
       <DndIdentity character={c} />
       <DndHitPoints character={c} />
+      <DndConditions character={c} />
       <DndCombatPills character={c} />
       <DndSpellSlots character={c} summary={summary} />
       <DndAbilities character={c} />
@@ -97,6 +98,22 @@ function DndHitPoints({ character: c }: { character: Character }) {
       <div className="h-2 rounded-full bg-bg overflow-hidden border border-border">
         <div className={`h-full ${hpColor} transition-[width]`} style={{ width: `${hpPct}%` }} />
       </div>
+    </div>
+  );
+}
+
+function DndConditions({ character: c }: { character: Character }) {
+  const items = (c.conditions || []).map((item) => String(item).trim()).filter(Boolean);
+  return (
+    <div>
+      <LabelWithTip id="conditions" label="Conditions" />
+      {items.length ? (
+        <div className="mt-1">
+          <GlossaryTagList items={items} />
+        </div>
+      ) : (
+        <p className="text-xs text-muted mt-0.5">None</p>
+      )}
     </div>
   );
 }

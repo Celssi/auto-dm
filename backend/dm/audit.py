@@ -145,6 +145,25 @@ def format_audit_summary(event: dict[str, Any]) -> str:
 
     if etype == "character_patch":
         diff = event.get("diff") if isinstance(event.get("diff"), dict) else {}
+        hp_diff = diff.get("hp") if isinstance(diff.get("hp"), dict) else None
+        notes = detail.get("notes") if isinstance(detail.get("notes"), list) else []
+        damage_note = next((str(n) for n in notes if "damage" in str(n).lower()), "")
+        if damage_note:
+            return damage_note.rstrip(".")
+        if hp_diff:
+            b = hp_diff.get("before")
+            a = hp_diff.get("after")
+            dmg = detail.get("damage")
+            if isinstance(b, int) and isinstance(a, int) and a < b:
+                taken = dmg if isinstance(dmg, int) else b - a
+                return f"Took {taken} damage (HP {b} -> {a})"
+            if b is not None and a is not None:
+                return f"HP {b} -> {a}"
+        cond_diff = diff.get("conditions") if isinstance(diff.get("conditions"), dict) else None
+        if cond_diff:
+            after_conds = cond_diff.get("after") or []
+            if isinstance(after_conds, list) and after_conds:
+                return "Conditions: " + ", ".join(str(c) for c in after_conds)
         if diff:
             parts = [f"{k}" for k in list(diff.keys())[:3]]
             return f"Updated: {', '.join(parts)}"

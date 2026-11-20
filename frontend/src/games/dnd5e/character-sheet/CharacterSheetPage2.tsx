@@ -76,66 +76,44 @@ export default function CharacterSheetPage2({ character: c, summary, editable, o
   const patch = (p: Partial<Character>) => onChange?.({ ...c, ...p });
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Page2Resources
-          character={c}
-          spellSlotsMax={model.spellSlotsMax}
-          wildShapeMax={model.wildShapeMax}
-          luckPointsMax={model.luckPointsMax}
-          luckPointsRemaining={model.luckPointsRemaining}
-          secondWindMax={model.secondWindMax}
-          secondWindRemaining={model.secondWindRemaining}
-          showWildShape={model.showWildShape}
-          layOnHandsMax={model.layOnHandsMax}
-          layOnHandsRemaining={model.layOnHandsRemaining}
-          sneakAttackDice={model.sneakAttackDice}
-        />
-        <SheetSection title="Spells" className="lg:col-span-8">
-          {model.spellbook.length > 0 && (
-            <div className="mb-3">
-              <div className="sheet-label mb-1">Spellbook</div>
-              <TagList items={model.spellbook} classId={c.class_name} />
-            </div>
-          )}
-          <div className="sheet-label mb-1">Prepared</div>
-          <TagList items={model.preparedSpells} classId={c.class_name} />
-        </SheetSection>
-      </div>
-      <Page2Gear character={c} attuned={model.attuned} editable={editable} onPatch={patch} />
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:items-stretch">
-        <Page2Languages character={c} />
-        <Page2Identity
-          character={c}
-          editable={editable}
-          speciesTraits={model.speciesTraits}
-          originFeatEffects={model.originFeatEffects}
-          onPatch={patch}
-        />
-        <Page2Notes character={c} editable={editable} onPatch={patch} />
-      </div>
+    <>
+      <Page2Resources
+        character={c}
+        spellSlotsMax={model.spellSlotsMax}
+        wildShapeMax={model.wildShapeMax}
+        luckPointsMax={model.luckPointsMax}
+        luckPointsRemaining={model.luckPointsRemaining}
+        secondWindMax={model.secondWindMax}
+        secondWindRemaining={model.secondWindRemaining}
+        showWildShape={model.showWildShape}
+        layOnHandsMax={model.layOnHandsMax}
+        layOnHandsRemaining={model.layOnHandsRemaining}
+        sneakAttackDice={model.sneakAttackDice}
+      />
+      <SheetSection title="Spells">
+        {model.spellbook.length > 0 && (
+          <div className="mb-3">
+            <div className="sheet-label mb-1">Spellbook</div>
+            <TagList items={model.spellbook} classId={c.class_name} />
+          </div>
+        )}
+        <div className="sheet-label mb-1">Prepared</div>
+        <TagList items={model.preparedSpells} classId={c.class_name} />
+      </SheetSection>
+      <Page2Equipment character={c} editable={editable} onPatch={patch} />
+      <Page2Attuned attuned={model.attuned} />
+      <Page2Currency character={c} editable={editable} onPatch={patch} />
+      <Page2Languages character={c} />
+      <Page2Identity
+        character={c}
+        editable={editable}
+        speciesTraits={model.speciesTraits}
+        originFeatEffects={model.originFeatEffects}
+        onPatch={patch}
+      />
+      <Page2Notes character={c} editable={editable} onPatch={patch} />
       <Page2Conditions character={c} />
-    </div>
-  );
-}
-
-function Page2Gear({
-  character: c,
-  attuned,
-  editable,
-  onPatch,
-}: {
-  character: Character;
-  attuned: string[];
-  editable?: boolean;
-  onPatch: (p: Partial<Character>) => void;
-}) {
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-      <Page2Equipment character={c} editable={editable} onPatch={onPatch} />
-      <Page2Attuned attuned={attuned} />
-      <Page2Currency character={c} editable={editable} onPatch={onPatch} />
-    </div>
+    </>
   );
 }
 
@@ -207,7 +185,7 @@ function Page2Equipment({
   const items = equipmentDisplayItems(c);
   const warnings = weaponMasteryWarnings(c);
   return (
-    <SheetSection title="Equipment" className="lg:col-span-6">
+    <SheetSection title="Equipment">
       <LabelWithTip id="equipment" label="Equipment" className="sr-only" />
       {editable ? (
         <div className="space-y-3">
@@ -255,7 +233,7 @@ function Page2Equipment({
 
 function Page2Attuned({ attuned }: { attuned: string[] }) {
   return (
-    <SheetSection title="Attuned Items" className="lg:col-span-3">
+    <SheetSection title="Attuned Items">
       <ul className="space-y-1 text-sm">
         {attunedSlots(attuned).map(({ item, key }) => (
           <li key={key} className={item === EMPTY_FIELD ? 'text-muted' : 'text-gray-300'}>
@@ -277,7 +255,7 @@ function Page2Currency({
   onPatch: (p: Partial<Character>) => void;
 }) {
   return (
-    <SheetSection title="Currency" className="lg:col-span-3">
+    <SheetSection title="Currency">
       <LabelWithTip id="currency" label="Currency" className="sr-only" />
       <div className="grid grid-cols-5 gap-1 text-center">
         {(['cp', 'sp', 'ep', 'gp', 'pp'] as const).map((k) => (
@@ -333,7 +311,7 @@ function Page2Notes({
   onPatch: (p: Partial<Character>) => void;
 }) {
   return (
-    <SheetSection title="Appearance & Notes" className="flex flex-col min-h-[16rem] md:min-h-0 md:h-full">
+    <SheetSection title="Appearance & Notes">
       <SheetField
         label=""
         hideLabel
@@ -392,7 +370,7 @@ function Page2Resources({
     layOnHandsMax <= 0 &&
     sneakAttackDice <= 0;
   return (
-    <SheetSection title="Resources" className="lg:col-span-4">
+    <SheetSection title="Resources">
       {empty ? (
         <p className="text-sm text-muted">No class or spellcasting resources.</p>
       ) : (

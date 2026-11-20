@@ -138,9 +138,12 @@ def generate_bootstrap_spec(
         raise ValueError(f"Character not found: {character_id}")
     plugin = _plugin_for_character(char)
     _require_campaign_plan(char)
-    context, _ = rag_context_for_theme(
-        mode=mode, theme=theme, include_faerun=include_faerun, game_id=plugin.id
-    )
+    if mode == "freeform" and not include_faerun:
+        context = ""
+    else:
+        context, _ = rag_context_for_theme(
+            mode=mode, theme=theme, include_faerun=include_faerun, game_id=plugin.id
+        )
 
     setting = "Faerûn (Forgotten Realms)" if include_faerun else "freeform/homebrew"
     name_hint = f'\nPreferred campaign name: "{campaign_name}".' if campaign_name.strip() else ""
@@ -156,7 +159,7 @@ Player character:
 {_char_prompt(char)}
 
 Rulebook reference:
-{context[:1800]}
+{context[:1800] or "(none, invent a self-contained homebrew hook)"}
 
 Requirements:
 - story_arc: 120-220 words (plot, one mystery, two factions)

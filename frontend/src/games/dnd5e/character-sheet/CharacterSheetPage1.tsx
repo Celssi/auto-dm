@@ -19,7 +19,15 @@ import {
   weaponAttackLine,
   characterHasWeaponMastery,
 } from './sheetUtils';
-import { AbilityTile, CombatStat, DeathSaves, HpBar, SheetField, SheetSection } from './characterSheetViewParts';
+import {
+  AbilityTile,
+  CombatStat,
+  ConditionList,
+  DeathSaves,
+  HpBar,
+  SheetField,
+  SheetSection,
+} from './characterSheetViewParts';
 import CharacterSheetHeader from './CharacterSheetHeader';
 
 interface Page1Props {
@@ -50,32 +58,28 @@ export default function CharacterSheetPage1({ character: c, editable, onChange, 
   const patch = (p: Partial<Character>) => onChange?.({ ...c, ...p });
 
   return (
-    <div className="space-y-4">
+    <>
       {!hideHeader && <CharacterSheetHeader character={c} editable={editable} onChange={onChange} />}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-        <Page1Abilities scores={scores} character={c} saves={saves} editable={editable} onPatch={patch} />
-        <Page1Skills character={c} profs={profs} />
-        <div className="lg:col-span-4 space-y-4">
-          <Page1Combat
-            character={c}
-            editable={editable}
-            hitDiceMax={hitDiceMax}
-            hitDiceSpent={hitDiceSpent}
-            onPatch={patch}
-          />
-          {spellDc !== null && (
-            <SheetSection title="Spellcasting">
-              <div className="grid grid-cols-3 gap-2">
-                <CombatStat label="Save DC" value={String(spellDc)} accent />
-                <CombatStat label="Attack" value={formatMod(spellAtk ?? 0)} />
-                <CombatStat label="Ability" value={spellAb?.toUpperCase() || EMPTY_FIELD} />
-              </div>
-            </SheetSection>
-          )}
-          <Page1FeaturesGear character={c} editable={editable} onPatch={patch} />
-        </div>
-      </div>
-    </div>
+      <Page1Abilities scores={scores} character={c} saves={saves} editable={editable} onPatch={patch} />
+      <Page1Skills character={c} profs={profs} />
+      <Page1Combat
+        character={c}
+        editable={editable}
+        hitDiceMax={hitDiceMax}
+        hitDiceSpent={hitDiceSpent}
+        onPatch={patch}
+      />
+      {spellDc !== null && (
+        <SheetSection title="Spellcasting">
+          <div className="grid grid-cols-3 gap-2">
+            <CombatStat label="Save DC" value={String(spellDc)} accent />
+            <CombatStat label="Attack" value={formatMod(spellAtk ?? 0)} />
+            <CombatStat label="Ability" value={spellAb?.toUpperCase() || EMPTY_FIELD} />
+          </div>
+        </SheetSection>
+      )}
+      <Page1FeaturesGear character={c} editable={editable} onPatch={patch} />
+    </>
   );
 }
 
@@ -93,7 +97,7 @@ function Page1Abilities({
   onPatch: (p: Partial<Character>) => void;
 }) {
   return (
-    <SheetSection title="Abilities" className="lg:col-span-3">
+    <SheetSection title="Abilities">
       <div className="grid grid-cols-2 gap-2">
         {ABILITIES.map((ab) => (
           <AbilityTile
@@ -126,7 +130,7 @@ function Page1Abilities({
 function Page1Skills({ character: c, profs }: { character: Character; profs: Set<string> }) {
   const expertise = expertiseSkills(c);
   return (
-    <SheetSection title="Skills" className="lg:col-span-5">
+    <SheetSection title="Skills">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
         {SKILLS.map((sk) => (
           <div
@@ -260,20 +264,24 @@ function CombatResources({
           {exhaustion >= 6 ? ' (dead)' : ''}
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-3 mt-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-3 items-start">
         <div>
           <LabelWithTip id="hit-dice" label="Hit Dice" />
           <div className="sheet-value font-mono mt-0.5">{`${hitDiceMax - hitDiceSpent}d${hitDie}`}</div>
         </div>
-        <div className="sheet-field flex items-center justify-between">
-          <div>
-            <LabelWithTip id="heroic-inspiration" label="Heroic Inspiration" />
-            {String(c.species || '').toLowerCase() === 'human' ? (
-              <div className="text-[9px] text-muted mt-0.5">Resourceful · Long Rest</div>
-            ) : null}
-            <div className="text-xl mt-0.5">{c.heroic_inspiration ? '★' : '☆'}</div>
+        <div>
+          <LabelWithTip id="heroic-inspiration" label="Heroic Inspiration" />
+          <div className="sheet-value mt-0.5 inline-flex items-center gap-1.5">
+            <span aria-hidden="true">{c.heroic_inspiration ? '★' : '☆'}</span>
+            <span>{c.heroic_inspiration ? 'Yes' : 'No'}</span>
           </div>
+          {String(c.species || '').toLowerCase() === 'human' ? (
+            <p className="text-[10px] text-muted leading-snug mt-0.5">Resourceful, Long Rest</p>
+          ) : null}
         </div>
+      </div>
+      <div className="mt-3">
+        <ConditionList conditions={c.conditions} />
       </div>
       <div className="mt-3">
         <DeathSaves successes={Number(c.death_save_successes ?? 0)} failures={Number(c.death_save_failures ?? 0)} />

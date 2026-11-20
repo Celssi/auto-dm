@@ -283,7 +283,7 @@ export default function GlossaryTip({
       {children ? (
         <span
           ref={triggerRef as RefObject<HTMLSpanElement>}
-          className={`relative inline-block group/gtip ${wrapperClassName}`}
+          className={`inline-block leading-none group/gtip ${wrapperClassName}`}
           {...triggerHandlers}
         >
           {trigger}
@@ -292,7 +292,7 @@ export default function GlossaryTip({
         <button
           ref={triggerRef as RefObject<HTMLButtonElement>}
           type="button"
-          className={`relative inline-block group/gtip border-0 bg-transparent p-0 font-inherit text-inherit ${wrapperClassName}`}
+          className={`inline-block leading-none group/gtip border-0 bg-transparent p-0 font-inherit text-inherit ${wrapperClassName}`}
           {...triggerHandlers}
           aria-label={`${label}, tap or focus for details`}
         >

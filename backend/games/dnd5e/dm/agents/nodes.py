@@ -551,9 +551,6 @@ def continuity_guard_node(state: DMState) -> DMState:
     if issues:
         log_agent("continuity_guard", "revised", issues=issues)
         emit_narration_replace(final)
-        original = dict(state.get("character") or {})
-        emit_sheet({"character": original})
-        emit_ready({"response": final, "character": original})
     result: DMState = {"narrative": final, "response": final}
     if issues:
         result["continuity_issues"] = issues

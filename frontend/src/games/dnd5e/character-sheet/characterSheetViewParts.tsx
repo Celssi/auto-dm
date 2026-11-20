@@ -146,8 +146,19 @@ export function CombatStat({
 }) {
   return (
     <div className={`sheet-combat-stat ${accent ? 'sheet-combat-stat-accent' : ''}`}>
-      {tipId ? <LabelWithTip id={tipId} label={label} /> : <div className="sheet-label">{label}</div>}
-      <div className="text-xl font-bold text-gray-100">{value}</div>
+      <div className="sheet-combat-stat-label">
+        {tipId ? (
+          <LabelWithTip
+            id={tipId}
+            label={label}
+            className="sheet-label leading-none"
+            wrapperClassName="leading-none"
+          />
+        ) : (
+          <div className="sheet-label leading-none">{label}</div>
+        )}
+      </div>
+      <div className="sheet-combat-stat-value">{value}</div>
     </div>
   );
 }
@@ -257,6 +268,22 @@ export function ResourcePips({ label, remaining, max }: { label: string; remaini
 
 export function TagList({ items, classId }: { items: string[]; classId?: string }) {
   return <GlossaryTagList items={items} classId={classId} />;
+}
+
+export function ConditionList({ conditions }: { conditions?: string[] }) {
+  const items = (conditions || []).map((item) => String(item).trim()).filter(Boolean);
+  return (
+    <div>
+      <LabelWithTip id="conditions" label="Conditions" />
+      {items.length ? (
+        <div className="mt-1">
+          <GlossaryTagList items={items} />
+        </div>
+      ) : (
+        <div className="sheet-value mt-0.5">None</div>
+      )}
+    </div>
+  );
 }
 
 export function DeathSaves({ successes, failures }: { successes: number; failures: number }) {

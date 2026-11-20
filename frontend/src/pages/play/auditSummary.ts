@@ -16,8 +16,8 @@ export function formatAuditSummary(event: AuditEvent): string {
     const b = before.hp ?? detail.hp_before;
     const a = after.hp ?? detail.hp_after;
     const dmg = detail.damage;
-    if (dmg != null) return `HP ${b}→${a} (−${dmg})`;
-    return `HP ${b}→${a}`;
+    if (dmg != null) return `Took ${dmg} damage (HP ${b} -> ${a})`;
+    return `HP ${b} -> ${a}`;
   }
 
   if (etype === 'spell_slot') {
@@ -68,6 +68,21 @@ export function formatAuditSummary(event: AuditEvent): string {
 
   if (etype === 'character_patch') {
     const diff = (event.diff ?? {}) as Record<string, unknown>;
+    const hpDiff = (diff.hp ?? null) as { before?: unknown; after?: unknown } | null;
+    const notes = Array.isArray(detail.notes) ? detail.notes.map(String) : [];
+    const damageNote = notes.find((line) => line.toLowerCase().includes('damage'));
+    if (damageNote) return damageNote.replace(/\.$/, '');
+    if (hpDiff && typeof hpDiff.before === 'number' && typeof hpDiff.after === 'number') {
+      if (hpDiff.after < hpDiff.before) {
+        const taken = typeof detail.damage === 'number' ? detail.damage : hpDiff.before - hpDiff.after;
+        return `Took ${taken} damage (HP ${hpDiff.before} -> ${hpDiff.after})`;
+      }
+      return `HP ${hpDiff.before} -> ${hpDiff.after}`;
+    }
+    const condDiff = (diff.conditions ?? null) as { after?: unknown } | null;
+    if (Array.isArray(condDiff?.after) && condDiff.after.length) {
+      return `Conditions: ${condDiff.after.join(', ')}`;
+    }
     const keys = Object.keys(diff);
     if (keys.length) return `Updated: ${keys.slice(0, 3).join(', ')}`;
     return 'Character updated';

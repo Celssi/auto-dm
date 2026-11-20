@@ -39,7 +39,9 @@ def stream_dm_turn(
                 result = {**result, "shortcut": precomputed_shortcut}
             emit("done", result)
         except Exception as exc:
-            emit("error", {"detail": str(exc)})
+            from backend.dm.errors import friendly_dm_error
+
+            emit("error", {"detail": friendly_dm_error(exc)})
         finally:
             pending.put(None)
 

@@ -12,14 +12,12 @@ import { useGame } from '../../context/GameContext';
 import { bootstrapBrambletrekSession } from '../../games/brambletrek/bootstrapCampaign';
 
 import { initiativeMod } from '../../games/dnd5e/character-sheet/sheetUtils';
+import { friendlyDmError } from '../../lib/dmErrors';
 
 const DICE_SHORTCUTS = new Set(['ability_check', 'saving_throw', 'attack_roll', 'initiative', 'death_save']);
 
 function streamErrorDetail(data: unknown): string {
-  if (data && typeof data === 'object' && 'detail' in data && typeof data.detail === 'string') {
-    return data.detail;
-  }
-  return 'Something went wrong talking to the DM.';
+  return friendlyDmError(data);
 }
 
 function worldToEntities(world: {
@@ -55,6 +53,36 @@ function preferLiveSheet(fetched: Character, streamed: Character | null): Charac
     ...((fetched.feature_choices || {}) as Record<string, unknown>),
   };
   return next;
+}
+
+function applyBookkeepingStreamEvent(
+  event: string,
+  sessionId: string,
+  dispatch: Dispatch<PlayAction>,
+) {
+  if (event === 'logs') {
+    void Promise.all([api.getLonelog(sessionId), api.getAudit(sessionId)])
+      .then(([log, audit]) => {
+        dispatch({ type: 'set', patch: { lonelog: log.lines, auditEvents: audit.events } });
+      })
+      .catch((err: unknown) => console.warn('Failed to refresh logs', err));
+  }
+  if (event === 'world') {
+    void api
+      .getSessionWorld(sessionId, true)
+      .then((world) => {
+        dispatch({
+          type: 'set',
+          patch: {
+            world,
+            worldLoading: false,
+            worldError: false,
+            journalEntities: worldToEntities(world),
+          },
+        });
+      })
+      .catch((err: unknown) => console.warn('Failed to refresh session world', err));
+  }
 }
 
 function applyPlayStreamEvent(
@@ -96,7 +124,10 @@ function applyPlayStreamEvent(
     if (patch.character && lastSheet) lastSheet.current = patch.character as Character;
     dispatch({ type: 'set', patch: { loading: false, sheetUpdating: false, ...patch } });
   } else if (event === 'error') {
-    return streamErrorDetail(data);
+    const message = streamErrorDetail(data);
+    dispatch({ type: 'replaceLastAssistant', content: message });
+    dispatch({ type: 'set', patch: { loading: false, sheetUpdating: false, chatError: message } });
+    return message;
   }
   return '';
 }
@@ -352,6 +383,12 @@ export function usePlayPageSession(
             adventureId: session.adventure_id,
             sessionLoaded: true,
             journalEntities,
+            world: {
+              npcs: journalEntities.filter((row) => row.kind === 'npc'),
+              locations: journalEntities.filter((row) => row.kind === 'location'),
+              message_count: (session.messages || []).length,
+            },
+            worldLoading: true,
             campaignId,
             playerProgress,
             adventureComplete,
@@ -474,6 +511,7 @@ export function usePlayPageSession(
       const done: ChatResult[] = [];
       let streamError = '';
       await api.chatStream(sessionId, text, (event, data) => {
+        applyBookkeepingStreamEvent(event, sessionId, dispatch);
         const err = applyPlayStreamEvent(event, data, dispatch, done, lastSheetRef);
         if (err) streamError = err;
       });
@@ -517,9 +555,11 @@ export function usePlayPageSession(
           }
         });
     } catch (e) {
+      const message = friendlyDmError(e instanceof Error ? e.message : e);
+      dispatch({ type: 'replaceLastAssistant', content: message });
       dispatch({
         type: 'set',
-        patch: { chatError: e instanceof Error ? e.message : 'Something went wrong talking to the DM.' },
+        patch: { chatError: message },
       });
     } finally {
       inFlightRef.current = false;
@@ -677,6 +717,7 @@ export function usePlayPageSession(
       let uiReady = false;
 
       const applyEvent = (event: string, data: unknown) => {
+        applyBookkeepingStreamEvent(event, state.sessionId, dispatch);
         const err = applyPlayStreamEvent(event, data, dispatch, done, lastSheetRef);
         if (err) streamError = err;
         if (event === 'ready' || event === 'done') {
@@ -777,11 +818,12 @@ export function usePlayPageSession(
           }
         });
     } catch (e) {
+      const message = friendlyDmError(e instanceof Error ? e.message : e);
       dispatch({
         type: 'set',
         patch: {
           diceModal: null,
-          chatError: e instanceof Error ? e.message : 'Dice roll failed.',
+          chatError: message,
         },
       });
     } finally {
@@ -839,6 +881,7 @@ export function usePlayPageSession(
         },
         undefined,
         (event, data) => {
+          applyBookkeepingStreamEvent(event, state.sessionId, dispatch);
           const err = applyPlayStreamEvent(event, data, dispatch, done, lastSheetRef);
           if (err) streamError = err;
         },
@@ -858,11 +901,12 @@ export function usePlayPageSession(
         }
       }
     } catch (e) {
+      const message = friendlyDmError(e instanceof Error ? e.message : e);
       dispatch({
         type: 'set',
         patch: {
           spellCastModal: null,
-          chatError: e instanceof Error ? e.message : 'Spell cast failed.',
+          chatError: message,
         },
       });
     } finally {

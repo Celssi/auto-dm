@@ -1,4 +1,5 @@
 import type { Character } from '../../../types';
+import CharacterSheetHeader from './CharacterSheetHeader';
 import CharacterSheetPage1 from './CharacterSheetPage1';
 import CharacterSheetPage2 from './CharacterSheetPage2';
 
@@ -14,13 +15,19 @@ interface Props {
 export default function CharacterSheetView({ character, summary, editable, onChange, page, hideHeader }: Props) {
   const shared = { character, summary, editable, onChange, hideHeader };
 
-  if (page === 1) return <CharacterSheetPage1 {...shared} />;
-  if (page === 2) return <CharacterSheetPage2 {...shared} />;
+  const cards = (
+    <>
+      {page !== 2 && <CharacterSheetPage1 {...shared} hideHeader />}
+      {page !== 1 && <CharacterSheetPage2 {...shared} />}
+    </>
+  );
 
   return (
     <div className="sheet-root space-y-6">
-      <CharacterSheetPage1 {...shared} />
-      <CharacterSheetPage2 {...shared} />
+      {!hideHeader && page !== 2 && (
+        <CharacterSheetHeader character={character} editable={editable} onChange={onChange} />
+      )}
+      <div className="sheet-masonry">{cards}</div>
     </div>
   );
 }
