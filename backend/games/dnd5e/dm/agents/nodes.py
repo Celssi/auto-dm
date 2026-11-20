@@ -480,40 +480,25 @@ def narrator_dm_node(state: DMState) -> DMState:
         text = message_text(response)
     text = sanitize_narration_dashes(text.strip())
     ready_payload: dict = {"response": text}
-    overlay_updates = {}
+    overlay_preview = {}
     try:
         from backend.games.dnd5e.dm.resource_keeper import overlay_live_resources
 
-        overlay_updates = overlay_live_resources(char_dict, text)
-        overlay_updates.pop("_logs", None)
+        overlay_preview = overlay_live_resources(char_dict, text)
+        overlay_preview.pop("_logs", None)
     except Exception:
-        overlay_updates = {}
-    sheet_dirty = bool(pending_updates or overlay_updates)
-    if overlay_updates:
-        merged = dict(char_dict)
-        merged.update({k: v for k, v in overlay_updates.items() if k != "_logs"})
-        char_dict = merged
-        cid = char_dict.get("id")
-        if cid:
-            from backend.storage import save_character
-
-            save_character(cid, char_dict)
-    if sheet_dirty:
-        ready_payload["character"] = char_dict
-        emit_sheet({"character": char_dict})
+        overlay_preview = {}
+    if pending_updates or overlay_preview:
+        preview = dict(char_dict)
+        preview.update({k: v for k, v in overlay_preview.items() if k != "_logs"})
+        ready_payload["character"] = preview
+        emit_sheet({"character": preview})
     emit_ready(ready_payload)
-    result: DMState = {
+    return {
         "narrative": text,
         "response": text,
         "narrative_context": memory,
     }
-    if sheet_dirty:
-        result["character"] = char_dict
-        result["character_updates"] = {
-            **dict(state.get("character_updates") or {}),
-            **overlay_updates,
-        }
-    return result
 
 
 def continuity_guard_node(state: DMState) -> DMState:
@@ -535,7 +520,9 @@ def continuity_guard_node(state: DMState) -> DMState:
     if issues:
         log_agent("continuity_guard", "revised", issues=issues)
         emit_narration_replace(final)
-        emit_ready({"response": final})
+        original = dict(state.get("character") or {})
+        emit_sheet({"character": original})
+        emit_ready({"response": final, "character": original})
     result: DMState = {"narrative": final, "response": final}
     if issues:
         result["continuity_issues"] = issues

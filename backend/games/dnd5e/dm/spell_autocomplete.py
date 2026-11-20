@@ -23,10 +23,23 @@ from backend.games.dnd5e.dm.resource_keeper import apply_cast_spell_shortcut
 
 _CAST_PATTERNS = (
     re.compile(r"^/cast\s+(.+)$", re.IGNORECASE),
-    re.compile(r"^cast\s+(.+)$", re.IGNORECASE),
-    re.compile(r"\bi\s+cast\s+(.+?)(?:\s+at\b|\s+on\b|\s+against\b|[.!,]|$)", re.IGNORECASE),
-    re.compile(r"\bcast\s+(.+?)(?:\s+at\b|\s+on\b|\s+against\b|[.!,]|$)", re.IGNORECASE),
-    re.compile(r"\bcasting\s+(.+?)(?:\s+at\b|\s+on\b|\s+against\b|[.!,]|$)", re.IGNORECASE),
+    re.compile(
+        r"^(?:(?:please|ok(?:ay)?|yes|yeah|yep|y)[,.]?\s+)?cast\s+(.+)$",
+        re.IGNORECASE,
+    ),
+    re.compile(
+        r"\bi\s+(?:will\s+|want to\s+|am going to\s+)?(?:re-?)?cast\s+"
+        r"(.+?)(?:\s+at\b|\s+on\b|\s+against\b|[.!,]|$)",
+        re.IGNORECASE,
+    ),
+)
+_NEGATED_CAST = re.compile(
+    r"\b(do not|don't|dont|never|not going to|won't|wont|cannot|can't|can not)\s+"
+    r"(?:that\s+)?(?:re)?cast\b|"
+    r"\bnot\s+cast\b|"
+    r"\bcancel(?:\s+\w+){0,6}\s+(?:re)?cast\b|"
+    r"\bcancel that (?:re)?cast\b",
+    re.IGNORECASE,
 )
 _SHORTCUT_HEADER = re.compile(r"^\*\*(cast spell|short rest|long rest)\*\*", re.IGNORECASE)
 _EMPTY_CAST_QUERIES = frozenset(
@@ -35,6 +48,14 @@ _EMPTY_CAST_QUERIES = frozenset(
         "no spell",
         "no spell named",
         "spell",
+        "spells",
+        "anything",
+        "nothing",
+        "something",
+        "it",
+        "that",
+        "this",
+        "a spell",
         "/cast_spell",
         "cast_spell",
     }
@@ -115,6 +136,8 @@ def extract_cast_query(message: str) -> str | None:
     if text.lower() in {"/cast_spell", "/cast"}:
         return None
     if _SHORTCUT_HEADER.match(text):
+        return None
+    if _NEGATED_CAST.search(text):
         return None
     scrubbed = re.sub(r"\bfree\s+cast\b", "free-use", text, flags=re.IGNORECASE)
     for pattern in _CAST_PATTERNS:

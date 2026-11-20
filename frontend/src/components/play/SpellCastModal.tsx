@@ -33,10 +33,6 @@ export function listCastableSpells(character: Character): SpellOption[] {
     seen.add(key);
     out.push({ name, kind, cantrip, magicInitiate });
   };
-  for (const name of character.cantrips || []) add(name, 'cantrip', true, false);
-  for (const name of character.prepared_spells || []) add(name, 'prepared', false, false);
-  for (const name of character.known_spells || []) add(name, 'known', false, false);
-  for (const name of character.spellbook || []) add(name, 'spellbook', false, false);
   const fc = character.feature_choices || {};
   const miCantrips = fc.magic_initiate_cantrips;
   if (Array.isArray(miCantrips)) {
@@ -44,12 +40,29 @@ export function listCastableSpells(character: Character): SpellOption[] {
   }
   const miSpell = String(fc.magic_initiate_level1 || '').trim();
   if (miSpell) add(miSpell, 'magic-initiate', false, true);
+  for (const name of character.cantrips || []) add(name, 'cantrip', true, false);
+  for (const name of character.prepared_spells || []) add(name, 'prepared', false, false);
+  for (const name of character.known_spells || []) add(name, 'known', false, false);
+  for (const name of character.spellbook || []) add(name, 'spellbook', false, false);
   return out;
 }
 
 function originHasMagicInitiate(character: Character): boolean {
-  const feat = `${character.origin_feat || ''} ${character.versatile_origin_feat || ''}`.toLowerCase();
-  return feat.includes('magic initiate');
+  const feat = [character.origin_feat, character.versatile_origin_feat, ...(character.feats || [])]
+    .join(' ')
+    .toLowerCase();
+  if (feat.includes('magic initiate') || feat.includes('magic_initiate')) return true;
+  const fc = character.feature_choices || {};
+  return Boolean(String(fc.magic_initiate_level1 || '').trim());
+}
+
+export function canCastMagicInitiateFree(character: Character, spellName: string): boolean {
+  if (!spellName) return false;
+  if (Boolean(character.feature_choices?._magic_initiate_free_used)) return false;
+  if (!originHasMagicInitiate(character)) return false;
+  const miSpell = String(character.feature_choices?.magic_initiate_level1 || '').trim();
+  if (!miSpell) return false;
+  return norm(spellName) === norm(miSpell);
 }
 
 export default function SpellCastModal({ modal, character, onUpdate, onSubmit, onClose }: Props) {
@@ -60,16 +73,7 @@ export default function SpellCastModal({ modal, character, onUpdate, onSubmit, o
     .filter((n) => n >= 1)
     .toSorted((a, b) => a - b);
   const remaining = (lvl: number) => Number(character.spell_slots?.[String(lvl)] ?? 0);
-  const miUsed = Boolean(character.feature_choices?._magic_initiate_free_used);
-  const miSpell = String(character.feature_choices?.magic_initiate_level1 || '').trim();
-  const showFree = Boolean(
-    selected &&
-      !selected.cantrip &&
-      originHasMagicInitiate(character) &&
-      !miUsed &&
-      miSpell &&
-      norm(selected.name) === norm(miSpell),
-  );
+  const showFree = Boolean(selected && !selected.cantrip && canCastMagicInitiateFree(character, selected.name));
 
   return (
     <m.div
@@ -107,7 +111,7 @@ export default function SpellCastModal({ modal, character, onUpdate, onSubmit, o
                       onUpdate({
                         spellName: row.name,
                         slotLevel: row.cantrip ? 0 : Math.max(1, modal.slotLevel || 1),
-                        freeUse: row.magicInitiate && showFree,
+                        freeUse: canCastMagicInitiateFree(character, row.name),
                       })
                     }
                     className={`w-full text-left px-3 py-2 rounded-md text-sm border ${
@@ -118,7 +122,9 @@ export default function SpellCastModal({ modal, character, onUpdate, onSubmit, o
                   >
                     {displayLabel(row.name)}
                     <span className="block text-[10px] uppercase tracking-wide text-muted">
-                      {row.kind.replace('-', ' ')}
+                      {row.kind === 'magic-initiate' && canCastMagicInitiateFree(character, row.name)
+                        ? 'Magic Initiate, free once / long rest'
+                        : row.kind.replace('-', ' ')}
                     </span>
                   </button>
                 ))}

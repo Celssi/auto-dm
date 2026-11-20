@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { api, type ChatResult } from '../../api/client';
 import type { Character } from '../../types';
 import { type DiceModalState, type PlayAction, type PlayState, type SpellCastModalState } from './playState';
-import { listCastableSpells } from '../../components/play/SpellCastModal';
+import { canCastMagicInitiateFree, listCastableSpells } from '../../components/play/SpellCastModal';
 import { getPlaySessionExtensions } from '../../games/brambletrek/playSession';
 import { DEFAULT_GAME_ID } from '../../games/registry';
 import { getGamePlayConfig } from '../../games/play/registry';
@@ -601,7 +601,7 @@ export function usePlayPageSession(
       const modal: SpellCastModalState = {
         spellName: first?.name || '',
         slotLevel: first?.cantrip ? 0 : 1,
-        freeUse: false,
+        freeUse: canCastMagicInitiateFree(state.character, first?.name || ''),
         ritual: false,
         submitting: false,
       };

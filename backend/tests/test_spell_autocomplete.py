@@ -28,6 +28,18 @@ def test_extract_cast_query_i_cast():
     assert extract_cast_query("/cast Moonbeam") == "Moonbeam"
 
 
+def test_extract_cast_query_ignores_negated_and_cancel_language():
+    assert extract_cast_query("No, cancel that recast. Do not cast anything.") is None
+    assert extract_cast_query("Don't cast Shield yet.") is None
+    assert extract_cast_query("I look around and mention a cast iron pan.") is None
+
+
+def test_extract_cast_query_yes_cast_confirmation():
+    query = extract_cast_query("Yes, cast Shield (Magic Initiate free)")
+    assert query
+    assert "shield" in query.lower()
+
+
 def test_fuzzy_match_moonspell_to_moonbeam():
     char = _druid()
     res = resolve_spell_query(char, "moonspell")

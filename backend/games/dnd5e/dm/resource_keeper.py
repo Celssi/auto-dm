@@ -42,11 +42,24 @@ _REST_REFUSAL = re.compile(
     re.IGNORECASE,
 )
 _SHORT_REST_GRANT = re.compile(
-    r"(you (take|finish|complete) .{0,40}(short )?rest|"
+    r"(you (take|finish|complete|spend) .{0,40}(short )?rest|"
     r"you settle .{0,40}(rest|hour)|"
     r"after (a |the )?short rest|"
+    r"(a |the )?short rest (is |was )?(complete|done|over|finished)|"
     r"an hour (passes|later)|hour passes|feel refreshed|"
+    r"you (rest|recover|heal|regain)|"
+    r"hit (?:die|dice) (spent|used|rolled)|"
+    r"spent .{0,24}hit (?:die|dice)|"
+    r"arcane recovery|"
+    r"\d+\s*/\s*\d+\s*(->|to)\s*\d+\s*/\s*\d+|"
     r"lepä(ät|ätte|si)|tunnin lepo|tunti kuluu|virkisty)",
+    re.IGNORECASE,
+)
+_REST_EFFECTS = re.compile(
+    r"(hit (?:die|dice) (spent|used|rolled)|spent .{0,24}hit (?:die|dice)|"
+    r"arcane recovery|pact magic|"
+    r"\d+\s*/\s*\d+\s*(->|to)\s*\d+\s*/\s*\d+|"
+    r"regain.{0,24}(hp|hit points)|wounds (close|ease))",
     re.IGNORECASE,
 )
 _LONG_REST_GRANT = re.compile(
@@ -90,7 +103,7 @@ def rest_granted(dm_response: str, *, kind: str = "short") -> bool:
     text = dm_response or ""
     if kind == "long":
         return bool(_LONG_REST_GRANT.search(text))
-    return bool(_SHORT_REST_GRANT.search(text))
+    return bool(_SHORT_REST_GRANT.search(text) or _REST_EFFECTS.search(text))
 
 
 def combat_blocks_rest(*, in_combat: bool = False, combat_state: dict | None = None) -> bool:
@@ -150,6 +163,18 @@ def parse_pc_hp_from_narration(
     text = dm_response or ""
     if not text.strip() or max_hp <= 0:
         return None
+    hp_arrow = re.search(
+        r"\bhp\s+(\d+)\s*(?:/\s*\d+)?\s*->\s*(\d+)\s*/\s*(\d+)", text, re.I
+    )
+    if hp_arrow:
+        hp, mx = int(hp_arrow.group(2)), int(hp_arrow.group(3))
+        if mx == max_hp and 0 <= hp <= max_hp:
+            return hp
+    frac_arrow = re.search(r"\b(\d+)\s*/\s*(\d+)\s*->\s*(\d+)\s*/\s*(\d+)", text, re.I)
+    if frac_arrow:
+        hp, mx = int(frac_arrow.group(3)), int(frac_arrow.group(4))
+        if mx == max_hp and 0 <= hp <= max_hp:
+            return hp
     name_pat = re.escape((name or "").strip()) if (name or "").strip() else ""
     patterns: list[re.Pattern[str]] = [
         re.compile(r"\byour (?:hp|hit points?)\s*(?:are|is|now|:)?\s*(\d+)\s*/\s*(\d+)", re.I),
@@ -234,9 +259,13 @@ def overlay_live_resources(character: dict, dm_response: str) -> dict:
     if reconcile:
         hp = int(reconcile.group(1))
     if hp is not None and hp != char.hp:
+        old_hp = char.hp
         char.hp = hp
         updates["hp"] = hp
-        logs.append(f"HP set to {hp}/{char.max_hp} from DM narration.")
+        if hp < old_hp:
+            logs.append(f"Took {old_hp - hp} damage (HP {old_hp} -> {hp}/{char.max_hp}).")
+        else:
+            logs.append(f"HP set to {hp}/{char.max_hp} from DM narration.")
     remaining = parse_hit_dice_remaining(dm_response, hit_dice_max=char.hit_dice_max)
     if reconcile:
         remaining = int(reconcile.group(4))
@@ -287,11 +316,13 @@ def parse_hit_dice_to_spend(user_message: str, dm_response: str) -> int:
         r"spend\s+(\d+)\s+hit\s+dice",
         r"spend\s+(\d+)\s+hit\s+die",
         r"uses?\s+(\d+)\s+hit\s+dice",
-        r"(\d+)\s+hit\s+dice\s+spent",
+        r"(\d+)\s+hit\s+(?:die|dice)\s+spent",
     ):
         match = re.search(pattern, text, re.IGNORECASE)
         if match:
             return max(0, int(match.group(1)))
+    if re.search(r"hit\s+(?:die|dice)\s+spent", text, re.IGNORECASE):
+        return 1
     return 0
 
 
@@ -441,20 +472,13 @@ def apply_pending_rest(
     kind = str(pending.get("kind") or "short").strip().lower()
     if combat_active:
         return {}, ["Rest not applied: combat is still underway."]
-    if rest_refused(dm_response) or not rest_granted(dm_response, kind=kind):
+    granted = rest_granted(dm_response, kind=kind)
+    if rest_refused(dm_response) or not granted:
         reason = "the DM did not grant a rest"
         if rest_refused(dm_response):
             reason = "the DM refused the rest"
         return {}, [f"Rest not applied: {reason}."]
-    live = overlay_live_resources(character, dm_response)
-    live.pop("_logs", None)
-    merged = {**character, **live}
-    char = character_from_dict(merged)
-    hp = parse_pc_hp_from_narration(
-        dm_response, name=char.name, max_hp=char.max_hp, current_hp=char.hp
-    )
-    if hp is not None:
-        char.hp = hp
+    char = character_from_dict(character)
     if kind == "long":
         rest = long_rest_recover(char)
         return dict(rest.get("entity_updates") or {}), [str(rest.get("summary") or "Long rest.")]
