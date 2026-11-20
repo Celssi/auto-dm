@@ -43,8 +43,10 @@ def second_wind_max(char: Dnd5eCharacter) -> int:
 
 
 def sync_second_wind_uses(char: Dnd5eCharacter) -> None:
+    from backend.games.dnd5e.characters.entity import remaining_int
+
     mx = second_wind_max(char)
-    remaining = int(getattr(char, "second_wind_remaining", -1) or -1)
+    remaining = remaining_int(getattr(char, "second_wind_remaining", -1))
     if mx <= 0:
         char.second_wind_remaining = 0
         return
@@ -84,8 +86,10 @@ def lay_on_hands_max(char: Dnd5eCharacter) -> int:
 
 
 def sync_lay_on_hands(char: Dnd5eCharacter) -> None:
+    from backend.games.dnd5e.characters.entity import remaining_int
+
     mx = lay_on_hands_max(char)
-    remaining = int(getattr(char, "lay_on_hands_remaining", -1) or -1)
+    remaining = remaining_int(getattr(char, "lay_on_hands_remaining", -1))
     if mx <= 0:
         char.lay_on_hands_remaining = 0
         return

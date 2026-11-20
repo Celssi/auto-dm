@@ -4,11 +4,9 @@ from __future__ import annotations
 
 import re
 
-from backend.dm.continuity_guard import apply_continuity_guard
 from backend.dm.encounters import CombatState, combat_state_view, load_combat_state
 from backend.dm.narration_stream import (
     emit_narration,
-    emit_narration_replace,
     emit_ready,
     emit_sheet,
     narration_enabled,
@@ -478,10 +476,16 @@ def narrator_dm_node(state: DMState) -> DMState:
         world_context=memory["world_bible"],
         include_faerun=include_faerun,
     )
+    extras = {}
+    if state.get("session_id"):
+        from backend.storage import get_session
+
+        extras = dict((get_session(state["session_id"]) or {}).get("extras") or {})
     volatile = dnd5e_turn_context(
         character=char,
         canon_summary=memory["canon_summary"],
         recent_scenes=memory["recent_scenes"],
+        scene_position=str(extras.get("scene_position") or ""),
     )
     llm = get_langchain_chat_llm("claude")
     user_parts = [state.get("user_message", "")]
@@ -510,6 +514,10 @@ def narrator_dm_node(state: DMState) -> DMState:
         response = invoke_chat_llm(llm, lc_messages, agent="narrator_dm", provider="claude")
         text = message_text(response)
     text = sanitize_narration_dashes(text.strip())
+    if state.get("session_id"):
+        from backend.storage import persist_shown_reply
+
+        persist_shown_reply(state["session_id"], state.get("user_message") or "", text)
     ready_payload: dict = {"response": text}
     overlay_preview = {}
     try:
@@ -519,42 +527,45 @@ def narrator_dm_node(state: DMState) -> DMState:
         overlay_preview.pop("_logs", None)
     except Exception:
         overlay_preview = {}
+    shortcut = state.get("shortcut_result") or {}
+    if shortcut.get("pending_cast"):
+        try:
+            from backend.games.dnd5e.dm.resource_keeper import apply_pending_cast
+
+            cast_updates, _cast_logs = apply_pending_cast(char_dict, shortcut.get("pending_cast") or {}, text)
+            overlay_preview = {**overlay_preview, **{k: v for k, v in cast_updates.items() if k != "_logs"}}
+        except Exception:
+            pass
     if pending_updates or overlay_preview:
         preview = dict(char_dict)
         preview.update({k: v for k, v in overlay_preview.items() if k != "_logs"})
         ready_payload["character"] = preview
         emit_sheet({"character": preview})
     emit_ready(ready_payload)
+    scene_updates: DMState = {}
+    if state.get("session_id"):
+        from backend.games.dnd5e.dm.resource_keeper import parse_scene_position
+        from backend.storage import get_session, update_session_extras
+
+        sess = get_session(state["session_id"]) or {}
+        extras = dict(sess.get("extras") or {})
+        position = parse_scene_position(text, str(extras.get("scene_position") or ""))
+        if position and position != extras.get("scene_position"):
+            extras["scene_position"] = position
+            update_session_extras(state["session_id"], extras)
+            scene_updates["scene_position"] = position
     return {
         "narrative": text,
         "response": text,
         "narrative_context": memory,
+        **scene_updates,
     }
 
 
 def continuity_guard_node(state: DMState) -> DMState:
-    if state.get("shortcut_result", {}).get("task") == "rules_help":
-        return {}
-    if not _needs_continuity_guard(state):
-        return {}
-    draft = state.get("narrative") or state.get("response") or ""
-    if not draft.strip():
-        return {}
-    memory = state.get("narrative_context") or {}
-    final, issues = apply_continuity_guard(
-        draft_response=draft,
-        user_message=state.get("user_message") or "",
-        canon_summary=memory.get("canon_summary", ""),
-        world_bible=memory.get("world_bible", ""),
-        recent_scenes=memory.get("recent_scenes", ""),
-    )
-    if issues:
-        log_agent("continuity_guard", "revised", issues=issues)
-        emit_narration_replace(final)
-    result: DMState = {"narrative": final, "response": final}
-    if issues:
-        result["continuity_issues"] = issues
-    return result
+    """Kept for tests. Must never rewrite a reply the player already saw."""
+    _ = state
+    return {}
 
 
 def resource_keeper_node(state: DMState) -> DMState:

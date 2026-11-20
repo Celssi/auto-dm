@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable
 from typing import Any
 
@@ -18,17 +19,29 @@ from backend.journal_storage import (
     get_campaign_npc,
     list_campaign_locations,
     list_campaign_npcs,
+    merge_npc_rename,
     save_campaign_location,
     save_campaign_npc,
 )
+
 from backend.llm import cached_system, structured_llm
 from backend.storage import append_adventure_log
+
+_NPC_RENAME = re.compile(
+    r"\b([A-Z][a-z]{2,})\b.{0,80}?\b(?:now (?:called|named)|is (?:really |actually )?(?:called|named)|"
+    r"true name is|real name is|calls himself)\s+['\"]?([A-Z][a-z]{2,})",
+    re.IGNORECASE | re.DOTALL,
+)
 
 
 class JournalEntryUpdate(BaseModel):
     name: str
     body: str = Field(description="New entry body, or appended update paragraph")
     status: str = Field(default="", description="alive or dead when that clearly changed")
+    renamed_from: str = Field(
+        default="",
+        description="Previous name if this NPC was renamed this turn, else empty",
+    )
 
 
 class JournalTurnUpdates(BaseModel):
@@ -96,6 +109,8 @@ Current notes for entries mentioned this turn (latest part):
 Rules:
 - new_npcs/new_locations: ONLY for newly introduced NAMED characters
   or places not in existing lists
+- If an existing NPC is renamed (true name revealed, "now called", "calls himself"),
+  put the old name in renamed_from and the new name in name. Do not create a second NPC.
 - updated_npcs/updated_locations: ONLY when status, location,
   or relationship clearly changed for an existing name
 - If an existing NPC dies this turn, set status to dead and body to one
@@ -141,6 +156,9 @@ def _apply_entry_updates(
         if not name or not looks_like_entity_name(name):
             continue
         addition = item.body.strip()
+        renamed_from = str(getattr(item, "renamed_from", "") or "").strip()
+        if renamed_from and kind == "npcs":
+            merge_npc_rename(campaign_id, old_name=renamed_from, new_name=name)
         entry_id = find_journal_entry_id(campaign_id, kind, name)
         if not entry_id:
             status = str(getattr(item, "status", "") or "alive").strip().lower() or "alive"
@@ -206,6 +224,13 @@ def apply_journal_updates(
     return counts
 
 
+def apply_detected_renames(campaign_id: str, dm_response: str) -> None:
+    for match in _NPC_RENAME.finditer(dm_response or ""):
+        old_name, new_name = match.group(1).strip(), match.group(2).strip()
+        if old_name and new_name and old_name.lower() != new_name.lower():
+            merge_npc_rename(campaign_id, old_name=old_name, new_name=new_name)
+
+
 def run_journal_keeper(
     *,
     campaign_id: str | None,
@@ -217,6 +242,7 @@ def run_journal_keeper(
         return {}
     if not get_campaign(campaign_id):
         return {}
+    apply_detected_renames(campaign_id, dm_response)
     updates = extract_journal_updates(
         campaign_id=campaign_id,
         user_message=user_message,

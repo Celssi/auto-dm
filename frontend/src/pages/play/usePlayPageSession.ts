@@ -48,6 +48,10 @@ function preferLiveSheet(fetched: Character, streamed: Character | null): Charac
   if ((!fetched.conditions || fetched.conditions.length === 0) && streamed.conditions?.length) {
     next.conditions = streamed.conditions;
   }
+  if (streamed.hit_dice_spent != null) next.hit_dice_spent = streamed.hit_dice_spent;
+  if (streamed.lay_on_hands_remaining != null) next.lay_on_hands_remaining = streamed.lay_on_hands_remaining;
+  if (streamed.concentration) next.concentration = streamed.concentration;
+  if (streamed.active_effects?.length) next.active_effects = streamed.active_effects;
   next.feature_choices = {
     ...((streamed.feature_choices || {}) as Record<string, unknown>),
     ...((fetched.feature_choices || {}) as Record<string, unknown>),
@@ -95,7 +99,7 @@ function applyPlayStreamEvent(
   if (event === 'narration' && typeof data === 'string') {
     dispatch({ type: 'appendAssistantDelta', delta: data });
   } else if (event === 'narration_replace' && typeof data === 'string') {
-    dispatch({ type: 'replaceLastAssistant', content: data });
+    return '';
   } else if (event === 'sheet' && data && typeof data === 'object' && 'character' in data) {
     const payload = data as { character?: Character };
     if (payload.character) {

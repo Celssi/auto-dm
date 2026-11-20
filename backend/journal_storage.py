@@ -288,7 +288,7 @@ def _normalize_name(name: str) -> str:
 
 
 def find_journal_entry_id(campaign_id: str, kind: str, name: str) -> str | None:
-    """Find NPC or location id by display name (case-insensitive)."""
+    """Find NPC or location id by display name or alias (case-insensitive)."""
     target = _normalize_name(name)
     if not target:
         return None
@@ -297,9 +297,57 @@ def find_journal_entry_id(campaign_id: str, kind: str, name: str) -> str | None:
         return None
     for path in folder.glob("*.json"):
         data = _read_json(path, {})
-        if _normalize_name(str(data.get("name", ""))) == target:
+        names = [str(data.get("name", ""))]
+        aliases = data.get("aliases")
+        if isinstance(aliases, list):
+            names.extend(str(item) for item in aliases)
+        if any(_normalize_name(item) == target for item in names if item):
             return data.get("id") or path.stem
     return None
+
+
+def merge_npc_rename(campaign_id: str, old_name: str, new_name: str) -> str | None:
+    """Rename an NPC in place and keep the old name as an alias. No duplicate row."""
+    new_clean = (new_name or "").strip()
+    old_clean = (old_name or "").strip()
+    if not new_clean or not old_clean or _normalize_name(old_clean) == _normalize_name(new_clean):
+        return None
+    entry_id = find_journal_entry_id(campaign_id, "npcs", old_clean)
+    if not entry_id:
+        entry_id = find_journal_entry_id(campaign_id, "npcs", new_clean)
+    if not entry_id:
+        return None
+    existing = get_campaign_npc(campaign_id, entry_id) or {}
+    aliases = [str(item).strip() for item in (existing.get("aliases") or []) if str(item).strip()]
+    previous = str(existing.get("name") or old_clean).strip()
+    if previous and _normalize_name(previous) != _normalize_name(new_clean) and previous not in aliases:
+        aliases.append(previous)
+    if old_clean not in aliases and _normalize_name(old_clean) != _normalize_name(new_clean):
+        aliases.append(old_clean)
+    save_campaign_npc(
+        campaign_id,
+        entry_id,
+        {
+            **existing,
+            "name": new_clean,
+            "aliases": aliases,
+            "created_at": existing.get("created_at"),
+        },
+    )
+    extra = find_journal_entry_id(campaign_id, "npcs", new_clean)
+    if extra and extra != entry_id:
+        other = get_campaign_npc(campaign_id, extra) or {}
+        body = str(existing.get("body") or "")
+        other_body = str(other.get("body") or "")
+        if other_body and other_body not in body:
+            body = f"{body}\n\n{other_body}".strip()
+        save_campaign_npc(
+            campaign_id,
+            entry_id,
+            {**existing, "name": new_clean, "body": body, "aliases": aliases, "created_at": existing.get("created_at")},
+        )
+        delete_campaign_npc(campaign_id, extra)
+    return entry_id
 
 
 # --- NPCs ---
@@ -330,12 +378,14 @@ def save_campaign_npc(campaign_id: str, npc_id: str | None, data: dict) -> str:
     if not npc_id:
         npc_id = _unique_id(str(data.get("name") or "npc"), existing)
     name = str(data.get("name") or npc_id).strip() or npc_id
+    aliases = [str(item).strip() for item in (data.get("aliases") or []) if str(item).strip()]
     payload = {
         "id": npc_id,
         "campaign_id": campaign_id,
         "name": name,
         "body": str(data.get("body") or "").strip(),
         "status": str(data.get("status") or "alive").strip().lower() or "alive",
+        "aliases": aliases,
         "updated_at": _now_iso(),
     }
     if data.get("created_at"):

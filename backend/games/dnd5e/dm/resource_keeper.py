@@ -36,9 +36,8 @@ _REST_REFUSAL = re.compile(
     r"rest will have to wait|no chance to rest|"
     r"(do not|don't) (take a |take the )?(short |long )?rest|"
     r"no short rest|no long rest|"
-    r"(rest|lepo).{0,48}(not possible|not applied|interrupted)|"
-    r"(not possible|not applied|interrupted).{0,48}(rest|lepo)|"
-    r"enemy .{0,80}approach|"
+    r"(short |long )?rest[:\s]+not possible|"
+    r"(short |long )?rest (is |was )?(not possible|impossible|refused)|"
     r"lepo saisi|saisi odottaa|kesken taistelun|"
     r"ei (voi |voida )?levät|ei lepoa|liian vaarallista|"
     r"taistelu(n)? (kesken|käynnissä))",
@@ -50,7 +49,9 @@ _SHORT_REST_GRANT = re.compile(
     r"after (a |the )?short rest|"
     r"(a |the )?short rest (is |was )?(complete|done|over|finished)|"
     r"an hour (passes|later)|after an hour|hour passes|feel refreshed|"
-    r"you rest\b|"
+    r"you rest\b|rest for (an |one )?hour|for an hour|"
+    r"sit for .{0,20}hour|catch your breath|take a breather|"
+    r"an hour of rest|hour of rest|"
     r"hit (?:die|dice) (spent|used|rolled)|"
     r"spent .{0,24}hit (?:die|dice)|"
     r"arcane recovery|"
@@ -139,7 +140,14 @@ _AC_FROM_NARRATION = re.compile(
     re.IGNORECASE,
 )
 _HD_REMAINING = re.compile(
-    r"\b(?:hit dice|hd)\s*(?:remaining|left|:)?\s*(\d+)\b|\b(\d+)\s*(?:hit dice|hd)\b",
+    r"(?:hit dice|hd)\s+(?:remaining|left)\s*[:=]?\s*(\d+)\b|"
+    r"(\d+)\s+(?:hit dice|hd)\s+(?:remaining|left)\b",
+    re.IGNORECASE,
+)
+_HD_UNUSED = re.compile(
+    r"(hit dice|hd).{0,24}(unused|not spent|not used)|"
+    r"(unused|not spent|not used).{0,24}(hit dice|hd)|"
+    r"no need (to spend|for) hit dice",
     re.IGNORECASE,
 )
 _MAGE_ARMOR_ACTIVE = re.compile(
@@ -254,15 +262,113 @@ def parse_ac_from_narration(dm_response: str) -> int | None:
     return None
 
 
+_CONCENTRATION_END = re.compile(
+    r"\b(concentration (ends|broken|dropped|lost)|stop concentrating|you drop concentration)\b",
+    re.IGNORECASE,
+)
+_CONCENTRATION_SPELL = re.compile(
+    r"\bconcentrat(?:e|ing|ion)\b.{0,48}\b(bless|shield of faith|hunter's mark|hex|faerie fire|"
+    r"hold person|spirit guardians|moonbeam|web|heat metal|compelled duel)\b",
+    re.IGNORECASE,
+)
+_LOH_SPEND = re.compile(
+    r"(?:lay on hands|loh).{0,40}?(?:heal|restore|spend|use|using).{0,20}?(\d+)|"
+    r"(?:heal|restore|spend|use).{0,20}?(\d+).{0,24}(?:lay on hands|loh)|"
+    r"(?:lay on hands|loh)\s+(\d+)\s*(?:points?|hp)?",
+    re.IGNORECASE,
+)
+_SAVE_DC = re.compile(r"\bdc\s*(\d+)\b", re.IGNORECASE)
+_SCENE_MOVE = re.compile(
+    r"\byou (?:step|move|walk|enter|leave|advance|retreat|climb|cross|push (?:in|inside|through))"
+    r".{0,80}",
+    re.IGNORECASE,
+)
+
+
+def parse_concentration_from_narration(dm_response: str, current: str = "") -> str | None:
+    text = dm_response or ""
+    if not text.strip():
+        return None
+    if _CONCENTRATION_END.search(text):
+        return ""
+    found = None
+    for match in _CONCENTRATION_SPELL.finditer(text):
+        found = match.group(1).strip().title()
+    return found
+
+
+def parse_lay_on_hands_spend(dm_response: str, remaining: int) -> int | None:
+    if remaining < 0:
+        return None
+    found = None
+    for match in _LOH_SPEND.finditer(dm_response or ""):
+        for group in match.groups():
+            if group:
+                found = int(group)
+    if found is None:
+        return None
+    return max(0, remaining - found)
+
+
+def merge_active_effects(
+    current: list,
+    conditions: list[str],
+    dm_response: str,
+) -> list[dict]:
+    """Keep a fixed save DC per ongoing condition; do not invent a new DC."""
+    conds = [str(c).strip() for c in conditions if str(c).strip()]
+    cond_keys = {c.lower() for c in conds}
+    by_name: dict[str, dict] = {}
+    for item in current or []:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        if name:
+            by_name[name.lower()] = dict(item)
+    dcs = [int(m.group(1)) for m in _SAVE_DC.finditer(dm_response or "")]
+    latest_dc = dcs[-1] if dcs else None
+    out: list[dict] = []
+    for cond in conds:
+        key = cond.lower()
+        prev = by_name.get(key) or {}
+        dc = prev.get("save_dc")
+        if not isinstance(dc, int) and latest_dc is not None and key in (dm_response or "").lower():
+            dc = latest_dc
+        out.append(
+            {
+                "name": str(prev.get("name") or cond),
+                "source": str(prev.get("source") or "").strip(),
+                "save_dc": dc if isinstance(dc, int) else None,
+            }
+        )
+    return out
+
+
+def parse_scene_position(dm_response: str, current: str = "") -> str:
+    text = (dm_response or "").strip()
+    if not text:
+        return current
+    match = None
+    for found in _SCENE_MOVE.finditer(text):
+        match = found
+    if not match:
+        return current
+    clause = re.sub(r"\s+", " ", match.group(0)).strip(" .")
+    return clause[:120] or current
+
+
 def parse_hit_dice_remaining(dm_response: str, *, hit_dice_max: int) -> int | None:
     if hit_dice_max <= 0:
         return None
     text = dm_response or ""
+    if _HD_UNUSED.search(text):
+        return hit_dice_max
+    found: int | None = None
     for match in _HD_REMAINING.finditer(text):
         remaining = int(match.group(1) or match.group(2) or 0)
         if 0 <= remaining <= hit_dice_max:
-            return remaining
-    return None
+            found = remaining
+    return found
 
 
 _MAGE_ARMOR_CAST = re.compile(
@@ -331,8 +437,9 @@ def parse_conditions_from_narration(
         token = cond.lower()
         cleared = bool(
             re.search(
-                rf"\b(?:no longer|not|isn't|is not|aren't|are not)\s+{token}\b|"
-                rf"\b{token}\s+ended\b",
+                rf"\b(you|you're|you are|your)\b.{{0,40}}(?:no longer|not|aren't|are not)\s+{token}\b|"
+                rf"\b(?:the )?{token}(?: condition)?\s+ended\b|"
+                rf"\bno longer\s+{token}\b",
                 lower,
             )
         )
@@ -396,7 +503,7 @@ def overlay_live_resources(character: dict, dm_response: str) -> dict:
         if added:
             logs.append("Conditions: " + ", ".join(added) + ".")
     remaining = parse_hit_dice_remaining(dm_response, hit_dice_max=char.hit_dice_max)
-    if reconcile:
+    if reconcile and not _HD_UNUSED.search(text):
         remaining = int(reconcile.group(4))
     if remaining is not None:
         spent = max(0, char.hit_dice_max - remaining)
@@ -421,6 +528,21 @@ def overlay_live_resources(character: dict, dm_response: str) -> dict:
         updates["ac"] = ac_from_text
     if updates.get("feature_choices") is None and "ac" in updates:
         updates["feature_choices"] = dict(char.feature_choices or {})
+    conc = parse_concentration_from_narration(text, char.concentration)
+    if conc is not None and conc != (char.concentration or ""):
+        updates["concentration"] = conc
+        logs.append(f"Concentration: {conc or 'none'}.")
+    loh = parse_lay_on_hands_spend(text, char.lay_on_hands_remaining)
+    if loh is not None and loh != char.lay_on_hands_remaining:
+        updates["lay_on_hands_remaining"] = loh
+        logs.append(f"Lay on Hands {char.lay_on_hands_remaining} -> {loh}.")
+    effects = merge_active_effects(
+        list(character.get("active_effects") or char.active_effects or []),
+        list(updates.get("conditions") or character.get("conditions") or char.conditions or []),
+        text,
+    )
+    if effects != list(character.get("active_effects") or char.active_effects or []):
+        updates["active_effects"] = effects
     updates["_logs"] = logs
     return updates
 
@@ -602,6 +724,14 @@ def apply_pending_rest(
     if combat_active:
         return {}, ["Rest not applied: combat is still underway."]
     granted = rest_granted(dm_response, kind=kind)
+    if not granted and not rest_refused(dm_response):
+        granted = bool(
+            re.search(
+                r"\b(short rest|long rest|you rest|an hour|catch your breath|take a breather)\b",
+                dm_response or "",
+                re.IGNORECASE,
+            )
+        )
     if rest_refused(dm_response) or not granted:
         reason = "the DM did not grant a rest"
         if rest_refused(dm_response):

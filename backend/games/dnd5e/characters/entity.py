@@ -7,6 +7,16 @@ from typing import Any
 
 ABILITY_KEYS = ("str", "dex", "con", "int", "wis", "cha")
 
+
+def remaining_int(value: Any, default: int = -1) -> int:
+    """Parse a remaining-pool integer. 0 is a real value; only None/blank use default."""
+    if value is None or value == "":
+        return default
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
 DEFAULT_ABILITY_SCORES: dict[str, int] = {k: 10 for k in ABILITY_KEYS}
 
 CURRENCY_KEYS = ("cp", "sp", "ep", "gp", "pp")
@@ -88,6 +98,7 @@ class Dnd5eCharacter:
     death_save_failures: int = 0
     exhaustion: int = 0
     conditions: list[str] = field(default_factory=list)
+    active_effects: list[dict[str, Any]] = field(default_factory=list)
     concentration: str = ""
     wild_shape_uses: int = 0
     luck_points_remaining: int = -1
@@ -207,6 +218,7 @@ class Dnd5eCharacter:
         self.death_save_failures = max(0, min(3, int(self.death_save_failures or 0)))
         self.exhaustion = max(0, min(6, int(self.exhaustion or 0)))
         self.conditions = _clean_list(self.conditions, 12)
+        self.active_effects = _clean_active_effects(self.active_effects)
         self.apply_exhaustion_state()
         self.concentration = str(self.concentration or "").strip()[:80]
         self.wild_shape_uses = max(0, min(10, int(self.wild_shape_uses or 0)))
@@ -215,10 +227,10 @@ class Dnd5eCharacter:
         lp_max = luck_points_max(self)
         if lp_max <= 0:
             self.luck_points_remaining = 0
-        elif int(self.luck_points_remaining or -1) < 0:
+        elif remaining_int(self.luck_points_remaining) < 0:
             self.luck_points_remaining = lp_max
         else:
-            self.luck_points_remaining = max(0, min(lp_max, int(self.luck_points_remaining)))
+            self.luck_points_remaining = max(0, min(lp_max, remaining_int(self.luck_points_remaining, 0)))
         from backend.games.dnd5e.characters.class_resources import (
             sync_lay_on_hands,
             sync_second_wind_uses,
@@ -321,6 +333,38 @@ def _clean_feat_list(raw: Any, limit: int) -> list[str]:
             seen.add(key)
             out.append(s)
         if len(out) >= limit:
+            break
+    return out
+
+
+def _clean_active_effects(raw: Any) -> list[dict[str, Any]]:
+    if not isinstance(raw, list):
+        return []
+    out: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        name = str(item.get("name") or "").strip()
+        if not name:
+            continue
+        key = name.lower()
+        if key in seen:
+            continue
+        seen.add(key)
+        dc = item.get("save_dc")
+        try:
+            save_dc = int(dc) if dc not in (None, "") else None
+        except (TypeError, ValueError):
+            save_dc = None
+        out.append(
+            {
+                "name": name,
+                "source": str(item.get("source") or "").strip()[:80],
+                "save_dc": save_dc,
+            }
+        )
+        if len(out) >= 8:
             break
     return out
 
@@ -449,7 +493,8 @@ def character_from_dict(data: dict[str, Any] | None) -> Dnd5eCharacter:
         known_spells=_clean_list(data.get("known_spells"), 40),
         spellbook=_clean_list(data.get("spellbook"), 40),
         expertise=_clean_list(data.get("expertise"), 12),
-        lay_on_hands_remaining=int(data.get("lay_on_hands_remaining", -1) or -1),
+        lay_on_hands_remaining=remaining_int(data.get("lay_on_hands_remaining", -1)),
+        active_effects=_clean_active_effects(data.get("active_effects")),
         spell_slots=dict(slots) if isinstance(slots, dict) else {},
         heroic_inspiration=bool(data.get("heroic_inspiration", False)),
         armor=str(data.get("armor", "none") or "none"),
@@ -468,8 +513,8 @@ def character_from_dict(data: dict[str, Any] | None) -> Dnd5eCharacter:
         conditions=_clean_list(data.get("conditions"), 12),
         concentration=str(data.get("concentration", "") or ""),
         wild_shape_uses=int(data.get("wild_shape_uses", 0) or 0),
-        luck_points_remaining=int(data.get("luck_points_remaining", -1) or -1),
-        second_wind_remaining=int(data.get("second_wind_remaining", -1) or -1),
+        luck_points_remaining=remaining_int(data.get("luck_points_remaining", -1)),
+        second_wind_remaining=remaining_int(data.get("second_wind_remaining", -1)),
         savage_attacker_used_this_turn=bool(data.get("savage_attacker_used_this_turn", False)),
         campaign_setting=str(data.get("campaign_setting", "freeform") or "freeform"),
         campaign_notes=str(data.get("campaign_notes", "") or ""),
@@ -477,7 +522,7 @@ def character_from_dict(data: dict[str, Any] | None) -> Dnd5eCharacter:
         classes=list(data.get("classes") or []),
     )
     char.clamp()
-    if "luck_points_remaining" not in data or int(data.get("luck_points_remaining", -1) or -1) < 0:
+    if "luck_points_remaining" not in data or remaining_int(data.get("luck_points_remaining", -1)) < 0:
         from backend.games.dnd5e.characters.origin_feats import luck_points_max
 
         char.luck_points_remaining = luck_points_max(char)
@@ -550,6 +595,7 @@ def character_to_dict(char: Dnd5eCharacter) -> dict[str, Any]:
         "death_save_failures": char.death_save_failures,
         "exhaustion": char.exhaustion,
         "conditions": list(char.conditions),
+        "active_effects": list(char.active_effects),
         "concentration": char.concentration,
         "wild_shape_uses": char.wild_shape_uses,
         "luck_points_remaining": char.luck_points_remaining,
@@ -586,6 +632,26 @@ def format_summary(char: Dnd5eCharacter) -> str:
     if char.ac:
         parts.append(f"AC {char.ac}")
     return " · ".join(parts)
+
+
+def _format_active_effects(effects: list[dict[str, Any]] | None) -> str:
+    if not effects:
+        return "(none). Keep each save DC unchanged until the effect ends."
+    parts: list[str] = []
+    for item in effects:
+        name = str(item.get("name") or "").strip()
+        if not name:
+            continue
+        dc = item.get("save_dc")
+        source = str(item.get("source") or "").strip()
+        bit = name
+        if isinstance(dc, int):
+            bit += f" DC {dc}"
+        if source:
+            bit += f" ({source})"
+        parts.append(bit)
+    joined = ", ".join(parts) or "(none)"
+    return f"{joined}. Do not change a listed save DC."
 
 
 def format_for_prompt(
@@ -716,7 +782,9 @@ def format_for_prompt(
             else ""
         ),
         f"- Conditions: {', '.join(char.conditions) or '(none)'}",
+        f"- Active effects: {_format_active_effects(char.active_effects)}",
         f"- Concentration: {char.concentration or '(none)'}",
+        f"- Hit Dice remaining: {char.hit_dice_max - char.hit_dice_spent}/{char.hit_dice_max} (d{char.hit_die})",
     ]
     if ws_max > 0:
         lines.append(f"- Wild Shape uses: {char.wild_shape_uses}/{ws_max}")

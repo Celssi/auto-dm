@@ -17,7 +17,7 @@ def test_dnd_graph_has_combat_and_narrator_dm():
     assert "combat_manager_pre" in names
     assert "narrator_dm" in names
     assert "story_director_brief" in names
-    assert "continuity_guard" in names
+    assert "continuity_guard" not in names
     assert "resource_keeper" in names
 
 

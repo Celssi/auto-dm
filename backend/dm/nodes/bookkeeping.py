@@ -53,7 +53,17 @@ def character_keeper_node(state: DMState) -> DMState:
 
     if resolve_game_id(after_dict) == "dnd5e":
         after_dict = preserve_live_resources(char_dict, after_dict)
-        for key in ("hp", "ac", "hit_dice_spent", "spell_slots", "feature_choices", "conditions"):
+        for key in (
+            "hp",
+            "ac",
+            "hit_dice_spent",
+            "spell_slots",
+            "feature_choices",
+            "conditions",
+            "concentration",
+            "lay_on_hands_remaining",
+            "active_effects",
+        ):
             if key in updates:
                 after_dict[key] = updates[key] if key != "feature_choices" else {
                     **dict(after_dict.get("feature_choices") or {}),
@@ -67,6 +77,12 @@ def character_keeper_node(state: DMState) -> DMState:
             after_dict["hit_dice_spent"] = updates["hit_dice_spent"]
         if "conditions" in updates:
             after_dict["conditions"] = list(updates.get("conditions") or [])
+        if "concentration" in updates:
+            after_dict["concentration"] = updates.get("concentration") or ""
+        if updates.get("lay_on_hands_remaining") is not None:
+            after_dict["lay_on_hands_remaining"] = updates["lay_on_hands_remaining"]
+        if "active_effects" in updates:
+            after_dict["active_effects"] = list(updates.get("active_effects") or [])
     after_slice = character_audit_slice(after_dict)
     diff = diff_character_slices(before_slice, after_slice)
     if diff:
@@ -197,3 +213,33 @@ def _needs_journal_keeper(state: DMState) -> bool:
         return False
     names = re.findall(r"\b[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?\b", dm_response)
     return len(names) >= 2
+
+
+def run_deferred_bookkeeping(payload: dict) -> None:
+    """Journal, chronicle, and story update after the player already has the shown reply."""
+    state: DMState = {
+        "session_id": payload.get("session_id") or "",
+        "user_message": payload.get("user_message") or "",
+        "response": payload.get("response") or "",
+        "narrative": payload.get("response") or "",
+        "character": payload.get("character") or {},
+        "adventure": payload.get("adventure") or {},
+        "shortcut_result": payload.get("shortcut_result") or {},
+        "scribe_log_entry": payload.get("scribe_log_entry") or "",
+        "story_progress": payload.get("story_progress"),
+        "lonelog_lines": payload.get("lonelog_lines") or [],
+    }
+    try:
+        chronicler_node(state)
+    except Exception:
+        pass
+    try:
+        from backend.games.dnd5e.dm.agents.nodes import story_director_update_node
+
+        story_director_update_node(state)
+    except Exception:
+        pass
+    try:
+        journal_keeper_node(state)
+    except Exception:
+        pass

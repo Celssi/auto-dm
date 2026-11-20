@@ -35,9 +35,17 @@ def stream_dm_turn(
                     user_message,
                     precomputed_shortcut=precomputed_shortcut,
                 )
-            if precomputed_shortcut:
-                result = {**result, "shortcut": precomputed_shortcut}
-            emit("done", result)
+                deferred = result.pop("_deferred", None) if isinstance(result, dict) else None
+                if precomputed_shortcut:
+                    result = {**result, "shortcut": precomputed_shortcut}
+                emit("done", result)
+                if deferred:
+                    try:
+                        from backend.dm.nodes.bookkeeping import run_deferred_bookkeeping
+
+                        run_deferred_bookkeeping(deferred)
+                    except Exception:
+                        pass
         except Exception as exc:
             from backend.dm.errors import friendly_dm_error
 
