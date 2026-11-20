@@ -16,13 +16,14 @@ from backend.games.registry import get_game, resolve_game_id
 from backend.llm import ChatProvider
 from backend.session_locks import session_lock
 from backend.storage import (
+    LIVE_CHARACTER_KEYS,
     append_session_log,
     get_adventure,
     get_character,
     get_session,
+    patch_character,
+    persist_shown_reply,
     persist_user_message,
-    save_character,
-    save_session_messages,
 )
 
 
@@ -111,23 +112,25 @@ def _run_dm_turn_unlocked(
         result = get_dm_graph(game_id).invoke(state, config=run_config or {})
     response = result.get("response", "")
     post_events = list(result.get("combat_events") or [])
-    all_combat_lines = pre_combat_events + post_events
-    if all_combat_lines:
-        combat_block = "\n\n".join(all_combat_lines)
-        response = f"{combat_block}\n\n{response}" if response.strip() else combat_block
 
     sources = result.get("rules_sources") or []
     updated_char = result.get("character") or char
-    if updated_char != char:
-        save_character(character_id, updated_char)
+
+    disk_char = get_character(character_id) or {}
+    live_patch = {}
+    for key in LIVE_CHARACTER_KEYS:
+        if updated_char.get(key) != disk_char.get(key) and key in (updated_char or {}):
+            live_patch[key] = updated_char.get(key)
+    if live_patch:
+        updated_char = patch_character(character_id, live_patch)
 
     disk = list((get_session(session_id) or {}).get("messages") or [])
     if disk and disk[-1].get("role") == "assistant":
         response = str(disk[-1].get("content") or response)
         messages = disk
     else:
-        messages.append({"role": "assistant", "content": response})
-        save_session_messages(session_id, messages)
+        persist_shown_reply(session_id, user_message, response)
+        messages = list((get_session(session_id) or {}).get("messages") or [])
     for line in pre_combat_events + post_events:
         append_session_log(session_id, format_mechanical(line))
 

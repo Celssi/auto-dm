@@ -716,7 +716,7 @@ function PlayChatInput({
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSend()}
-          placeholder={loading ? 'Queue the next message…' : 'What do you do?'}
+          placeholder={loading || sheetUpdating ? 'Queue the next message…' : 'What do you do?'}
           aria-label="Message to the DM"
         />
         <button
@@ -725,14 +725,14 @@ function PlayChatInput({
           onClick={onSend}
           disabled={!input.trim()}
         >
-          {loading ? 'Queue' : 'Send'}
+          {loading || sheetUpdating ? 'Queue' : 'Send'}
         </button>
       </div>
       {(loading || queuedCount > 0) && (
         <p className="text-xs text-muted">
           {loading
             ? 'The DM is still writing. You can queue the next message.'
-            : 'Sending the queued message.'}
+            : 'Finishing the last reply. Your message is queued.'}
           {queuedCount > 0 ? ` ${queuedCount} waiting.` : ''}
         </p>
       )}

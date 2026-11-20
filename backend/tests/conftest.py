@@ -17,6 +17,7 @@ def isolated_saves(tmp_path: Path, monkeypatch: pytest.MonkeyPatch):
     from backend.saves_paths import configure_saves_root
 
     configure_saves_root(tmp_path)
+    monkeypatch.setenv("AUTO_DM_BUCKET", "")
     for sub in ("characters", "adventures", "sessions", "campaigns"):
         (tmp_path / sub).mkdir(parents=True, exist_ok=True)
     (tmp_path / "characters" / "roster.json").write_text("[]\n", encoding="utf-8")

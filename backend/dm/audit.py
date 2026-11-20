@@ -121,7 +121,29 @@ def format_audit_summary(event: dict[str, Any]) -> str:
 
     if etype == "rest":
         kind = detail.get("kind", "rest")
-        return str(kind).replace("_", " ").title()
+        dice = detail.get("dice_to_spend")
+        label = str(kind).replace("_", " ").title()
+        if dice:
+            return f"{label} ({dice} Hit Dice)"
+        return label
+
+    if etype == "lay_on_hands":
+        spent = detail.get("spent")
+        before = detail.get("before")
+        after = detail.get("after")
+        if before is not None and after is not None:
+            return f"Lay on Hands {before} -> {after}"
+        return f"Lay on Hands spent {spent}"
+
+    if etype == "condition":
+        name = detail.get("name") or "Condition"
+        action = detail.get("action") or "add"
+        dc = detail.get("save_dc")
+        if action == "remove":
+            return f"{name} ended"
+        if isinstance(dc, int):
+            return f"{name} save DC {dc}"
+        return f"{name} gained"
 
     if etype == "combat_attack":
         hit = detail.get("hit")

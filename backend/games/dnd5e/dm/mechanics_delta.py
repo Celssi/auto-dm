@@ -151,7 +151,11 @@ Rules for the block:
 - resources: lay_on_hands is points spent this turn (0 if none). Never recap an older spend.
 - concentration: start with the spell name, or end when it drops. none if unchanged.
 - rest: long, short, interrupted, or none. Interrupted long rest uses short-rest benefits only.
-  Do not mark long if the rest was interrupted.
+  Do not mark long if the rest was interrupted. Do not roll Hit Dice in the visible prose;
+  set rest.hit_dice_spent to the number of dice spent (usually 1). The server rolls once.
+- spell_casts: required whenever a leveled spell is cast, including Bless. Starting
+  concentration on a leveled spell must include a matching spell_casts entry so the slot
+  is spent. Cantrips and refused casts do not spend slots.
 - npcs: named people or creatures introduced, renamed, or updated. Never list rules terms,
   feats, spells, conditions, or action phrases (Bless, Savage Attacker, Disadvantage, Grab X).
 - reaction_prompt: if the player could spend a reaction (opportunity attack, Shield, Uncanny
@@ -342,12 +346,21 @@ def apply_mechanics_delta(
         logs.append("Rest not applied: combat is still underway.")
         rest_kind = "none"
         rest_blocked = True
+    if (
+        rest_kind == "none"
+        and pending_kind in {"short", "long"}
+        and "rest" not in refused
+        and not rest_blocked
+    ):
+        rest_kind = "interrupted"
 
+    rest_applied = False
     if rest_kind == "long" and "rest" not in refused:
         from backend.games.dnd5e.characters.character_builder import long_rest_recover
 
         rest = long_rest_recover(char)
         logs.append(str(rest.get("summary") or "Long rest."))
+        rest_applied = True
     elif rest_kind in {"short", "interrupted"} and "rest" not in refused:
         from backend.games.dnd5e.characters.character_builder import apply_short_rest
 
@@ -358,12 +371,14 @@ def apply_mechanics_delta(
         if char.hp >= char.max_hp:
             dice = 0
         rest = apply_short_rest(char, dice_to_spend=dice)
-        label = "Interrupted rest (short-rest benefits)." if rest_kind == "interrupted" else str(
-            rest.get("summary") or "Short rest."
-        )
-        logs.append(label)
-    elif pending_kind in {"short", "long"} and rest_kind == "none" and not rest_blocked:
-        logs.append("Rest not applied: the mechanics delta did not grant a rest.")
+        summary = str(rest.get("summary") or "Short rest.")
+        if rest_kind == "interrupted":
+            logs.append("Interrupted rest (short-rest benefits).")
+            if summary:
+                logs.append(summary)
+        else:
+            logs.append(summary)
+        rest_applied = True
 
     old_hp = int(char.hp or 0)
     max_hp = int(char.max_hp or 0)
@@ -371,8 +386,12 @@ def apply_mechanics_delta(
         amount = int(change.amount or 0)
         if amount == 0:
             continue
-        nxt = max(0, min(max_hp, int(char.hp or 0) + amount))
         source = str(change.source or "").strip() or "unspecified"
+        if rest_applied and amount > 0:
+            src = source.lower()
+            if any(token in src for token in ("hit die", "hit dice", "short rest", "rest")):
+                continue
+        nxt = max(0, min(max_hp, int(char.hp or 0) + amount))
         if amount < 0:
             logs.append(
                 f"Took {old_hp - nxt} damage ({source}) (HP {old_hp} -> {nxt}/{max_hp})."
@@ -410,6 +429,20 @@ def apply_mechanics_delta(
         effects.append(row)
         if isinstance(dc, int):
             logs.append(f"{canonical} save DC {dc} ({source or 'source unset'}).")
+        from backend.dm.audit import record_audit
+
+        record_audit(
+            {
+                "event": "condition",
+                "source": "mechanics_delta",
+                "detail": {
+                    "name": canonical,
+                    "action": change.action,
+                    "save_dc": dc if isinstance(dc, int) else None,
+                    "source": source,
+                },
+            }
+        )
     char.conditions = conditions
     char.active_effects = effects
 
@@ -428,6 +461,19 @@ def apply_mechanics_delta(
         before_loh = int(char.lay_on_hands_remaining)
         char.lay_on_hands_remaining = max(0, before_loh - spend_loh)
         logs.append(f"Lay on Hands {before_loh} -> {char.lay_on_hands_remaining}.")
+        from backend.dm.audit import record_audit
+
+        record_audit(
+            {
+                "event": "lay_on_hands",
+                "source": "mechanics_delta",
+                "detail": {
+                    "spent": spend_loh,
+                    "before": before_loh,
+                    "after": int(char.lay_on_hands_remaining),
+                },
+            }
+        )
 
     spend_hd = max(0, int(parsed.resources.hit_dice or 0))
     if spend_hd and rest_kind == "none":
@@ -484,7 +530,11 @@ def apply_mechanics_delta(
     char.inventory = inventory
 
     if "cast" not in refused:
-        from backend.games.dnd5e.characters.spell_resources import apply_spell_cast
+        from backend.games.dnd5e.characters.spell_resources import (
+            apply_spell_cast,
+            normalize_spell_name,
+            spell_level_for,
+        )
 
         casts = list(parsed.spell_casts or [])
         if pending_cast and not casts:
@@ -498,6 +548,15 @@ def apply_mechanics_delta(
                         free_use=bool((pending_cast or {}).get("free_use")),
                     )
                 ]
+        conc_spell = str(parsed.concentration.spell or "").strip()
+        if parsed.concentration.action == "start" and conc_spell:
+            already = {
+                normalize_spell_name(item.spell_name) for item in casts if item.spell_name
+            }
+            if normalize_spell_name(conc_spell) not in already:
+                level = spell_level_for(char, conc_spell)
+                if level and level > 0:
+                    casts.append(SpellCastDelta(spell_name=conc_spell, slot_level=int(level)))
         for cast in casts:
             if cast.refused or not str(cast.spell_name or "").strip():
                 if cast.refused:

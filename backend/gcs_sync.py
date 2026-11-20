@@ -212,6 +212,39 @@ def download_pdf(relative: str, dest: Path) -> Path:
     return dest
 
 
+def refresh_saves_path(path: Path) -> bool:
+    """Download from Cloud Storage when the remote object is newer or larger."""
+    if not bucket_enabled() or not os.environ.get("K_SERVICE"):
+        return False
+    rel = _relative_to(path, SAVES_DIR)
+    if not rel:
+        return False
+    bucket = _bucket()
+    if bucket is None:
+        return False
+    blob = bucket.blob(f"{SAVES_PREFIX}{rel}")
+    try:
+        if not blob.exists():
+            return False
+        blob.reload()
+    except Exception:
+        logger.debug("Could not refresh gs://%s/%s%s", data_bucket_name(), SAVES_PREFIX, rel)
+        return False
+    remote_size = int(blob.size or 0)
+    local_size = path.stat().st_size if path.is_file() else 0
+    remote_updated = blob.updated.timestamp() if blob.updated else 0
+    local_mtime = path.stat().st_mtime if path.is_file() else 0
+    suffix = path.suffix.lower()
+    if suffix in {".jsonl", ".md"}:
+        if remote_size <= local_size:
+            return False
+    elif path.is_file() and remote_size == local_size and remote_updated <= local_mtime + 0.5:
+        return False
+    path.parent.mkdir(parents=True, exist_ok=True)
+    blob.download_to_filename(str(path))
+    return True
+
+
 def upload_saves_path(path: Path) -> None:
     if not bucket_enabled():
         return

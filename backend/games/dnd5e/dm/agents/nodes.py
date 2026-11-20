@@ -231,10 +231,11 @@ def combat_manager_pre_node(state: DMState) -> DMState:
     if char_dict is not state.get("character"):
         updates["character"] = char_dict
         cid = char_dict.get("id")
-        if cid:
-            from backend.storage import save_character
+        before = state.get("character") or {}
+        if cid and char_dict.get("hp") != before.get("hp"):
+            from backend.storage import patch_character
 
-            save_character(cid, char_dict)
+            patch_character(cid, {"hp": char_dict.get("hp"), "ac": char_dict.get("ac")})
     return updates
 
 
@@ -620,7 +621,10 @@ def resource_keeper_node(state: DMState) -> DMState:
         session_id = state.get("session_id") or ""
         loaded = load_combat_state(session_id) if session_id else None
         combat_raw = loaded.model_dump() if loaded else {}
-    from backend.games.dnd5e.dm.resource_keeper import combat_blocks_rest
+    from backend.games.dnd5e.dm.resource_keeper import combat_blocks_rest, rest_refused
+
+    if pending_rest and rest_refused(dm_response):
+        return {"resource_log": ["Rest not applied: the DM refused the rest."]}
 
     updates, logs = apply_mechanics_delta(
         state.get("character") or {},
@@ -662,10 +666,17 @@ def combat_manager_post_node(state: DMState) -> DMState:
         result["character"] = char_dict
         cid = char_dict.get("id")
         if cid:
-            from backend.storage import save_character
+            from backend.storage import patch_character
             from backend.dm.narration_stream import emit_sheet
 
-            save_character(cid, char_dict)
+            live = {}
+            if char_dict.get("hp") != before_hp:
+                live["hp"] = char_dict.get("hp")
+            if char_dict.get("ac") != (state.get("character") or {}).get("ac"):
+                live["ac"] = char_dict.get("ac")
+            if live:
+                char_dict = patch_character(cid, live)
+                result["character"] = char_dict
             emit_sheet({"character": char_dict})
     if events:
         result["combat_events"] = list(state.get("combat_events") or []) + events
