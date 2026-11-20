@@ -1,4 +1,4 @@
-import { useCallback, useRef, type Dispatch, type MutableRefObject } from 'react';
+import { useCallback, useEffect, useRef, type Dispatch, type MutableRefObject } from 'react';
 import { useKeepAlive } from '../../hooks/useKeepAlive';
 import { useNavigate } from 'react-router-dom';
 import { api, type ChatResult } from '../../api/client';
@@ -91,7 +91,6 @@ function applyPlayStreamEvent(
     dispatch({
       type: 'set',
       patch: {
-        loading: false,
         sheetUpdating: !payload.character,
         ...(payload.character ? { character: payload.character } : {}),
       },
@@ -105,6 +104,39 @@ function applyPlayStreamEvent(
     return streamErrorDetail(data);
   }
   return '';
+}
+
+type QueuedSend = { text: string; shown: boolean };
+
+function chatQueueKey(sessionId: string) {
+  return `autodm:chat-queue:${sessionId}`;
+}
+
+function readPersistedQueue(sessionId: string): QueuedSend[] {
+  if (!sessionId) return [];
+  try {
+    const raw = sessionStorage.getItem(chatQueueKey(sessionId));
+    const parsed = JSON.parse(raw || '[]');
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .map((row) => ({
+        text: String((row as QueuedSend)?.text || '').trim(),
+        shown: Boolean((row as QueuedSend)?.shown),
+      }))
+      .filter((row) => row.text);
+  } catch {
+    return [];
+  }
+}
+
+function writePersistedQueue(sessionId: string, items: QueuedSend[]) {
+  if (!sessionId) return;
+  try {
+    if (!items.length) sessionStorage.removeItem(chatQueueKey(sessionId));
+    else sessionStorage.setItem(chatQueueKey(sessionId), JSON.stringify(items));
+  } catch {
+    // quota / private mode
+  }
 }
 
 const SHORTCUT_LABELS: Record<string, string> = {
@@ -125,8 +157,25 @@ export function usePlayPageSession(
   const { setGameId } = useGame();
   useKeepAlive(state.loading || state.bootstrapping);
   const inFlightRef = useRef(false);
-  const pendingSendsRef = useRef<{ text: string; shown: boolean }[]>([]);
+  const pendingSendsRef = useRef<QueuedSend[]>([]);
   const lastSheetRef = useRef<Character | null>(null);
+  const sendMessageRef = useRef<(msg: string, opts?: { alreadyShown?: boolean }) => void>(() => {});
+  const restoredQueueRef = useRef('');
+
+  const persistQueue = (sessionId: string) => {
+    writePersistedQueue(sessionId, pendingSendsRef.current);
+  };
+
+  const enqueueSend = (sessionId: string, item: QueuedSend) => {
+    pendingSendsRef.current.push(item);
+    persistQueue(sessionId);
+  };
+
+  const shiftQueue = (sessionId: string): QueuedSend | undefined => {
+    const next = pendingSendsRef.current.shift();
+    persistQueue(sessionId);
+    return next;
+  };
 
   const refreshSessionLogs = useCallback(
     async (sessionId: string) => {
@@ -415,7 +464,7 @@ export function usePlayPageSession(
       if (!opts?.alreadyShown) {
         dispatch({ type: 'appendMessages', messages: [{ role: 'user', content: text }] });
       }
-      pendingSendsRef.current.push({ text, shown: true });
+      enqueueSend(sessionId, { text, shown: true });
       dispatch({ type: 'set', patch: { input: '', queuedCount: pendingSendsRef.current.length } });
       return;
     }
@@ -481,13 +530,31 @@ export function usePlayPageSession(
         type: 'set',
         patch: { loading: false, sheetUpdating: false, queuedCount: pendingSendsRef.current.length },
       });
-      const next = pendingSendsRef.current.shift();
+      const next = shiftQueue(sessionId);
       if (next) {
         dispatch({ type: 'set', patch: { queuedCount: pendingSendsRef.current.length } });
         void sendMessage(next.text, { alreadyShown: next.shown });
       }
     }
   };
+
+  sendMessageRef.current = sendMessage;
+
+  useEffect(() => {
+    const sessionId = state.sessionId;
+    if (!state.sessionLoaded || !sessionId) return;
+    if (restoredQueueRef.current === sessionId) return;
+    restoredQueueRef.current = sessionId;
+    const queued = readPersistedQueue(sessionId);
+    if (!queued.length) return;
+    pendingSendsRef.current = queued;
+    dispatch({ type: 'set', patch: { queuedCount: queued.length } });
+    if (inFlightRef.current) return;
+    const next = shiftQueue(sessionId);
+    if (!next) return;
+    dispatch({ type: 'set', patch: { queuedCount: pendingSendsRef.current.length } });
+    void sendMessageRef.current(next.text, { alreadyShown: false });
+  }, [state.sessionLoaded, state.sessionId, dispatch]);
 
   const runOracle = async (id: string) => {
     if (!state.sessionId) return;
@@ -515,8 +582,21 @@ export function usePlayPageSession(
       return;
     }
     if (id === 'cast_spell') {
-      if (!state.character) return;
+      if (!state.sessionLoaded || !state.character) {
+        dispatch({
+          type: 'set',
+          patch: { chatError: 'Wait for the character sheet to finish loading before casting.' },
+        });
+        return;
+      }
       const spells = listCastableSpells(state.character);
+      if (!spells.length) {
+        dispatch({
+          type: 'set',
+          patch: { chatError: 'No prepared or Magic Initiate spells are loaded yet.' },
+        });
+        return;
+      }
       const first = spells[0];
       const modal: SpellCastModalState = {
         spellName: first?.name || '',
@@ -529,6 +609,7 @@ export function usePlayPageSession(
       return;
     }
     if (!DICE_SHORTCUTS.has(id) || !state.character) {
+      if (id === 'cast_spell') return;
       sendMessage(`/${id}`);
       return;
     }
@@ -709,7 +790,7 @@ export function usePlayPageSession(
     } finally {
       inFlightRef.current = false;
       dispatch({ type: 'set', patch: { queuedCount: pendingSendsRef.current.length } });
-      const next = pendingSendsRef.current.shift();
+      const next = state.sessionId ? shiftQueue(state.sessionId) : pendingSendsRef.current.shift();
       if (next) {
         dispatch({ type: 'set', patch: { queuedCount: pendingSendsRef.current.length } });
         void sendMessage(next.text, { alreadyShown: next.shown });
@@ -793,7 +874,7 @@ export function usePlayPageSession(
         type: 'set',
         patch: { loading: false, sheetUpdating: false, queuedCount: pendingSendsRef.current.length },
       });
-      const next = pendingSendsRef.current.shift();
+      const next = state.sessionId ? shiftQueue(state.sessionId) : pendingSendsRef.current.shift();
       if (next) {
         dispatch({ type: 'set', patch: { queuedCount: pendingSendsRef.current.length } });
         void sendMessage(next.text, { alreadyShown: next.shown });

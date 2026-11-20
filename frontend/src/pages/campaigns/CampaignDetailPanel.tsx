@@ -87,7 +87,8 @@ export default function CampaignDetailPanel({
       <LongJobOverlay
         active={state.bootstrapping}
         title="Generating adventure"
-        message="Keep this tab open. Heartbeats keep Cloud Run from scaling to zero."
+        message="Keep this tab open. Progress updates while the adventure is built."
+        progress
       />
       <CampaignDetailHeader
         campaign={campaign}
@@ -488,8 +489,8 @@ function NewAdventureForm({
 }) {
   const submitLabel = bootstrapping
     ? adventureForm.auto_continue
-      ? 'Inventing next adventure… (30-60 s)'
-      : 'Generating adventure… (30-60 s)'
+      ? 'Inventing next adventure…'
+      : 'Generating adventure…'
     : adventureForm.auto_continue
       ? 'Invent & play'
       : 'Generate & play';

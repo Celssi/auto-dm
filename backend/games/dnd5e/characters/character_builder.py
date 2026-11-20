@@ -692,13 +692,13 @@ def rebuild_character(char: Dnd5eCharacter, *, recompute_hp: bool = False) -> Dn
     # scores by applying the background increase exactly once. Tracking the base
     # separately keeps rebuild idempotent — without it, repeated saves would stack
     # the +2/+1 onto already-boosted scores.
-    if char.class_name and not char.ability_scores_set:
-        base = standard_array_for_class(char.class_name)
-    elif char.base_ability_scores:
+    if char.base_ability_scores:
         base = {
             k: int(char.base_ability_scores.get(k, char.ability_scores.get(k, 10)) or 10)
             for k in ABILITY_KEYS
         }
+    elif char.class_name and not char.ability_scores_set:
+        base = standard_array_for_class(char.class_name)
     else:
         base = {k: int(char.ability_scores.get(k, 10) or 10) for k in ABILITY_KEYS}
     char.base_ability_scores = dict(base)
@@ -759,6 +759,14 @@ def rebuild_character(char: Dnd5eCharacter, *, recompute_hp: bool = False) -> Dn
 
     style_feats = collect_derived_feats(char)
     char.feats = feat_names + [f for f in style_feats if f not in feat_names]
+    from backend.games.dnd5e.characters.origin_feats import normalize_origin_feat_id
+
+    origin_ids = {
+        normalize_origin_feat_id(char.origin_feat),
+        normalize_origin_feat_id(char.versatile_origin_feat),
+    } - {""}
+    if origin_ids:
+        char.feats = [f for f in char.feats if normalize_origin_feat_id(f) not in origin_ids]
 
     cls = get_class(char.class_name)
     if cls:
@@ -1100,10 +1108,8 @@ def apply_short_rest(
     parts: list[str] = ["Short rest."]
     entity: dict[str, Any] = {}
 
-    if dice_to_spend <= 0 and char.hp < char.max_hp:
-        available = max(0, char.hit_dice_max - char.hit_dice_spent)
-        if available > 0:
-            dice_to_spend = 1
+    if char.hp >= char.max_hp:
+        dice_to_spend = 0
 
     pact_line = recover_pact_slots_on_short_rest(char)
     if pact_line:
@@ -1115,7 +1121,7 @@ def apply_short_rest(
         parts.append(arcane_line)
         entity["spell_slots"] = dict(char.spell_slots)
 
-    if dice_to_spend > 0:
+    if dice_to_spend > 0 and char.hp < char.max_hp:
         heal = short_rest_heal(char, dice_to_spend=dice_to_spend)
         if heal.get("summary"):
             parts.append(heal["summary"])

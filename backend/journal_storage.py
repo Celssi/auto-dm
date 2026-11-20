@@ -335,6 +335,7 @@ def save_campaign_npc(campaign_id: str, npc_id: str | None, data: dict) -> str:
         "campaign_id": campaign_id,
         "name": name,
         "body": str(data.get("body") or "").strip(),
+        "status": str(data.get("status") or "alive").strip().lower() or "alive",
         "updated_at": _now_iso(),
     }
     if data.get("created_at"):

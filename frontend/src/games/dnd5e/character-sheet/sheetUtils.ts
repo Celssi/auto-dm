@@ -87,6 +87,20 @@ function normalizeOriginFeatId(raw: string): string {
   return key;
 }
 
+export function uniqueFeatLabels(items: Array<string | null | undefined>): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const raw of items) {
+    const label = String(raw || '').trim();
+    if (!label) continue;
+    const key = normalizeOriginFeatId(label) || label.toLowerCase();
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(ORIGIN_FEAT_LABELS[key as keyof typeof ORIGIN_FEAT_LABELS] || label);
+  }
+  return out;
+}
+
 function originFeatIds(char: Character): Set<string> {
   const ids = new Set<string>();
   for (const raw of [char.origin_feat, char.versatile_origin_feat]) {

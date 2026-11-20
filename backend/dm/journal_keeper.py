@@ -28,6 +28,7 @@ from backend.storage import append_adventure_log
 class JournalEntryUpdate(BaseModel):
     name: str
     body: str = Field(description="New entry body, or appended update paragraph")
+    status: str = Field(default="", description="alive or dead when that clearly changed")
 
 
 class JournalTurnUpdates(BaseModel):
@@ -97,6 +98,8 @@ Rules:
   or places not in existing lists
 - updated_npcs/updated_locations: ONLY when status, location,
   or relationship clearly changed for an existing name
+- If an existing NPC dies this turn, set status to dead and body to one
+  sentence that they are dead. Do not keep them in play as alive.
 - campaign_note: ONLY for major plot revelations (1-3 sentences), else empty string
 - adventure_log: ONLY if a critical fact was established and should be recorded, else empty string
 - Names must be proper nouns of people, creatures or places. Never use suggested player
@@ -137,7 +140,8 @@ def _apply_entry_updates(
         addition = item.body.strip()
         entry_id = find_journal_entry_id(campaign_id, kind, name)
         if not entry_id:
-            saver(campaign_id, None, {"name": name, "body": addition})
+            status = str(getattr(item, "status", "") or "alive").strip().lower() or "alive"
+            saver(campaign_id, None, {"name": name, "body": addition, "status": status})
             created += 1
             continue
         existing = getter(campaign_id, entry_id) or {}
@@ -146,12 +150,16 @@ def _apply_entry_updates(
         merged = merge_update(str(existing.get("body") or ""), addition)
         if merged is None:
             continue
+        status = str(getattr(item, "status", "") or existing.get("status") or "alive").strip().lower()
+        if status not in {"alive", "dead"}:
+            status = str(existing.get("status") or "alive")
         saver(
             campaign_id,
             entry_id,
             {
                 "name": existing.get("name", name),
                 "body": merged,
+                "status": status,
                 "created_at": existing.get("created_at"),
             },
         )

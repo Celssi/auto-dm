@@ -70,17 +70,43 @@ function normalizeOriginFeatId(raw: string): string {
   return key;
 }
 
-function originFeatIds(char: Character): Set<string> {
+const BACKGROUND_ORIGIN_FEATS: Record<string, string> = {
+  acolyte: 'magic_initiate_cleric',
+  artisan: 'crafter',
+  charlatan: 'skilled',
+  criminal: 'alert',
+  entertainer: 'musician',
+  farmer: 'tough',
+  guide: 'magic_initiate_druid',
+  hermit: 'healer',
+  merchant: 'lucky',
+  noble: 'skilled',
+  sage: 'magic_initiate_wizard',
+  sailor: 'tavern_brawler',
+  scribe: 'skilled',
+  soldier: 'savage_attacker',
+  wayfarer: 'lucky',
+};
+
+function originFeatIds(char: Character, options?: Record<string, unknown>): Set<string> {
   const ids = new Set<string>();
   for (const raw of [char.origin_feat, char.versatile_origin_feat]) {
     const fid = normalizeOriginFeatId(String(raw || ''));
     if (fid) ids.add(fid);
   }
+  if (!ids.size && char.background) {
+    const backgrounds = (options?.backgrounds as { id?: string; feat?: string }[]) || [];
+    const bg = backgrounds.find((row) => String(row.id || '') === String(char.background || ''));
+    const fromBg = normalizeOriginFeatId(String(bg?.feat || ''));
+    const fallback = BACKGROUND_ORIGIN_FEATS[String(char.background || '').toLowerCase()] || '';
+    const fid = fromBg || fallback;
+    if (fid) ids.add(fid);
+  }
   return ids;
 }
 
-function featMatchesWhenList(when: string[], char: Character): boolean {
-  const active = originFeatIds(char);
+function featMatchesWhenList(when: string[], char: Character, options?: Record<string, unknown>): boolean {
+  const active = originFeatIds(char, options);
   return when.some((entry) => active.has(normalizeOriginFeatId(entry)));
 }
 
@@ -204,7 +230,7 @@ export function choicesForDraft(
 
   for (const block of Object.values(catalog.origin_feat_subchoices || {})) {
     const when = block.when_feat || [];
-    if (!featMatchesWhenList(when, char)) continue;
+    if (!featMatchesWhenList(when, char, options)) continue;
     for (const raw of block.choices || []) {
       const expanded = expandChoice(raw, options, catalog);
       if (expanded.spell_options?.length) {

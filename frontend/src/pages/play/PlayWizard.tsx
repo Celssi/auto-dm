@@ -60,7 +60,8 @@ export default function PlayWizard({
       <LongJobOverlay
         active={bootstrapping}
         title="Generating campaign"
-        message="Keep this tab open. Heartbeats keep Cloud Run from scaling to zero."
+        message="Keep this tab open. The opening scene is written as part of this step."
+        progress
       />
       <PageHeader
         title="Play"
@@ -278,7 +279,7 @@ function PlayNewCampaignTab({
     >
       <p className="text-sm text-muted leading-relaxed">
         Generate a campaign, adventure, journal entries, and opening scene, then jump into play. Keep
-        this tab open while it generates (about 30-60 s).
+        this tab open while it generates.
       </p>
       {characters.length === 0 && (
         <p className="text-sm text-muted rounded-lg border border-border bg-bg/40 px-3 py-2">
@@ -353,7 +354,7 @@ function PlayNewCampaignTab({
         }
         onClick={onBootstrapAndPlay}
       >
-        {bootstrapping ? 'Generating campaign… (30-60 s)' : 'Generate & play'}
+        {bootstrapping ? 'Generating campaign…' : 'Generate & play'}
       </button>
     </m.div>
   );

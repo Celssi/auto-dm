@@ -226,7 +226,7 @@ def run_shortcut(
     proficient: bool = False,
     advantage: str = "normal",
     target_ac: int | None = None,
-    hit_dice_to_spend: int = 1,
+    hit_dice_to_spend: int = 0,
     death_save_successes: int = 0,
     death_save_failures: int = 0,
     pre_rolled: list[int] | None = None,
@@ -701,22 +701,26 @@ def run_shortcut(
         elif free_use is not None:
             free_use = bool(free_use)
         requested_text = str(_kwargs.get("requested_text") or _kwargs.get("user_message") or "")
-        entity, logs = apply_cast_spell_shortcut(
-            char_dict,
-            spell_name,
-            slot_level=slot_level,
-            ritual=bool(_kwargs.get("ritual")),
-            free_use=free_use,
-            requested_text=requested_text,
+        user = f"**Cast spell**\n\n{spell_name}"
+        if free_use:
+            user += " (Magic Initiate free)"
+        prompt = (
+            f"The player casts {spell_name}. If the spell cannot take effect "
+            f"(already active, no target, or the ward still holds), refuse the cast "
+            f"and do not spend a spell slot. Otherwise narrate the spell taking effect."
         )
-        summary = logs[0] if logs else f"Cast {spell_name or '(no spell)'}."
-        user = f"**Cast spell**\n\n{summary}"
         return {
             "user_message": user,
-            "prompt": user,
-            "static": True,
-            "summary": summary,
-            "entity_updates": entity,
+            "prompt": prompt,
+            "dice": {"summary": f"Cast {spell_name}."},
+            "entity_updates": {},
+            "pending_cast": {
+                "spell_name": spell_name,
+                "slot_level": slot_level,
+                "ritual": bool(_kwargs.get("ritual")),
+                "free_use": free_use,
+                "requested_text": requested_text,
+            },
             "task": "cast_spell",
         }
 

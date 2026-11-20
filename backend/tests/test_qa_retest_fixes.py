@@ -257,9 +257,14 @@ def test_cast_spell_shortcut_without_name_does_not_spend():
 
 def test_cast_spell_shortcut_mage_armor_sets_ac_and_spends_slot():
     from backend.games.dnd5e.actions import run_shortcut
+    from backend.games.dnd5e.dm.resource_keeper import apply_pending_cast
 
-    result = run_shortcut("cast_spell", spell_name="Mage Armor", **_legacy_wizard())
-    updates = result.get("entity_updates") or {}
+    data = _legacy_wizard()
+    result = run_shortcut("cast_spell", spell_name="Mage Armor", **data)
+    assert result.get("entity_updates") == {}
+    pending = result.get("pending_cast") or {}
+    assert pending.get("spell_name") == "Mage Armor"
+    updates, _logs = apply_pending_cast(data, pending, "The ward settles over you. AC 15.")
     assert updates.get("spell_slots", {}).get("1") == 1
     assert updates.get("ac") == 15
     assert "Mage Armor" in result["user_message"] or "mage armor" in result["user_message"].lower()
@@ -267,8 +272,15 @@ def test_cast_spell_shortcut_mage_armor_sets_ac_and_spends_slot():
 
 def test_cast_spell_shortcut_mi_free_keeps_slot():
     from backend.games.dnd5e.actions import run_shortcut
+    from backend.games.dnd5e.dm.resource_keeper import apply_pending_cast
 
     data = _legacy_wizard()
+    data["feature_choices"] = {
+        **(data.get("feature_choices") or {}),
+        "magic_initiate_level1": "Shield",
+        "magic_initiate_cantrips": ["Light", "Prestidigitation"],
+        "magic_initiate_ability": "int",
+    }
     result = run_shortcut(
         "cast_spell",
         spell_name="Shield",
@@ -276,9 +288,11 @@ def test_cast_spell_shortcut_mi_free_keeps_slot():
         requested_text="Shield Magic Initiate free",
         **data,
     )
-    updates = result.get("entity_updates") or {}
+    assert result.get("entity_updates") == {}
+    pending = result.get("pending_cast") or {}
+    updates, logs = apply_pending_cast(data, pending, "A shimmering shield snaps into place.")
     assert updates.get("spell_slots", {}).get("1") == 2
-    assert "no slot" in result["user_message"].lower()
+    assert any("no slot" in line.lower() for line in logs)
 
 
 def test_scribe_uses_cheap_summary_not_llm():

@@ -108,6 +108,14 @@ def origin_feat_ids(char: Dnd5eCharacter) -> set[str]:
         fid = normalize_origin_feat_id(raw)
         if fid:
             ids.add(fid)
+    if not ids and char.background:
+        from backend.games.dnd5e.characters.character_data import get_background
+
+        bg = get_background(str(char.background or ""))
+        feat = str((bg or {}).get("feat") or "").strip()
+        fid = normalize_origin_feat_id(feat)
+        if fid:
+            ids.add(fid)
     return ids
 
 

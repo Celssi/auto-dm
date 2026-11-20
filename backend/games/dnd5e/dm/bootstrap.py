@@ -98,7 +98,7 @@ def bootstrap_dnd_campaign(
     )
     write_adventure_summary(adventure_id, summary)
 
-    ensure_story_progress(adventure_id, spec.adventure_outline)
+    ensure_story_progress(adventure_id, spec.adventure_outline, allow_llm=False)
 
     session_id = create_session(
         character_id=character_id,

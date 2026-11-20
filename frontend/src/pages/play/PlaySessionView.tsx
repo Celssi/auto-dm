@@ -213,6 +213,7 @@ export default function PlaySessionView({
             onDragonkeepInit={onDragonkeepInit}
             onBrambletrekCombatAction={onBrambletrekCombatAction}
             onCombatAction={onCombatAction}
+            sheetReady={sessionLoaded && Boolean(character)}
           />
         }
       />
@@ -689,9 +690,11 @@ function PlayChatInput({
           {loading ? 'Queue' : 'Send'}
         </button>
       </div>
-      {loading && (
+      {(loading || queuedCount > 0) && (
         <p className="text-xs text-muted">
-          The DM is still writing. You can queue the next message.
+          {loading
+            ? 'The DM is still writing. You can queue the next message.'
+            : 'Sending the queued message.'}
           {queuedCount > 0 ? ` ${queuedCount} waiting.` : ''}
         </p>
       )}

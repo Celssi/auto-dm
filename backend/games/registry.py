@@ -165,6 +165,22 @@ def preserve_live_resources(stored: dict[str, Any] | None, rebuilt: dict[str, An
     return out
 
 
+def character_dict_for_dm(
+    char_dict: dict[str, Any] | None,
+    *,
+    pending_updates: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Same rebuild+live-resource merge the GET sheet uses, for narrator context."""
+    merged = dict(char_dict or {})
+    for key, value in (pending_updates or {}).items():
+        if key != "_logs":
+            merged[key] = value
+    if resolve_game_id(merged) != "dnd5e":
+        return merged
+    rebuilt = rebuild_character_dict(merged)
+    return preserve_live_resources(merged, rebuilt)
+
+
 def rebuild_character_dict_persisting(
     char_id: str,
     data: dict[str, Any] | None,

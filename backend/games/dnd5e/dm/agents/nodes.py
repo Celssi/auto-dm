@@ -153,8 +153,8 @@ def _needs_resource_keeper(state: DMState) -> bool:
         return False
     if task in ("long_rest", "short_rest") or shortcut.get("pending_rest"):
         return True
-    if task == "cast_spell":
-        return False
+    if task == "cast_spell" or shortcut.get("pending_cast"):
+        return True
     combined = (
         f"{state.get('user_message', '')}\n{state.get('response') or state.get('narrative') or ''}"
     ).lower()
@@ -430,11 +430,11 @@ def narrator_dm_node(state: DMState) -> DMState:
     if state.get("response") and shortcut_task == "rules_help":
         emit_ready({"response": state["response"]})
         return {"narrative": state["response"], "response": state["response"]}
-    char_dict = dict(state.get("character") or {})
     pending_updates = dict(state.get("character_updates") or {})
     pending_updates.pop("_logs", None)
-    if pending_updates:
-        char_dict.update(pending_updates)
+    from backend.games.registry import character_dict_for_dm
+
+    char_dict = character_dict_for_dm(state.get("character") or {}, pending_updates=pending_updates)
     char = char_from_dict(char_dict)
     adventure = state.get("adventure") or {}
     include_faerun = bool(state.get("include_faerun", False))
@@ -559,7 +559,16 @@ def resource_keeper_node(state: DMState) -> DMState:
     from backend.games.dnd5e.dm.resource_keeper import combat_blocks_rest
 
     combat_active = combat_blocks_rest(combat_state=combat_raw)
-    if not _needs_resource_keeper(state) or task in ("rules_help", "cast_spell"):
+    if not _needs_resource_keeper(state) or task == "rules_help":
+        updates, logs = overlay, overlay_logs
+    elif shortcut.get("pending_cast"):
+        from backend.games.dnd5e.dm.resource_keeper import apply_pending_cast
+
+        pending = shortcut.get("pending_cast") or {}
+        updates, logs = apply_pending_cast(char_dict, pending, dm_response)
+        updates = {**overlay, **updates}
+        logs = overlay_logs + logs
+    elif task == "cast_spell":
         updates, logs = overlay, overlay_logs
     elif shortcut.get("pending_rest") or task in ("short_rest", "long_rest"):
         from backend.games.dnd5e.dm.resource_keeper import apply_pending_rest, parse_pc_hp_from_narration
@@ -570,6 +579,7 @@ def resource_keeper_node(state: DMState) -> DMState:
             pending,
             dm_response,
             combat_active=combat_active,
+            user_message=state.get("user_message") or "",
         )
         hp = parse_pc_hp_from_narration(
             dm_response,

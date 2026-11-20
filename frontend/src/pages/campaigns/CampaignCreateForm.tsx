@@ -54,7 +54,8 @@ export default function CampaignCreateForm({
       <LongJobOverlay
         active={generating}
         title="Generating campaign"
-        message="Keep this tab open. Heartbeats keep Cloud Run from scaling to zero."
+        message="Keep this tab open. Progress updates while the campaign is built."
+        progress
       />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="section-heading">{showBrambletrekFlow ? 'Start Brambletrek adventure' : 'Create campaign'}</h2>
@@ -252,7 +253,7 @@ function AiCampaignFields({
       />
       <div className="flex gap-2">
         <button type="button" className="btn-primary" disabled={!canGenerate || generating} onClick={onGenerate}>
-          {generating ? 'Generating campaign… (45-90 s)' : 'Generate campaign'}
+          {generating ? 'Generating campaign…' : 'Generate campaign'}
         </button>
         <button type="button" className="btn-ghost" onClick={onCancel}>
           Cancel

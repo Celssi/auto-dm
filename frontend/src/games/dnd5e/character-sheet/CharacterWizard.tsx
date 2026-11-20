@@ -111,6 +111,13 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
     };
   }, [includeFaerun]);
 
+  useEffect(() => {
+    if (!char.background) return;
+    const row = backgrounds.find((b) => b.id === char.background);
+    const feat = String(row?.feat || '').trim();
+    if (feat && feat !== char.origin_feat) patch({ origin_feat: feat });
+  }, [backgrounds, char.background, char.origin_feat]);
+
   const normalizeSpellFields = useCallback(
     (draft: Character, cls: WizardClassOption | undefined, sl: Record<string, string[]>) => {
       if (!cls || !sl.cantrips) return {};
@@ -154,10 +161,13 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
     const cls = classes.find((c) => c.id === className);
     const sl = spellLists[cls?.spell_list || className] || {};
     const draft = { ...char, class_name: className };
+    const table = (options.standard_array_by_class || {}) as Record<string, Record<string, number>>;
+    const scores = table[className];
     patch({
       class_name: className,
       starting_gear_choice: '',
       ...normalizeSpellFields(draft, cls, sl),
+      ...(!char.ability_scores_set && scores ? { base_ability_scores: scores, ability_scores_set: true } : {}),
     });
   };
 
@@ -181,7 +191,36 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
         setPreviewChar(result.character as Character);
         setPreviewSummary((result.summary as Record<string, unknown>) || null);
       } catch {
-        setPreviewChar(char);
+        const scores = {
+          ...(char.ability_scores || {}),
+          ...(char.base_ability_scores || {}),
+        };
+        const con = Number(scores.con || 10);
+        const conMod = Math.floor((con - 10) / 2);
+        const dieByClass: Record<string, number> = {
+          barbarian: 12,
+          fighter: 10,
+          paladin: 10,
+          ranger: 10,
+          bard: 8,
+          cleric: 8,
+          druid: 8,
+          monk: 8,
+          rogue: 8,
+          warlock: 8,
+          sorcerer: 6,
+          wizard: 6,
+        };
+        const die = dieByClass[char.class_name] || Number(char.hit_die || 8);
+        const hp = Math.max(1, die + conMod);
+        setPreviewChar({
+          ...char,
+          ability_scores: scores,
+          ability_scores_set: true,
+          hit_die: die,
+          hp: char.hp || hp,
+          max_hp: char.max_hp || hp,
+        });
       } finally {
         setPreviewLoading(false);
       }
@@ -377,6 +416,7 @@ function WizardStepBody({
         spellField={spellField}
         spellList={spellList}
         spellOptions={spellOptions}
+        options={options}
       />
     );
   }
@@ -426,6 +466,14 @@ function wizardNextDisabled(
     if (spellLimits.spellbook > 0 && (char.spellbook || []).length < spellLimits.spellbook) return true;
     const needed = spellField === 'known_spells' ? spellLimits.known : spellLimits.prepared;
     if (needed > 0 && ((char[spellField] as string[]) || []).length < needed) return true;
+    const origin = String(char.origin_feat || '').toLowerCase();
+    const bg = String(char.background || '').toLowerCase();
+    const needsMi = origin.includes('magic initiate') || ['sage', 'acolyte', 'guide'].includes(bg);
+    if (needsMi) {
+      const fc = (char.feature_choices || {}) as Record<string, unknown>;
+      const miCantrips = Array.isArray(fc.magic_initiate_cantrips) ? fc.magic_initiate_cantrips : [];
+      if (miCantrips.length < 2 || !fc.magic_initiate_level1 || !fc.magic_initiate_ability) return true;
+    }
   }
   if (step === 4 && featureChoiceMissing > 0) return true;
   if (step === 5 && startingGearOptions.length > 1 && !char.starting_gear_choice) return true;

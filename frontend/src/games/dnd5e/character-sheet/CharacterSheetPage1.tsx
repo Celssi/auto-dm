@@ -15,6 +15,7 @@ import {
   spellAbility,
   spellSaveDc,
   expertiseSkills,
+  uniqueFeatLabels,
   weaponAttackLine,
   characterHasWeaponMastery,
 } from './sheetUtils';
@@ -29,7 +30,15 @@ interface Page1Props {
 }
 
 export default function CharacterSheetPage1({ character: c, editable, onChange, hideHeader }: Page1Props) {
-  const scores = c.ability_scores || {};
+  const liveScores = c.ability_scores || {};
+  const baseScores = c.base_ability_scores || {};
+  const liveLooksUnset = (['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).every(
+    (key) => Number(liveScores[key] ?? 10) === 10,
+  );
+  const scores =
+    liveLooksUnset && Object.keys(baseScores).length
+      ? { ...liveScores, ...baseScores }
+      : { ...baseScores, ...liveScores };
   const profs = new Set(c.skill_proficiencies || []);
   const saves = new Set(c.save_proficiencies || []);
   const spellAb = spellAbility(c.class_name || '');
@@ -332,7 +341,7 @@ function Page1FeaturesGear({
         <div>
           <LabelWithTip id="feats" label="Feats" className="sheet-label mb-1.5" />
           <GlossaryTagList
-            items={[c.origin_feat, c.versatile_origin_feat, ...(c.feats || [])].filter(Boolean) as string[]}
+            items={uniqueFeatLabels([c.origin_feat, c.versatile_origin_feat, ...(c.feats || [])])}
           />
         </div>
         <div>
