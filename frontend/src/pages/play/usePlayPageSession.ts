@@ -118,7 +118,7 @@ function applyPlayStreamEvent(
     const payload = data as { character?: Character };
     if (payload.character) {
       if (lastSheet) lastSheet.current = payload.character;
-      dispatch({ type: 'set', patch: { character: payload.character, sheetUpdating: false } });
+      dispatch({ type: 'set', patch: { character: payload.character } });
     }
   } else if (event === 'ready' && data && typeof data === 'object' && 'response' in data) {
     const payload = data as {
@@ -134,7 +134,7 @@ function applyPlayStreamEvent(
       type: 'set',
       patch: {
         loading: false,
-        sheetUpdating: false,
+        sheetUpdating: true,
         ...(payload.character ? { character: payload.character } : {}),
         ...(payload.reaction_prompt ? { reactionPrompt: payload.reaction_prompt } : {}),
       },
@@ -618,7 +618,7 @@ export function usePlayPageSession(
     const next = shiftQueue(sessionId);
     if (!next) return;
     dispatch({ type: 'set', patch: { queuedCount: pendingSendsRef.current.length } });
-    void sendMessageRef.current(next.text, { alreadyShown: false });
+    void sendMessageRef.current(next.text, { alreadyShown: next.shown });
   }, [state.sessionLoaded, state.sessionId, dispatch]);
 
   const runOracle = async (id: string) => {

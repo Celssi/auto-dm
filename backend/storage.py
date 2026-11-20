@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import re
 import tempfile
 import uuid
 from datetime import datetime, timezone
@@ -68,6 +69,73 @@ def _read_text(path: Path, default: str = "") -> str:
     return path.read_text(encoding="utf-8")
 
 
+CHARACTER_REV_KEY = "_rev"
+LIVE_CHARACTER_KEYS = (
+    "hp",
+    "max_hp",
+    "ac",
+    "spell_slots",
+    "hit_dice_spent",
+    "hit_dice_max",
+    "concentration",
+    "conditions",
+    "luck_points_remaining",
+    "second_wind_remaining",
+    "lay_on_hands_remaining",
+    "wild_shape_uses",
+    "active_effects",
+    "heroic_inspiration",
+    "inventory",
+    "currency",
+    "feature_choices",
+    "death_save_successes",
+    "death_save_failures",
+    "exhaustion",
+    "savage_attacker_used_this_turn",
+)
+_LONELOG_PREFIX = re.compile(r"^(@|=>)\s+\S+\s+")
+
+
+def _refresh_saves_file(path: Path) -> None:
+    try:
+        from backend.gcs_sync import refresh_saves_path
+
+        refresh_saves_path(path)
+    except Exception:
+        logger.debug("Saves refresh skipped for %s", path)
+
+
+def _lonelog_body(line: str) -> str:
+    text = (line or "").strip()
+    return _LONELOG_PREFIX.sub("", text).strip()
+
+
+def _merge_messages(disk: list, incoming: list) -> list:
+    """Never replace a longer history with a stale shorter snapshot."""
+    current = list(disk or [])
+    nxt = list(incoming or [])
+    if not current:
+        return nxt
+    if not nxt:
+        return current
+    if nxt == current:
+        return nxt
+    if len(nxt) >= len(current) and current == nxt[: len(current)]:
+        return nxt
+    if len(current) >= len(nxt) and nxt == current[: len(nxt)]:
+        return current
+    logger.warning(
+        "Session message fork (disk=%s incoming=%s); keeping the longer transcript",
+        len(current),
+        len(nxt),
+    )
+    return current if len(current) >= len(nxt) else nxt
+
+
+def _next_character_rev(existing: dict | None) -> int:
+    return int((existing or {}).get(CHARACTER_REV_KEY) or 0) + 1
+
+
 # --- Characters ---
 
 CHARACTERS_DIR = SAVES_DIR / "characters"
@@ -97,15 +165,63 @@ def list_characters() -> list[dict[str, str]]:
 
 def get_character(char_id: str) -> dict | None:
     path = CHARACTERS_DIR / char_id / "character.json"
+    _refresh_saves_file(path)
     return _read_json(path)
+
+
+def patch_character(char_id: str, updates: dict) -> dict:
+    """Merge live fields onto the disk sheet. Never write a stale full snapshot."""
+    from backend.session_locks import character_lock
+
+    clean = {k: v for k, v in (updates or {}).items() if not str(k).startswith("_")}
+    with character_lock(char_id):
+        path = CHARACTERS_DIR / char_id / "character.json"
+        _refresh_saves_file(path)
+        existing = _read_json(path, {}) or {}
+        merged = dict(existing)
+        for key, value in clean.items():
+            merged[key] = value
+        merged["id"] = char_id
+        merged[CHARACTER_REV_KEY] = _next_character_rev(existing)
+        _write_json(path, merged)
+        name = str(merged.get("name") or existing.get("name") or "Hero").strip() or "Hero"
+        _touch_character_roster(char_id, name, merged)
+        return merged
 
 
 def save_character(char_id: str | None, data: dict) -> str:
     if not char_id:
         char_id = str(uuid.uuid4())[:8]
-    name = str(data.get("name") or "Hero").strip() or "Hero"
-    data["id"] = char_id
-    _write_json(CHARACTERS_DIR / char_id / "character.json", data)
+    from backend.session_locks import character_lock
+
+    with character_lock(char_id):
+        path = CHARACTERS_DIR / char_id / "character.json"
+        _refresh_saves_file(path)
+        existing = _read_json(path, {}) or {}
+        incoming = dict(data or {})
+        disk_rev = int(existing.get(CHARACTER_REV_KEY) or 0)
+        incoming_rev = incoming.get(CHARACTER_REV_KEY)
+        if existing and incoming_rev is not None and int(incoming_rev or 0) < disk_rev:
+            logger.warning(
+                "Ignoring stale character snapshot %s rev %s < disk %s",
+                char_id,
+                incoming_rev,
+                disk_rev,
+            )
+            for key in LIVE_CHARACTER_KEYS:
+                if key in existing:
+                    incoming[key] = existing[key]
+        merged = dict(existing)
+        merged.update(incoming)
+        merged["id"] = char_id
+        merged[CHARACTER_REV_KEY] = disk_rev + 1
+        name = str(merged.get("name") or "Hero").strip() or "Hero"
+        _write_json(path, merged)
+        _touch_character_roster(char_id, name, merged)
+        return char_id
+
+
+def _touch_character_roster(char_id: str, name: str, data: dict) -> None:
     roster = _read_json(CHARACTERS_INDEX, [])
     found = False
     for entry in roster:
@@ -126,7 +242,6 @@ def save_character(char_id: str | None, data: dict) -> str:
             }
         )
     _write_json(CHARACTERS_INDEX, roster)
-    return char_id
 
 
 def _remove_dir(path: Path) -> None:
@@ -355,11 +470,17 @@ def find_session_for_adventure(adventure_id: str) -> dict[str, str] | None:
 
 
 def get_session(session_id: str) -> dict | None:
-    meta = _read_json(SESSIONS_DIR / session_id / "session.json")
+    meta_path = SESSIONS_DIR / session_id / "session.json"
+    messages_path = SESSIONS_DIR / session_id / "messages.json"
+    lonelog_path = SESSIONS_DIR / session_id / "lonelog.md"
+    _refresh_saves_file(meta_path)
+    _refresh_saves_file(messages_path)
+    _refresh_saves_file(lonelog_path)
+    meta = _read_json(meta_path)
     if not meta:
         return None
-    meta["lonelog"] = _read_text(SESSIONS_DIR / session_id / "lonelog.md")
-    meta["messages"] = _read_json(SESSIONS_DIR / session_id / "messages.json", [])
+    meta["lonelog"] = _read_text(lonelog_path)
+    meta["messages"] = _read_json(messages_path, [])
     return meta
 
 
@@ -456,11 +577,24 @@ def update_session_extras(session_id: str, extras: dict) -> None:
 
 
 def append_session_log(session_id: str, line: str) -> None:
-    _append_text(SESSIONS_DIR / session_id / "lonelog.md", line)
+    path = SESSIONS_DIR / session_id / "lonelog.md"
+    _refresh_saves_file(path)
+    text = (line or "").rstrip()
+    if not text:
+        return
+    existing = _read_text(path)
+    last = existing.splitlines()[-1] if existing.strip() else ""
+    if last and _lonelog_body(last) == _lonelog_body(text):
+        return
+    _append_text(path, text)
 
 
 def save_session_messages(session_id: str, messages: list[dict]) -> None:
-    _write_json(SESSIONS_DIR / session_id / "messages.json", messages)
+    path = SESSIONS_DIR / session_id / "messages.json"
+    _refresh_saves_file(path)
+    disk = list(_read_json(path, []) or [])
+    merged = _merge_messages(disk, messages)
+    _write_json(path, merged)
 
 
 def persist_user_message(session_id: str, user_message: str) -> None:
@@ -468,7 +602,9 @@ def persist_user_message(session_id: str, user_message: str) -> None:
     text = (user_message or "").strip()
     if not text:
         return
-    messages = list(_read_json(SESSIONS_DIR / session_id / "messages.json", []) or [])
+    path = SESSIONS_DIR / session_id / "messages.json"
+    _refresh_saves_file(path)
+    messages = list(_read_json(path, []) or [])
     if messages and messages[-1].get("role") == "user" and messages[-1].get("content") == text:
         return
     messages.append({"role": "user", "content": text})
@@ -479,7 +615,9 @@ def persist_shown_reply(session_id: str, user_message: str, assistant_text: str)
     """Persist exactly the reply that streamed. Never replace a shown assistant turn."""
     user = (user_message or "").strip()
     shown = assistant_text or ""
-    messages = list(_read_json(SESSIONS_DIR / session_id / "messages.json", []) or [])
+    path = SESSIONS_DIR / session_id / "messages.json"
+    _refresh_saves_file(path)
+    messages = list(_read_json(path, []) or [])
     if messages and messages[-1].get("role") == "assistant":
         prev_user = messages[-2].get("content") if len(messages) >= 2 else ""
         if prev_user == user and messages[-1].get("content"):
@@ -511,6 +649,7 @@ def append_session_audit(session_id: str, event: dict) -> None:
     payload = dict(event)
     payload.setdefault("ts", _now_iso())
     path = SESSIONS_DIR / session_id / "audit.jsonl"
+    _refresh_saves_file(path)
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as f:
         f.write(json.dumps(payload, ensure_ascii=False, default=str) + "\n")

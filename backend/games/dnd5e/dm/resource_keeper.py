@@ -589,10 +589,8 @@ def apply_pending_rest(
     from backend.games.dnd5e.dm.mechanics_delta import apply_mechanics_delta, split_mechanics_block
 
     _, delta = split_mechanics_block(dm_response or "")
-    if "rest" in set(delta.refused):
+    if "rest" in set(delta.refused) or rest_refused(dm_response):
         return {}, ["Rest not applied: the DM refused the rest."]
-    if delta.rest.kind == "none":
-        return {}, ["Rest not applied: the mechanics delta did not grant a rest."]
     updates, logs = apply_mechanics_delta(character, delta, pending_rest=pending)
     updates.pop("_npcs", None)
     updates.pop("_scene_position", None)

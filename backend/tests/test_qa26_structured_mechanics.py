@@ -134,14 +134,16 @@ def test_interrupted_rest_is_short_not_long():
     assert any("Interrupted rest" in line or "Short rest" in line for line in logs)
 
 
-def test_pending_long_rest_without_delta_is_not_applied():
+def test_pending_long_rest_without_delta_is_interrupted_short_rest():
     updates, logs = apply_pending_rest(
-        _paladin(hp=5),
+        _paladin(hp=5, lay_on_hands_remaining=0),
         {"kind": "long"},
         "You settle in for the night, then goblins kick the door. The rest is interrupted.",
     )
-    assert updates == {}
-    assert any("did not grant a rest" in line for line in logs)
+    assert updates.get("hp") != 12
+    assert updates.get("lay_on_hands_remaining") in (None, 0)
+    assert any("Interrupted rest" in line or "Short rest" in line for line in logs)
+    assert not any("did not grant a rest" in line for line in logs)
 
 
 def test_refused_rest_from_delta():

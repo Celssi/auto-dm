@@ -120,9 +120,14 @@ def character_keeper_node(state: DMState) -> DMState:
         emit_logs({"refresh": True})
     cid = after_dict.get("id")
     if cid:
-        from backend.storage import save_character
+        from backend.storage import LIVE_CHARACTER_KEYS, patch_character
 
-        save_character(cid, after_dict)
+        before_char = state.get("character") or {}
+        live_patch = {k: v for k, v in updates.items() if k in after_dict}
+        for key in LIVE_CHARACTER_KEYS:
+            if after_dict.get(key) != before_char.get(key):
+                live_patch[key] = after_dict.get(key)
+        after_dict = patch_character(cid, live_patch)
         emit_sheet({"character": after_dict})
     return {"character": after_dict}
 
@@ -137,7 +142,12 @@ def scribe_node(state: DMState) -> DMState:
     if mechanics:
         lines.append(format_mechanical(mechanics))
     task = (state.get("shortcut_result") or {}).get("task")
-    if narrative and task not in rag_tasks and not is_dice_only_turn(state):
+    resource_log = list(state.get("resource_log") or [])
+    rest_logged = any(
+        "rest" in str(line).lower() or "hit dice" in str(line).lower() or "1d" in str(line).lower()
+        for line in resource_log
+    )
+    if narrative and task not in rag_tasks and not is_dice_only_turn(state) and not rest_logged:
         summary = _cheap_lonelog_summary(narrative)
         log_entry = summary
         lines.append(format_narrative(summary))

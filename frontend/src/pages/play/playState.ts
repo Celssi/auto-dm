@@ -197,7 +197,16 @@ export function playReducer(state: PlayState, action: PlayAction): PlayState {
       const messages = [...state.messages];
       for (let i = messages.length - 1; i >= 0; i -= 1) {
         if (messages[i].role === 'assistant') {
-          messages[i] = { ...messages[i], content: action.content };
+          const current = messages[i].content || '';
+          const next = action.content || '';
+          const same = current.trim() === next.trim();
+          const completesStream = !current.trim() || next.startsWith(current);
+          if (!same && !completesStream) {
+            break;
+          }
+          if (!same) {
+            messages[i] = { ...messages[i], content: next };
+          }
           break;
         }
       }
