@@ -430,7 +430,11 @@ def narrator_dm_node(state: DMState) -> DMState:
     if state.get("response") and shortcut_task == "rules_help":
         emit_ready({"response": state["response"]})
         return {"narrative": state["response"], "response": state["response"]}
-    char_dict = state.get("character") or {}
+    char_dict = dict(state.get("character") or {})
+    pending_updates = dict(state.get("character_updates") or {})
+    pending_updates.pop("_logs", None)
+    if pending_updates:
+        char_dict.update(pending_updates)
     char = char_from_dict(char_dict)
     adventure = state.get("adventure") or {}
     include_faerun = bool(state.get("include_faerun", False))
@@ -484,6 +488,7 @@ def narrator_dm_node(state: DMState) -> DMState:
         overlay_updates.pop("_logs", None)
     except Exception:
         overlay_updates = {}
+    sheet_dirty = bool(pending_updates or overlay_updates)
     if overlay_updates:
         merged = dict(char_dict)
         merged.update({k: v for k, v in overlay_updates.items() if k != "_logs"})
@@ -493,6 +498,7 @@ def narrator_dm_node(state: DMState) -> DMState:
             from backend.storage import save_character
 
             save_character(cid, char_dict)
+    if sheet_dirty:
         ready_payload["character"] = char_dict
         emit_sheet({"character": char_dict})
     emit_ready(ready_payload)
@@ -501,7 +507,7 @@ def narrator_dm_node(state: DMState) -> DMState:
         "response": text,
         "narrative_context": memory,
     }
-    if overlay_updates:
+    if sheet_dirty:
         result["character"] = char_dict
         result["character_updates"] = {
             **dict(state.get("character_updates") or {}),
@@ -545,12 +551,26 @@ def resource_keeper_node(state: DMState) -> DMState:
 
     overlay = overlay_live_resources(char_dict, dm_response) if dm_response.strip() else {}
     overlay_logs = list(overlay.pop("_logs", []) or [])
+    combat_raw = state.get("combat_state")
+    if not isinstance(combat_raw, dict):
+        session_id = state.get("session_id") or ""
+        loaded = load_combat_state(session_id) if session_id else None
+        combat_raw = loaded.model_dump() if loaded else {}
+    from backend.games.dnd5e.dm.resource_keeper import combat_blocks_rest
+
+    combat_active = combat_blocks_rest(combat_state=combat_raw)
     if not _needs_resource_keeper(state) or task in ("rules_help", "cast_spell"):
         updates, logs = overlay, overlay_logs
-    elif shortcut.get("pending_rest"):
+    elif shortcut.get("pending_rest") or task in ("short_rest", "long_rest"):
         from backend.games.dnd5e.dm.resource_keeper import apply_pending_rest, parse_pc_hp_from_narration
 
-        updates, logs = apply_pending_rest(char_dict, shortcut.get("pending_rest"), dm_response)
+        pending = shortcut.get("pending_rest") or {"kind": "long" if task == "long_rest" else "short"}
+        updates, logs = apply_pending_rest(
+            char_dict,
+            pending,
+            dm_response,
+            combat_active=combat_active,
+        )
         hp = parse_pc_hp_from_narration(
             dm_response,
             name=str(char_dict.get("name") or ""),
@@ -567,6 +587,7 @@ def resource_keeper_node(state: DMState) -> DMState:
             character=char_dict,
             user_message=state.get("user_message") or "",
             dm_response=dm_response,
+            combat_active=combat_active,
         )
         updates = {**overlay, **updates}
         logs = overlay_logs + logs

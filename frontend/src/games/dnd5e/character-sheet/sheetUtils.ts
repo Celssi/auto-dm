@@ -171,6 +171,11 @@ export function armorRow(armorId?: string) {
   return ARMOR_CATALOG.find((row) => row.id === id) || ARMOR_CATALOG[0];
 }
 
+function mageArmorActive(char: Character): boolean {
+  const fc = (char.feature_choices || {}) as Record<string, unknown>;
+  return Boolean(fc._mage_armor_active);
+}
+
 export function computeAcDetails(char: Character): {
   ac: number;
   formula: string;
@@ -179,16 +184,27 @@ export function computeAcDetails(char: Character): {
   const dex = abilityMod(char.ability_scores?.dex ?? 10);
   const armor = armorRow(String(char.armor || 'none'));
   const parts: { label: string; value: number }[] = [];
-  let computed: number = armor.base;
-  parts.push({ label: armor.label, value: armor.base });
-  if (armor.dex === 'full' && dex) {
-    computed += dex;
-    parts.push({ label: 'Dexterity', value: dex });
-  } else if (armor.dex === 'cap2') {
-    const added = Math.min(dex, 2);
-    if (added) {
-      computed += added;
-      parts.push({ label: 'Dexterity (max +2)', value: added });
+  const unarmored = armor.id === 'none';
+  let computed: number;
+  if (unarmored && mageArmorActive(char)) {
+    computed = 13;
+    parts.push({ label: 'Mage Armor', value: 13 });
+    if (dex) {
+      computed += dex;
+      parts.push({ label: 'Dexterity', value: dex });
+    }
+  } else {
+    computed = armor.base;
+    parts.push({ label: armor.label, value: armor.base });
+    if (armor.dex === 'full' && dex) {
+      computed += dex;
+      parts.push({ label: 'Dexterity', value: dex });
+    } else if (armor.dex === 'cap2') {
+      const added = Math.min(dex, 2);
+      if (added) {
+        computed += added;
+        parts.push({ label: 'Dexterity (max +2)', value: added });
+      }
     }
   }
   if (char.shield) {

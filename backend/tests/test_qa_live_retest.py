@@ -98,7 +98,6 @@ def test_live_wizard_migrate_fills_2024_picks_and_six_unique_spells():
     assert "origin languages" not in missing.lower()
     assert "elven lineage" not in missing.lower()
     assert "keen senses" not in missing.lower()
-    assert "magic initiate" not in missing.lower()
     langs = {str(item).lower() for item in rebuilt.languages}
     assert "common" in langs
     assert "elvish" in langs
@@ -106,7 +105,7 @@ def test_live_wizard_migrate_fills_2024_picks_and_six_unique_spells():
     assert len(book) >= 6
     assert "mage armor" in book
     assert "burning hands" in book or "sleep" in book
-    assert str(rebuilt.feature_choices.get("magic_initiate_level1") or "").lower() == "shield"
+    assert not str(rebuilt.feature_choices.get("magic_initiate_level1") or "").strip()
     assert rebuilt.hp == 8
     assert rebuilt.spell_slots["1"] == 0
 
@@ -153,7 +152,13 @@ def test_preserve_live_resources_keeps_mage_armor_ac():
 
 
 def test_magic_initiate_source_of_truth_is_shield_not_mage_armor():
-    char = rebuild_character(character_from_dict(_live_wizard()))
+    data = _live_wizard()
+    data["feature_choices"] = {
+        "magic_initiate_level1": "Shield",
+        "magic_initiate_cantrips": ["Minor Illusion", "Acid Splash"],
+        "magic_initiate_ability": "int",
+    }
+    char = rebuild_character(character_from_dict(data))
     assert magic_initiate_spell_name(char).lower() == "shield"
     assert magic_initiate_free_available(char, "Mage Armor", requested_free=True) is False
     assert magic_initiate_free_available(char, "Shield", requested_free=True) is True

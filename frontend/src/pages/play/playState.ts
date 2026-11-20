@@ -97,6 +97,7 @@ export interface PlayState {
   diceModal: DiceModalState | null;
   spellCastModal: SpellCastModalState | null;
   sheetUpdating: boolean;
+  queuedCount: number;
   pendingJourney: PendingJourney | null;
   dragonkeep: DragonkeepState | null;
 }
@@ -163,6 +164,7 @@ export function createInitialPlayState(sessionId = '', wizardTab: 'continue' | '
     diceModal: null,
     spellCastModal: null,
     sheetUpdating: false,
+    queuedCount: 0,
     pendingJourney: null,
     dragonkeep: null,
   };

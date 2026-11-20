@@ -35,13 +35,18 @@ _REST_REFUSAL = re.compile(
     r"no time to rest|too dangerous|not (a )?safe (place|time|moment)|"
     r"keep moving|rest will have to wait|no chance to rest|"
     r"do not rest|don't rest|no short rest|no long rest|"
-    r"enemy .{0,80}approach|interrupted)",
+    r"enemy .{0,80}approach|interrupted|"
+    r"lepo saisi|saisi odottaa|kesken taistelun|"
+    r"ei (voi |voida )?levät|ei lepoa|liian vaarallista|"
+    r"taistelu(n)? (kesken|käynnissä))",
     re.IGNORECASE,
 )
 _SHORT_REST_GRANT = re.compile(
-    r"(you (take|finish|complete|settle) .{0,40}rest|after (a |the )?short rest|"
-    r"an hour (passes|later)|for an hour|hour passes|feel refreshed|"
-    r"arcane recovery|hit dice|hit die|you rest)",
+    r"(you (take|finish|complete) .{0,40}(short )?rest|"
+    r"you settle .{0,40}(rest|hour)|"
+    r"after (a |the )?short rest|"
+    r"an hour (passes|later)|hour passes|feel refreshed|"
+    r"lepä(ät|ätte|si)|tunnin lepo|tunti kuluu|virkisty)",
     re.IGNORECASE,
 )
 _LONG_REST_GRANT = re.compile(
@@ -86,6 +91,17 @@ def rest_granted(dm_response: str, *, kind: str = "short") -> bool:
     if kind == "long":
         return bool(_LONG_REST_GRANT.search(text))
     return bool(_SHORT_REST_GRANT.search(text))
+
+
+def combat_blocks_rest(*, in_combat: bool = False, combat_state: dict | None = None) -> bool:
+    """True when a structured encounter is still active. Keyword in_combat is not enough."""
+    raw = combat_state or {}
+    status = str(raw.get("status") or "").strip().lower()
+    if status == "active":
+        return True
+    if in_combat and status in {"active", "started"}:
+        return True
+    return False
 
 
 def narrative_short_rest_detected(user_message: str, dm_response: str) -> bool:
@@ -138,10 +154,11 @@ def parse_pc_hp_from_narration(
     patterns: list[re.Pattern[str]] = [
         re.compile(r"\byour (?:hp|hit points?)\s*(?:are|is|now|:)?\s*(\d+)\s*/\s*(\d+)", re.I),
         re.compile(r"\byou (?:are|drop|are reduced) (?:to|down to)\s*(\d+)\s*(?:hp|hit points?)\b", re.I),
-        re.compile(r"\b(?:hp|hit points?)\s*(\d+)\s*/\s*(\d+)\b", re.I),
-        re.compile(r"\b(\d+)\s*/\s*(\d+)\s*(?:hp|hit points?)\b", re.I),
+        re.compile(r"\b(?:hp|hit points?|osumapiste(?:et|itä)?|op)\s*(?:are|is|now|on|nyt|:)?\s*(\d+)\s*/\s*(\d+)", re.I),
+        re.compile(r"\b(\d+)\s*/\s*(\d+)\s*(?:hp|hit points?|osumapist)\b", re.I),
         re.compile(r"\bleave things at\s+(\d+)\s*(?:hp|hit points?)\b", re.I),
         re.compile(r"\bat\s+(\d+)\s*(?:hp|hit points?)\b", re.I),
+        re.compile(r"HP\s*[:=]?\s*(\d+)\s*/\s*(\d+)", re.I),
     ]
     if name_pat:
         patterns.insert(
@@ -183,13 +200,21 @@ def parse_hit_dice_remaining(dm_response: str, *, hit_dice_max: int) -> int | No
     return None
 
 
+_MAGE_ARMOR_CAST = re.compile(
+    r"(?:cast|casting|casts|loitsit|loiti|aktivoi(?:t)?|weave[sd]?).{0,48}mage armou?r|"
+    r"mage armou?r.{0,48}(?:takes effect|is active|holds|surround|shimmer|on voimassa|aktiivinen)",
+    re.IGNORECASE,
+)
+
+
 def narration_sets_mage_armor(dm_response: str) -> bool:
-    text = (dm_response or "").lower()
+    text = dm_response or ""
     if not _MAGE_ARMOR_ACTIVE.search(text):
         return False
-    if any(token in text for token in ("ended", "expires", "expired", "drops", "no longer")):
+    lower = text.lower()
+    if any(token in lower for token in ("ended", "expires", "expired", "drops", "no longer")):
         return False
-    return True
+    return bool(_MAGE_ARMOR_CAST.search(text))
 
 
 def overlay_live_resources(character: dict, dm_response: str) -> dict:
@@ -224,9 +249,7 @@ def overlay_live_resources(character: dict, dm_response: str) -> dict:
     ac_from_text = parse_ac_from_narration(dm_response)
     if reconcile:
         ac_from_text = int(reconcile.group(3))
-    if narration_sets_mage_armor(dm_response) or (
-        ac_from_text is not None and ac_from_text >= 13 + char.ability_modifier("dex")
-    ):
+    if narration_sets_mage_armor(dm_response):
         set_mage_armor_active(char, True)
         updates["feature_choices"] = dict(char.feature_choices or {})
     if not char.ac_manual:
@@ -312,6 +335,7 @@ def run_resource_keeper(
     character: dict,
     user_message: str,
     dm_response: str,
+    combat_active: bool = False,
 ) -> tuple[dict, list[str]]:
     if not dm_response.strip():
         return {}, []
@@ -355,14 +379,27 @@ def run_resource_keeper(
                 logs.append(f"HP set to {hp}/{char.max_hp} from DM narration.")
             return entity, logs
 
-    if narrative_short_rest_detected(user_message, dm_response):
+    if not combat_active and narrative_short_rest_detected(user_message, dm_response):
         dice = parse_hit_dice_to_spend(user_message, dm_response)
         return _apply_short_rest_updates(char, dice_to_spend=dice)
+
+    combined = f"{user_message}\n{dm_response}".lower()
+    needs_llm = any(
+        token in combined
+        for token in ("cast ", "/cast", "wild shape", "short rest", "long rest", "lyhyt lepo", "pitkä lepo")
+    )
+    if not needs_llm:
+        hp = parse_pc_hp_from_narration(
+            dm_response, name=char.name, max_hp=char.max_hp, current_hp=char.hp
+        )
+        if hp is not None and hp != char.hp:
+            return {"hp": hp}, [f"HP set to {hp}/{char.max_hp} from DM narration."]
+        return {}, []
 
     updates = extract_resource_updates(
         char=char, user_message=user_message, dm_response=dm_response
     )
-    if updates.short_rest and not rest_refused(dm_response):
+    if updates.short_rest and not combat_active and rest_granted(dm_response, kind="short"):
         return _apply_short_rest_updates(char, dice_to_spend=updates.spend_hit_dice)
 
     entity_updates, logs = apply_resource_updates(char, updates)
@@ -382,9 +419,13 @@ def apply_pending_rest(
     character: dict,
     pending: dict,
     dm_response: str,
+    *,
+    combat_active: bool = False,
 ) -> tuple[dict, list[str]]:
-    """Apply a shortcut rest only after the DM grants it."""
+    """Apply a shortcut rest only after the DM grants it, and never during combat."""
     kind = str(pending.get("kind") or "short").strip().lower()
+    if combat_active:
+        return {}, ["Rest not applied: combat is still underway."]
     if rest_refused(dm_response) or not rest_granted(dm_response, kind=kind):
         reason = "the DM did not grant a rest"
         if rest_refused(dm_response):

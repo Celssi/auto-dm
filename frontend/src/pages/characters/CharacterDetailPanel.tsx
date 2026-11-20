@@ -257,6 +257,20 @@ function DndCharacterDetail({
         />
       )}
 
+      {editing && (
+        <div className="panel p-4 space-y-3">
+          <h3 className="text-xs font-semibold uppercase tracking-wider text-muted">2024 choices</h3>
+          <p className="text-xs text-muted">
+            Origin feat spells and other picks. Magic Initiate cantrips and the 1st-level spell can be changed here.
+          </p>
+          <CreationChoicesForm
+            char={character}
+            options={charOptions}
+            patch={(p) => onChange({ ...character, ...p })}
+          />
+        </div>
+      )}
+
       <CharacterSheetView
         character={character}
         summary={summary}
@@ -312,6 +326,11 @@ function DndSheetToolbar({
       <button type="button" className="btn-ghost" onClick={onExportPdf}>
         Export PDF
       </button>
+      {onRebuild && (
+        <button type="button" className="btn-ghost" onClick={onRebuild}>
+          Rebuild sheet
+        </button>
+      )}
       {editing && (
         <button type="button" className="btn-primary ml-auto" onClick={onSaveEdit}>
           Save changes

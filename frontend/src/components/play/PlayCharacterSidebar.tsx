@@ -4,6 +4,7 @@ import GlossaryTip, { GlossaryTagList } from '../ui/GlossaryTip';
 import HelpTip from '../ui/HelpTip';
 import { getGameCharacterConfig } from '../../games/registry';
 import {
+  computeAcDetails,
   formatAbilityMod,
   formatMod,
   initiativeMod,
@@ -106,7 +107,7 @@ function DndCombatPills({ character: c }: { character: Character }) {
   const spellDc = spellSaveDc(c);
   return (
     <div className="flex flex-wrap gap-1.5">
-      <StatPill label="AC" value={String(c.ac ?? 10)} tipId="armor-class" />
+      <StatPill label="AC" value={String(computeAcDetails(c).ac)} tipId="armor-class" />
       <StatPill label="Init" value={formatMod(initiativeMod(c))} tipId="initiative" />
       <StatPill label="Speed" value={`${c.speed_effective ?? c.speed ?? 30}`} tipId="speed" />
       <StatPill label="PP" value={String(passivePerception(c))} tipId="passive-perception" />

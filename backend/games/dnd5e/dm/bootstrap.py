@@ -8,12 +8,9 @@ from backend.dm.campaign_bootstrap import (
     BootstrapMode,
     generate_bootstrap_spec,
 )
-from backend.dm.campaign_repair import extract_encounters_from_outline
-from backend.dm.encounters import save_adventure_encounters
 from backend.dm.opening_scene import _generate_opening_from_outline, _generate_standalone_opening
 from backend.dm.session_opening import attach_opening_to_session
 from backend.dm.story_director import ensure_story_progress
-from backend.dm.story_memory import generate_opening_summary
 from backend.journal_storage import (
     save_campaign,
     save_campaign_location,
@@ -86,17 +83,22 @@ def bootstrap_dnd_campaign(
     )
 
     npc_hints = "\n".join(f"- {n.name}: {n.body[:200]}" for n in spec.npcs[:8])
-    summary = generate_opening_summary(
-        log=opening,
-        opening_scene=opening,
-        npc_hints=npc_hints,
+    paras = [p.strip() for p in opening.split("\n\n") if p.strip()]
+    summary = (
+        "## Premise\n"
+        f"{paras[0] if paras else 'The adventure has begun.'}\n\n"
+        "## Major beats (chronological)\n"
+        "- Opening scene played.\n\n"
+        "## Current situation\n"
+        f"{paras[-1] if paras else 'Play resumes from the opening.'}\n\n"
+        "## Established facts (do not contradict)\n"
+        f"{npc_hints[:800] or '- (none yet)'}\n\n"
+        "## Open mysteries & hooks\n"
+        "- Follow the opening choice."
     )
     write_adventure_summary(adventure_id, summary)
 
     ensure_story_progress(adventure_id, spec.adventure_outline)
-    encounters = extract_encounters_from_outline(spec.adventure_outline, spec.adventure_name)
-    if encounters:
-        save_adventure_encounters(adventure_id, encounters)
 
     session_id = create_session(
         character_id=character_id,

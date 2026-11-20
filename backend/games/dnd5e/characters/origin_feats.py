@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Any
 
+import re
+
 from backend.games.dnd5e.characters.entity import Dnd5eCharacter
 from backend.games.dnd5e.characters.multiclass import total_class_level
-from backend.games.dnd5e.characters.spell_resources import normalize_spell_name
 
 ORIGIN_FEAT_LABELS = {
     "alert": "Alert",
@@ -76,21 +77,29 @@ ORIGIN_FEAT_PASSIVES: dict[str, list[str]] = {
 }
 
 
+def _feat_compact(text: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", (text or "").strip().lower()).strip("_")
+
+
 def normalize_origin_feat_id(raw: str) -> str:
-    """Map stored feat label or id to canonical origin feat id."""
+    """Map stored feat label or id to canonical origin feat id.
+
+    Keep Cleric/Druid/Wizard in parentheses. Spell-name normalization would
+    strip those and map every Magic Initiate label to Cleric.
+    """
     text = str(raw or "").strip()
     if not text:
         return ""
     key = text.lower().replace(" ", "_")
     if key in ORIGIN_FEAT_LABELS:
         return key
-    norm = normalize_spell_name(text)
+    compact = _feat_compact(text)
+    if compact in ORIGIN_FEAT_LABELS:
+        return compact
     for fid, label in ORIGIN_FEAT_LABELS.items():
-        if normalize_spell_name(label) == norm:
+        if _feat_compact(label) == compact or _feat_compact(fid.replace("_", " ")) == compact:
             return fid
-        if normalize_spell_name(fid.replace("_", " ")) == norm:
-            return fid
-    return key
+    return compact or key
 
 
 def origin_feat_ids(char: Dnd5eCharacter) -> set[str]:

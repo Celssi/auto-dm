@@ -86,6 +86,7 @@ function CharactersWorkspace({
   creatingImmediate,
   saveChar,
   onConfirmDelete,
+  onRebuild,
   dispatch,
   navigate,
 }: {
@@ -101,6 +102,7 @@ function CharactersWorkspace({
   creatingImmediate: boolean;
   saveChar: (c: Character, opts?: SaveCharOptions) => Promise<void>;
   onConfirmDelete: () => void;
+  onRebuild: (id: string) => void;
   dispatch: Dispatch<CharactersAction>;
   navigate: NavigateFunction;
 }) {
@@ -113,6 +115,7 @@ function CharactersWorkspace({
           loaded={state.rosterLoaded}
           onOpen={(id) => navigate(`/characters/${id}`)}
           onCreate={() => navigate('/characters/new')}
+          onRebuild={onRebuild}
         />
       )}
       {mode === 'wizard' && (
@@ -234,6 +237,15 @@ export default function CharactersPage() {
         creatingImmediate={creatingImmediate}
         saveChar={saveChar}
         onConfirmDelete={() => setConfirmDelete(true)}
+        onRebuild={(id) => {
+          void (async () => {
+            const { character: rebuilt } = await api.rebuildCharacter(id);
+            await load();
+            if (characterId === id) {
+              dispatch({ type: 'set', patch: { character: rebuilt as Character } });
+            }
+          })();
+        }}
         dispatch={dispatch}
         navigate={navigate}
       />
@@ -351,11 +363,13 @@ function CharactersRoster({
   loaded,
   onOpen,
   onCreate,
+  onRebuild,
 }: {
   roster: CharacterRosterEntry[];
   loaded: boolean;
   onOpen: (id: string) => void;
   onCreate: () => void;
+  onRebuild: (id: string) => void;
 }) {
   const { game } = useGame();
   return (
@@ -377,12 +391,24 @@ function CharactersRoster({
         </div>
       ) : (
         roster.map((r) => (
-          <ListCard
-            key={r.id}
-            title={r.name}
-            subtitle={characterRosterSubtitle(r) || undefined}
-            onClick={() => onOpen(r.id)}
-          />
+          <div key={r.id} className="relative">
+            <ListCard
+              title={r.name}
+              subtitle={characterRosterSubtitle(r) || undefined}
+              onClick={() => onOpen(r.id)}
+            />
+            <button
+              type="button"
+              className="absolute top-3 right-3 z-10 text-[10px] text-accent/80 hover:text-accent hover:underline"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onRebuild(r.id);
+              }}
+            >
+              Rebuild sheet
+            </button>
+          </div>
         ))
       )}
     </m.div>

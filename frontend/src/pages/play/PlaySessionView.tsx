@@ -51,6 +51,7 @@ interface Props {
   onDragonkeepInit: () => Promise<void>;
   onBrambletrekCombatAction: (action: string, handIndex?: number) => Promise<void>;
   onCombatAction: (action: string, targetId?: string) => Promise<void>;
+  onRebuildSheet?: () => void;
 }
 
 export default function PlaySessionView({
@@ -79,6 +80,7 @@ export default function PlaySessionView({
   onDragonkeepInit,
   onBrambletrekCombatAction,
   onCombatAction,
+  onRebuildSheet,
 }: Props) {
   const {
     sessionLoaded,
@@ -114,6 +116,7 @@ export default function PlaySessionView({
     diceModal,
     spellCastModal,
     sheetUpdating,
+    queuedCount,
     pendingJourney,
     dragonkeep,
     sessionId,
@@ -145,6 +148,7 @@ export default function PlaySessionView({
             world={world}
             worldLoading={worldLoading}
             worldError={worldError}
+            onRebuildSheet={onRebuildSheet}
           />
         }
         chat={
@@ -172,6 +176,7 @@ export default function PlaySessionView({
               input={input}
               loading={loading}
               sheetUpdating={sheetUpdating}
+              queuedCount={queuedCount}
               chatError={chatError}
               spellConfirm={spellConfirm}
               onInputChange={onInputChange}
@@ -349,6 +354,7 @@ function PlayCharacterPanel({
   world,
   worldLoading,
   worldError,
+  onRebuildSheet,
 }: {
   character: Character | null;
   characterId: string;
@@ -357,6 +363,7 @@ function PlayCharacterPanel({
   world: PlayState['world'];
   worldLoading: boolean;
   worldError: boolean;
+  onRebuildSheet?: () => void;
 }) {
   const stage = playerProgress?.stage?.trim() ?? '';
   // Avoid repeating the current stage as a one-item beat list.
@@ -365,14 +372,21 @@ function PlayCharacterPanel({
     <aside className="panel-glow overflow-y-auto p-3 flex flex-col gap-3 min-h-0 flex-1">
       <div className="flex items-center justify-between gap-2 shrink-0">
         <h2 className="section-heading">Character</h2>
-        {character && characterId && (
-          <Link
-            to={`/characters/${characterId}`}
-            className="text-[10px] text-accent/80 hover:text-accent hover:underline"
-          >
-            Full sheet
-          </Link>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {onRebuildSheet && characterId && (
+            <button type="button" className="text-[10px] text-accent/80 hover:text-accent hover:underline" onClick={onRebuildSheet}>
+              Rebuild sheet
+            </button>
+          )}
+          {character && characterId && (
+            <Link
+              to={`/characters/${characterId}`}
+              className="text-[10px] text-accent/80 hover:text-accent hover:underline"
+            >
+              Full sheet
+            </Link>
+          )}
+        </div>
       </div>
       {character ? (
         <PlayCharacterSidebar character={character} summary={characterSummary} />
@@ -615,6 +629,7 @@ function PlayChatInput({
   input,
   loading,
   sheetUpdating,
+  queuedCount,
   chatError,
   spellConfirm,
   onInputChange,
@@ -625,6 +640,7 @@ function PlayChatInput({
   input: string;
   loading: boolean;
   sheetUpdating: boolean;
+  queuedCount: number;
   chatError: string;
   spellConfirm: SpellConfirmation | null;
   onInputChange: (value: string) => void;
@@ -661,19 +677,24 @@ function PlayChatInput({
           value={input}
           onChange={(e) => onInputChange(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && onSend()}
-          placeholder="What do you do?"
+          placeholder={loading ? 'Queue the next message…' : 'What do you do?'}
           aria-label="Message to the DM"
-          disabled={loading}
         />
         <button
           type="button"
           className="btn-primary px-5 py-2.5 shrink-0"
           onClick={onSend}
-          disabled={loading || !input.trim()}
+          disabled={!input.trim()}
         >
-          Send
+          {loading ? 'Queue' : 'Send'}
         </button>
       </div>
+      {loading && (
+        <p className="text-xs text-muted">
+          The DM is still writing. You can queue the next message.
+          {queuedCount > 0 ? ` ${queuedCount} waiting.` : ''}
+        </p>
+      )}
       {sheetUpdating && !loading && <p className="text-xs text-muted">Updating sheet in the background…</p>}
     </div>
   );

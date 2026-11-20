@@ -105,8 +105,8 @@ def rag_context_for_theme(
         rules_query,
         game_id=plugin.id,
         factions=factions,
-        top_k=8,
-        use_rerank=True,
+        top_k=4,
+        use_rerank=False,
         generate_answer=False,
     )
     context = "\n\n".join(
