@@ -87,11 +87,14 @@ def summary(char_id: str):
     char = get_character(char_id)
     if not char:
         raise HTTPException(404, "Character not found")
-    plugin = _plugin_for_data(char)
-    obj = plugin.rebuild_character(plugin.character_from_dict(char))
+    from backend.games.registry import rebuild_character_dict_persisting
+
+    payload = rebuild_character_dict_persisting(char_id, char)
+    plugin = _plugin_for_data(payload)
+    obj = plugin.character_from_dict(payload)
     return {
         "summary": plugin.character_creation_summary(obj),
-        "character": plugin.character_to_dict(obj),
+        "character": payload,
     }
 
 
@@ -118,15 +121,15 @@ def create(body: CharacterBody):
 
 @router.post("/{char_id}/rebuild")
 def rebuild_saved(char_id: str):
-    """Rebuild derived 2024 stats and persist. Player-triggered; does not invent new choices."""
+    """Rebuild derived 2024 stats and persist backfilled 2024 defaults plus live resources."""
     char = get_character(char_id)
     if not char:
         raise HTTPException(404, "Character not found")
-    plugin = _plugin_for_data(char)
-    rebuilt = plugin.rebuild_character(plugin.character_from_dict(char))
-    payload = plugin.character_to_dict(rebuilt)
+    from backend.games.registry import rebuild_character_dict_persisting
+
+    payload = rebuild_character_dict_persisting(char_id, char)
     save_character(char_id, payload)
-    return {"character": get_character(char_id)}
+    return {"character": get_character(char_id) or payload}
 
 
 @router.put("/{char_id}")

@@ -464,7 +464,9 @@ def save_session_messages(session_id: str, messages: list[dict]) -> None:
 
 
 def get_session_lonelog(session_id: str) -> str:
-    return _read_text(SESSIONS_DIR / session_id / "lonelog.md")
+    from backend.dm.lonelog import sanitize_lonelog_content
+
+    return sanitize_lonelog_content(_read_text(SESSIONS_DIR / session_id / "lonelog.md"))
 
 
 def write_session_lonelog(session_id: str, content: str) -> None:

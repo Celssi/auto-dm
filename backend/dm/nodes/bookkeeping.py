@@ -6,7 +6,8 @@ import re
 
 from backend.dm.audit import character_audit_slice, diff_character_slices, record_audit
 from backend.dm.journal_keeper import run_journal_keeper
-from backend.dm.lonelog import format_mechanical, format_narrative
+from backend.dm.lonelog import format_mechanical, format_narrative, is_empty_spell_warning
+from backend.dm.narration_stream import emit_sheet
 from backend.dm.state import DMState, char_from_dict, game_plugin
 from backend.dm.story_memory import increment_summary
 from backend.dm.turn_kind import is_dice_only_turn
@@ -39,6 +40,7 @@ def _rag_direct_tasks(state: DMState) -> frozenset[str]:
 
 def character_keeper_node(state: DMState) -> DMState:
     updates = dict(state.get("character_updates") or {})
+    updates.pop("_logs", None)
     if not updates:
         return {}
     before_slice = character_audit_slice(state.get("character") or {})
@@ -47,6 +49,22 @@ def character_keeper_node(state: DMState) -> DMState:
     plugin = game_plugin(char_dict)
     char = plugin.rebuild_character(char_from_dict(char_dict))
     after_dict = plugin.character_to_dict(char)
+    from backend.games.registry import preserve_live_resources
+
+    if resolve_game_id(after_dict) == "dnd5e":
+        after_dict = preserve_live_resources(char_dict, after_dict)
+        for key in ("hp", "ac", "hit_dice_spent", "spell_slots", "feature_choices"):
+            if key in updates:
+                after_dict[key] = updates[key] if key != "feature_choices" else {
+                    **dict(after_dict.get("feature_choices") or {}),
+                    **dict(updates.get("feature_choices") or {}),
+                }
+        if updates.get("hp") is not None:
+            after_dict["hp"] = updates["hp"]
+        if updates.get("ac") is not None:
+            after_dict["ac"] = updates["ac"]
+        if updates.get("hit_dice_spent") is not None:
+            after_dict["hit_dice_spent"] = updates["hit_dice_spent"]
     after_slice = character_audit_slice(after_dict)
     diff = diff_character_slices(before_slice, after_slice)
     if diff:
@@ -61,6 +79,12 @@ def character_keeper_node(state: DMState) -> DMState:
             },
             session_id=state.get("session_id") or None,
         )
+    cid = after_dict.get("id")
+    if cid:
+        from backend.storage import save_character
+
+        save_character(cid, after_dict)
+        emit_sheet({"character": after_dict})
     return {"character": after_dict}
 
 
@@ -86,6 +110,8 @@ def scribe_node(state: DMState) -> DMState:
         if session_id:
             append_session_log(session_id, line)
     for resource_line in state.get("resource_log") or []:
+        if is_empty_spell_warning(resource_line):
+            continue
         formatted = format_narrative(resource_line)
         if session_id:
             append_session_log(session_id, formatted)
@@ -98,7 +124,8 @@ def chronicler_node(state: DMState) -> DMState:
         return {}
     if game_plugin(state.get("character")).play.skip_chronicler:
         return {}
-    if (state.get("shortcut_result") or {}).get("task") in _rag_direct_tasks(state):
+    task = (state.get("shortcut_result") or {}).get("task")
+    if task in _rag_direct_tasks(state) or task in ("short_rest", "long_rest", "cast_spell"):
         return {}
     adventure = state.get("adventure") or {}
     adv_id = adventure.get("id")
@@ -140,6 +167,9 @@ def journal_keeper_node(state: DMState) -> DMState:
 
 def _needs_journal_keeper(state: DMState) -> bool:
     if is_dice_only_turn(state):
+        return False
+    task = (state.get("shortcut_result") or {}).get("task")
+    if task in ("short_rest", "long_rest", "cast_spell", "rules_help"):
         return False
     if game_plugin(state.get("character")).play.skip_journal_keeper:
         return False

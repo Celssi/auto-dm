@@ -18,6 +18,36 @@ def format_mechanical(text: str) -> str:
     return f"@ {_now()} {sanitize_narration_dashes(text.strip())}"
 
 
+_EMPTY_SPELL_WARNING = re.compile(
+    r"spell not on character list:\s*$",
+    re.IGNORECASE,
+)
+
+
+def is_empty_spell_warning(text: str) -> bool:
+    stripped = (text or "").strip()
+    if not stripped:
+        return False
+    body = re.sub(r"^(@|=>)\s*\S+\s*", "", stripped)
+    body = re.sub(r"^⚠\s*", "", body).strip()
+    return bool(_EMPTY_SPELL_WARNING.search(body) or _EMPTY_SPELL_WARNING.search(stripped))
+
+
+def sanitize_lonelog_content(content: str) -> str:
+    """Drop historical empty-spell warnings while keeping the rest of the log."""
+    if not content:
+        return content
+    kept: list[str] = []
+    for line in content.splitlines():
+        if is_empty_spell_warning(line):
+            continue
+        kept.append(line)
+    cleaned = "\n".join(kept).rstrip()
+    if content.endswith("\n"):
+        cleaned += "\n"
+    return cleaned
+
+
 def format_narrative(text: str) -> str:
     lines = [sanitize_narration_dashes(ln.strip()) for ln in text.strip().splitlines() if ln.strip()]
     return "\n".join(f"=> {ln}" for ln in lines)

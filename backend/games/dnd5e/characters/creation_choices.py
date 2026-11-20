@@ -607,6 +607,45 @@ def _is_rogue(char: Dnd5eCharacter) -> bool:
     )
 
 
+SPECIES_ORIGIN_LANGUAGE = {
+    "elf": "elvish",
+    "dwarf": "dwarvish",
+    "halfling": "halfling",
+    "gnome": "gnomish",
+    "orc": "orc",
+    "dragonborn": "draconic",
+    "goliath": "giant",
+}
+
+BACKGROUND_ORIGIN_LANGUAGE = {
+    "sage": "draconic",
+    "soldier": "giant",
+    "criminal": "orc",
+    "acolyte": "elvish",
+    "guide": "giant",
+    "sailor": "orc",
+    "wayfarer": "goblin",
+    "artisan": "dwarvish",
+    "merchant": "dwarvish",
+    "scribe": "draconic",
+    "noble": "elvish",
+    "charlatan": "elvish",
+    "entertainer": "elvish",
+    "farmer": "halfling",
+    "hermit": "draconic",
+}
+
+_WIZARD_BOOK_EXTRAS = (
+    "Burning Hands",
+    "Sleep",
+    "Charm Person",
+    "Thunderwave",
+    "Find Familiar",
+    "Color Spray",
+)
+_MI_WIZARD_CANTRIPS = ("Minor Illusion", "Acid Splash", "Light", "Ray of Frost")
+
+
 def _reserved_language_names(char: Dnd5eCharacter, fc: dict[str, Any]) -> set[str]:
     reserved = {"common", "thieves' cant", "thieves cant"}
     extra = _norm_lang(fc.get("thieves_cant_language") or "")
@@ -615,52 +654,179 @@ def _reserved_language_names(char: Dnd5eCharacter, fc: dict[str, Any]) -> set[st
     return reserved
 
 
-def migrate_legacy_sheet(char: Dnd5eCharacter) -> bool:
-    """Backfill origin languages, High Elf ability, and wizard spellbook without wiping picks."""
-    changed = False
-    fc = dict(char.feature_choices or {})
+def _has_class(char: Dnd5eCharacter, class_name: str) -> bool:
+    needle = class_name.strip().lower()
+    if str(char.class_name or "").lower() == needle:
+        return True
+    return any(
+        str(entry.get("class_name") or "").lower() == needle
+        for entry in char.normalized_class_entries()
+    )
+
+
+def _set_choice(fc: dict[str, Any], key: str, value: Any) -> bool:
+    current = fc.get(key)
+    if current == value:
+        return False
+    fc[key] = value
+    return True
+
+
+def _fill_origin_languages(char: Dnd5eCharacter, fc: dict[str, Any]) -> bool:
+    origin_list = [_norm_lang(item) for item in (fc.get("origin_languages") or []) if _norm_lang(item)]
+    if len(origin_list) >= 2:
+        return False
+    reserved = _reserved_language_names(char, fc)
     existing_langs = [_norm_lang(item) for item in (char.languages or []) if _norm_lang(item)]
+    inferred = [lang for lang in origin_list if lang]
+    for lang in existing_langs:
+        if lang in reserved or lang in inferred:
+            continue
+        inferred.append(lang)
+        if len(inferred) >= 2:
+            break
+    species_lang = SPECIES_ORIGIN_LANGUAGE.get(str(char.species or "").strip().lower(), "")
+    background_lang = BACKGROUND_ORIGIN_LANGUAGE.get(str(char.background or "").strip().lower(), "")
+    standard = [lang for lang in STANDARD_LANGUAGES if lang != "common"]
+    for lang in (species_lang, background_lang, *standard):
+        if not lang or lang in reserved or lang in inferred:
+            continue
+        inferred.append(lang)
+        if len(inferred) >= 2:
+            break
+    inferred = inferred[:2]
+    if inferred and inferred != origin_list:
+        fc["origin_languages"] = inferred
+        return True
+    return False
 
-    origin = fc.get("origin_languages") or []
-    origin_list = [_norm_lang(item) for item in origin if _norm_lang(item)]
-    if not origin_list:
-        reserved = _reserved_language_names(char, fc)
-        inferred = [lang for lang in existing_langs if lang not in reserved]
-        # Keep at most the two origin-language picks; do not invent names.
-        inferred = inferred[:2]
-        if inferred:
-            fc["origin_languages"] = inferred
-            origin_list = inferred
-            changed = True
 
+def _fill_elf_defaults(char: Dnd5eCharacter, fc: dict[str, Any]) -> bool:
+    if str(char.species or "").strip().lower() != "elf":
+        return False
+    changed = False
     lineage = str(fc.get("elven_lineage") or "").strip().lower().replace(" ", "_")
-    if (
-        str(char.species or "").strip().lower() == "elf"
-        and lineage == "high_elf"
-        and not str(fc.get("high_elf_spell_ability") or "").strip()
-    ):
+    cantrips = {normalize_spell_name(item) for item in (char.cantrips or [])}
+    if not lineage:
+        if "druidcraft" in cantrips:
+            lineage = "wood_elf"
+        elif str(char.class_name or "").lower() == "ranger":
+            lineage = "wood_elf"
+        else:
+            lineage = "high_elf"
+        changed = _set_choice(fc, "elven_lineage", lineage) or changed
+    if lineage == "high_elf" and not str(fc.get("high_elf_spell_ability") or "").strip():
         from backend.games.dnd5e.characters.character_data import get_class
 
         cls = get_class(char.class_name) or {}
-        fc["high_elf_spell_ability"] = str(cls.get("primary_ability") or "int").lower()
-        changed = True
+        changed = _set_choice(
+            fc, "high_elf_spell_ability", str(cls.get("primary_ability") or "int").lower()
+        ) or changed
+    keen = str(fc.get("keen_senses_skill") or "").strip().lower()
+    if not keen:
+        skills = {str(item).strip().lower() for item in (char.skill_proficiencies or [])}
+        pick = "perception" if "perception" in skills else "perception"
+        changed = _set_choice(fc, "keen_senses_skill", pick) or changed
+    return changed
 
-    is_wizard = str(char.class_name or "").lower() == "wizard" or any(
-        str(entry.get("class_name") or "").lower() == "wizard"
-        for entry in char.normalized_class_entries()
-    )
-    if is_wizard:
-        book = list(char.spellbook or [])
-        seen = {normalize_spell_name(item) for item in book}
-        for name in char.prepared_spells or []:
-            key = normalize_spell_name(str(name))
-            if key and key not in seen:
-                book.append(str(name).strip())
-                seen.add(key)
-                changed = True
-        if book != list(char.spellbook or []):
-            char.spellbook = book
 
+def _fill_magic_initiate(char: Dnd5eCharacter, fc: dict[str, Any]) -> bool:
+    feat = f"{char.origin_feat or ''} {char.versatile_origin_feat or ''}".lower()
+    if "magic initiate" not in feat:
+        return False
+    changed = False
+    list_id = "wizard"
+    if "cleric" in feat:
+        list_id = "cleric"
+    elif "druid" in feat:
+        list_id = "druid"
+    cantrips = fc.get("magic_initiate_cantrips") or []
+    cantrip_list = [str(item).strip() for item in cantrips if str(item).strip()]
+    if len(cantrip_list) < 2:
+        known = {normalize_spell_name(item) for item in (char.cantrips or [])}
+        known.update(normalize_spell_name(item) for item in cantrip_list)
+        extras = list(cantrip_list)
+        from backend.games.dnd5e.characters.character_data import spell_list_for
+
+        pool = list(_MI_WIZARD_CANTRIPS if list_id == "wizard" else []) + list(
+            spell_list_for(list_id).get("cantrips") or []
+        )
+        for name in pool:
+            key = normalize_spell_name(name)
+            if not key or key in known:
+                continue
+            extras.append(name)
+            known.add(key)
+            if len(extras) >= 2:
+                break
+        if extras:
+            changed = _set_choice(fc, "magic_initiate_cantrips", extras[:2]) or changed
+    if not str(fc.get("magic_initiate_level1") or "").strip():
+        prepared = [str(item).strip() for item in (char.prepared_spells or []) if str(item).strip()]
+        pick = ""
+        for name in prepared:
+            if normalize_spell_name(name) == "shield":
+                pick = name
+                break
+        if not pick:
+            for name in prepared:
+                if normalize_spell_name(name) != "magearmor":
+                    pick = name
+                    break
+        if not pick and prepared:
+            pick = prepared[0]
+        if not pick:
+            pick = "Shield" if list_id == "wizard" else ""
+        if pick:
+            changed = _set_choice(fc, "magic_initiate_level1", pick) or changed
+    if not str(fc.get("magic_initiate_ability") or "").strip():
+        ability = "int" if list_id == "wizard" else "wis"
+        changed = _set_choice(fc, "magic_initiate_ability", ability) or changed
+    return changed
+
+
+def _fill_wizard_spellbook(char: Dnd5eCharacter) -> bool:
+    if not _has_class(char, "wizard"):
+        return False
+    from backend.games.dnd5e.characters.character_data import spell_list_for
+
+    level = max(1, int(char.level or 1))
+    need = 6 + 2 * (level - 1)
+    book = list(char.spellbook or [])
+    seen = {normalize_spell_name(item) for item in book}
+    changed = False
+    for name in char.prepared_spells or []:
+        key = normalize_spell_name(str(name))
+        if key and key not in seen:
+            book.append(str(name).strip())
+            seen.add(key)
+            changed = True
+    if len(book) < need:
+        pool = list(_WIZARD_BOOK_EXTRAS) + list(spell_list_for("wizard").get("1") or [])
+        for name in pool:
+            key = normalize_spell_name(name)
+            if not key or key in seen:
+                continue
+            book.append(name)
+            seen.add(key)
+            changed = True
+            if len(book) >= need:
+                break
+    if changed:
+        char.spellbook = book
+    return changed
+
+
+def migrate_legacy_sheet(char: Dnd5eCharacter) -> bool:
+    """Backfill 2024 origin picks, High Elf ability, and wizard spellbook without wiping picks."""
+    changed = False
+    fc = dict(char.feature_choices or {})
+    changed = _fill_origin_languages(char, fc) or changed
+    changed = _fill_elf_defaults(char, fc) or changed
+    changed = _fill_magic_initiate(char, fc) or changed
+    if not str(fc.get("gaming_set_kind") or "").strip() and str(char.background or "").lower() == "soldier":
+        changed = _set_choice(fc, "gaming_set_kind", "dice_set") or changed
+    changed = _fill_wizard_spellbook(char) or changed
     if changed:
         char.feature_choices = fc
     return changed

@@ -46,6 +46,12 @@ def apply_auth_popup_headers(response) -> None:
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     hydrate_runtime()
+    try:
+        from backend.qa_repair import repair_qa_characters
+
+        repair_qa_characters()
+    except Exception:
+        logger.exception("QA character repair skipped")
     yield
 
 

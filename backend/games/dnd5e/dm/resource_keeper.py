@@ -105,6 +105,24 @@ def narrative_short_rest_detected(user_message: str, dm_response: str) -> bool:
     return False
 
 
+_AC_FROM_NARRATION = re.compile(
+    r"\b(?:ac|armor class)\s*(?:is|now|:)?\s*(\d+)\b",
+    re.IGNORECASE,
+)
+_HD_REMAINING = re.compile(
+    r"\b(?:hit dice|hd)\s*(?:remaining|left|:)?\s*(\d+)\b|\b(\d+)\s*(?:hit dice|hd)\b",
+    re.IGNORECASE,
+)
+_MAGE_ARMOR_ACTIVE = re.compile(
+    r"mage armour|mage armor",
+    re.IGNORECASE,
+)
+_SHEET_RECONCILE = re.compile(
+    r"hp\s+(\d+)\s*/\s*(\d+)[,;.\s]+ac\s+(\d+)[,;.\s]+(?:hd|hit dice)\s+(\d+)",
+    re.IGNORECASE,
+)
+
+
 def parse_pc_hp_from_narration(
     dm_response: str,
     *,
@@ -133,15 +151,97 @@ def parse_pc_hp_from_narration(
                 re.I,
             ),
         )
+    found: int | None = None
     for pattern in patterns:
         for match in pattern.finditer(text):
             hp = int(match.group(1))
             mx = int(match.group(2)) if match.lastindex and match.lastindex >= 2 and match.group(2) else max_hp
             if mx == max_hp and 0 <= hp <= max_hp:
+                found = hp
                 if hp != current_hp:
                     return hp
-                return hp
+    return found
+
+
+def parse_ac_from_narration(dm_response: str) -> int | None:
+    text = dm_response or ""
+    for match in _AC_FROM_NARRATION.finditer(text):
+        ac = int(match.group(1))
+        if 1 <= ac <= 40:
+            return ac
     return None
+
+
+def parse_hit_dice_remaining(dm_response: str, *, hit_dice_max: int) -> int | None:
+    if hit_dice_max <= 0:
+        return None
+    text = dm_response or ""
+    for match in _HD_REMAINING.finditer(text):
+        remaining = int(match.group(1) or match.group(2) or 0)
+        if 0 <= remaining <= hit_dice_max:
+            return remaining
+    return None
+
+
+def narration_sets_mage_armor(dm_response: str) -> bool:
+    text = (dm_response or "").lower()
+    if not _MAGE_ARMOR_ACTIVE.search(text):
+        return False
+    if any(token in text for token in ("ended", "expires", "expired", "drops", "no longer")):
+        return False
+    return True
+
+
+def overlay_live_resources(character: dict, dm_response: str) -> dict:
+    """Apply HP/AC/HD/Mage Armor stated in DM prose onto the character dict."""
+    from backend.games.dnd5e.characters.class_resources import compute_ac_details
+    from backend.games.dnd5e.characters.spell_resources import set_mage_armor_active
+
+    char = character_from_dict(character)
+    updates: dict = {}
+    logs: list[str] = []
+    text = dm_response or ""
+    reconcile_matches = list(_SHEET_RECONCILE.finditer(text))
+    reconcile = reconcile_matches[-1] if reconcile_matches else None
+    hp = parse_pc_hp_from_narration(
+        dm_response, name=char.name, max_hp=char.max_hp, current_hp=char.hp
+    )
+    if reconcile:
+        hp = int(reconcile.group(1))
+    if hp is not None and hp != char.hp:
+        char.hp = hp
+        updates["hp"] = hp
+        logs.append(f"HP set to {hp}/{char.max_hp} from DM narration.")
+    remaining = parse_hit_dice_remaining(dm_response, hit_dice_max=char.hit_dice_max)
+    if reconcile:
+        remaining = int(reconcile.group(4))
+    if remaining is not None:
+        spent = max(0, char.hit_dice_max - remaining)
+        if spent != char.hit_dice_spent:
+            char.hit_dice_spent = spent
+            updates["hit_dice_spent"] = spent
+            logs.append(f"Hit Dice remaining {remaining}/{char.hit_dice_max}.")
+    ac_from_text = parse_ac_from_narration(dm_response)
+    if reconcile:
+        ac_from_text = int(reconcile.group(3))
+    if narration_sets_mage_armor(dm_response) or (
+        ac_from_text is not None and ac_from_text >= 13 + char.ability_modifier("dex")
+    ):
+        set_mage_armor_active(char, True)
+        updates["feature_choices"] = dict(char.feature_choices or {})
+    if not char.ac_manual:
+        computed = int(compute_ac_details(char)["computed"])
+        if computed != char.ac:
+            char.ac = computed
+            updates["ac"] = computed
+            logs.append(f"AC set to {computed}.")
+    elif ac_from_text is not None and ac_from_text != char.ac:
+        char.ac = ac_from_text
+        updates["ac"] = ac_from_text
+    if updates.get("feature_choices") is None and "ac" in updates:
+        updates["feature_choices"] = dict(char.feature_choices or {})
+    updates["_logs"] = logs
+    return updates
 
 
 def parse_hit_dice_to_spend(user_message: str, dm_response: str) -> int:
