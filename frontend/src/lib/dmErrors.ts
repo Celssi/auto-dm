@@ -18,7 +18,14 @@ export function friendlyDmError(detail: unknown): string {
     return BUSY;
   }
   if (lower.includes('unavailable right now')) return text;
-  if (lower.includes('error code') || lower.includes('request id') || lower.includes('anthropic')) {
+  if (
+    lower.includes('error code') ||
+    lower.includes('request id') ||
+    lower.includes('anthropic') ||
+    lower.includes('internal server error') ||
+    lower.includes('failed to generate') ||
+    lower.includes('bootstrap failed')
+  ) {
     return UNAVAILABLE;
   }
   return text || UNAVAILABLE;

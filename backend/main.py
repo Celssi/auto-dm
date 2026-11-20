@@ -68,6 +68,14 @@ if LANGSMITH_ENABLED:
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     logger.exception("Unhandled error on %s %s", request.method, request.url.path)
+    from backend.dm.errors import friendly_dm_error, is_provider_error, record_provider_error
+
+    record_provider_error(exc)
+    if is_provider_error(exc) or request.url.path.startswith("/api/play"):
+        return JSONResponse(
+            status_code=503,
+            content={"detail": friendly_dm_error(exc)},
+        )
     return JSONResponse(
         status_code=500,
         content={"detail": "Internal server error"},

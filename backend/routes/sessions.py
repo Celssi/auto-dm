@@ -140,6 +140,10 @@ def begin(session_id: str):
         return begin_session(session_id)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        from backend.dm.errors import http_provider_error
+
+        raise http_provider_error(e) from e
 
 
 def _execute_shortcut(session_id: str, body: ShortcutBody) -> dict:

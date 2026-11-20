@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, type Dispatch } from 'react';
 import type { NavigateFunction } from 'react-router-dom';
 import { api } from '../../api/client';
+import { friendlyDmError } from '../../lib/dmErrors';
 import { useToast } from '../../components/ui/toast';
 import { bootstrapBrambletrekSession } from '../../games/brambletrek/bootstrapCampaign';
 import { type CampaignsAction, type CampaignsState, type CampaignTab } from './campaignsState';
@@ -164,7 +165,7 @@ export function useCampaignsPageActions(
     } catch (e) {
       dispatch({
         type: 'set',
-        patch: { error: e instanceof Error ? e.message : 'Failed to generate campaign' },
+        patch: { error: friendlyDmError(e instanceof Error ? e.message : e) },
       });
     } finally {
       dispatch({ type: 'set', patch: { generating: false } });
@@ -229,7 +230,7 @@ export function useCampaignsPageActions(
     } catch (e) {
       dispatch({
         type: 'set',
-        patch: { error: e instanceof Error ? e.message : 'Failed to start adventure' },
+        patch: { error: friendlyDmError(e instanceof Error ? e.message : e) },
       });
     } finally {
       dispatch({ type: 'set', patch: { bootstrapping: false } });

@@ -10,6 +10,7 @@ from backend.dm.campaign_bootstrap import (
     bootstrap_campaign,
     generate_campaign_with_plan,
 )
+from backend.dm.errors import http_provider_error
 
 router = APIRouter(prefix="/api/play", tags=["play"])
 
@@ -54,6 +55,8 @@ def play_bootstrap(body: BootstrapBody):
         )
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        raise http_provider_error(e) from e
     return result
 
 
@@ -71,6 +74,8 @@ def play_bootstrap_adventure(body: BootstrapAdventureBody):
         )
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        raise http_provider_error(e) from e
     return result
 
 
@@ -88,4 +93,6 @@ def play_generate_campaign(body: GenerateCampaignBody):
         )
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        raise http_provider_error(e) from e
     return result

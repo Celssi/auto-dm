@@ -21,7 +21,6 @@ from backend.journal_storage import (
     slugify,
 )
 from backend.llm import structured_llm
-from backend.rag.engine import query_rules
 from backend.storage import (
     create_session,
     get_adventure,
@@ -108,6 +107,8 @@ def rag_context_for_theme(
     elif mode == "module":
         rules_query = f"D&D adventure module: {theme}. Dungeons, encounters, plot."
         factions = ["dm", "adventures_faerun"]
+    from backend.rag.engine import query_rules
+
     rag = query_rules(
         rules_query,
         game_id=plugin.id,
@@ -368,10 +369,12 @@ def generate_campaign_plan(
             "Design for a single 2024-rules hero without assuming class, race, or backstory."
         )
 
-    rag_plugin = get_game(game_id)
     rag_sources: list[dict] = []
     context = ""
     if mode == "module" or include_faerun:
+        from backend.rag.engine import query_rules
+
+        rag_plugin = get_game(game_id)
         rag = query_rules(
             theme if mode == "module" else f"D&D campaign arc: {theme}",
             game_id=rag_plugin.id,

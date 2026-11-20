@@ -111,10 +111,12 @@ def keepalive():
 
 
 @router.get("/health")
-def health():
+def health(llm: bool = Query(False)):
     status = _index_status()
     last_recall = _cached_recall()
-    return {
+    from backend.dm.errors import last_provider_error
+
+    payload = {
         "status": "ok",
         "indexed": status["indexed"],
         "indexed_by_game": status["indexed_by_game"],
@@ -126,7 +128,14 @@ def health():
         "langsmith_project": LANGSMITH_PROJECT or None,
         "langsmith_endpoint": LANGSMITH_ENDPOINT or None,
         "last_recall": last_recall,
+        "last_llm_error": last_provider_error() or None,
     }
+    if llm:
+        from backend.llm import probe_claude
+
+        payload["claude_probe"] = probe_claude()
+        payload["last_llm_error"] = last_provider_error() or None
+    return payload
 
 
 @router.get("/recall-audit")
