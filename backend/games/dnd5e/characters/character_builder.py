@@ -1087,7 +1087,7 @@ def short_rest_heal(
         "dice_spent": spend,
         "summary": (
             f"Spent {spend}d{char.hit_die} {rolls} + {con_mod:+d} CON "
-            f"→ **{total}** HP restored ({char.hp - total} → {new_hp})"
+            f"-> **{total}** HP restored ({hp_before} -> {new_hp})"
         ),
         "entity_updates": {
             "hp": new_hp,

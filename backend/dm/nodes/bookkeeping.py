@@ -53,7 +53,7 @@ def character_keeper_node(state: DMState) -> DMState:
 
     if resolve_game_id(after_dict) == "dnd5e":
         after_dict = preserve_live_resources(char_dict, after_dict)
-        for key in ("hp", "ac", "hit_dice_spent", "spell_slots", "feature_choices"):
+        for key in ("hp", "ac", "hit_dice_spent", "spell_slots", "feature_choices", "conditions"):
             if key in updates:
                 after_dict[key] = updates[key] if key != "feature_choices" else {
                     **dict(after_dict.get("feature_choices") or {}),
@@ -65,6 +65,8 @@ def character_keeper_node(state: DMState) -> DMState:
             after_dict["ac"] = updates["ac"]
         if updates.get("hit_dice_spent") is not None:
             after_dict["hit_dice_spent"] = updates["hit_dice_spent"]
+        if "conditions" in updates:
+            after_dict["conditions"] = list(updates.get("conditions") or [])
     after_slice = character_audit_slice(after_dict)
     diff = diff_character_slices(before_slice, after_slice)
     if diff:

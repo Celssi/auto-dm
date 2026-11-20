@@ -236,8 +236,15 @@ def test_rest_and_cast_skip_continuity_guard():
     assert not _needs_continuity_guard(
         {"shortcut_result": {"task": "cast_spell"}, "narrative": "Mage Armor holds.", "narrative_context": {"canon_summary": "x", "recent_scenes": "y"}}
     )
-    assert _needs_continuity_guard(
+    assert not _needs_continuity_guard(
         {"shortcut_result": {}, "narrative": "You walk into town.", "narrative_context": {"canon_summary": "x", "recent_scenes": "y"}}
+    )
+    assert _needs_continuity_guard(
+        {
+            "shortcut_result": {},
+            "narrative": "Mott waves from the porch.",
+            "narrative_context": {"canon_summary": "Mott is dead.", "recent_scenes": "Mott fell."},
+        }
     )
 
 

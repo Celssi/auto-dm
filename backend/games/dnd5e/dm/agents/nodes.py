@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 from backend.dm.continuity_guard import apply_continuity_guard
 from backend.dm.encounters import CombatState, combat_state_view, load_combat_state
 from backend.dm.narration_stream import (
@@ -72,7 +74,11 @@ _RESOURCE_SIGNALS = (
     "hit dice",
     "hit point",
     " hp",
+    "hp ",
     "hp/",
+    "falling",
+    "prone",
+    "damage",
     "ritual",
 )
 
@@ -132,6 +138,21 @@ def _parse_cast_spell_name(message: str) -> str:
     return ""
 
 
+_CONTINUITY_MECHANICS = (
+    " hp",
+    "hp ",
+    "hit point",
+    "damage",
+    "falling",
+    "prone",
+    "unconscious",
+    " dies",
+    "died",
+    "killed",
+    "dead",
+)
+
+
 def _needs_continuity_guard(state: DMState) -> bool:
     if is_dice_only_turn(state):
         return False
@@ -139,9 +160,19 @@ def _needs_continuity_guard(state: DMState) -> bool:
     if task in ("short_rest", "long_rest", "cast_spell", "rules_help"):
         return False
     memory = state.get("narrative_context") or {}
-    if not memory.get("canon_summary", "").strip() and not memory.get("recent_scenes", "").strip():
+    canon = str(memory.get("canon_summary", "") or "")
+    recent = str(memory.get("recent_scenes", "") or "")
+    if not canon.strip() and not recent.strip():
         return False
-    return bool((state.get("narrative") or state.get("response") or "").strip())
+    draft = str(state.get("narrative") or state.get("response") or "")
+    if not draft.strip():
+        return False
+    lower = draft.lower()
+    if any(sig in lower for sig in _CONTINUITY_MECHANICS):
+        return True
+    names = re.findall(r"\b[A-Z][a-z]{2,}\b", f"{canon}\n{recent}")
+    skip = {"the", "you", "and", "but", "for", "with", "from"}
+    return any(name.lower() not in skip and name.lower() in lower for name in names[:40])
 
 
 def _needs_resource_keeper(state: DMState) -> bool:
@@ -553,8 +584,8 @@ def resource_keeper_node(state: DMState) -> DMState:
 
         pending = shortcut.get("pending_cast") or {}
         updates, logs = apply_pending_cast(char_dict, pending, dm_response)
-        updates = {**overlay, **updates}
-        logs = overlay_logs + logs
+        updates = {**updates, **overlay}
+        logs = logs + overlay_logs
     elif task == "cast_spell":
         updates, logs = overlay, overlay_logs
     elif shortcut.get("pending_rest") or task in ("short_rest", "long_rest"):
@@ -577,8 +608,8 @@ def resource_keeper_node(state: DMState) -> DMState:
         if hp is not None:
             updates = dict(updates)
             updates["hp"] = hp
-        updates = {**overlay, **updates}
-        logs = overlay_logs + logs
+        updates = {**updates, **overlay}
+        logs = logs + overlay_logs
     else:
         updates, logs = run_resource_keeper(
             character=char_dict,
@@ -586,8 +617,8 @@ def resource_keeper_node(state: DMState) -> DMState:
             dm_response=dm_response,
             combat_active=combat_active,
         )
-        updates = {**overlay, **updates}
-        logs = overlay_logs + logs
+        updates = {**updates, **overlay}
+        logs = logs + overlay_logs
     if not updates and not logs:
         return {}
     merged = dict(state.get("character_updates") or {})

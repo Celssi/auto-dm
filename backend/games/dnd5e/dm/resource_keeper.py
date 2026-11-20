@@ -47,19 +47,18 @@ _SHORT_REST_GRANT = re.compile(
     r"after (a |the )?short rest|"
     r"(a |the )?short rest (is |was )?(complete|done|over|finished)|"
     r"an hour (passes|later)|hour passes|feel refreshed|"
-    r"you (rest|recover|heal|regain)|"
+    r"you rest\b|"
     r"hit (?:die|dice) (spent|used|rolled)|"
     r"spent .{0,24}hit (?:die|dice)|"
     r"arcane recovery|"
-    r"\d+\s*/\s*\d+\s*(->|to)\s*\d+\s*/\s*\d+|"
     r"lepä(ät|ätte|si)|tunnin lepo|tunti kuluu|virkisty)",
     re.IGNORECASE,
 )
 _REST_EFFECTS = re.compile(
     r"(hit (?:die|dice) (spent|used|rolled)|spent .{0,24}hit (?:die|dice)|"
-    r"arcane recovery|pact magic|"
-    r"\d+\s*/\s*\d+\s*(->|to)\s*\d+\s*/\s*\d+|"
-    r"regain.{0,24}(hp|hit points)|wounds (close|ease))",
+    r"arcane recovery|"
+    r"pact magic.{0,32}(return|recover)|"
+    r"wounds (close|ease))",
     re.IGNORECASE,
 )
 _LONG_REST_GRANT = re.compile(
@@ -118,20 +117,17 @@ def combat_blocks_rest(*, in_combat: bool = False, combat_state: dict | None = N
 
 
 def narrative_short_rest_detected(user_message: str, dm_response: str) -> bool:
-    """True only when the DM actually grants a short rest, not merely when the player asks."""
+    """True only when the player asked to rest and the DM granted it."""
     dm = (dm_response or "").lower()
     user = (user_message or "").lower()
     if "long rest" in dm or "long-rest" in dm:
         return False
     if rest_refused(dm_response):
         return False
-    if rest_granted(dm_response, kind="short"):
-        return True
-    if any(trigger in user for trigger in _SHORT_REST_TRIGGERS) and rest_granted(
-        dm_response, kind="short"
-    ):
-        return True
-    return False
+    user_asked = any(trigger in user for trigger in _SHORT_REST_TRIGGERS)
+    if not user_asked:
+        return False
+    return rest_granted(dm_response, kind="short")
 
 
 _AC_FROM_NARRATION = re.compile(
@@ -152,6 +148,14 @@ _SHEET_RECONCILE = re.compile(
 )
 
 
+def _hp_value_fits(hp: int, mx: int, max_hp: int) -> bool:
+    if hp < 0 or max_hp <= 0:
+        return False
+    if hp > max_hp:
+        return False
+    return mx in (0, max_hp) or abs(mx - max_hp) <= 2
+
+
 def parse_pc_hp_from_narration(
     dm_response: str,
     *,
@@ -164,16 +168,18 @@ def parse_pc_hp_from_narration(
     if not text.strip() or max_hp <= 0:
         return None
     hp_arrow = re.search(
-        r"\bhp\s+(\d+)\s*(?:/\s*\d+)?\s*->\s*(\d+)\s*/\s*(\d+)", text, re.I
+        r"\bhp\s+(\d+)\s*(?:/\s*\d+)?\s*(?:->|to)\s*(\d+)\s*/\s*(\d+)", text, re.I
     )
     if hp_arrow:
         hp, mx = int(hp_arrow.group(2)), int(hp_arrow.group(3))
-        if mx == max_hp and 0 <= hp <= max_hp:
+        if _hp_value_fits(hp, mx, max_hp):
             return hp
-    frac_arrow = re.search(r"\b(\d+)\s*/\s*(\d+)\s*->\s*(\d+)\s*/\s*(\d+)", text, re.I)
+    frac_arrow = re.search(
+        r"\b(\d+)\s*/\s*(\d+)\s*(?:->|to)\s*(\d+)\s*/\s*(\d+)", text, re.I
+    )
     if frac_arrow:
         hp, mx = int(frac_arrow.group(3)), int(frac_arrow.group(4))
-        if mx == max_hp and 0 <= hp <= max_hp:
+        if _hp_value_fits(hp, mx, max_hp):
             return hp
     name_pat = re.escape((name or "").strip()) if (name or "").strip() else ""
     patterns: list[re.Pattern[str]] = [
@@ -198,7 +204,7 @@ def parse_pc_hp_from_narration(
         for match in pattern.finditer(text):
             hp = int(match.group(1))
             mx = int(match.group(2)) if match.lastindex and match.lastindex >= 2 and match.group(2) else max_hp
-            if mx == max_hp and 0 <= hp <= max_hp:
+            if _hp_value_fits(hp, mx, max_hp):
                 found = hp
                 if hp != current_hp:
                     return hp
@@ -232,6 +238,62 @@ _MAGE_ARMOR_CAST = re.compile(
 )
 
 
+_SHEET_CONDITIONS = (
+    "Blinded",
+    "Charmed",
+    "Deafened",
+    "Frightened",
+    "Grappled",
+    "Incapacitated",
+    "Invisible",
+    "Paralyzed",
+    "Petrified",
+    "Poisoned",
+    "Prone",
+    "Restrained",
+    "Stunned",
+    "Unconscious",
+)
+
+
+def parse_conditions_from_narration(
+    dm_response: str, current: list | None = None
+) -> list[str]:
+    """Merge D&D 2024 conditions named in the final DM reply onto the sheet list."""
+    lower = (dm_response or "").lower()
+    out: list[str] = []
+    seen: set[str] = set()
+    for raw in current or []:
+        key = str(raw).strip()
+        if not key:
+            continue
+        token = key.lower()
+        if token not in seen:
+            seen.add(token)
+            out.append(key)
+    if not lower.strip():
+        return out
+    stood_up = bool(re.search(r"\bstands? up\b|\bstand up\b|\bgetting up\b", lower))
+    for cond in _SHEET_CONDITIONS:
+        token = cond.lower()
+        cleared = bool(
+            re.search(
+                rf"\b(?:no longer|not|isn't|is not|aren't|are not)\s+{token}\b",
+                lower,
+            )
+        )
+        if cond == "Prone" and stood_up:
+            cleared = True
+        if cleared:
+            out = [item for item in out if item.lower() != token]
+            seen.discard(token)
+            continue
+        if re.search(rf"\b{token}\b", lower) and token not in seen:
+            seen.add(token)
+            out.append(cond)
+    return out
+
+
 def narration_sets_mage_armor(dm_response: str) -> bool:
     text = dm_response or ""
     if not _MAGE_ARMOR_ACTIVE.search(text):
@@ -243,29 +305,42 @@ def narration_sets_mage_armor(dm_response: str) -> bool:
 
 
 def overlay_live_resources(character: dict, dm_response: str) -> dict:
-    """Apply HP/AC/HD/Mage Armor stated in DM prose onto the character dict."""
+    """Apply HP/AC/HD/conditions/Mage Armor stated in DM prose onto the character dict."""
     from backend.games.dnd5e.characters.class_resources import compute_ac_details
     from backend.games.dnd5e.characters.spell_resources import set_mage_armor_active
 
     char = character_from_dict(character)
+    stored_max = int(character.get("max_hp") or 0)
+    stored_hp = character.get("hp")
+    max_hp = stored_max or int(char.max_hp or 0)
+    current_hp = int(stored_hp) if stored_hp is not None else int(char.hp or 0)
     updates: dict = {}
     logs: list[str] = []
     text = dm_response or ""
     reconcile_matches = list(_SHEET_RECONCILE.finditer(text))
     reconcile = reconcile_matches[-1] if reconcile_matches else None
     hp = parse_pc_hp_from_narration(
-        dm_response, name=char.name, max_hp=char.max_hp, current_hp=char.hp
+        dm_response, name=char.name, max_hp=max_hp, current_hp=current_hp
     )
     if reconcile:
         hp = int(reconcile.group(1))
-    if hp is not None and hp != char.hp:
-        old_hp = char.hp
+    if hp is not None and hp != current_hp:
+        old_hp = current_hp
         char.hp = hp
         updates["hp"] = hp
         if hp < old_hp:
-            logs.append(f"Took {old_hp - hp} damage (HP {old_hp} -> {hp}/{char.max_hp}).")
+            logs.append(f"Took {old_hp - hp} damage (HP {old_hp} -> {hp}/{max_hp}).")
         else:
-            logs.append(f"HP set to {hp}/{char.max_hp} from DM narration.")
+            logs.append(f"HP set to {hp}/{max_hp} from DM narration.")
+    new_conditions = parse_conditions_from_narration(
+        dm_response, list(character.get("conditions") or char.conditions or [])
+    )
+    old_conditions = [str(item).strip().lower() for item in (character.get("conditions") or char.conditions or [])]
+    if [c.lower() for c in new_conditions] != old_conditions:
+        updates["conditions"] = new_conditions
+        added = [c for c in new_conditions if c.lower() not in old_conditions]
+        if added:
+            logs.append("Conditions: " + ", ".join(added) + ".")
     remaining = parse_hit_dice_remaining(dm_response, hit_dice_max=char.hit_dice_max)
     if reconcile:
         remaining = int(reconcile.group(4))

@@ -47,21 +47,13 @@ function applyChatResultPatch(result: ChatResult) {
 function preferLiveSheet(fetched: Character, streamed: Character | null): Character {
   if (!streamed) return fetched;
   const next = { ...fetched };
-  const streamedHp = Number(streamed.hp);
-  const fetchedHp = Number(fetched.hp);
-  if (Number.isFinite(streamedHp) && streamedHp < fetchedHp) {
-    next.hp = streamedHp;
-  }
-  const streamedAc = Number(streamed.ac);
-  if (Number.isFinite(streamedAc) && streamedAc > 0) {
-    next.ac = streamedAc;
+  if ((!fetched.conditions || fetched.conditions.length === 0) && streamed.conditions?.length) {
+    next.conditions = streamed.conditions;
   }
   next.feature_choices = {
-    ...((fetched.feature_choices || {}) as Record<string, unknown>),
     ...((streamed.feature_choices || {}) as Record<string, unknown>),
+    ...((fetched.feature_choices || {}) as Record<string, unknown>),
   };
-  if (streamed.spell_slots) next.spell_slots = streamed.spell_slots;
-  if (streamed.hit_dice_spent != null) next.hit_dice_spent = streamed.hit_dice_spent;
   return next;
 }
 
@@ -91,7 +83,8 @@ function applyPlayStreamEvent(
     dispatch({
       type: 'set',
       patch: {
-        sheetUpdating: !payload.character,
+        loading: false,
+        sheetUpdating: true,
         ...(payload.character ? { character: payload.character } : {}),
       },
     });
@@ -99,7 +92,9 @@ function applyPlayStreamEvent(
     const result = data as ChatResult;
     done[0] = result;
     dispatch({ type: 'replaceLastAssistant', content: result.response });
-    dispatch({ type: 'set', patch: { sheetUpdating: false, ...applyChatResultPatch(result) } });
+    const patch = applyChatResultPatch(result);
+    if (patch.character && lastSheet) lastSheet.current = patch.character as Character;
+    dispatch({ type: 'set', patch: { loading: false, sheetUpdating: false, ...patch } });
   } else if (event === 'error') {
     return streamErrorDetail(data);
   }
@@ -489,9 +484,11 @@ export function usePlayPageSession(
       if (state.characterId) {
         try {
           const fresh = await api.getCharacter(state.characterId);
+          const sheet = preferLiveSheet(fresh.character as Character, lastSheetRef.current);
+          lastSheetRef.current = sheet;
           dispatch({
             type: 'set',
-            patch: { character: preferLiveSheet(fresh.character as Character, lastSheetRef.current) },
+            patch: { character: sheet },
           });
         } catch (err: unknown) {
           console.warn('Failed to refresh character after chat', err);

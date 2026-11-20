@@ -89,6 +89,7 @@ _LIVE_RESOURCE_KEYS = (
     "hit_dice_spent",
     "hit_dice_max",
     "concentration",
+    "conditions",
     "luck_points_remaining",
     "second_wind_remaining",
     "lay_on_hands_remaining",
