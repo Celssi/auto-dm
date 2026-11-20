@@ -34,10 +34,17 @@ interface Page1Props {
   character: Character;
   editable?: boolean;
   onChange?: (patch: Partial<Character>) => void;
+  onToggleHeroicInspiration?: (next: boolean) => void;
   hideHeader?: boolean;
 }
 
-export default function CharacterSheetPage1({ character: c, editable, onChange, hideHeader }: Page1Props) {
+export default function CharacterSheetPage1({
+  character: c,
+  editable,
+  onChange,
+  onToggleHeroicInspiration,
+  hideHeader,
+}: Page1Props) {
   const liveScores = c.ability_scores || {};
   const baseScores = c.base_ability_scores || {};
   const liveLooksUnset = (['str', 'dex', 'con', 'int', 'wis', 'cha'] as const).every(
@@ -68,6 +75,7 @@ export default function CharacterSheetPage1({ character: c, editable, onChange, 
         hitDiceMax={hitDiceMax}
         hitDiceSpent={hitDiceSpent}
         onPatch={patch}
+        onToggleHeroicInspiration={onToggleHeroicInspiration}
       />
       {spellDc !== null && (
         <SheetSection title="Spellcasting">
@@ -248,13 +256,16 @@ function CombatResources({
   character: c,
   hitDiceMax,
   hitDiceSpent,
+  onToggleHeroicInspiration,
 }: {
   character: Character;
   hitDiceMax: number;
   hitDiceSpent: number;
+  onToggleHeroicInspiration?: (next: boolean) => void;
 }) {
   const exhaustion = Number(c.exhaustion ?? 0);
   const hitDie = c.hit_die ?? 8;
+  const inspired = Boolean(c.heroic_inspiration);
   return (
     <>
       <div className="mt-2">
@@ -271,10 +282,17 @@ function CombatResources({
         </div>
         <div>
           <LabelWithTip id="heroic-inspiration" label="Heroic Inspiration" />
-          <div className="sheet-value mt-0.5 inline-flex items-center gap-1.5">
-            <span aria-hidden="true">{c.heroic_inspiration ? '★' : '☆'}</span>
-            <span>{c.heroic_inspiration ? 'Yes' : 'No'}</span>
-          </div>
+          <button
+            type="button"
+            className="sheet-value mt-0.5 inline-flex items-center gap-1.5 hover:text-accent"
+            onClick={() => onToggleHeroicInspiration?.(!inspired)}
+            disabled={!onToggleHeroicInspiration}
+            aria-pressed={inspired}
+            aria-label={inspired ? 'Spend Heroic Inspiration' : 'Grant Heroic Inspiration'}
+          >
+            <span aria-hidden="true">{inspired ? '★' : '☆'}</span>
+            <span>{inspired ? 'Yes' : 'No'}</span>
+          </button>
           {String(c.species || '').toLowerCase() === 'human' ? (
             <p className="text-[10px] text-muted leading-snug mt-0.5">Resourceful, Long Rest</p>
           ) : null}
@@ -296,12 +314,14 @@ function Page1Combat({
   hitDiceMax,
   hitDiceSpent,
   onPatch,
+  onToggleHeroicInspiration,
 }: {
   character: Character;
   editable?: boolean;
   hitDiceMax: number;
   hitDiceSpent: number;
   onPatch: (p: Partial<Character>) => void;
+  onToggleHeroicInspiration?: (next: boolean) => void;
 }) {
   const ac = computeAcDetails(c);
   const shownAc = shownArmorClass(c, ac.ac);
@@ -324,7 +344,12 @@ function Page1Combat({
         mono
       />
       <HpBar hp={c.hp ?? 0} maxHp={c.max_hp ?? 0} />
-      <CombatResources character={c} hitDiceMax={hitDiceMax} hitDiceSpent={hitDiceSpent} />
+      <CombatResources
+        character={c}
+        hitDiceMax={hitDiceMax}
+        hitDiceSpent={hitDiceSpent}
+        onToggleHeroicInspiration={onToggleHeroicInspiration || ((next) => onPatch({ heroic_inspiration: next }))}
+      />
     </SheetSection>
   );
 }

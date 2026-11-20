@@ -287,25 +287,41 @@ export function characterHasWeaponMastery(char: Character): boolean {
   return ids.some((id) => ['barbarian', 'fighter', 'paladin', 'ranger', 'rogue'].includes(String(id || '').toLowerCase()));
 }
 
-export function weaponAttackLine(char: Character, weapon: { name: string; damage?: string; damage_type?: string; ability?: string; proficient?: boolean }): string {
-  const catalogHint = String(weapon.ability || 'str').toLowerCase();
+export function weaponAbilityKey(
+  char: Character,
+  weapon: { name?: string; ability?: string },
+): 'str' | 'dex' {
   const name = String(weapon.name || '');
+  const catalogHint = String(weapon.ability || '').toLowerCase();
   const finesse = /dagger|rapier|scimitar|shortsword|whip/i.test(name);
   const ranged = /bow|crossbow|dart|sling/i.test(name);
-  let ability = catalogHint;
   if (finesse) {
-    ability = abilityMod(char.ability_scores?.dex ?? 10) >= abilityMod(char.ability_scores?.str ?? 10) ? 'dex' : 'str';
-  } else if (ranged) {
-    ability = 'dex';
+    return abilityMod(char.ability_scores?.dex ?? 10) >= abilityMod(char.ability_scores?.str ?? 10) ? 'dex' : 'str';
   }
+  if (ranged) return 'dex';
+  if (catalogHint === 'dex' || catalogHint === 'str') return catalogHint;
+  return 'str';
+}
+
+export function weaponAttackBonus(
+  char: Character,
+  weapon: { name?: string; ability?: string; proficient?: boolean },
+): number {
+  const ability = weaponAbilityKey(char, weapon);
   const mod = abilityMod(char.ability_scores?.[ability] ?? 10);
   const pb = proficiencyBonus(char.level || 1);
   const proficient = weapon.proficient !== false;
-  const atk = mod + (proficient ? pb : 0);
+  return mod + (proficient ? pb : 0);
+}
+
+export function weaponAttackLine(char: Character, weapon: { name: string; damage?: string; damage_type?: string; ability?: string; proficient?: boolean }): string {
+  const ability = weaponAbilityKey(char, weapon);
+  const mod = abilityMod(char.ability_scores?.[ability] ?? 10);
+  const atk = weaponAttackBonus(char, weapon);
   const damage = weapon.damage || '1d6';
   const dmgType = weapon.damage_type || '';
   const masteryIds = new Set((char.weapon_mastery || []).map((id) => String(id).toLowerCase().replace(/ /g, '_')));
-  const weaponKey = name.toLowerCase().replace(/ /g, '_');
+  const weaponKey = String(weapon.name || '').toLowerCase().replace(/ /g, '_');
   const usesMastery = characterHasWeaponMastery(char) && masteryIds.has(weaponKey);
   let line = `${formatMod(atk)} to hit, ${damage}${formatMod(mod)} ${dmgType}`.trim();
   if (usesMastery) line += ', mastery';

@@ -11,6 +11,7 @@ import type {
   Shortcut,
   Source,
   SpellConfirmation,
+  ReactionPrompt,
 } from '../../api/client';
 import type { Character, DragonkeepState, PendingJourney } from '../../types';
 
@@ -78,6 +79,7 @@ export interface PlayState {
     active_adventure: string;
   };
   spellConfirm: SpellConfirmation | null;
+  reactionPrompt: ReactionPrompt | null;
   chatError: string;
   journalEntities: JournalEntity[];
   recap: SessionRecap | null;
@@ -146,6 +148,7 @@ export function createInitialPlayState(sessionId = '', wizardTab: 'continue' | '
       active_adventure: '',
     },
     spellConfirm: null,
+    reactionPrompt: null,
     chatError: '',
     journalEntities: [],
     recap: null,

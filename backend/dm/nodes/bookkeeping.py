@@ -40,7 +40,8 @@ def _rag_direct_tasks(state: DMState) -> frozenset[str]:
 
 def character_keeper_node(state: DMState) -> DMState:
     updates = dict(state.get("character_updates") or {})
-    updates.pop("_logs", None)
+    for private in ("_logs", "_npcs", "_scene_position", "_reaction_prompt"):
+        updates.pop(private, None)
     if not updates:
         return {}
     before_slice = character_audit_slice(state.get("character") or {})
@@ -63,6 +64,9 @@ def character_keeper_node(state: DMState) -> DMState:
             "concentration",
             "lay_on_hands_remaining",
             "active_effects",
+            "heroic_inspiration",
+            "inventory",
+            "currency",
         ):
             if key in updates:
                 after_dict[key] = updates[key] if key != "feature_choices" else {
@@ -83,6 +87,12 @@ def character_keeper_node(state: DMState) -> DMState:
             after_dict["lay_on_hands_remaining"] = updates["lay_on_hands_remaining"]
         if "active_effects" in updates:
             after_dict["active_effects"] = list(updates.get("active_effects") or [])
+        if "heroic_inspiration" in updates:
+            after_dict["heroic_inspiration"] = bool(updates.get("heroic_inspiration"))
+        if "inventory" in updates:
+            after_dict["inventory"] = list(updates.get("inventory") or [])
+        if "currency" in updates:
+            after_dict["currency"] = dict(updates.get("currency") or {})
     after_slice = character_audit_slice(after_dict)
     diff = diff_character_slices(before_slice, after_slice)
     if diff:
@@ -180,11 +190,20 @@ def chronicler_node(state: DMState) -> DMState:
 
 
 def journal_keeper_node(state: DMState) -> DMState:
-    if not _needs_journal_keeper(state):
-        return {}
     adventure = state.get("adventure") or {}
     campaign_id = adventure.get("campaign_id")
     adventure_id = adventure.get("id")
+    npc_delta = []
+    extra = state.get("journal_updates") or {}
+    from_delta = False
+    if isinstance(extra, dict):
+        npc_delta = list(extra.get("npcs") or [])
+        from_delta = bool(extra.get("from_delta"))
+    extract_from_prose = (not from_delta) and _needs_journal_keeper(state) and not npc_delta
+    if from_delta and not npc_delta:
+        return {}
+    if not npc_delta and not extract_from_prose:
+        return {}
     dm_response = state.get("response") or state.get("narrative") or ""
     user_message = state.get("user_message") or ""
     counts = run_journal_keeper(
@@ -192,6 +211,8 @@ def journal_keeper_node(state: DMState) -> DMState:
         adventure_id=adventure_id,
         user_message=user_message,
         dm_response=dm_response,
+        npc_delta=npc_delta,
+        extract_from_prose=extract_from_prose,
     )
     emit_world({"refresh": True, "counts": counts or {}})
     return {"journal_updates": counts} if counts else {}
@@ -228,6 +249,7 @@ def run_deferred_bookkeeping(payload: dict) -> None:
         "scribe_log_entry": payload.get("scribe_log_entry") or "",
         "story_progress": payload.get("story_progress"),
         "lonelog_lines": payload.get("lonelog_lines") or [],
+        "journal_updates": payload.get("journal_updates") or {},
     }
     try:
         chronicler_node(state)

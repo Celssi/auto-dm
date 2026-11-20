@@ -231,16 +231,53 @@ def apply_detected_renames(campaign_id: str, dm_response: str) -> None:
             merge_npc_rename(campaign_id, old_name=old_name, new_name=new_name)
 
 
+def apply_npc_delta(campaign_id: str, npc_delta: list[dict[str, Any]] | None) -> JournalTurnUpdates:
+    """Authoritative NPC list from the mechanics delta. Rules terms never become NPCs."""
+    updates = JournalTurnUpdates()
+    for raw in npc_delta or []:
+        if not isinstance(raw, dict):
+            continue
+        name = str(raw.get("name") or "").strip()
+        if not name or not looks_like_entity_name(name):
+            continue
+        action = str(raw.get("action") or "introduce").strip().lower()
+        renamed_from = str(raw.get("renamed_from") or "").strip()
+        entry = JournalEntryUpdate(
+            name=name,
+            body=str(raw.get("note") or "").strip(),
+            status=str(raw.get("status") or "").strip(),
+            renamed_from=renamed_from,
+        )
+        if action == "rename" or renamed_from:
+            updates.updated_npcs.append(entry)
+        elif action == "update":
+            updates.updated_npcs.append(entry)
+        else:
+            updates.new_npcs.append(entry)
+    return updates
+
+
 def run_journal_keeper(
     *,
     campaign_id: str | None,
     adventure_id: str | None,
     user_message: str,
     dm_response: str,
+    npc_delta: list[dict[str, Any]] | None = None,
+    extract_from_prose: bool = True,
 ) -> dict[str, int]:
-    if not campaign_id or not dm_response.strip():
+    if not campaign_id:
         return {}
     if not get_campaign(campaign_id):
+        return {}
+    if npc_delta:
+        updates = apply_npc_delta(campaign_id, npc_delta)
+        return apply_journal_updates(
+            campaign_id=campaign_id,
+            adventure_id=adventure_id,
+            updates=updates,
+        )
+    if not extract_from_prose or not (dm_response or "").strip():
         return {}
     apply_detected_renames(campaign_id, dm_response)
     updates = extract_journal_updates(
@@ -248,6 +285,8 @@ def run_journal_keeper(
         user_message=user_message,
         dm_response=dm_response,
     )
+    updates.new_npcs = [item for item in updates.new_npcs if looks_like_entity_name(item.name)]
+    updates.updated_npcs = [item for item in updates.updated_npcs if looks_like_entity_name(item.name)]
     return apply_journal_updates(
         campaign_id=campaign_id,
         adventure_id=adventure_id,

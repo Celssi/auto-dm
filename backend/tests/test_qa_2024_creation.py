@@ -210,7 +210,7 @@ def test_arcane_recovery_on_short_rest():
 def test_short_rest_spends_hit_die_when_hurt():
     char = finalize_new_character(_wizard())
     char.hp = max(1, char.max_hp - 4)
-    rest = apply_short_rest(char, dice_to_spend=0)
+    rest = apply_short_rest(char, dice_to_spend=1)
     assert char.hit_dice_spent == 1
     assert "d" in rest["summary"]
 

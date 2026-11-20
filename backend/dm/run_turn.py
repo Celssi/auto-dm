@@ -142,6 +142,7 @@ def _run_dm_turn_unlocked(
         "next_adventure": result.get("next_adventure"),
         "player_progress": result.get("player_progress") or {},
         "combat_state": combat_view,
+        "reaction_prompt": result.get("reaction_prompt"),
         "_deferred": {
             "session_id": session_id,
             "user_message": user_message,
@@ -152,6 +153,7 @@ def _run_dm_turn_unlocked(
             "scribe_log_entry": result.get("scribe_log_entry") or "",
             "story_progress": result.get("story_progress"),
             "lonelog_lines": result.get("lonelog_lines") or [],
+            "journal_updates": result.get("journal_updates") or {},
         },
     }
 

@@ -31,7 +31,6 @@ from backend.games.dnd5e.dm.combat_manager import (
     format_combat_context,
     try_start_planned_encounter,
 )
-from backend.games.dnd5e.dm.resource_keeper import run_resource_keeper
 from backend.games.dnd5e.prompts import (
     dnd5e_session_context,
     dnd5e_stable_system_prompt,
@@ -502,64 +501,93 @@ def narrator_dm_node(state: DMState) -> DMState:
         "\n\n".join(user_parts),
         volatile=volatile,
     )
+    from backend.games.dnd5e.dm.mechanics_delta import (
+        MechanicsStreamFilter,
+        apply_mechanics_delta,
+        split_mechanics_block,
+    )
+
+    delta = None
     if narration_enabled():
-        text, _ = stream_chat_llm(
+        stream_filter = MechanicsStreamFilter(on_text=emit_narration)
+        stream_chat_llm(
             llm,
             lc_messages,
             agent="narrator_dm",
             provider="claude",
-            on_text=emit_narration,
+            on_text=stream_filter.feed,
         )
+        text, delta = stream_filter.finish()
     else:
         response = invoke_chat_llm(llm, lc_messages, agent="narrator_dm", provider="claude")
-        text = message_text(response)
+        text, delta = split_mechanics_block(message_text(response))
     text = sanitize_narration_dashes(text.strip())
     if state.get("session_id"):
         from backend.storage import persist_shown_reply
 
         persist_shown_reply(state["session_id"], state.get("user_message") or "", text)
     ready_payload: dict = {"response": text}
-    overlay_preview = {}
-    try:
-        from backend.games.dnd5e.dm.resource_keeper import overlay_live_resources
-
-        overlay_preview = overlay_live_resources(char_dict, text)
-        overlay_preview.pop("_logs", None)
-    except Exception:
-        overlay_preview = {}
     shortcut = state.get("shortcut_result") or {}
-    if shortcut.get("pending_cast"):
-        try:
-            from backend.games.dnd5e.dm.resource_keeper import apply_pending_cast
+    pending_rest = shortcut.get("pending_rest")
+    if not pending_rest:
+        task = shortcut.get("task")
+        if task in ("short_rest", "long_rest"):
+            pending_rest = {"kind": "long" if task == "long_rest" else "short"}
+    overlay_preview: dict = {}
+    resource_logs: list[str] = []
+    try:
+        from backend.games.dnd5e.dm.resource_keeper import combat_blocks_rest
 
-            cast_updates, _cast_logs = apply_pending_cast(char_dict, shortcut.get("pending_cast") or {}, text)
-            overlay_preview = {**overlay_preview, **{k: v for k, v in cast_updates.items() if k != "_logs"}}
-        except Exception:
-            pass
+        combat_raw = state.get("combat_state")
+        combat_active = combat_blocks_rest(combat_state=combat_raw if isinstance(combat_raw, dict) else None)
+        overlay_preview, resource_logs = apply_mechanics_delta(
+            char_dict,
+            delta,
+            pending_rest=pending_rest,
+            pending_cast=shortcut.get("pending_cast"),
+            combat_active=combat_active,
+        )
+    except Exception:
+        overlay_preview, resource_logs = {}, []
+    npc_delta = list(overlay_preview.pop("_npcs", []) or [])
+    scene_position = str(overlay_preview.pop("_scene_position", "") or "")
+    reaction_prompt = overlay_preview.pop("_reaction_prompt", None)
+    overlay_preview.pop("_logs", None)
     if pending_updates or overlay_preview:
         preview = dict(char_dict)
-        preview.update({k: v for k, v in overlay_preview.items() if k != "_logs"})
+        preview.update({k: v for k, v in overlay_preview.items() if not str(k).startswith("_")})
         ready_payload["character"] = preview
         emit_sheet({"character": preview})
+    if reaction_prompt:
+        ready_payload["reaction_prompt"] = reaction_prompt
     emit_ready(ready_payload)
     scene_updates: DMState = {}
-    if state.get("session_id"):
-        from backend.games.dnd5e.dm.resource_keeper import parse_scene_position
+    if state.get("session_id") and scene_position:
         from backend.storage import get_session, update_session_extras
 
         sess = get_session(state["session_id"]) or {}
         extras = dict(sess.get("extras") or {})
-        position = parse_scene_position(text, str(extras.get("scene_position") or ""))
-        if position and position != extras.get("scene_position"):
-            extras["scene_position"] = position
+        if scene_position != extras.get("scene_position"):
+            extras["scene_position"] = scene_position
             update_session_extras(state["session_id"], extras)
-            scene_updates["scene_position"] = position
-    return {
+            scene_updates["scene_position"] = scene_position
+    result: DMState = {
         "narrative": text,
         "response": text,
         "narrative_context": memory,
+        "mechanics_delta": delta.model_dump() if delta else {},
         **scene_updates,
     }
+    if overlay_preview:
+        merged = dict(pending_updates)
+        merged.update(overlay_preview)
+        result["character_updates"] = merged
+    if resource_logs:
+        result["resource_log"] = resource_logs
+    result["journal_updates"] = {"npcs": npc_delta, "from_delta": True}
+    if reaction_prompt:
+        result["reaction_prompt"] = reaction_prompt
+    return result
 
 
 def continuity_guard_node(state: DMState) -> DMState:
@@ -569,14 +597,24 @@ def continuity_guard_node(state: DMState) -> DMState:
 
 
 def resource_keeper_node(state: DMState) -> DMState:
+    """Persist the structured delta already applied in the narrator. Do not parse prose."""
+    if state.get("character_updates") or state.get("resource_log"):
+        return {}
+    if state.get("shortcut_result", {}).get("task") == "rules_help":
+        return {}
     dm_response = state.get("response") or state.get("narrative") or ""
-    char_dict = state.get("character") or {}
-    shortcut = state.get("shortcut_result") or {}
-    task = shortcut.get("task")
-    from backend.games.dnd5e.dm.resource_keeper import overlay_live_resources
+    from backend.games.dnd5e.dm.mechanics_delta import MechanicsDelta, apply_mechanics_delta, split_mechanics_block
 
-    overlay = overlay_live_resources(char_dict, dm_response) if dm_response.strip() else {}
-    overlay_logs = list(overlay.pop("_logs", []) or [])
+    raw_delta = state.get("mechanics_delta")
+    if isinstance(raw_delta, dict) and raw_delta:
+        delta = MechanicsDelta.model_validate(raw_delta)
+    else:
+        _, delta = split_mechanics_block(dm_response)
+    shortcut = state.get("shortcut_result") or {}
+    pending_rest = shortcut.get("pending_rest")
+    task = shortcut.get("task")
+    if not pending_rest and task in ("short_rest", "long_rest"):
+        pending_rest = {"kind": "long" if task == "long_rest" else "short"}
     combat_raw = state.get("combat_state")
     if not isinstance(combat_raw, dict):
         session_id = state.get("session_id") or ""
@@ -584,56 +622,25 @@ def resource_keeper_node(state: DMState) -> DMState:
         combat_raw = loaded.model_dump() if loaded else {}
     from backend.games.dnd5e.dm.resource_keeper import combat_blocks_rest
 
-    combat_active = combat_blocks_rest(combat_state=combat_raw)
-    if not _needs_resource_keeper(state) or task == "rules_help":
-        updates, logs = overlay, overlay_logs
-    elif shortcut.get("pending_cast"):
-        from backend.games.dnd5e.dm.resource_keeper import apply_pending_cast
-
-        pending = shortcut.get("pending_cast") or {}
-        updates, logs = apply_pending_cast(char_dict, pending, dm_response)
-        updates = {**updates, **overlay}
-        logs = logs + overlay_logs
-    elif task == "cast_spell":
-        updates, logs = overlay, overlay_logs
-    elif shortcut.get("pending_rest") or task in ("short_rest", "long_rest"):
-        from backend.games.dnd5e.dm.resource_keeper import apply_pending_rest, parse_pc_hp_from_narration
-
-        pending = shortcut.get("pending_rest") or {"kind": "long" if task == "long_rest" else "short"}
-        updates, logs = apply_pending_rest(
-            char_dict,
-            pending,
-            dm_response,
-            combat_active=combat_active,
-            user_message=state.get("user_message") or "",
-        )
-        hp = parse_pc_hp_from_narration(
-            dm_response,
-            name=str(char_dict.get("name") or ""),
-            max_hp=int(char_dict.get("max_hp") or 0),
-            current_hp=int(updates.get("hp", char_dict.get("hp") or 0)),
-        )
-        if hp is not None:
-            updates = dict(updates)
-            updates["hp"] = hp
-        updates = {**updates, **overlay}
-        logs = logs + overlay_logs
-    else:
-        updates, logs = run_resource_keeper(
-            character=char_dict,
-            user_message=state.get("user_message") or "",
-            dm_response=dm_response,
-            combat_active=combat_active,
-        )
-        updates = {**updates, **overlay}
-        logs = logs + overlay_logs
+    updates, logs = apply_mechanics_delta(
+        state.get("character") or {},
+        delta,
+        pending_rest=pending_rest,
+        pending_cast=shortcut.get("pending_cast"),
+        combat_active=combat_blocks_rest(combat_state=combat_raw),
+    )
+    updates.pop("_npcs", None)
+    updates.pop("_scene_position", None)
+    reaction = updates.pop("_reaction_prompt", None)
+    updates.pop("_logs", None)
     if not updates and not logs:
         return {}
-    merged = dict(state.get("character_updates") or {})
-    merged.update(updates)
-    result: DMState = {"character_updates": merged}
+    result: DMState = {"character_updates": dict(state.get("character_updates") or {})}
+    result["character_updates"].update(updates)
     if logs:
         result["resource_log"] = logs
+    if reaction:
+        result["reaction_prompt"] = reaction
     return result
 
 

@@ -95,6 +95,9 @@ _LIVE_RESOURCE_KEYS = (
     "lay_on_hands_remaining",
     "wild_shape_uses",
     "active_effects",
+    "heroic_inspiration",
+    "inventory",
+    "currency",
 )
 
 

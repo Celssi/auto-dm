@@ -28,6 +28,7 @@ def stream_dm_turn(
         pending.put((event, data))
 
     def worker() -> None:
+        deferred = None
         try:
             with narration_events(emit):
                 result = run_dm_turn(
@@ -39,19 +40,20 @@ def stream_dm_turn(
                 if precomputed_shortcut:
                     result = {**result, "shortcut": precomputed_shortcut}
                 emit("done", result)
-                if deferred:
-                    try:
-                        from backend.dm.nodes.bookkeeping import run_deferred_bookkeeping
-
-                        run_deferred_bookkeeping(deferred)
-                    except Exception:
-                        pass
         except Exception as exc:
             from backend.dm.errors import friendly_dm_error
 
             emit("error", {"detail": friendly_dm_error(exc)})
+            deferred = None
         finally:
             pending.put(None)
+            if deferred:
+                try:
+                    from backend.dm.nodes.bookkeeping import run_deferred_bookkeeping
+
+                    run_deferred_bookkeeping(deferred)
+                except Exception:
+                    pass
 
     def generate() -> Iterator[dict[str, str]]:
         for event, data in prelude or []:

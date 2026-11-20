@@ -109,7 +109,12 @@ def test_combat_blocks_rest_uses_active_encounter():
 
 
 def test_finnish_hp_4_of_8_is_parsed_and_overlaid():
-    text = "Rotan purema osuu. HP 4/8. Jatka varovasti."
+    from backend.games.dnd5e.dm.mechanics_delta import render_mechanics_block
+
+    text = (
+        "Rotan purema osuu. HP 4/8. Jatka varovasti.\n"
+        + render_mechanics_block({"hp_changes": [{"amount": -4, "source": "rat"}]})
+    )
     hp = parse_pc_hp_from_narration(text, name="QA Wizard 2", max_hp=8, current_hp=8)
     assert hp == 4
     updates = overlay_live_resources(_wizard2(), text)
@@ -131,7 +136,12 @@ def test_bare_cast_spell_message_does_not_apply_mage_armor():
 
 
 def test_cast_mage_armor_narration_still_sets_flag():
-    text = "You cast Mage Armor. The ward shimmers; AC is 15."
+    from backend.games.dnd5e.dm.mechanics_delta import render_mechanics_block
+
+    text = (
+        "You cast Mage Armor. The ward shimmers; AC is 15.\n"
+        + render_mechanics_block({"spell_casts": [{"spell_name": "Mage Armor", "slot_level": 1}]})
+    )
     assert narration_sets_mage_armor(text) is True
     updates = overlay_live_resources(_wizard2(), text)
     assert updates.get("feature_choices", {}).get("_mage_armor_active") is True

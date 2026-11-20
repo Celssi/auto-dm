@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -217,7 +218,7 @@ class Dnd5eCharacter:
         self.death_save_successes = max(0, min(3, int(self.death_save_successes or 0)))
         self.death_save_failures = max(0, min(3, int(self.death_save_failures or 0)))
         self.exhaustion = max(0, min(6, int(self.exhaustion or 0)))
-        self.conditions = _clean_list(self.conditions, 12)
+        self.conditions = _clean_conditions(self.conditions, 12)
         self.active_effects = _clean_active_effects(self.active_effects)
         self.apply_exhaustion_state()
         self.concentration = str(self.concentration or "").strip()[:80]
@@ -359,7 +360,7 @@ def _clean_active_effects(raw: Any) -> list[dict[str, Any]]:
             save_dc = None
         out.append(
             {
-                "name": name,
+                "name": _KNOWN_CONDITIONS.get(key, name),
                 "source": str(item.get("source") or "").strip()[:80],
                 "save_dc": save_dc,
             }
@@ -367,6 +368,26 @@ def _clean_active_effects(raw: Any) -> list[dict[str, Any]]:
         if len(out) >= 8:
             break
     return out
+
+
+_KNOWN_CONDITIONS = {
+    "blinded": "Blinded",
+    "charmed": "Charmed",
+    "deafened": "Deafened",
+    "frightened": "Frightened",
+    "grappled": "Grappled",
+    "incapacitated": "Incapacitated",
+    "invisible": "Invisible",
+    "paralyzed": "Paralyzed",
+    "petrified": "Petrified",
+    "poisoned": "Poisoned",
+    "prone": "Prone",
+    "restrained": "Restrained",
+    "stunned": "Stunned",
+    "unconscious": "Unconscious",
+    "dead": "Dead",
+    "exhaustion": "Exhaustion",
+}
 
 
 def _clean_list(raw: Any, limit: int) -> list[str]:
@@ -377,6 +398,28 @@ def _clean_list(raw: Any, limit: int) -> list[str]:
         s = str(item or "").strip().lower()
         if s and s not in out:
             out.append(s)
+        if len(out) >= limit:
+            break
+    return out
+
+
+def _clean_conditions(raw: Any, limit: int = 12) -> list[str]:
+    if not isinstance(raw, list):
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for item in raw:
+        s = str(item or "").strip()
+        if not s:
+            continue
+        key = re.sub(r"\s+", " ", s).lower()
+        if key.endswith(" condition"):
+            key = key[: -len(" condition")].strip()
+        label = _KNOWN_CONDITIONS.get(key, s)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(label)
         if len(out) >= limit:
             break
     return out
@@ -510,7 +553,7 @@ def character_from_dict(data: dict[str, Any] | None) -> Dnd5eCharacter:
         death_save_successes=int(data.get("death_save_successes", 0) or 0),
         death_save_failures=int(data.get("death_save_failures", 0) or 0),
         exhaustion=int(data.get("exhaustion", 0) or 0),
-        conditions=_clean_list(data.get("conditions"), 12),
+        conditions=_clean_conditions(data.get("conditions"), 12),
         concentration=str(data.get("concentration", "") or ""),
         wild_shape_uses=int(data.get("wild_shape_uses", 0) or 0),
         luck_points_remaining=remaining_int(data.get("luck_points_remaining", -1)),

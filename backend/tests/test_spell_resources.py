@@ -188,11 +188,16 @@ def test_narrative_short_rest_detected():
 
 
 def test_narrative_short_rest_via_resource_keeper(monkeypatch):
+    from backend.games.dnd5e.dm.mechanics_delta import render_mechanics_block
+
     data = _warlock_char(spell_slots={"2": 0})
     entity, logs = run_resource_keeper(
         character=data,
         user_message="I take a short rest by the fire.",
-        dm_response="An hour passes. You feel your patron's power return.",
+        dm_response=(
+            "An hour passes. You feel your patron's power return.\n"
+            + render_mechanics_block({"rest": {"kind": "short"}})
+        ),
     )
     assert entity["spell_slots"]["2"] == 2
     assert logs and "Short rest" in logs[0]

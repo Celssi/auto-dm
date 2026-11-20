@@ -369,20 +369,24 @@ def generate_campaign_plan(
         )
 
     rag_plugin = get_game(game_id)
-    rag = query_rules(
-        theme if mode == "module" else f"D&D campaign arc: {theme}",
-        game_id=rag_plugin.id,
-        factions=rag_plugin.get_all_factions() if include_faerun else ["player", "dm", "monsters"],
-        top_k=4,
-        use_rerank=False,
-        generate_answer=False,
-    )
-    context = "\n\n".join(
-        f"{s.get('source_label', s.get('label', '?'))} "
-        f"p.{s.get('page', '?')}: "
-        f"{s.get('text', '')[:700]}"
-        for s in rag.sources[:8]
-    )
+    rag_sources: list[dict] = []
+    context = ""
+    if mode == "module" or include_faerun:
+        rag = query_rules(
+            theme if mode == "module" else f"D&D campaign arc: {theme}",
+            game_id=rag_plugin.id,
+            factions=rag_plugin.get_all_factions() if include_faerun else ["player", "dm", "monsters"],
+            top_k=4,
+            use_rerank=False,
+            generate_answer=False,
+        )
+        rag_sources = list(rag.sources or [])
+        context = "\n\n".join(
+            f"{s.get('source_label', s.get('label', '?'))} "
+            f"p.{s.get('page', '?')}: "
+            f"{s.get('text', '')[:700]}"
+            for s in rag_sources[:8]
+        )
 
     setting = "Faerûn (Forgotten Realms)" if include_faerun else "freeform/homebrew"
     name_hint = f'\nPreferred campaign name: "{campaign_name}".' if campaign_name.strip() else ""
@@ -428,7 +432,7 @@ Requirements:
     spec = llm.invoke([HumanMessage(content=prompt)])
     if len(spec.adventures) > count:
         spec.adventures = spec.adventures[:count]
-    return spec, rag.sources
+    return spec, rag_sources
 
 
 def materialize_campaign_plan(

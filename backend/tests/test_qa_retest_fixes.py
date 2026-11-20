@@ -175,7 +175,12 @@ def test_rest_granted_applies_pending_rest():
     data = _legacy_wizard()
     data["hp"] = 5
     data["spell_slots"] = {"1": 0}
-    granted = "You settle in for an hour. Arcane Recovery restores a slot as you rest."
+    from backend.games.dnd5e.dm.mechanics_delta import render_mechanics_block
+
+    granted = (
+        "You settle in for an hour. Arcane Recovery restores a slot as you rest.\n"
+        + render_mechanics_block({"rest": {"kind": "short", "hit_dice_spent": 1}})
+    )
     assert rest_granted(granted, kind="short")
     entity, logs = apply_pending_rest(
         data, {"kind": "short", "dice_to_spend": 1}, granted

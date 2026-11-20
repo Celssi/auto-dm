@@ -231,6 +231,11 @@ export const api = {
       method: 'PUT',
       body: JSON.stringify({ character }),
     }),
+  patchLiveCharacter: (id: string, body: { heroic_inspiration?: boolean }) =>
+    request<{ character: Record<string, unknown> }>(`/characters/${id}/live`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
   rebuildCharacter: (id: string) =>
     request<{ character: Record<string, unknown> }>(`/characters/${id}/rebuild`, { method: 'POST' }),
   getLevelUpPreview: (id: string, className?: string) =>
@@ -751,11 +756,18 @@ export interface SpellConfirmation {
   free_use?: boolean;
 }
 
+export interface ReactionPrompt {
+  kind: string;
+  prompt?: string;
+  target?: string;
+}
+
 export interface ChatResult {
   response: string;
   sources: Source[];
   character: Record<string, unknown>;
   spell_confirmation?: SpellConfirmation;
+  reaction_prompt?: ReactionPrompt | null;
   lonelog_lines?: string[];
   adventure_complete?: boolean;
   next_adventure?: NextAdventure | null;
