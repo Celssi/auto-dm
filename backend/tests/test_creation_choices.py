@@ -4,6 +4,8 @@ from backend.games.dnd5e.characters.character_builder import finalize_new_charac
 from backend.games.dnd5e.characters.creation_choices import (
     choices_for_character,
     class_choice_lines,
+    coerce_stored_choice,
+    migrate_legacy_sheet,
     species_trait_lines,
     validate_creation_choices,
     weapon_mastery_label,
@@ -195,3 +197,69 @@ def test_elf_choices_listed():
     ids = [c["id"] for c in choices_for_character(char)]
     assert "elven_lineage" in ids
     assert "keen_senses_skill" in ids
+
+
+def _qa_rogue_choices(**feature_choices: object) -> Dnd5eCharacter:
+    return Dnd5eCharacter(
+        name="QA Rogue",
+        species="halfling",
+        class_name="rogue",
+        level=1,
+        background="criminal",
+        origin_feat="Alert",
+        weapon_mastery=["dagger", "shortbow"],
+        feature_choices={
+            "thieves_cant_language": "elvish",
+            "weapon_mastery": ["dagger", "shortbow"],
+            **feature_choices,
+        },
+    )
+
+
+def test_class_choices_join_languages_expertise_and_mastery():
+    char = _qa_rogue_choices(
+        origin_languages=["Halfling", "Orc"],
+        rogue_expertise=["stealth", "perception"],
+    )
+    lines = {row["id"]: row["value_label"] for row in class_choice_lines(char)}
+    assert lines["origin_languages"] == "Halfling, Orc"
+    assert "[" not in lines["origin_languages"]
+    assert "Stealth" in lines["rogue_expertise"]
+    assert "Perception" in lines["rogue_expertise"]
+    assert ", " in lines["rogue_expertise"]
+    assert "Dagger" in lines["weapon_mastery"]
+    assert "Shortbow" in lines["weapon_mastery"]
+    uf = unlocked_features(char)
+    origin = next(row for row in uf["resolved_choices"] if row["id"] == "origin_languages")
+    assert origin["value_label"] == "Halfling, Orc"
+
+
+def test_class_choices_parse_stringified_python_list():
+    char = _qa_rogue_choices(
+        origin_languages="['Halfling', 'Orc']",
+        rogue_expertise='["stealth", "perception"]',
+        weapon_mastery="['dagger', 'shortbow']",
+    )
+    lines = {row["id"]: row["value_label"] for row in class_choice_lines(char)}
+    assert lines["origin_languages"] == "Halfling, Orc"
+    assert "Stealth" in lines["rogue_expertise"]
+    assert "Dagger" in lines["weapon_mastery"]
+
+
+def test_migrate_parses_stringified_choice_lists():
+    char = _qa_rogue_choices(
+        origin_languages="['Halfling', 'Orc']",
+        rogue_expertise='["stealth", "perception"]',
+        weapon_mastery="['dagger', 'shortbow']",
+    )
+    assert migrate_legacy_sheet(char) is True
+    assert char.feature_choices["origin_languages"] == ["Halfling", "Orc"]
+    assert char.feature_choices["rogue_expertise"] == ["stealth", "perception"]
+    assert char.feature_choices["weapon_mastery"] == ["dagger", "shortbow"]
+
+
+def test_coerce_stored_choice_handles_python_and_json_lists():
+    assert coerce_stored_choice("['Halfling', 'Orc']") == ["Halfling", "Orc"]
+    assert coerce_stored_choice('["stealth", "perception"]') == ["stealth", "perception"]
+    assert coerce_stored_choice(["Halfling", "Orc"]) == ["Halfling", "Orc"]
+    assert coerce_stored_choice("elvish") == "elvish"

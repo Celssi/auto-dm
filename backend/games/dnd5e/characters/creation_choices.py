@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import ast
+import json
 from functools import lru_cache
 from typing import Any
 
@@ -161,9 +163,47 @@ def _expand_choice(raw: dict[str, Any], data: dict[str, Any]) -> dict[str, Any]:
     return out
 
 
+def coerce_stored_choice(raw: Any) -> Any:
+    """Turn a list or a stringified Python/JSON list back into a list of strings."""
+    if isinstance(raw, tuple):
+        raw = list(raw)
+    if isinstance(raw, list):
+        return [str(item).strip() for item in raw if str(item).strip()]
+    if not isinstance(raw, str):
+        return raw
+    text = raw.strip()
+    if len(text) < 2 or text[0] != "[" or text[-1] != "]":
+        return raw
+    parsed: Any = None
+    try:
+        parsed = ast.literal_eval(text)
+    except (ValueError, SyntaxError, MemoryError):
+        parsed = None
+    if not isinstance(parsed, (list, tuple)):
+        try:
+            parsed = json.loads(text)
+        except json.JSONDecodeError:
+            parsed = None
+    if isinstance(parsed, (list, tuple)):
+        return [str(item).strip() for item in parsed if str(item).strip()]
+    return raw
+
+
+def _coerce_feature_choice_lists(fc: dict[str, Any]) -> bool:
+    """Rewrite stringified list picks (origin languages, expertise, spells, mastery)."""
+    changed = False
+    for key, val in list(fc.items()):
+        coerced = coerce_stored_choice(val)
+        if coerced != val and isinstance(coerced, list):
+            fc[key] = coerced
+            changed = True
+    return changed
+
+
 def sync_feature_choice_fields(char: Dnd5eCharacter) -> None:
     """Keep legacy top-level fields and feature_choices dict in sync."""
     fc = dict(char.feature_choices or {})
+    _coerce_feature_choice_lists(fc)
     if char.human_skill and not fc.get("human_skill"):
         fc["human_skill"] = char.human_skill
     if fc.get("human_skill"):
@@ -188,16 +228,18 @@ def _choice_value(char: Dnd5eCharacter, choice_id: str) -> Any:
     sync_feature_choice_fields(char)
     fc = char.feature_choices or {}
     if choice_id == "human_skill":
-        return char.human_skill or fc.get("human_skill")
-    if choice_id == "fighting_style_feat":
-        return char.fighting_style_feat or fc.get("fighting_style_feat")
-    if choice_id == "versatile_origin_feat":
-        return char.versatile_origin_feat or fc.get("versatile_origin_feat")
-    if choice_id == "weapon_mastery":
-        return char.weapon_mastery or fc.get("weapon_mastery")
-    if choice_id == "size":
-        return char.size
-    return fc.get(choice_id)
+        raw = char.human_skill or fc.get("human_skill")
+    elif choice_id == "fighting_style_feat":
+        raw = char.fighting_style_feat or fc.get("fighting_style_feat")
+    elif choice_id == "versatile_origin_feat":
+        raw = char.versatile_origin_feat or fc.get("versatile_origin_feat")
+    elif choice_id == "weapon_mastery":
+        raw = char.weapon_mastery or fc.get("weapon_mastery")
+    elif choice_id == "size":
+        raw = char.size
+    else:
+        raw = fc.get(choice_id)
+    return coerce_stored_choice(raw)
 
 
 def _active_feats(char: Dnd5eCharacter) -> list[str]:
@@ -381,7 +423,7 @@ def _is_choice_complete(char: Dnd5eCharacter, choice: dict[str, Any]) -> tuple[b
     cid = str(choice.get("id") or "")
     kind = str(choice.get("kind") or "")
     count = int(choice.get("count") or 1)
-    val = _choice_value(char, cid)
+    val = coerce_stored_choice(_choice_value(char, cid))
     if kind in ("weapons", "skills", "invocations", "spells", "languages"):
         items = val if isinstance(val, list) else []
         if len(items) < count:
@@ -495,18 +537,21 @@ def resolved_choice_lines(char: Dnd5eCharacter) -> list[dict[str, str]]:
     lines: list[dict[str, str]] = []
     for choice in choices_for_character(char):
         cid = str(choice.get("id") or "")
-        val = _choice_value(char, cid)
+        val = coerce_stored_choice(_choice_value(char, cid))
         if not val:
             continue
         kind = str(choice.get("kind") or "")
         label = str(choice.get("label") or cid)
-        if kind in ("weapons", "skills", "invocations", "spells") and isinstance(val, list):
+        if isinstance(val, list):
             value_label = ", ".join(_label_for_option(choice, str(v)) for v in val)
+            stored = ", ".join(str(v) for v in val)
         elif kind == "spell":
             value_label = str(val).replace("_", " ").title()
+            stored = str(val)
         else:
             value_label = _label_for_option(choice, str(val))
-        lines.append({"id": cid, "label": label, "value": str(val), "value_label": value_label})
+            stored = str(val)
+        lines.append({"id": cid, "label": label, "value": stored, "value_label": value_label})
     return lines
 
 
@@ -671,7 +716,9 @@ def _set_choice(fc: dict[str, Any], key: str, value: Any) -> bool:
 
 
 def _fill_origin_languages(char: Dnd5eCharacter, fc: dict[str, Any]) -> bool:
-    origin_list = [_norm_lang(item) for item in (fc.get("origin_languages") or []) if _norm_lang(item)]
+    origin_raw = coerce_stored_choice(fc.get("origin_languages"))
+    origin_items = origin_raw if isinstance(origin_raw, list) else []
+    origin_list = [_norm_lang(item) for item in origin_items if _norm_lang(item)]
     if len(origin_list) >= 2:
         return False
     reserved = _reserved_language_names(char, fc)
@@ -780,6 +827,7 @@ def migrate_legacy_sheet(char: Dnd5eCharacter) -> bool:
     """Backfill 2024 origin picks, High Elf ability, and wizard spellbook without wiping picks."""
     changed = False
     fc = dict(char.feature_choices or {})
+    changed = _coerce_feature_choice_lists(fc) or changed
     changed = _fill_origin_languages(char, fc) or changed
     changed = _fill_elf_defaults(char, fc) or changed
     changed = _fill_magic_initiate(char, fc) or changed
@@ -813,7 +861,8 @@ def _sync_known_languages(char: Dnd5eCharacter) -> None:
             langs.append(lang)
 
     add("common")
-    for item in fc.get("origin_languages") or []:
+    origin_langs = coerce_stored_choice(fc.get("origin_languages"))
+    for item in origin_langs if isinstance(origin_langs, list) else []:
         add(item)
     if _is_rogue(char):
         add("thieves' cant")

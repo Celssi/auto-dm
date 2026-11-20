@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { displayLabel } from '../../../lib/displayText';
+import { displayLabel, formatChoiceValue } from '../../../lib/displayText';
 import GlossaryTip from '../../../components/ui/GlossaryTip';
 
 export type UnlockedFeatures = {
@@ -118,7 +118,7 @@ export default function UnlockedFeaturesPanel({ features }: { features: Unlocked
                   {resolvedChoices.map((row) => (
                     <div key={row.id}>
                       <dt className="text-muted text-xs">{row.label}</dt>
-                      <dd className="text-gray-200 mt-0.5">{row.value_label}</dd>
+                      <dd className="text-gray-200 mt-0.5">{formatChoiceValue(row.value_label)}</dd>
                     </div>
                   ))}
                 </dl>

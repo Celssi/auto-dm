@@ -43,6 +43,27 @@ export function displayLabels(items: string[], separator = ', '): string {
     .join(separator);
 }
 
+/** Parse a real list or a stringified Python/JSON list such as "['Halfling', 'Orc']". */
+export function coerceChoiceList(raw: unknown): string[] {
+  if (Array.isArray(raw)) {
+    return raw.map((item) => String(item).trim()).filter(Boolean);
+  }
+  if (typeof raw !== 'string') return [];
+  const text = raw.trim();
+  if (!(text.startsWith('[') && text.endsWith(']'))) return [];
+  return [...text.matchAll(/'([^']*)'|"([^"]*)"/g)]
+    .map((match) => (match[1] ?? match[2] ?? '').trim())
+    .filter(Boolean);
+}
+
+/** Comma-separated labels for class choices (languages, expertise, spells, mastery). */
+export function formatChoiceValue(raw: unknown): string {
+  const items = coerceChoiceList(raw);
+  if (items.length) return displayLabels(items);
+  if (raw == null) return '';
+  return displayLabel(String(raw));
+}
+
 /** Collect character ids from a campaign and its adventures. */
 export function resolvedCampaignCharacterIds(
   characterIds: string[] | undefined,

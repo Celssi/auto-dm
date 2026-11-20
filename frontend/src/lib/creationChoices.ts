@@ -1,3 +1,4 @@
+import { coerceChoiceList } from './displayText';
 import type { Character } from '../types';
 
 export interface CreationChoiceOption {
@@ -224,12 +225,15 @@ export function choicesForDraft(
 
 export function getChoiceValue(char: Character, choiceId: string): unknown {
   const fc = (char.feature_choices || {}) as Record<string, unknown>;
-  if (choiceId === 'human_skill') return char.human_skill || fc.human_skill;
-  if (choiceId === 'fighting_style_feat') return char.fighting_style_feat || fc.fighting_style_feat;
-  if (choiceId === 'versatile_origin_feat') return char.versatile_origin_feat || fc.versatile_origin_feat;
-  if (choiceId === 'weapon_mastery') return char.weapon_mastery || fc.weapon_mastery;
-  if (choiceId === 'size') return char.size;
-  return fc[choiceId];
+  let raw: unknown;
+  if (choiceId === 'human_skill') raw = char.human_skill || fc.human_skill;
+  else if (choiceId === 'fighting_style_feat') raw = char.fighting_style_feat || fc.fighting_style_feat;
+  else if (choiceId === 'versatile_origin_feat') raw = char.versatile_origin_feat || fc.versatile_origin_feat;
+  else if (choiceId === 'weapon_mastery') raw = char.weapon_mastery || fc.weapon_mastery;
+  else if (choiceId === 'size') raw = char.size;
+  else raw = fc[choiceId];
+  const list = coerceChoiceList(raw);
+  return list.length ? list : raw;
 }
 
 export function patchChoice(char: Character, choiceId: string, value: unknown): Partial<Character> {

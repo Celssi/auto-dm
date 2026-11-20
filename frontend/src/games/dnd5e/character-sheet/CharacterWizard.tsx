@@ -3,7 +3,7 @@ import { api } from '../../../api/client';
 import type { Character } from '../../../types';
 import { highestSlotLevel, spellLimitsFromClass, spellListField } from '../dnd5eCharacterCreation';
 import CharacterSheetView from './CharacterSheetView';
-import { displayLabel, normalizeChoiceList } from '../../../lib/displayText';
+import { coerceChoiceList, displayLabel, normalizeChoiceList } from '../../../lib/displayText';
 import {
   defaultWizardCharacter,
   WIZARD_STEPS,
@@ -410,8 +410,8 @@ function wizardNextDisabled(
 ) {
   const skillsPicked = (char.class_skill_choices || []).length;
   if (step === 1) {
-    const langs = ((char.feature_choices || {}) as Record<string, unknown>).origin_languages;
-    if (!Array.isArray(langs) || langs.length < 2) return true;
+    const langs = coerceChoiceList(((char.feature_choices || {}) as Record<string, unknown>).origin_languages);
+    if (langs.length < 2) return true;
   }
   if (step === 2 && backgroundAbilities.length >= 2) {
     if (char.background_asi_all_three) {

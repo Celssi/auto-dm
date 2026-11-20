@@ -104,11 +104,25 @@ def _norm_list(items: Any) -> list[str]:
     ]
 
 
+def _listish_choice_fingerprint(fc: dict[str, Any]) -> dict[str, Any]:
+    """Fingerprint list picks so a stringified Python list is persisted as a real list."""
+    out: dict[str, Any] = {}
+    for key, val in fc.items():
+        if str(key).startswith("_"):
+            continue
+        if isinstance(val, list):
+            out[str(key)] = _norm_list(val)
+        elif isinstance(val, str) and val.strip().startswith("[") and val.strip().endswith("]"):
+            out[str(key)] = val.strip()
+    return out
+
+
 def _migration_fields(data: dict[str, Any] | None) -> dict[str, Any]:
     raw = data or {}
     fc = raw.get("feature_choices") if isinstance(raw.get("feature_choices"), dict) else {}
     return {
         "origin_languages": _norm_list(fc.get("origin_languages")),
+        "choice_lists": _listish_choice_fingerprint(fc),
         "elven_lineage": str(fc.get("elven_lineage") or "").strip().lower().replace(" ", "_"),
         "keen_senses_skill": str(fc.get("keen_senses_skill") or "").strip().lower(),
         "high_elf_spell_ability": str(fc.get("high_elf_spell_ability") or "").strip().lower(),

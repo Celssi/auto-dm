@@ -1,5 +1,5 @@
 import type { Character } from '../../../types';
-import { displayLabel, displayLabels, EMPTY_FIELD } from '../../../lib/displayText';
+import { displayLabel, displayLabels, EMPTY_FIELD, formatChoiceValue } from '../../../lib/displayText';
 import { formatMod, initiativeMod, passivePerception, proficiencyBonus, spellAttackBonus } from './sheetUtils';
 import type { PdfModule } from './characterSheetPdfTypes';
 import { pdfStyles as s } from './characterSheetPdfStyles';
@@ -48,7 +48,7 @@ export function buildSheetPage1(pdf: PdfModule, c: Character, unlockedFeatures?:
   const features = [
     ...classFeatureLines,
     ...subclassFeatureLines,
-    ...(unlockedFeatures?.resolved_choices || []).map((row) => `${row.label}: ${row.value_label}`),
+    ...(unlockedFeatures?.resolved_choices || []).map((row) => `${row.label}: ${formatChoiceValue(row.value_label)}`),
     c.origin_feat ? `Origin Feat: ${displayLabel(c.origin_feat)}` : '',
     c.versatile_origin_feat ? `Versatile Feat: ${displayLabel(c.versatile_origin_feat)}` : '',
     ...(c.feats || []).map((f) => displayLabel(f)),

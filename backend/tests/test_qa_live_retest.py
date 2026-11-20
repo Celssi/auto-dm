@@ -127,6 +127,22 @@ def test_live_rogue_and_paladin_rebuild_fills_origin_picks():
     assert "dwarvish" in origin_p
 
 
+def test_stringified_choice_lists_change_migration_fingerprint():
+    stored = {
+        "feature_choices": {
+            "origin_languages": "['Halfling', 'Orc']",
+            "rogue_expertise": "['stealth', 'perception']",
+        }
+    }
+    rebuilt = {
+        "feature_choices": {
+            "origin_languages": ["Halfling", "Orc"],
+            "rogue_expertise": ["stealth", "perception"],
+        }
+    }
+    assert _migration_fields(stored) != _migration_fields(rebuilt)
+
+
 def test_rebuild_persisting_writes_wizard_and_keeps_live_hp():
     data = _live_wizard()
     data["hp"] = 3
