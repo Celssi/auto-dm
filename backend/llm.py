@@ -314,3 +314,56 @@ def get_llamaindex_chat_llm(provider: ChatProvider = "claude"):
         model=os.environ.get("OLLAMA_CHAT_MODEL", "gemma3:12b"),
         request_timeout=OLLAMA_REQUEST_TIMEOUT,
     )
+
+
+_PROBE_CACHE: dict[str, Any] = {}
+_PROBE_TTL_S = 60.0
+
+
+def probe_claude(*, force: bool = False) -> dict[str, Any]:
+    """Tiny Messages ping. Cached so health checks cannot spam the API."""
+    import time
+
+    from backend.dm.errors import provider_error_class, record_provider_error
+
+    now = time.time()
+    cached_at = float(_PROBE_CACHE.get("ts") or 0)
+    if not force and _PROBE_CACHE.get("result") and now - cached_at < _PROBE_TTL_S:
+        return dict(_PROBE_CACHE["result"])
+
+    key = resolve_anthropic_api_key()
+    if not key:
+        result = {"ok": False, "class": "unconfigured"}
+        _PROBE_CACHE.update({"ts": now, "result": result})
+        return dict(result)
+
+    try:
+        import httpx
+
+        response = httpx.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json={
+                "model": resolve_claude_model(),
+                "max_tokens": 8,
+                "messages": [{"role": "user", "content": "Reply with ok."}],
+            },
+            timeout=20.0,
+        )
+        body = response.text
+        if response.status_code == 200:
+            result = {"ok": True, "class": "ok", "http_status": 200}
+        else:
+            kind = provider_error_class(body)
+            record_provider_error(body)
+            result = {"ok": False, "class": kind, "http_status": response.status_code}
+    except Exception as exc:
+        record_provider_error(exc)
+        result = {"ok": False, "class": provider_error_class(exc)}
+
+    _PROBE_CACHE.update({"ts": now, "result": result})
+    return dict(result)

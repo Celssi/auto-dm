@@ -487,7 +487,7 @@ export function usePlayPageSession(
     } catch (e) {
       dispatch({
         type: 'set',
-        patch: { bootstrapError: e instanceof Error ? e.message : 'Bootstrap failed' },
+        patch: { bootstrapError: friendlyDmError(e instanceof Error ? e.message : e) },
       });
     } finally {
       dispatch({ type: 'set', patch: { bootstrapping: false } });

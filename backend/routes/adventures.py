@@ -80,8 +80,12 @@ def create(body: AdventureCreateBody):
                 include_faerun=body.include_faerun,
                 campaign_id=body.campaign_id,
             )
-        except (ValueError, RuntimeError) as e:
-            raise HTTPException(502, f"Outline generation failed: {e}") from e
+        except ValueError as e:
+            raise HTTPException(400, str(e)) from e
+        except Exception as e:
+            from backend.dm.errors import http_provider_error
+
+            raise http_provider_error(e) from e
     meta = {
         "name": body.name,
         "mode": body.mode,
@@ -124,8 +128,12 @@ def regen_outline(adv_id: str, body: AdventureCreateBody):
             character_id=body.character_id or adv.get("character_id", ""),
             include_faerun=body.include_faerun or adv.get("include_faerun", False),
         )
-    except (ValueError, RuntimeError) as e:
-        raise HTTPException(502, f"Outline generation failed: {e}") from e
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+    except Exception as e:
+        from backend.dm.errors import http_provider_error
+
+        raise http_provider_error(e) from e
     meta = {**adv, "outline": outline}
     save_adventure(adv_id, meta, outline=outline)
     reset_story_progress(adv_id)
@@ -205,6 +213,10 @@ def start_session(adv_id: str):
             return {"session_id": result["session_id"], "created": True, "activated": True}
         except ValueError as e:
             raise HTTPException(400, str(e)) from e
+        except Exception as e:
+            from backend.dm.errors import http_provider_error
+
+            raise http_provider_error(e) from e
 
     session_id = create_session(
         character_id=character_id,
