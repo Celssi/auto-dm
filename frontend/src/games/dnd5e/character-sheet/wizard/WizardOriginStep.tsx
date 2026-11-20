@@ -3,7 +3,7 @@ import { Field } from '../../../../components/ui/forms/Field';
 import TextInput from '../../../../components/ui/forms/TextInput';
 import TextArea from '../../../../components/ui/forms/TextArea';
 import MultiChoice from '../../../../components/ui/forms/MultiChoice';
-import { displayLabel } from '../../../../lib/displayText';
+import { coerceChoiceList, displayLabel } from '../../../../lib/displayText';
 
 interface Props {
   char: Character;
@@ -14,7 +14,7 @@ interface Props {
 export default function WizardOriginStep({ char, patch, languageOptions }: Props) {
   const appearance = String(char.appearance || char.equipment_notes || '');
   const fc = { ...((char.feature_choices || {}) as Record<string, unknown>) };
-  const originLanguages = Array.isArray(fc.origin_languages) ? (fc.origin_languages as string[]) : [];
+  const originLanguages = coerceChoiceList(fc.origin_languages);
 
   return (
     <div className="space-y-5">

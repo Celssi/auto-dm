@@ -70,27 +70,40 @@ def repair_qa_characters() -> dict[str, Any]:
     from backend.storage import (
         get_character,
         get_session_lonelog,
+        list_characters,
         list_sessions,
         save_character,
         write_session_lonelog,
     )
 
     report: dict[str, Any] = {"characters": {}, "lonelogs": []}
-    for char_id in QA_CHARACTER_IDS:
+    roster_ids = [str(row.get("id") or "") for row in list_characters() if row.get("id")]
+    seen_ids = list(dict.fromkeys([*QA_CHARACTER_IDS, *roster_ids]))
+    for char_id in seen_ids:
         data = get_character(char_id)
         if not data:
-            report["characters"][char_id] = {"status": "missing"}
+            if char_id in QA_CHARACTER_IDS:
+                report["characters"][char_id] = {"status": "missing"}
             continue
         if data.get("id") != char_id:
             data = {**data, "id": char_id}
-        overlaid = _overlay_from_session(char_id, data)
+        overlaid = _overlay_from_session(char_id, data) if char_id in QA_CHARACTER_IDS else data
+        before = _fingerprint(overlaid)
         rebuilt = rebuild_character_dict_persisting(char_id, overlaid)
-        save_character(char_id, rebuilt)
-        report["characters"][char_id] = {
-            "status": "repaired",
-            "fingerprint": _fingerprint(rebuilt),
-        }
-        logger.info("QA repair persisted %s %s", char_id, report["characters"][char_id]["fingerprint"])
+        after = _fingerprint(rebuilt)
+        if char_id in QA_CHARACTER_IDS:
+            save_character(char_id, rebuilt)
+            report["characters"][char_id] = {
+                "status": "repaired",
+                "fingerprint": after,
+            }
+            logger.info("QA repair persisted %s %s", char_id, after)
+        elif before != after:
+            report["characters"][char_id] = {
+                "status": "migrated",
+                "fingerprint": after,
+            }
+            logger.info("Migrated stored choice lists on %s", char_id)
 
     seen: set[str] = set()
     for session in list_sessions(include_archived=True):
