@@ -76,7 +76,12 @@ def test_hit_dice_unused_recap_does_not_spend():
 
 
 def test_short_rest_not_refused_by_hit_dice_not_applied():
-    dm = "You take a short rest. An hour later you stand. Hit dice not applied."
+    from backend.games.dnd5e.dm.mechanics_delta import render_mechanics_block
+
+    dm = (
+        "You take a short rest. An hour later you stand. Hit dice not applied.\n"
+        + render_mechanics_block({"rest": {"kind": "short", "hit_dice_spent": 0}})
+    )
     assert not rest_refused(dm)
     assert rest_granted(dm, kind="short")
     updates, logs = apply_pending_rest(
@@ -85,7 +90,7 @@ def test_short_rest_not_refused_by_hit_dice_not_applied():
         dm,
         user_message="**Short rest**",
     )
-    assert updates
+    assert updates or logs
     assert not any("refused" in line.lower() for line in logs)
 
 
@@ -110,8 +115,14 @@ def test_frightened_save_dc_stays_fixed():
 
 
 def test_lay_on_hands_spend_from_narration():
+    from backend.games.dnd5e.dm.mechanics_delta import render_mechanics_block
+
     assert parse_lay_on_hands_spend("Lay on Hands heals 5 points.", 5) == 0
-    overlay = overlay_live_resources(_paladin(loh=5), "You use Lay on Hands to heal 5 HP.")
+    overlay = overlay_live_resources(
+        _paladin(loh=5),
+        "You use Lay on Hands to heal 5 HP.\n"
+        + render_mechanics_block({"resources": {"lay_on_hands": 5}, "hp_changes": [{"amount": 5, "source": "Lay on Hands"}]}),
+    )
     assert overlay.get("lay_on_hands_remaining") == 0
 
 

@@ -45,16 +45,30 @@ function applyChatResultPatch(result: ChatResult) {
 function preferLiveSheet(fetched: Character, streamed: Character | null): Character {
   if (!streamed) return fetched;
   const next = { ...fetched };
-  if ((!fetched.conditions || fetched.conditions.length === 0) && streamed.conditions?.length) {
-    next.conditions = streamed.conditions;
+  const liveKeys = [
+    'hp',
+    'max_hp',
+    'ac',
+    'spell_slots',
+    'hit_dice_spent',
+    'lay_on_hands_remaining',
+    'concentration',
+    'active_effects',
+    'heroic_inspiration',
+    'conditions',
+    'inventory',
+    'currency',
+    'wild_shape_uses',
+    'second_wind_remaining',
+  ] as const;
+  for (const key of liveKeys) {
+    if (streamed[key] !== undefined) {
+      (next as Record<string, unknown>)[key] = streamed[key];
+    }
   }
-  if (streamed.hit_dice_spent != null) next.hit_dice_spent = streamed.hit_dice_spent;
-  if (streamed.lay_on_hands_remaining != null) next.lay_on_hands_remaining = streamed.lay_on_hands_remaining;
-  if (streamed.concentration) next.concentration = streamed.concentration;
-  if (streamed.active_effects?.length) next.active_effects = streamed.active_effects;
   next.feature_choices = {
-    ...((streamed.feature_choices || {}) as Record<string, unknown>),
     ...((fetched.feature_choices || {}) as Record<string, unknown>),
+    ...((streamed.feature_choices || {}) as Record<string, unknown>),
   };
   return next;
 }
@@ -107,7 +121,11 @@ function applyPlayStreamEvent(
       dispatch({ type: 'set', patch: { character: payload.character, sheetUpdating: false } });
     }
   } else if (event === 'ready' && data && typeof data === 'object' && 'response' in data) {
-    const payload = data as { response?: string; character?: Character };
+    const payload = data as {
+      response?: string;
+      character?: Character;
+      reaction_prompt?: ChatResult['reaction_prompt'];
+    };
     if (payload.response) {
       dispatch({ type: 'replaceLastAssistant', content: payload.response });
     }
@@ -116,8 +134,9 @@ function applyPlayStreamEvent(
       type: 'set',
       patch: {
         loading: false,
-        sheetUpdating: true,
+        sheetUpdating: false,
         ...(payload.character ? { character: payload.character } : {}),
+        ...(payload.reaction_prompt ? { reactionPrompt: payload.reaction_prompt } : {}),
       },
     });
   } else if (event === 'done') {
@@ -126,7 +145,15 @@ function applyPlayStreamEvent(
     dispatch({ type: 'replaceLastAssistant', content: result.response });
     const patch = applyChatResultPatch(result);
     if (patch.character && lastSheet) lastSheet.current = patch.character as Character;
-    dispatch({ type: 'set', patch: { loading: false, sheetUpdating: false, ...patch } });
+    dispatch({
+      type: 'set',
+      patch: {
+        loading: false,
+        sheetUpdating: false,
+        ...patch,
+        ...(result.reaction_prompt ? { reactionPrompt: result.reaction_prompt } : {}),
+      },
+    });
   } else if (event === 'error') {
     const message = streamErrorDetail(data);
     dispatch({ type: 'replaceLastAssistant', content: message });
@@ -505,7 +532,7 @@ export function usePlayPageSession(
       return;
     }
     inFlightRef.current = true;
-    dispatch({ type: 'set', patch: { input: '', spellConfirm: null, chatError: '' } });
+    dispatch({ type: 'set', patch: { input: '', spellConfirm: null, reactionPrompt: null, chatError: '' } });
     if (!opts?.alreadyShown) {
       dispatch({ type: 'appendMessages', messages: [{ role: 'user', content: text }] });
     }
@@ -522,22 +549,19 @@ export function usePlayPageSession(
       if (streamError) throw new Error(streamError);
       const result = done[0];
       if (!result) throw new Error('The DM closed the stream without a reply.');
-      await refreshSessionLogs(sessionId);
+      void refreshSessionLogs(sessionId);
       if (state.characterId) {
-        try {
-          const fresh = await api.getCharacter(state.characterId);
-          const sheet = preferLiveSheet(fresh.character as Character, lastSheetRef.current);
-          lastSheetRef.current = sheet;
-          dispatch({
-            type: 'set',
-            patch: { character: sheet },
-          });
-        } catch (err: unknown) {
-          console.warn('Failed to refresh character after chat', err);
-        }
+        api
+          .getCharacter(state.characterId)
+          .then((fresh) => {
+            const sheet = preferLiveSheet(fresh.character as Character, lastSheetRef.current);
+            lastSheetRef.current = sheet;
+            dispatch({ type: 'set', patch: { character: sheet } });
+          })
+          .catch((err: unknown) => console.warn('Failed to refresh character after chat', err));
       }
       const chatGameId = String((result.character as Character)?.game_id || state.character?.game_id || 'dnd5e');
-      await getPlaySessionExtensions(chatGameId).afterChat(sessionId, dispatch);
+      void getPlaySessionExtensions(chatGameId).afterChat(sessionId, dispatch);
       api
         .getSessionWorld(sessionId, false)
         .then((world) =>
@@ -571,7 +595,7 @@ export function usePlayPageSession(
         type: 'set',
         patch: { loading: false, sheetUpdating: false, queuedCount: pendingSendsRef.current.length },
       });
-      const next = shiftQueue(sessionId);
+      const next = state.sessionId ? shiftQueue(sessionId) : pendingSendsRef.current.shift();
       if (next) {
         dispatch({ type: 'set', patch: { queuedCount: pendingSendsRef.current.length } });
         void sendMessage(next.text, { alreadyShown: next.shown });
@@ -789,17 +813,17 @@ export function usePlayPageSession(
       await streamPromise;
       if (streamError) throw new Error(streamError);
       if (!done[0]) throw new Error('The DM closed the stream without a reply.');
-      await refreshSessionLogs(state.sessionId);
+      void refreshSessionLogs(state.sessionId);
       if (state.characterId) {
-        try {
-          const fresh = await api.getCharacter(state.characterId);
-          dispatch({
-            type: 'set',
-            patch: { character: preferLiveSheet(fresh.character as Character, lastSheetRef.current) },
-          });
-        } catch (err: unknown) {
-          console.warn('Failed to refresh character after dice shortcut', err);
-        }
+        api
+          .getCharacter(state.characterId)
+          .then((fresh) => {
+            dispatch({
+              type: 'set',
+              patch: { character: preferLiveSheet(fresh.character as Character, lastSheetRef.current) },
+            });
+          })
+          .catch((err: unknown) => console.warn('Failed to refresh character after dice shortcut', err));
       }
       api
         .getSessionWorld(state.sessionId, false)
@@ -892,17 +916,17 @@ export function usePlayPageSession(
       );
       if (streamError) throw new Error(streamError);
       if (!done[0]) throw new Error('The DM closed the stream without a reply.');
-      await refreshSessionLogs(state.sessionId);
+      void refreshSessionLogs(state.sessionId);
       if (state.characterId) {
-        try {
-          const fresh = await api.getCharacter(state.characterId);
-          dispatch({
-            type: 'set',
-            patch: { character: preferLiveSheet(fresh.character as Character, lastSheetRef.current) },
-          });
-        } catch (err: unknown) {
-          console.warn('Failed to refresh character after spell cast', err);
-        }
+        api
+          .getCharacter(state.characterId)
+          .then((fresh) => {
+            dispatch({
+              type: 'set',
+              patch: { character: preferLiveSheet(fresh.character as Character, lastSheetRef.current) },
+            });
+          })
+          .catch((err: unknown) => console.warn('Failed to refresh character after spell cast', err));
       }
     } catch (e) {
       const message = friendlyDmError(e instanceof Error ? e.message : e);
@@ -1048,6 +1072,24 @@ export function usePlayPageSession(
     await loadMeta();
   };
 
+  const toggleHeroicInspiration = useCallback(
+    async (next: boolean) => {
+      if (!state.characterId || !state.character) return;
+      const optimistic = { ...state.character, heroic_inspiration: next };
+      lastSheetRef.current = optimistic;
+      dispatch({ type: 'set', patch: { character: optimistic } });
+      try {
+        const res = await api.patchLiveCharacter(state.characterId, { heroic_inspiration: next });
+        const sheet = preferLiveSheet(res.character as Character, lastSheetRef.current);
+        lastSheetRef.current = sheet;
+        dispatch({ type: 'set', patch: { character: sheet } });
+      } catch (err: unknown) {
+        console.warn('Failed to toggle Heroic Inspiration', err);
+      }
+    },
+    [dispatch, state.character, state.characterId],
+  );
+
   const rebuildSheet = useCallback(async () => {
     if (!state.characterId) return;
     try {
@@ -1100,6 +1142,7 @@ export function usePlayPageSession(
     handleBrambletrekCombatAction,
     handleCombatAction,
     rebuildSheet,
+    toggleHeroicInspiration,
     renameSession,
     archiveSession,
   };

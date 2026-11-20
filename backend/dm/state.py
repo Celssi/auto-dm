@@ -30,6 +30,8 @@ class DMState(TypedDict, total=False):
     continuity_issues: list[str]
     narrative_context: dict
     resource_log: list[str]
+    mechanics_delta: dict
+    reaction_prompt: dict
     story_brief: str
     story_progress: dict
     adventure_complete: bool

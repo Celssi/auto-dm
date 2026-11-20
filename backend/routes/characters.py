@@ -37,6 +37,10 @@ class MulticlassBody(BaseModel):
     class_name: str
 
 
+class LivePatchBody(BaseModel):
+    heroic_inspiration: bool | None = None
+
+
 def _plugin_for_data(data: dict | None = None):
     return get_game(resolve_game_id(data))
 
@@ -130,6 +134,28 @@ def rebuild_saved(char_id: str):
     payload = rebuild_character_dict_persisting(char_id, char)
     save_character(char_id, payload)
     return {"character": get_character(char_id) or payload}
+
+
+@router.patch("/{char_id}/live")
+def patch_live(char_id: str, body: LivePatchBody):
+    """Toggle live resources without a full rebuild."""
+    char = get_character(char_id)
+    if not char:
+        raise HTTPException(404, "Character not found")
+    if body.heroic_inspiration is None:
+        raise HTTPException(400, "No live fields to patch")
+    char["heroic_inspiration"] = bool(body.heroic_inspiration)
+    save_character(char_id, char)
+    from backend.dm.audit import record_audit
+
+    record_audit(
+        {
+            "event": "heroic_inspiration",
+            "source": "player",
+            "detail": {"heroic_inspiration": bool(body.heroic_inspiration), "inferred": False},
+        }
+    )
+    return {"character": get_character(char_id) or char}
 
 
 @router.put("/{char_id}")

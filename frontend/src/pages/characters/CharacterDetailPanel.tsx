@@ -290,6 +290,17 @@ function DndCharacterDetail({
         editable={editing}
         hideHeader
         onChange={(c) => onChange(c as Character)}
+        onToggleHeroicInspiration={async (next) => {
+          onChange({ ...character, heroic_inspiration: next });
+          if (activeId && !editing) {
+            try {
+              const res = await api.patchLiveCharacter(activeId, { heroic_inspiration: next });
+              onChange(res.character as Character);
+            } catch (err) {
+              toast.error(err instanceof Error ? err.message : 'Could not update Heroic Inspiration');
+            }
+          }
+        }}
       />
     </m.div>
   );

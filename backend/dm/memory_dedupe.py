@@ -27,7 +27,15 @@ _ACTION_VERBS = {
     "enter", "examine", "explore", "follow", "go", "head", "help", "hide", "inspect",
     "investigate", "leave", "listen", "look", "offer", "open", "persuade", "question",
     "refuse", "rest", "return", "run", "search", "speak", "steal", "take", "talk", "tell",
-    "travel", "try", "use", "visit", "wait", "warn",
+    "travel", "try", "use", "visit", "wait", "warn", "grab", "dodge", "parry",
+}  # fmt: skip
+_RULE_NAME_BLOCKLIST = {
+    "bless", "bane", "shield", "guidance", "hex", "hunter's mark", "hunters mark",
+    "savage attacker", "great weapon fighting", "defense", "dueling",
+    "disadvantage", "advantage", "opportunity attack", "action", "bonus action",
+    "reaction", "hit dice", "lay on hands", "concentration", "initiative",
+    "death save", "armor class", "spell slot", "cantrip", "unarmed strike",
+    "grapple", "shove", "help", "hide", "search", "ready", "dash", "disengage",
 }  # fmt: skip
 _NAME_PARTICLES = {"of", "the", "de", "du", "van", "von", "da", "del", "la", "le", "and", "in"}
 
@@ -127,7 +135,7 @@ def looks_like_entity_name(name: str) -> bool:
     cleaned = re.sub(r"\s+", " ", (name or "").strip().strip("*").strip())
     if len(cleaned) < 2 or len(cleaned) > 60:
         return False
-    if cleaned.lower() in _CONDITION_NAMES:
+    if cleaned.lower() in _CONDITION_NAMES or cleaned.lower() in _RULE_NAME_BLOCKLIST:
         return False
     words = cleaned.split(" ")
     if len(words) > 6:

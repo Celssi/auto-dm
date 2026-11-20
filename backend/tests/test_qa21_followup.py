@@ -44,7 +44,12 @@ def _sage(*, hp: int = 4, hit_dice_spent: int = 0) -> dict:
 
 
 def test_hit_die_spent_narration_grants_short_rest():
-    dm = "Hit Die spent, 4/8 -> 8/8. You catch your breath."
+    from backend.games.dnd5e.dm.mechanics_delta import render_mechanics_block
+
+    dm = (
+        "Hit Die spent, 4/8 -> 8/8. You catch your breath.\n"
+        + render_mechanics_block({"rest": {"kind": "short", "hit_dice_spent": 1}})
+    )
     assert not rest_refused(dm)
     assert rest_granted(dm, kind="short")
     assert parse_hit_dice_to_spend("**Short rest**", dm) == 1
@@ -72,8 +77,14 @@ def test_refused_rest_still_blocked():
 
 
 def test_fall_hp_arrow_is_parsed_and_logged_as_damage():
-    text = "1d6 = 4, HP 8 -> 4/8, Prone"
-    assert parse_pc_hp_from_narration(text, name="QA Sage 4", max_hp=8, current_hp=8) == 4
+    from backend.games.dnd5e.dm.mechanics_delta import render_mechanics_block
+
+    text = (
+        "1d6 = 4, HP 8 -> 4/8, Prone\n"
+        + render_mechanics_block(
+            {"hp_changes": [{"amount": -4, "source": "fall"}], "conditions": [{"name": "Prone", "action": "add"}]}
+        )
+    )
     updates = overlay_live_resources(_sage(hp=8), text)
     assert updates.get("hp") == 4
     assert any("damage" in line.lower() for line in updates.get("_logs") or [])

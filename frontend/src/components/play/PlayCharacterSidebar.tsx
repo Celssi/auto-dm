@@ -20,6 +20,7 @@ interface Props {
   character: Character;
   summary?: Record<string, unknown>;
   gameId?: string;
+  onToggleHeroicInspiration?: (next: boolean) => void;
 }
 
 function StatPill({ label, value, tipId }: { label: string; value: string; tipId?: string }) {
@@ -39,7 +40,7 @@ function StatPill({ label, value, tipId }: { label: string; value: string; tipId
   );
 }
 
-export default function PlayCharacterSidebar({ character: c, summary, gameId }: Props) {
+export default function PlayCharacterSidebar({ character: c, summary, gameId, onToggleHeroicInspiration }: Props) {
   const resolvedGameId = gameId ?? String(c.game_id || 'dnd5e');
   const config = getGameCharacterConfig(resolvedGameId);
 
@@ -47,17 +48,25 @@ export default function PlayCharacterSidebar({ character: c, summary, gameId }: 
     return <BrambletrekPlaySidebar character={c as unknown as BrambletrekCharacter} summary={summary} />;
   }
 
-  return <DndPlaySidebar character={c} summary={summary} />;
+  return <DndPlaySidebar character={c} summary={summary} onToggleHeroicInspiration={onToggleHeroicInspiration} />;
 }
 
-function DndPlaySidebar({ character: c, summary }: { character: Character; summary?: Record<string, unknown> }) {
+function DndPlaySidebar({
+  character: c,
+  summary,
+  onToggleHeroicInspiration,
+}: {
+  character: Character;
+  summary?: Record<string, unknown>;
+  onToggleHeroicInspiration?: (next: boolean) => void;
+}) {
   return (
     <div className="space-y-2 text-sm">
       <DndIdentity character={c} />
       <DndHitPoints character={c} />
       <DndConditions character={c} />
       <DndCombatPills character={c} />
-      <DndResources character={c} summary={summary} />
+      <DndResources character={c} summary={summary} onToggleHeroicInspiration={onToggleHeroicInspiration} />
       <DndSpellSlots character={c} summary={summary} />
       <DndGear character={c} />
       <DndAbilities character={c} />
@@ -147,7 +156,15 @@ function formatCurrency(currency?: Record<string, number>) {
   return parts.join(', ') || '0 gp';
 }
 
-function DndResources({ character: c, summary }: { character: Character; summary?: Record<string, unknown> }) {
+function DndResources({
+  character: c,
+  summary,
+  onToggleHeroicInspiration,
+}: {
+  character: Character;
+  summary?: Record<string, unknown>;
+  onToggleHeroicInspiration?: (next: boolean) => void;
+}) {
   const paladinLevel = Number(
     (c.classes || []).find((entry) => String(entry.class_name || '').toLowerCase() === 'paladin')?.level
       ?? (String(c.class_name || '').toLowerCase() === 'paladin' ? c.level : 0),
@@ -158,6 +175,18 @@ function DndResources({ character: c, summary }: { character: Character; summary
   return (
     <div className="rounded-md border border-border bg-bg/40 p-2 space-y-1">
       <div className="text-[10px] uppercase tracking-wide text-muted">Focus</div>
+      <p className="text-xs text-gray-200">
+        Heroic Inspiration:{' '}
+        <button
+          type="button"
+          className="font-medium hover:text-accent"
+          onClick={() => onToggleHeroicInspiration?.(!c.heroic_inspiration)}
+          disabled={!onToggleHeroicInspiration}
+          aria-pressed={Boolean(c.heroic_inspiration)}
+        >
+          {c.heroic_inspiration ? '★ Yes' : '☆ No'}
+        </button>
+      </p>
       <p className="text-xs text-gray-200">
         Concentration:{' '}
         {c.concentration ? (

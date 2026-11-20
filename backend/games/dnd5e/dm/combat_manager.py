@@ -723,6 +723,10 @@ def format_combat_context(state: CombatState | None) -> str:
             f"(total {pending.get('attack_total')}) for {pending.get('damage')} damage. "
             "If they cast Shield now, the attack misses and a 1st-level slot is spent."
         )
+    lines.append(
+        "Player reactions (opportunity attack, Shield, Uncanny Dodge) are the player's choice. "
+        "Never resolve one on their behalf. Ask, then wait."
+    )
     return "\n".join(lines)
 
 

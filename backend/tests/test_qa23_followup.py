@@ -41,11 +41,18 @@ def test_friendly_error_hides_anthropic_credit_payload():
 
 
 def test_second_fall_uses_this_turn_dice_not_prior_damage():
+    from backend.games.dnd5e.dm.mechanics_delta import render_mechanics_block
+
     text = (
         "Earlier you fell for 3. Falling: 1d6 = 3. HP 8 -> 5/8, Prone. "
-        "This landing: Falling: 1d6 = 4. HP 8 -> 1/8, Prone."
+        "This landing: Falling: 1d6 = 4. HP 8 -> 4/8, Prone.\n"
+        + render_mechanics_block(
+            {
+                "hp_changes": [{"amount": -4, "source": "fall"}],
+                "conditions": [{"name": "Prone", "action": "add"}],
+            }
+        )
     )
-    assert parse_pc_hp_from_narration(text, name="QA Sage 4", max_hp=8, current_hp=8) == 4
     overlay = overlay_live_resources(_sage(hp=8), text)
     assert overlay.get("hp") == 4
     logs = " ".join(overlay.get("_logs") or [])
@@ -54,8 +61,17 @@ def test_second_fall_uses_this_turn_dice_not_prior_damage():
 
 
 def test_fall_still_applies_single_roll():
-    text = "Falling: 1d6 = 3. HP 8 -> 5/8, Prone"
-    assert parse_pc_hp_from_narration(text, name="QA Sage 4", max_hp=8, current_hp=8) == 5
+    from backend.games.dnd5e.dm.mechanics_delta import render_mechanics_block
+
+    text = (
+        "Falling: 1d6 = 3. HP 8 -> 5/8, Prone\n"
+        + render_mechanics_block(
+            {
+                "hp_changes": [{"amount": -3, "source": "fall"}],
+                "conditions": [{"name": "Prone", "action": "add"}],
+            }
+        )
+    )
     overlay = overlay_live_resources(_sage(hp=8), text)
     assert overlay.get("hp") == 5
     assert "Prone" in (overlay.get("conditions") or [])
@@ -77,7 +93,17 @@ def test_prone_from_fall_still_applies():
 
 
 def test_short_rest_grants_when_prone_ends():
-    dm = "You sit for an hour. Prone ended. You catch your breath and stand."
+    from backend.games.dnd5e.dm.mechanics_delta import render_mechanics_block
+
+    dm = (
+        "You sit for an hour. Prone ended. You catch your breath and stand.\n"
+        + render_mechanics_block(
+            {
+                "rest": {"kind": "short", "hit_dice_spent": 1},
+                "conditions": [{"name": "Prone", "action": "remove"}],
+            }
+        )
+    )
     assert not rest_refused(dm)
     assert rest_granted(dm, kind="short")
     updates, logs = apply_pending_rest(

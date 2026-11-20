@@ -1,6 +1,6 @@
 import type { Character } from '../../../types';
 import { displayLabel, EMPTY_FIELD } from '../../../lib/displayText';
-import { abilityMod, formatMod, proficiencyBonus } from './sheetUtils';
+import { formatMod, weaponAttackBonus } from './sheetUtils';
 
 export function featureGroupLines(groups?: Record<string, unknown>): string[] {
   return Object.entries(groups || {}).flatMap(([cid, feats]) => {
@@ -29,9 +29,9 @@ export function splitNotes(text: string): { appearance: string; backstory: strin
   return { appearance, backstory };
 }
 
-export function weaponAttack(c: Character, w: { ability?: string; proficient?: boolean }): string {
-  const ab = w.ability || 'str';
-  let m = abilityMod(c.ability_scores?.[ab] ?? 10);
-  if (w.proficient) m += proficiencyBonus(c.level || 1);
-  return formatMod(m);
+export function weaponAttack(
+  c: Character,
+  w: { name?: string; ability?: string; proficient?: boolean },
+): string {
+  return formatMod(weaponAttackBonus(c, w));
 }

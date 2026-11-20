@@ -46,6 +46,7 @@ export default function PlayPage() {
     handleBrambletrekCombatAction,
     handleCombatAction,
     rebuildSheet,
+    toggleHeroicInspiration,
     renameSession,
     archiveSession,
   } = usePlayPageSession(state, dispatch, loadSeqRef, campaignIdRef);
@@ -134,6 +135,9 @@ export default function PlayPage() {
       onBrambletrekCombatAction={handleBrambletrekCombatAction}
       onCombatAction={handleCombatAction}
       onRebuildSheet={() => void rebuildSheet()}
+      onToggleHeroicInspiration={(next) => void toggleHeroicInspiration(next)}
+      onConfirmReaction={() => sendMessage('Yes, I use my reaction.')}
+      onDeclineReaction={() => sendMessage('No, I do not use my reaction.')}
     />
     </ErrorBoundary>
   );

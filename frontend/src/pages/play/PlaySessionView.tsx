@@ -52,6 +52,9 @@ interface Props {
   onBrambletrekCombatAction: (action: string, handIndex?: number) => Promise<void>;
   onCombatAction: (action: string, targetId?: string) => Promise<void>;
   onRebuildSheet?: () => void;
+  onToggleHeroicInspiration?: (next: boolean) => void;
+  onConfirmReaction?: () => void;
+  onDeclineReaction?: () => void;
 }
 
 export default function PlaySessionView({
@@ -81,6 +84,9 @@ export default function PlaySessionView({
   onBrambletrekCombatAction,
   onCombatAction,
   onRebuildSheet,
+  onToggleHeroicInspiration,
+  onConfirmReaction,
+  onDeclineReaction,
 }: Props) {
   const {
     sessionLoaded,
@@ -149,6 +155,7 @@ export default function PlaySessionView({
             worldLoading={worldLoading}
             worldError={worldError}
             onRebuildSheet={onRebuildSheet}
+            onToggleHeroicInspiration={onToggleHeroicInspiration}
           />
         }
         chat={
@@ -183,6 +190,9 @@ export default function PlaySessionView({
               onSend={onSend}
               onConfirmSpellCast={onConfirmSpellCast}
               onCancelSpellCast={onCancelSpellCast}
+              reactionPrompt={state.reactionPrompt}
+              onConfirmReaction={onConfirmReaction}
+              onDeclineReaction={onDeclineReaction}
             />
           </main>
         }
@@ -356,6 +366,7 @@ function PlayCharacterPanel({
   worldLoading,
   worldError,
   onRebuildSheet,
+  onToggleHeroicInspiration,
 }: {
   character: Character | null;
   characterId: string;
@@ -365,6 +376,7 @@ function PlayCharacterPanel({
   worldLoading: boolean;
   worldError: boolean;
   onRebuildSheet?: () => void;
+  onToggleHeroicInspiration?: (next: boolean) => void;
 }) {
   const stage = playerProgress?.stage?.trim() ?? '';
   // Avoid repeating the current stage as a one-item beat list.
@@ -390,7 +402,11 @@ function PlayCharacterPanel({
         </div>
       </div>
       {character ? (
-        <PlayCharacterSidebar character={character} summary={characterSummary} />
+        <PlayCharacterSidebar
+          character={character}
+          summary={characterSummary}
+          onToggleHeroicInspiration={onToggleHeroicInspiration}
+        />
       ) : (
         <p className="text-sm text-muted">Loading…</p>
       )}
@@ -637,6 +653,9 @@ function PlayChatInput({
   onSend,
   onConfirmSpellCast,
   onCancelSpellCast,
+  reactionPrompt,
+  onConfirmReaction,
+  onDeclineReaction,
 }: {
   input: string;
   loading: boolean;
@@ -648,11 +667,30 @@ function PlayChatInput({
   onSend: () => void;
   onConfirmSpellCast: () => void;
   onCancelSpellCast: () => void;
+  reactionPrompt?: import('../../api/client').ReactionPrompt | null;
+  onConfirmReaction?: () => void;
+  onDeclineReaction?: () => void;
 }) {
   return (
     <div className="border-t border-border p-3 space-y-2 shrink-0 bg-panel/50">
       {chatError && (
         <p className="text-sm text-danger rounded-lg border border-danger/30 bg-danger/10 px-3 py-2">{chatError}</p>
+      )}
+      {reactionPrompt && (
+        <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+          <p className="text-muted mb-2">
+            {reactionPrompt.prompt ||
+              `A reaction is available${reactionPrompt.target ? ` (${reactionPrompt.target})` : ''}. Do you want to use it?`}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" className="btn-primary text-xs" onClick={onConfirmReaction} disabled={loading}>
+              Use reaction
+            </button>
+            <button type="button" className="btn-ghost text-xs" onClick={onDeclineReaction} disabled={loading}>
+              Save it
+            </button>
+          </div>
+        </div>
       )}
       {spellConfirm && (
         <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">

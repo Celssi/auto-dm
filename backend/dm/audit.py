@@ -18,6 +18,9 @@ _AUDIT_SLICE_KEYS = (
     "wild_shape_uses",
     "hit_dice_spent",
     "conditions",
+    "lay_on_hands_remaining",
+    "heroic_inspiration",
+    "active_effects",
 )
 
 

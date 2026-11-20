@@ -38,9 +38,20 @@ def _sage(*, hp: int = 8, hit_dice_spent: int = 0) -> dict:
 
 
 def test_fall_final_equals_stream_applies_hp_and_prone():
-    text = "Falling: 1d6 = 3. HP 8 -> 5/8, Prone"
-    assert parse_pc_hp_from_narration(text, name="QA Sage 4", max_hp=8, current_hp=8) == 5
-    assert "Prone" in parse_conditions_from_narration(text, [])
+    from backend.games.dnd5e.dm.mechanics_delta import render_mechanics_block
+
+    text = (
+        "Falling: 1d6 = 3. HP 8 -> 5/8, Prone\n"
+        + render_mechanics_block(
+            {
+                "hp_changes": [{"amount": -3, "source": "fall"}],
+                "conditions": [{"name": "Prone", "action": "add"}],
+            }
+        )
+    )
+    prose, _ = text.split("<<<MECHANICS", 1)
+    assert parse_pc_hp_from_narration(prose, name="QA Sage 4", max_hp=8, current_hp=8) == 5
+    assert "Prone" in parse_conditions_from_narration(prose, [])
     result = resource_keeper_node(
         {
             "character": _sage(hp=8),
@@ -79,6 +90,11 @@ def test_fall_text_is_not_a_short_rest():
     text = "Falling: 1d6 = 3. HP 8 -> 5/8, Prone. You recover your breath."
     assert not rest_granted(text, kind="short")
     assert not narrative_short_rest_detected("I drop from the balcony.", text)
+    from backend.games.dnd5e.dm.mechanics_delta import render_mechanics_block
+
+    text = text + "\n" + render_mechanics_block(
+        {"hp_changes": [{"amount": -3, "source": "fall"}], "conditions": [{"name": "Prone", "action": "add"}]}
+    )
     overlay = overlay_live_resources(_sage(hp=8), text)
     assert overlay.get("hp") == 5
 
@@ -92,7 +108,12 @@ def test_short_rest_heal_log_uses_start_hp():
 
 
 def test_pending_rest_still_grants_on_hit_die_spent():
-    dm = "Hit Die spent, 4/8 -> 8/8. You catch your breath."
+    from backend.games.dnd5e.dm.mechanics_delta import render_mechanics_block
+
+    dm = (
+        "Hit Die spent, 4/8 -> 8/8. You catch your breath.\n"
+        + render_mechanics_block({"rest": {"kind": "short", "hit_dice_spent": 1}})
+    )
     assert rest_granted(dm, kind="short")
     updates, logs = apply_pending_rest(
         _sage(hp=4),

@@ -466,83 +466,11 @@ def narration_sets_mage_armor(dm_response: str) -> bool:
 
 
 def overlay_live_resources(character: dict, dm_response: str) -> dict:
-    """Apply HP/AC/HD/conditions/Mage Armor stated in DM prose onto the character dict."""
-    from backend.games.dnd5e.characters.class_resources import compute_ac_details
-    from backend.games.dnd5e.characters.spell_resources import set_mage_armor_active
+    """Apply a structured mechanics trailer. Narrative prose is not parsed."""
+    from backend.games.dnd5e.dm.mechanics_delta import apply_mechanics_delta, split_mechanics_block
 
-    char = character_from_dict(character)
-    stored_max = int(character.get("max_hp") or 0)
-    stored_hp = character.get("hp")
-    max_hp = stored_max or int(char.max_hp or 0)
-    current_hp = int(stored_hp) if stored_hp is not None else int(char.hp or 0)
-    updates: dict = {}
-    logs: list[str] = []
-    text = dm_response or ""
-    reconcile_matches = list(_SHEET_RECONCILE.finditer(text))
-    reconcile = reconcile_matches[-1] if reconcile_matches else None
-    hp = parse_pc_hp_from_narration(
-        dm_response, name=char.name, max_hp=max_hp, current_hp=current_hp
-    )
-    if reconcile:
-        hp = int(reconcile.group(1))
-    if hp is not None and hp != current_hp:
-        old_hp = current_hp
-        char.hp = hp
-        updates["hp"] = hp
-        if hp < old_hp:
-            logs.append(f"Took {old_hp - hp} damage (HP {old_hp} -> {hp}/{max_hp}).")
-        else:
-            logs.append(f"HP set to {hp}/{max_hp} from DM narration.")
-    new_conditions = parse_conditions_from_narration(
-        dm_response, list(character.get("conditions") or char.conditions or [])
-    )
-    old_conditions = [str(item).strip().lower() for item in (character.get("conditions") or char.conditions or [])]
-    if [c.lower() for c in new_conditions] != old_conditions:
-        updates["conditions"] = new_conditions
-        added = [c for c in new_conditions if c.lower() not in old_conditions]
-        if added:
-            logs.append("Conditions: " + ", ".join(added) + ".")
-    remaining = parse_hit_dice_remaining(dm_response, hit_dice_max=char.hit_dice_max)
-    if reconcile and not _HD_UNUSED.search(text):
-        remaining = int(reconcile.group(4))
-    if remaining is not None:
-        spent = max(0, char.hit_dice_max - remaining)
-        if spent != char.hit_dice_spent:
-            char.hit_dice_spent = spent
-            updates["hit_dice_spent"] = spent
-            logs.append(f"Hit Dice remaining {remaining}/{char.hit_dice_max}.")
-    ac_from_text = parse_ac_from_narration(dm_response)
-    if reconcile:
-        ac_from_text = int(reconcile.group(3))
-    if narration_sets_mage_armor(dm_response):
-        set_mage_armor_active(char, True)
-        updates["feature_choices"] = dict(char.feature_choices or {})
-    if not char.ac_manual:
-        computed = int(compute_ac_details(char)["computed"])
-        if computed != char.ac:
-            char.ac = computed
-            updates["ac"] = computed
-            logs.append(f"AC set to {computed}.")
-    elif ac_from_text is not None and ac_from_text != char.ac:
-        char.ac = ac_from_text
-        updates["ac"] = ac_from_text
-    if updates.get("feature_choices") is None and "ac" in updates:
-        updates["feature_choices"] = dict(char.feature_choices or {})
-    conc = parse_concentration_from_narration(text, char.concentration)
-    if conc is not None and conc != (char.concentration or ""):
-        updates["concentration"] = conc
-        logs.append(f"Concentration: {conc or 'none'}.")
-    loh = parse_lay_on_hands_spend(text, char.lay_on_hands_remaining)
-    if loh is not None and loh != char.lay_on_hands_remaining:
-        updates["lay_on_hands_remaining"] = loh
-        logs.append(f"Lay on Hands {char.lay_on_hands_remaining} -> {loh}.")
-    effects = merge_active_effects(
-        list(character.get("active_effects") or char.active_effects or []),
-        list(updates.get("conditions") or character.get("conditions") or char.conditions or []),
-        text,
-    )
-    if effects != list(character.get("active_effects") or char.active_effects or []):
-        updates["active_effects"] = effects
+    _, delta = split_mechanics_block(dm_response or "")
+    updates, logs = apply_mechanics_delta(character, delta)
     updates["_logs"] = logs
     return updates
 
@@ -633,82 +561,17 @@ def run_resource_keeper(
     dm_response: str,
     combat_active: bool = False,
 ) -> tuple[dict, list[str]]:
-    if not dm_response.strip():
-        return {}, []
-    char = character_from_dict(character)
+    """Apply a structured mechanics trailer. Narrative prose is not parsed."""
+    _ = user_message
+    from backend.games.dnd5e.dm.mechanics_delta import apply_mechanics_delta, split_mechanics_block
 
-    if rest_refused(dm_response):
-        entity: dict = {}
-        logs: list[str] = ["Rest not applied: the DM did not grant a rest."]
-        hp = parse_pc_hp_from_narration(
-            dm_response, name=char.name, max_hp=char.max_hp, current_hp=char.hp
-        )
-        if hp is not None and hp != char.hp:
-            char.hp = hp
-            entity["hp"] = hp
-            logs.append(f"HP set to {hp}/{char.max_hp} from DM narration.")
-        return entity, logs
-
-    from backend.games.dnd5e.dm.spell_autocomplete import extract_cast_query, resolve_spell_query
-    from backend.games.dnd5e.characters.spell_resources import apply_spell_cast
-
-    query = extract_cast_query(user_message)
-    if query and not cast_refused(dm_response):
-        resolution = resolve_spell_query(char, query)
-        if resolution.status == "exact" and resolution.spell_name:
-            ok, msg = apply_spell_cast(
-                char,
-                resolution.spell_name,
-                requested_text=user_message,
-                inferred=False,
-                audit_source="resource_keeper",
-            )
-            entity, logs = apply_resource_updates(char, ResourceTurnUpdates())
-            if msg:
-                logs = [msg if ok else f"⚠ {msg}"] + logs
-            hp = parse_pc_hp_from_narration(
-                dm_response, name=char.name, max_hp=char.max_hp, current_hp=char.hp
-            )
-            if hp is not None:
-                char.hp = hp
-                entity["hp"] = hp
-                logs.append(f"HP set to {hp}/{char.max_hp} from DM narration.")
-            return entity, logs
-
-    if not combat_active and narrative_short_rest_detected(user_message, dm_response):
-        dice = parse_hit_dice_to_spend(user_message, dm_response)
-        return _apply_short_rest_updates(char, dice_to_spend=dice)
-
-    combined = f"{user_message}\n{dm_response}".lower()
-    needs_llm = any(
-        token in combined
-        for token in ("cast ", "/cast", "wild shape", "short rest", "long rest", "lyhyt lepo", "pitkä lepo")
-    )
-    if not needs_llm:
-        hp = parse_pc_hp_from_narration(
-            dm_response, name=char.name, max_hp=char.max_hp, current_hp=char.hp
-        )
-        if hp is not None and hp != char.hp:
-            return {"hp": hp}, [f"HP set to {hp}/{char.max_hp} from DM narration."]
-        return {}, []
-
-    updates = extract_resource_updates(
-        char=char, user_message=user_message, dm_response=dm_response
-    )
-    if updates.short_rest and not combat_active and rest_granted(dm_response, kind="short"):
-        return _apply_short_rest_updates(char, dice_to_spend=updates.spend_hit_dice)
-
-    entity_updates, logs = apply_resource_updates(char, updates)
-    hp = parse_pc_hp_from_narration(
-        dm_response, name=char.name, max_hp=char.max_hp, current_hp=char.hp
-    )
-    if hp is not None and hp != char.hp:
-        char.hp = hp
-        entity_updates["hp"] = hp
-        logs.append(f"HP set to {hp}/{char.max_hp} from DM narration.")
-    if not entity_updates and not logs:
-        return {}, []
-    return entity_updates, logs
+    _, delta = split_mechanics_block(dm_response or "")
+    updates, logs = apply_mechanics_delta(character, delta, combat_active=combat_active)
+    updates.pop("_npcs", None)
+    updates.pop("_scene_position", None)
+    updates.pop("_reaction_prompt", None)
+    updates.pop("_logs", None)
+    return updates, logs
 
 
 def apply_pending_rest(
@@ -719,35 +582,23 @@ def apply_pending_rest(
     combat_active: bool = False,
     user_message: str = "",
 ) -> tuple[dict, list[str]]:
-    """Apply a shortcut rest only after the DM grants it, and never during combat."""
-    kind = str(pending.get("kind") or "short").strip().lower()
+    """Apply a shortcut rest only when the structured delta grants it."""
+    _ = user_message
     if combat_active:
         return {}, ["Rest not applied: combat is still underway."]
-    granted = rest_granted(dm_response, kind=kind)
-    if not granted and not rest_refused(dm_response):
-        granted = bool(
-            re.search(
-                r"\b(short rest|long rest|you rest|an hour|catch your breath|take a breather)\b",
-                dm_response or "",
-                re.IGNORECASE,
-            )
-        )
-    if rest_refused(dm_response) or not granted:
-        reason = "the DM did not grant a rest"
-        if rest_refused(dm_response):
-            reason = "the DM refused the rest"
-        return {}, [f"Rest not applied: {reason}."]
-    char = character_from_dict(character)
-    if kind == "long":
-        rest = long_rest_recover(char)
-        return dict(rest.get("entity_updates") or {}), [str(rest.get("summary") or "Long rest.")]
-    dice = int(pending.get("dice_to_spend") or 0)
-    parsed = parse_hit_dice_to_spend(user_message, dm_response)
-    if parsed:
-        dice = parsed
-    if no_hit_dice_requested(user_message, dm_response) or char.hp >= char.max_hp:
-        dice = 0
-    return _apply_short_rest_updates(char, dice_to_spend=dice)
+    from backend.games.dnd5e.dm.mechanics_delta import apply_mechanics_delta, split_mechanics_block
+
+    _, delta = split_mechanics_block(dm_response or "")
+    if "rest" in set(delta.refused):
+        return {}, ["Rest not applied: the DM refused the rest."]
+    if delta.rest.kind == "none":
+        return {}, ["Rest not applied: the mechanics delta did not grant a rest."]
+    updates, logs = apply_mechanics_delta(character, delta, pending_rest=pending)
+    updates.pop("_npcs", None)
+    updates.pop("_scene_position", None)
+    updates.pop("_reaction_prompt", None)
+    updates.pop("_logs", None)
+    return updates, logs
 
 
 _CAST_REFUSAL = re.compile(

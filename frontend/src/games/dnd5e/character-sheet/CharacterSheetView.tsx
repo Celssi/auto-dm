@@ -8,16 +8,27 @@ interface Props {
   summary?: Record<string, unknown>;
   editable?: boolean;
   onChange?: (patch: Partial<Character>) => void;
+  onToggleHeroicInspiration?: (next: boolean) => void;
   page?: 1 | 2;
   hideHeader?: boolean;
 }
 
-export default function CharacterSheetView({ character, summary, editable, onChange, page, hideHeader }: Props) {
+export default function CharacterSheetView({
+  character,
+  summary,
+  editable,
+  onChange,
+  onToggleHeroicInspiration,
+  page,
+  hideHeader,
+}: Props) {
   const shared = { character, summary, editable, onChange, hideHeader };
 
   const cards = (
     <>
-      {page !== 2 && <CharacterSheetPage1 {...shared} hideHeader />}
+      {page !== 2 && (
+        <CharacterSheetPage1 {...shared} hideHeader onToggleHeroicInspiration={onToggleHeroicInspiration} />
+      )}
       {page !== 1 && <CharacterSheetPage2 {...shared} />}
     </>
   );

@@ -59,9 +59,12 @@ def test_short_rest_at_full_hp_does_not_spend_hit_dice():
 
 def test_pending_rest_ignores_stale_hp_and_no_hit_dice_text():
     data = _sage_wizard(hp=3, max_hp=8, hit_dice_spent=0)
+    from backend.games.dnd5e.dm.mechanics_delta import render_mechanics_block
+
     dm = (
         "You sit for an hour. You are already at 8 HP, so no Hit Dice are needed. "
-        "Arcane Recovery restores a 1st-level slot."
+        "Arcane Recovery restores a 1st-level slot.\n"
+        + render_mechanics_block({"rest": {"kind": "short", "hit_dice_spent": 0}})
     )
     assert no_hit_dice_requested("I take a short rest", dm)
     updates, logs = apply_pending_rest(
