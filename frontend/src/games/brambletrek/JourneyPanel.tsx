@@ -265,6 +265,7 @@ export default function JourneyPanel({
   }
 
   const appliedCount = journey.events.filter((e) => e.applied).length;
+  const unappliedCount = journey.events.filter((e) => !e.applied).length;
   const total = journey.events.length;
   const progress = total > 0 ? (appliedCount / total) * 100 : 0;
 
@@ -309,16 +310,6 @@ export default function JourneyPanel({
         <p className="text-[11px] text-muted mt-2 leading-relaxed">
           Resolve in order. Apply each card before the next. Pause for combat between events.
         </p>
-        {pendingStatEvents.length > 1 && (
-          <button
-            type="button"
-            className="btn-primary w-full mt-2 text-xs"
-            disabled={footerLoading !== null}
-            onClick={() => runFooter('apply_all', applyAll)}
-          >
-            {footerLoading === 'apply_all' ? 'Applying…' : `Apply ${pendingStatEvents.length} events to sheet`}
-          </button>
-        )}
       </div>
 
       <div className="space-y-0">
@@ -341,37 +332,51 @@ export default function JourneyPanel({
         </p>
       )}
 
-      <div className="flex gap-2 mt-2 pt-3 border-t border-border sticky bottom-0 bg-panel/95 backdrop-blur-sm">
-        <button
-          type="button"
-          className="btn-primary flex-1 inline-flex items-center justify-center gap-1.5"
-          disabled={footerLoading !== null}
-          onClick={() => runFooter('finish', onFinish)}
-        >
-          {footerLoading === 'finish' ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Finishing…
-            </>
-          ) : (
-            'Finish day'
-          )}
-        </button>
-        <button
-          type="button"
-          className="btn-ghost flex-1 border border-border rounded-lg py-2 inline-flex items-center justify-center gap-1.5"
-          disabled={footerLoading !== null}
-          onClick={() => runFooter('discard', onDiscard)}
-        >
-          {footerLoading === 'discard' ? (
-            <>
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Discarding…
-            </>
-          ) : (
-            'Discard'
-          )}
-        </button>
+      <div className="sticky bottom-0 bg-panel/95 backdrop-blur-sm mt-2 pt-3 border-t border-border space-y-2">
+        {unappliedCount >= 2 && pendingStatEvents.length >= 1 && (
+          <button
+            type="button"
+            className="btn-primary w-full text-xs"
+            disabled={footerLoading !== null}
+            onClick={() => runFooter('apply_all', applyAll)}
+          >
+            {footerLoading === 'apply_all'
+              ? 'Applying…'
+              : `Apply ${pendingStatEvents.length} event${pendingStatEvents.length === 1 ? '' : 's'} to sheet`}
+          </button>
+        )}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            className="btn-primary flex-1 inline-flex items-center justify-center gap-1.5"
+            disabled={footerLoading !== null}
+            onClick={() => runFooter('finish', onFinish)}
+          >
+            {footerLoading === 'finish' ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Finishing…
+              </>
+            ) : (
+              'Finish day'
+            )}
+          </button>
+          <button
+            type="button"
+            className="btn-ghost flex-1 border border-border rounded-lg py-2 inline-flex items-center justify-center gap-1.5"
+            disabled={footerLoading !== null}
+            onClick={() => runFooter('discard', onDiscard)}
+          >
+            {footerLoading === 'discard' ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Discarding…
+              </>
+            ) : (
+              'Discard'
+            )}
+          </button>
+        </div>
       </div>
     </div>
   );
