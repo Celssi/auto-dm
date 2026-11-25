@@ -104,7 +104,12 @@ journeys:
       body: A Bristleborn healer gives you a small salve made of herbs, soothing your aches. Health +2
       health: 2
     '4':
-      label: ''
+      label: A group of Gnawborn children run up to you, singing a birthday song they wrote themselves.
+        Their joy is infectious.
+      body: A group of Gnawborn children run up to you, singing a birthday song they wrote themselves.
+        Their joy is infectious. Health +1, Morale +2
+      health: 1
+      morale: 2
     ace:
       label: In a moment of rare stillness, all three kin; Gnawborn, Bristleborn, and Bushborn sing a
         harmony together, filling you w
@@ -151,9 +156,9 @@ journeys:
       supplies: 6
       health: 2
     king:
-      label: You lead a toaSTAT the family gathering, your words uniting kin in cheer and giving you renewed
-        vitality.
-      body: You lead a toaSTAT the family gathering, your words uniting kin in cheer and giving you renewed
+      label: You lead a toast at the family gathering, your words uniting kin in cheer and giving you
+        renewed vitality.
+      body: You lead a toast at the family gathering, your words uniting kin in cheer and giving you renewed
         vitality. Health +8
       health: 8
   spades:

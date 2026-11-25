@@ -33,7 +33,10 @@ journeys:
       body: A snowy owl delivers a forgotten letter from an old friend, warming your heart. Morale +3
       morale: 3
     '5':
-      label: ''
+      label: You discover a den of hibernating Bushborn, their peaceful slumber fills you with joy.
+      body: You discover a den of hibernating Bushborn, their peaceful slumber fills you with joy. Morale
+        +4
+      morale: 4
     '6':
       label: The frost patterns on a tree resemble a map, leading you to a hidden winter garden.
       body: The frost patterns on a tree resemble a map, leading you to a hidden winter garden. Supplies
@@ -176,7 +179,11 @@ journeys:
       body: Frostbite nips at your fingers as you struggle to set up outdoor stalls. Health -3
       health: -3
     '7':
-      label: ''
+      label: A blizzard obscures your path back to the celebration, exhausting you significantly.
+      body: A blizzard obscures your path back to the celebration, exhausting you significantly. Health
+        -2, Morale -1
+      health: -2
+      morale: -1
     '8':
       label: Your attempt to light the Frostfire goes awry, burning some necessary supplies.
       body: Your attempt to light the Frostfire goes awry, burning some necessary supplies. Supplies -3
@@ -217,7 +224,11 @@ journeys:
       morale: -3
   clubs:
     '8':
-      label: ''
+      label: Overcrowding at a popular event leads to arguments and discomfort among attendees.
+      body: Overcrowding at a popular event leads to arguments and discomfort among attendees. Morale
+        -2, Health -1
+      morale: -2
+      health: -1
     '2':
       label: A heated debate over the best way to light the Frostfire leads to frayed tempers.
       body: A heated debate over the best way to light the Frostfire leads to frayed tempers. Morale -2
@@ -284,40 +295,61 @@ scene_tables:
     '2':
       label: Skillet Shield
       body: Quickly raise your skillet to block, reducing the next attack's damage by 2.
+      reduce_incoming: 2
+      reduce_incoming_attacks: 1
     '3':
       label: Pepper Flash
       body: Toss a pinch of blinding pepper at your opponent, dealing 3 damage.
+      damage: 3
     '4':
       label: Oil Slip
       body: Throw a slick of oil under the opponent, causing them to slip and miss their next attack.
+      evade_next: 1
     '5':
       label: Quick Sip Broth
       body: Take a swift sip from your prepared broth to restore 4 health.
+      heal: 4
     '6':
       label: Rolling Pin Swing
       body: Swing your rolling pin in a quick, fierce arc, dealing 3 damage.
+      damage: 3
     '7':
       label: Utensil Barrage
       body: Fling a barrage of utensils in a swift motion, dealing 4 damage.
+      damage: 4
     '8':
       label: Energising Bite
       body: Eat a bite of an energising snack to boost your damage by 2 for the next turn.
+      damage_bonus: 2
+      damage_bonus_attacks: 1
     '9':
       label: Grease Trap
       body: Toss a handful of slippery grease at your opponent's feet, making them deal 2 extra damage
         but take 4 damage.
+      damage: 4
+      opponent_damage_bonus: 2
+      opponent_damage_bonus_turns: 1
     '10':
       label: Hot Soup Splash
       body: Splash hot soup from your ladle, dealing 3 damage and restoring 3 health to yourself.
+      damage: 3
+      heal: 3
     jack:
       label: Distraction Dish
       body: Toss a dish in the air to distract, causing the opponent to skip their next turn.
+      skip_opponent_turns: 1
     queen:
       label: Revitalising Refreshment
       body: Consume a quick refreshment that restores 5 health and adds 2 damage to your next attack.
+      heal: 5
+      damage_bonus: 2
+      damage_bonus_attacks: 1
     king:
       label: Double Dish
       body: Draw 2 cards and take an additional 2 turns immediately after this card is played.
+      draw_tactics: 2
+      extra_turns: 2
     ace:
       label: Ultimate Feast
       body: Serve a feast in a flash that deals damage equal to half your current supplies, rounded up.
+      damage_formula: half_supplies

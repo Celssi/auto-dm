@@ -123,13 +123,18 @@ scene_tables:
       body: Sample pies from village bakers. Use the pie tasting table.
   pumpkin_hunt:
     '6':
-      label: ''
+      label: A festive pumpkin party popper lies hidden under a pile of leaves, ready to surprise.
+      body: 'A festive pumpkin party popper lies hidden under a pile of leaves, ready to surprise. Pumpkin
+        Party Popper: Loudly shoots confetti, attracting the nearest ally.'
     '2':
       label: You discover a mini jack o'lantern, skillfully carved and glowing warmly.
       body: 'You discover a mini jack o''lantern, skillfully carved and glowing warmly. Mini Jack o''Lantern:
         Perfect light for the evening. Allows you to redraw your next encounter.'
     '3':
-      label: ''
+      label: A soft glow leads you to a beautifully crafted moon bracelet resting beneath a leaf.
+      body: 'A soft glow leads you to a beautifully crafted moon bracelet resting beneath a leaf. Glow
+        in the Dark Moon Bracelet: Emits a comforting glow. Restores 3 points of morale.'
+      morale: 3
     ace:
       label: Amidst the festive decorations, a magical gourd lantern reveals itself, promising to light
         your path.
@@ -152,9 +157,14 @@ scene_tables:
       body: 'You hear a ghostly whistle, leading you to a carved pipe that calls to the spirits. Ghost
         Pipe: Consumable. Summons a spirit to aid in combat, dealing 2 damage per turn.'
     '10':
-      label: ''
+      label: A colorful bag of treats beckons, filled with sweets to energize your evening.
+      body: 'A colorful bag of treats beckons, filled with sweets to energize your evening. Bag of Treats:
+        Consumable. Restores 2 points of health, 3 charges.'
     jack:
-      label: ''
+      label: A pumpkin large enough to wear as a helmet invites you to try on its crown-like form.
+      body: 'A pumpkin large enough to wear as a helmet invites you to try on its crown-like form. Pumpkin
+        Head: Boosts morale by 1 permanently.'
+      morale: 1
     queen:
       label: You find a starlit raven feather that sparkles under the moonlight, promising good fortune.
       body: 'You find a starlit raven feather that sparkles under the moonlight, promising good fortune.
@@ -168,7 +178,9 @@ scene_tables:
       body: A pink streak, quick and bright, races past. "The rustle of silk, the warmth of stage lights—where
         have all the costumes gone?"
     '2':
-      label: ''
+      label: A gentle purple orb floats toward you, its glow soft and melancholic.
+      body: A gentle purple orb floats toward you, its glow soft and melancholic. "I remember a field
+        abloom with endless flowers. Can you guide me back there?"
     ace:
       label: mysterious blue light encircles you, its presence both ancient and serene.
       body: mysterious blue light encircles you, its presence both ancient and serene. "I have tales of
@@ -182,9 +194,13 @@ scene_tables:
       body: A bold, white orb shines with the confidence of a forgotten hero. "I wielded swords and won
         great battles, but whence came I?"
     '5':
-      label: ''
+      label: A vibrant red glow zips past, its energy palpable.
+      body: A vibrant red glow zips past, its energy palpable. "I long for heights where the sun warms
+        the rocky crags. Do you know the place?"
     '6':
-      label: ''
+      label: A mellow yellow light drifts by, whispering of culinary delights.
+      body: A mellow yellow light drifts by, whispering of culinary delights. "I once baked the finest
+        cakes—cherry, vanilla. But where was my kitchen?"
     '8':
       label: Dragging slowly along, an aqua light murmurs with urgency.
       body: Dragging slowly along, an aqua light murmurs with urgency. "The deep calls to me, its dark
@@ -202,7 +218,9 @@ scene_tables:
       body: Darting about with vibrant energy, a colorful light seeks answers. "I see visions of crystals,
         countless and bright. Where are they hidden?"
     queen:
-      label: ''
+      label: A majestic golden light settles softly near you.
+      body: A majestic golden light settles softly near you. "Lead me, kindly soul, to something wondrous
+        and grand. What is the most beautiful sight here?"
     king:
       label: With a spark of urgency, a silver orb pulses.
       body: With a spark of urgency, a silver orb pulses. "I am called to heal, to aid the ailing, but

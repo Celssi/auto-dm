@@ -68,6 +68,8 @@ def module_play_config(adventure_id: str) -> dict[str, Any]:
         "use_core_combat": bool(play.get("use_core_combat", True)),
         "reason_key": str(play.get("reason_key") or "band"),
         "default_scene_table": str(play.get("default_scene_table") or ""),
+        "tactic_table": str(play.get("tactic_table") or ""),
+        "tactic_legacy": str(play.get("tactic_legacy") or "").lower(),
     }
 
 

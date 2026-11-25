@@ -151,7 +151,7 @@ def damage_opponent(
                 for b in bonuses:
                     b["attacks"] = int(b.get("attacks") or 1) - 1
                 buffs["damage_bonus_list"] = [b for b in bonuses if int(b["attacks"]) > 0]
-                lines.append(f"+{bonus} bonus damage.")
+                lines.append(f"{bonus:+d} damage modifier.")
             damage += timed_value(state, "damage_bonus")
             if buffs.get("critical"):
                 damage *= 2
@@ -229,7 +229,9 @@ def damage_player(state: dict[str, Any], damage: int, lines: list[str], *, sourc
         buffs["reduce_incoming_list"] = [r for r in reductions if int(r["attacks"]) > 0]
         damage = max(0, damage - cut)
         lines.append(f"Incoming damage reduced by {cut}.")
-    if damage > 0 and timed_value(state, "halve_incoming"):
+    if damage > 0 and (
+        timed_value(state, "halve_incoming") or _consume(buffs, "halve_incoming_next")
+    ):
         damage = half_up(damage)
         lines.append("Incoming damage halved.")
     if damage <= 0:
@@ -284,6 +286,8 @@ def _formula_damage(state: dict[str, Any], formula: str) -> int:
         return max(0, 10 - below // 3)
     if formula == "shadow_strike":
         return 2 if p.get("was_hit") else 5
+    if formula == "half_supplies":
+        return half_up(int(p.get("supplies") or 0) + int(p.get("supplies_delta") or 0))
     if formula == "halve_opponent_hp":
         hp = int(opp.get("hp") or 0)
         return hp - half_up(hp)  # health reduced to half, rounded up
@@ -362,6 +366,17 @@ def _apply_player_side(
     if tactic.get("halve_incoming_turns"):
         add_timed(
             state, "halve_incoming", 1, int(tactic["halve_incoming_turns"]), created_by="player"
+        )
+    if tactic.get("halve_incoming_attacks"):
+        _inc(buffs, "halve_incoming_next", int(tactic["halve_incoming_attacks"]))
+    if tactic.get("opponent_damage_bonus"):
+        # e.g. Grease Trap: the opponent hits harder on its next attack.
+        add_timed(
+            state,
+            "opponent_damage_bonus",
+            int(tactic["opponent_damage_bonus"]),
+            int(tactic.get("opponent_damage_bonus_turns") or 1),
+            created_by="player",
         )
 
     # Offensive set-ups.

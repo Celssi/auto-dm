@@ -38,6 +38,20 @@ path_locations:
     body: Trees — Amidst the dense forest, a clearing reveals an ancient tree. Its branches stretch skyward,
       whispering secrets of the ages. The air feels alive with the spirit of the forest, offering a moment
       of tranquillity and a sense of connection with nature's timeless rhythm.
+    suit_outcomes:
+      hearts:
+        label: You find a tranquil spot under a grand, ancient tree. (+2 Morale)
+        morale: 2
+      diamonds:
+        label: A tree with carvings reveals a hidden compartment. (ITEM) (+1 Supplies)
+        supplies: 1
+        tags:
+        - item
+      clubs:
+        label: You find nothing of note near the trees.
+      spades:
+        label: A seemingly benign tree suddenly drops a branch. (-2 Health)
+        health: -2
   '2':
     title: Forgotten Equipment
     body: Forgotten Equipment — In a secluded nook, you stumble upon remnants of a past traveller's equipment.
@@ -61,31 +75,41 @@ path_locations:
     body: Crates — Hidden under a canopy of leaves, a stack of wooden crates awaits. Weathered and worn,
       they are silent sentinels of forgotten supplies or secrets. What stories do they hold? What purpose
       did they once serve in this secluded forest?
+    suit_outcomes:
+      hearts:
+        label: Inside the crate, you find preserved food. (+3 Supplies)
+        supplies: 3
+      diamonds:
+        label: A rare artefact. (Rune Amulet — Increase damage by +2 for next combat only)
+      clubs:
+        label: A foul smell overcomes you (-2 Morale)
+        morale: -2
+      spades:
+        label: The crates are empty, a disappointing find.
   '4':
     title: Cave Door
     body: Cave Door — Right at the edge of the forest, a small cave opening is visible, about the size
       of a small rodent, vines seem to drape over the top. As you get closer, you hear a slight hum, it
       vibrates your ears slightly, and you get the feeling of magical energy coursing through your tiny
       hands. If you decide to take your steps inside and travel within, please turn to the next section…
-    suit_outcomes:
-      hearts:
-        label: You find a tranquil spot under a grand, ancient tree. (+2 Morale)
-        morale: 2
-      diamonds:
-        label: A tree with carvings reveals a hidden compartment. (ITEM) (+1 Supplies)
-        supplies: 1
-        tags:
-        - item
-      clubs:
-        label: You find nothing of note near the trees.
-      spades:
-        label: A seemingly benign tree suddenly drops a branch. (-2 Health)
-        health: -2
   '5':
     title: Old Bonfire
     body: Old Bonfire — A circle of stones, blackened by old flames, speaks of a campfire long extinguished.
       Ashes and charred wood paint a picture of travellers resting here, sharing tales and warmth before
       continuing their journey into the unknown.
+    suit_outcomes:
+      hearts:
+        label: The log nearby has a small folded note about having confidence. (+2 Morale)
+        morale: 2
+      diamonds:
+        label: Around the bonfire, you find a peaceful spot to rest. (+2 Health)
+        health: 2
+      clubs:
+        label: The smoke attracts attention. (Combat — Jack) (Use core rulebook combat info)
+        combat: true
+      spades:
+        label: A seemingly benign tree suddenly drops a branch. (-2 Health)
+        health: -2
   '6':
     title: Runic Stone
     body: Runic Stone — In a quiet part of the forest stands a mysterious runic stone. Its ancient carvings
@@ -110,16 +134,15 @@ path_locations:
       the surface, undisturbed by the world outside their tranquil haven.
     suit_outcomes:
       hearts:
-        label: The log nearby has a small folded note about having confidence. (+2 Morale)
+        label: You find solace by the pond, rejuvenating your spirit. (+2 Morale)
         morale: 2
       diamonds:
-        label: Around the bonfire, you find a peaceful spot to rest. (+2 Health)
-        health: 2
+        label: Among the reeds, you discover a waterproof pouch containing nuts. (+2 Supplies)
+        supplies: 2
       clubs:
-        label: The smoke attracts attention. (Combat — Jack) (Use core rulebook combat info)
-        combat: true
+        label: The ducks angrily quack at you, and you can't get closer to them.
       spades:
-        label: A seemingly benign tree suddenly drops a branch. (-2 Health)
+        label: You accidentally disturb a beehive near the pond. (-2 Health)
         health: -2
 exploration_tables:
   path_of_tempest:

@@ -113,11 +113,8 @@ def _lookup_player_tactic_row(char: BrambletrekCharacter, card: str) -> dict[str
     if table and legacy.lower() == tactic_legacy:
         scene = lookup_module_scene_row(adv, table, card)
         if scene:
-            return {
-                "label": scene.get("label", ""),
-                "damage": scene.get("damage"),
-                "heal": scene.get("heal"),
-            }
+            body = str(scene.get("body") or "")
+            return {**scene, "label": f"{scene.get('label', '')}. {body}".strip(". ")}
     return None
 
 
@@ -260,6 +257,7 @@ def begin_combat(
             "player": {
                 "hp": char.health,
                 "morale": char.morale,
+                "supplies": char.supplies,
                 "max_hp": MAX_STAT,
                 "was_hit": False,
             },
@@ -387,8 +385,11 @@ def _apply_hand_effects(
         hand.extend(drawn)
         state["must_discard"] = len(drawn) - 1
         state["discard_pool"] = drawn
-        buffs["extra_turns"] = int(buffs.get("extra_turns") or 0) + 1
-        lines.append(f"Drew {', '.join(drawn)} — discard one, then play the other now.")
+        if tactic.get("pick_extra_turn", True):
+            buffs["extra_turns"] = int(buffs.get("extra_turns") or 0) + 1
+            lines.append(f"Drew {', '.join(drawn)} — keep one and play it now.")
+        else:
+            lines.append(f"Drew {', '.join(drawn)} — keep one in your hand, discard the rest.")
     elif tactic.get("replace_hand"):
         # Masterful Performance: draw 3, replace any number of cards in hand.
         drawn = _draw(char_id, int(tactic.get("draw_tactics") or 3))
@@ -402,6 +403,10 @@ def _apply_hand_effects(
         drawn = _draw(char_id, int(tactic["draw_tactics"]))
         hand.extend(drawn)
         lines.append(f"Drew extra tactic card(s): {', '.join(drawn)}.")
+        if tactic.get("discard_after_draw"):
+            state["must_discard"] = int(tactic["discard_after_draw"])
+            state["discard_pool"] = None
+            lines.append("Discard a card from your hand.")
     state["tactic_hand"] = hand
     if tactic.get("extra_turns"):
         buffs["extra_turns"] = int(buffs.get("extra_turns") or 0) + int(tactic["extra_turns"])

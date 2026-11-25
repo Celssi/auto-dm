@@ -114,19 +114,16 @@ journeys:
         sharing tales and laughter. Morale +4
       morale: 4
     '6':
-      label: ''
+      label: A dreamlike haze settles, and you're taken back to an important event from your early days.
+        The lessons and emotions from then reinvigorate your purpose now.
+      body: A dreamlike haze settles, and you're taken back to an important event from your early days.
+        The lessons and emotions from then reinvigorate your purpose now. Morale +5
+      morale: 5
     ace:
       label: Ancestral spirits of Heimstre seem to recognize and embrace, offering a moment of respite
         from your journey.
       body: Ancestral spirits of Heimstre seem to recognize and embrace, offering a moment of respite
-        from your journey. Morale +10 EXPLORATION You will explore the vastness that is Heimstre by drawing
-        3 daily cards. At the end of each day, the tree will provide you with a safe camp to rest for
-        the night and recoup your strength. As with the main game, you will use the 4 provided tables
-        to see what events you come across. Some will be labelled with ‘ITEM’ or ‘LORE’ , for these you
-        will head to the Item & Lore sections respectively, drawing any relevant cards to determine what
-        else you come across. If they are tied to combat, you must win to gain the item or lore. Your
-        journey can be as long or as short as you want, but it is recommended that your journey within
-        Heimstre comes to an end once you have collected 13 pieces of Lore.
+        from your journey. Morale +10
       morale: 10
     '7':
       label: A carved sanctuary stands ahead.
@@ -157,8 +154,15 @@ journeys:
         within Heimstre.
       body: A guardian, made of branches and leaves, stands firm, challenging your resolve and purpose
         within Heimstre. Combat
+      combat: true
     queen:
-      label: ''
+      label: A sentinel appears, demanding a memory as a toll. Its eyes seem to pierce your soul, seeking
+        truth and depth. (ITEM)
+      body: A sentinel appears, demanding a memory as a toll. Its eyes seem to pierce your soul, seeking
+        truth and depth. (ITEM) Combat
+      tags:
+      - item
+      combat: true
     king:
       label: The Heart of Heimstre emerges, its very essence testing your physical mettle in this final
         challenge.
@@ -166,10 +170,14 @@ journeys:
         challenge. (LORE) Combat
       tags:
       - lore
+      combat: true
   diamonds:
     '2':
-      label: A shimmering portal opens, offering a shortcut and extra stores.
-      body: A shimmering portal opens. Supplies +2
+      label: A shimmering portal opens, revealing a grove filled with fruits that glow with ethereal light.
+        Each bite invigorates your senses, the taste a blend of the unknown and the familiar.
+      body: A shimmering portal opens, revealing a grove filled with fruits that glow with ethereal light.
+        Each bite invigorates your senses, the taste a blend of the unknown and the familiar. Supplies
+        +2
       supplies: 2
     ace:
       label: Above, constellations shift and point toward a concealed trove.
@@ -193,8 +201,10 @@ journeys:
       tags:
       - lore
     '5':
-      label: A sprite, made of stardust, offers a blessing of health.
-      body: A sprite, made of stardust. Health +4
+      label: A sprite, made of stardust and moonlight, imparts an incantation, its syllables weaving into
+        your very essence, augmenting your abilities.
+      body: A sprite, made of stardust and moonlight, imparts an incantation, its syllables weaving into
+        your very essence, augmenting your abilities. Health +4
       health: 4
     '6':
       label: You discover a secluded pool; its surface ripples and changes, across the water you see an
@@ -209,8 +219,10 @@ journeys:
       health: 3
       morale: 3
     '8':
-      label: A cluster of glowing mushrooms yields extra stores.
-      body: A cluster of glowing mushrooms. Supplies +7
+      label: A cluster of glowing mushrooms you forage reveals fragmented visions of Heimstre's birth,
+        and the pivotal role the Gnawborn played.
+      body: A cluster of glowing mushrooms you forage reveals fragmented visions of Heimstre's birth,
+        and the pivotal role the Gnawborn played. Supplies +7
       supplies: 7
     '9':
       label: Hidden among the leaves is an artefact, ancient and powerful.
@@ -232,6 +244,7 @@ journeys:
         you, measuring your worthiness to access Heimstre's deeper secrets. (ITEM) Combat
       tags:
       - item
+      combat: true
     queen:
       label: The guardian of the astral realm stands tall, its presence a challenge to your magic and
         might, with the promise of know
@@ -239,11 +252,13 @@ journeys:
         with the promise of knowledge as the reward. (LORE) Combat
       tags:
       - lore
+      combat: true
     king:
       label: 'Heimstre''s Spirit, timeless and profound, emerges, gauging your understanding of the tree''s
         essence and its intertwined '
       body: Heimstre's Spirit, timeless and profound, emerges, gauging your understanding of the tree's
         essence and its intertwined destiny with the Gnawborn. Combat
+      combat: true
   spades:
     '2':
       label: The ground trembles, and gnarled roots rise, seeking to entangle and constrict, draining
@@ -252,7 +267,11 @@ journeys:
         vitality in their relentless grasp. Health -2
       health: -2
     '3':
-      label: ''
+      label: A sudden storm brews, its fury and intensity unmatched. Lightning crackles, targeting your
+        supplies and provisions.
+      body: A sudden storm brews, its fury and intensity unmatched. Lightning crackles, targeting your
+        supplies and provisions. Supplies -3
+      supplies: -3
     ace:
       label: The canopy darkens, blotting out all light.
       body: The canopy darkens, blotting out all light. An overwhelming sense of foreboding grows as you
@@ -269,7 +288,12 @@ journeys:
       tags:
       - lore
     '5':
-      label: ''
+      label: A swarm of horned insects descends, their sting causing anguish and depleting your reserves
+        rapidly as you tend to your wounds.
+      body: A swarm of horned insects descends, their sting causing anguish and depleting your reserves
+        rapidly as you tend to your wounds. Health -4 Supplies -2
+      health: -4
+      supplies: -2
     '6':
       label: The path narrows, with jagged branches closing in, each scratch and scrape taking its toll
         on your well-being.
@@ -305,12 +329,20 @@ journeys:
       tags:
       - item
       - lore
+      combat: true
     queen:
-      label: ''
+      label: A colossal sentinel, guardian of Heimstre's natural defences, looms ahead. Its stature and
+        might challenge your very presence within the World Tree. (LORE)
+      body: A colossal sentinel, guardian of Heimstre's natural defences, looms ahead. Its stature and
+        might challenge your very presence within the World Tree. (LORE) Combat
+      tags:
+      - lore
+      combat: true
     king:
       label: The Spirit of Heimstre's Wrath materializes, its aura pulsating with raw power.
       body: The Spirit of Heimstre's Wrath materializes, its aura pulsating with raw power. It evaluates
         your worth and resilience in the face of Heimstre's harshest trials. Combat
+      combat: true
   clubs:
     '2':
       label: Illusionary walls rise, playing tricks on your eyes and mind.
@@ -326,7 +358,11 @@ journeys:
       tags:
       - lore
     '4':
-      label: ''
+      label: A sentient vine entraps you, each thorn pricking your skin, draining your vigour as it seeks
+        knowledge from within you.
+      body: A sentient vine entraps you, each thorn pricking your skin, draining your vigour as it seeks
+        knowledge from within you. Health -4
+      health: -4
     ace:
       label: labyrinthine pattern emerges on the ground, challenging your wit and resolve.
       body: labyrinthine pattern emerges on the ground, challenging your wit and resolve. Every wrong
@@ -373,7 +409,13 @@ journeys:
       tags:
       - lore
     jack:
-      label: ''
+      label: A warden of Heimstre's trials stands before you, its form a swirling mass of enigmas and
+        intellect. It assesses your mental prowess, prepared to duel. (ITEM)
+      body: A warden of Heimstre's trials stands before you, its form a swirling mass of enigmas and intellect.
+        It assesses your mental prowess, prepared to duel. (ITEM) Combat
+      tags:
+      - item
+      combat: true
     queen:
       label: The guardian of forgotten lore appears, its visage emanating riddles and challenges.
       body: The guardian of forgotten lore appears, its visage emanating riddles and challenges. It beckons,
@@ -381,6 +423,7 @@ journeys:
       tags:
       - item
       - lore
+      combat: true
     king:
       label: Heimstre's Mind, a construct of intellect and introspection, evaluates your knowledge and
         resilience.
@@ -388,6 +431,7 @@ journeys:
         resilience. It awaits your approach, poised for a final challenge. (LORE) Combat
       tags:
       - lore
+      combat: true
 notes:
 - Per-card combat opponents on p. 44 — use adventure combat draw.
 - Collect 13 Lore pieces as suggested end condition.

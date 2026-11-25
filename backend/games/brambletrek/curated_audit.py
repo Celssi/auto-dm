@@ -10,7 +10,6 @@ import yaml
 from pypdf import PdfReader
 
 from backend.config import CURATED_DIR, pdf_path
-from backend.rag.ocr import load_or_run_ocr, needs_ocr
 from backend.rag.text_utils import clean_text
 
 CORE_PDF_KEY = "brambletrek/Brambletrek_-_Complete_Digital_Edition.pdf"
@@ -114,6 +113,9 @@ def load_printed_page_text(
     path = pdf_path(pdf_key)
     if not path.exists():
         return ""
+    # OCR (pytesseract) is optional: import lazily so structural audits work without it.
+    from backend.rag.ocr import load_or_run_ocr, needs_ocr
+
     if force_ocr or needs_ocr(path):
         pages = load_or_run_ocr(path, force=force_ocr)
         for page_num, text in pages:
@@ -137,6 +139,9 @@ def load_module_printed_page_text(
     path = pdf_path(pdf_key)
     if not path.exists():
         return ""
+    # OCR (pytesseract) is optional: import lazily so structural audits work without it.
+    from backend.rag.ocr import load_or_run_ocr, needs_ocr
+
     if force_ocr or needs_ocr(path):
         pages = load_or_run_ocr(path, force=force_ocr)
         for page_num, text in pages:
