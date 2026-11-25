@@ -82,6 +82,8 @@ from backend.play_tools import draw_cards, format_card_result, reset_deck
 from backend.storage import get_character, get_session, save_character, update_session_extras
 
 PENDING_JOURNEY_KEY = "pending_journey"
+FIRST_FROST_PHASE_KEY = "first_frost_phase"
+FROZEN_FOREST_TABLE = "journeys_frozen_forest"
 COMBAT_CONTEXT_KEY = "combat_context"
 RECOVERY_SKIP_DAY_KEY = "recovery_skip_day"
 PENDING_RECOVERY_STATS_KEY = "pending_recovery_stats"
@@ -220,16 +222,47 @@ def journey_event_stat_preview(event: dict) -> str:
     return ", ".join(parts) if parts else "-"
 
 
+
+def first_frost_table_key(
+    extras: dict,
+    adventure_id: str,
+    pending: dict | None = None,
+) -> str | None:
+    if pending and pending.get("journey_table"):
+        return str(pending["journey_table"]) or None
+    if adventure_id == "first_frost" and extras.get(FIRST_FROST_PHASE_KEY) == "frozen_forest":
+        return FROZEN_FOREST_TABLE
+    return None
+
+
+def begin_frozen_forest_phase(session_id: str) -> dict[str, Any]:
+    extras = _session_extras(session_id)
+    extras[FIRST_FROST_PHASE_KEY] = "frozen_forest"
+    _set_extras(session_id, extras)
+    return {
+        "first_frost_phase": "frozen_forest",
+        "message": (
+            "As the joyous echoes of The First Frost celebration fade, you begin "
+            "Adventures in the Frozen Forest. Journey days now use the Frozen Forest "
+            "exploration tables (CDE pp. 112–115). Smores can join you as an ally "
+            "(CDE pp. 110–111)."
+        ),
+    }
+
+
 def _resolve_pending_event(
     card: str,
     *,
     adventure_id: str,
     in_depths: bool,
     exploration_table: str = "",
+    table_key: str | None = None,
 ) -> dict[str, Any] | None:
     if exploration_table and adventure_id == DRAGONKEEP_ID:
         return lookup_exploration_event(adventure_id, exploration_table, card)
-    return lookup_journey_event(card, in_depths=in_depths, adventure_id=adventure_id)
+    return lookup_journey_event(
+        card, in_depths=in_depths, adventure_id=adventure_id, table_key=table_key
+    )
 
 
 def stash_pending_journey(
@@ -249,6 +282,8 @@ def stash_pending_journey(
     char = _char(char_id)
     extras = _session_extras(session_id)
     exploration_table = str(run.get("exploration_table") or "")
+    adventure_id = str(char.active_adventure or "")
+    table_key = first_frost_table_key(extras, adventure_id)
     extras[PENDING_JOURNEY_KEY] = {
         "cards": cards,
         "applied": [False] * len(cards),
@@ -256,11 +291,12 @@ def stash_pending_journey(
         "depths_trace": journey_depths_trace(
             cards,
             start_in_aldwund=char.in_aldwund,
-            adventure_id=str(char.active_adventure or ""),
+            adventure_id=adventure_id,
         ),
         "shortcut_id": shortcut_id,
-        "adventure_id": str(char.active_adventure or ""),
+        "adventure_id": adventure_id,
         "exploration_table": exploration_table,
+        "journey_table": table_key or "",
     }
     _set_extras(session_id, extras)
     log_draw(session_id, cards, label="Journey draw")
@@ -290,6 +326,7 @@ def pending_journey_payload(session_id: str, char_id: str) -> dict | None:
             adventure_id=adventure_id,
             in_depths=in_depths,
             exploration_table=exploration_table,
+            table_key=str(pending.get("journey_table") or "") or None,
         )
         item_card = item_cards[i] if i < len(item_cards) else None
         item_depths = bool(in_depths and not exploration_table)
@@ -400,6 +437,7 @@ def draw_journey_item(session_id: str, char_id: str, event_index: int) -> dict:
         adventure_id=adventure_id,
         in_depths=in_depths,
         exploration_table=exploration_table,
+        table_key=str(pending.get("journey_table") or "") or None,
     )
     item_error = _draw_journey_item_card(
         session_id,
@@ -444,12 +482,17 @@ def apply_journey_event(session_id: str, char_id: str, event_index: int) -> dict
         adventure_id=adventure_id,
         in_depths=in_depths,
         exploration_table=exploration_table,
+        table_key=str(pending.get("journey_table") or "") or None,
     )
     if exploration_table and event:
         summary = apply_exploration_event(char, event)
     else:
         summary = apply_single_journey_event(
-            char, card, in_depths=in_depths, adventure_id=adventure_id
+            char,
+            card,
+            in_depths=in_depths,
+            adventure_id=adventure_id,
+            table_key=str(pending.get("journey_table") or "") or None,
         )
     applied[event_index] = True
     pending["applied"] = applied
@@ -735,6 +778,7 @@ def start_journey_combat(session_id: str, char_id: str, event_index: int) -> dic
         adventure_id=adventure_id,
         in_depths=in_depths,
         exploration_table=exploration_table,
+        table_key=str(pending.get("journey_table") or "") or None,
     )
     if not event or not event.get("combat"):
         raise ValueError("This event is not a combat encounter")

@@ -244,6 +244,7 @@ def lookup_journey_event(
     *,
     in_depths: bool = False,
     adventure_id: str = "",
+    table_key: str | None = None,
 ) -> dict[str, Any] | None:
     if adventure_id and not in_depths:
         from backend.games.brambletrek.modules.loader import (
@@ -251,8 +252,10 @@ def lookup_journey_event(
             module_journey_tables,
         )
 
-        if module_journey_tables(adventure_id):
-            return lookup_module_journey_event(adventure_id, card, in_depths=False)
+        if module_journey_tables(adventure_id, table_key):
+            return lookup_module_journey_event(
+                adventure_id, card, in_depths=False, table_key=table_key
+            )
     parsed = parse_playing_card(card)
     if not parsed:
         return None
@@ -553,12 +556,15 @@ def apply_single_journey_event(
     *,
     in_depths: bool | None = None,
     adventure_id: str = "",
+    table_key: str | None = None,
 ) -> str:
     """Apply one journey/depths event when the player resolves it."""
     if in_depths is None:
         in_depths = char.in_aldwund
     before = (char.health, char.morale, char.supplies)
-    event = lookup_journey_event(card, in_depths=in_depths, adventure_id=adventure_id)
+    event = lookup_journey_event(
+        card, in_depths=in_depths, adventure_id=adventure_id, table_key=table_key
+    )
     if not event:
         return f"{card}: no curated row found."
 

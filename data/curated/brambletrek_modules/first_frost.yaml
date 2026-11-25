@@ -8,7 +8,13 @@ source:
     - 106
     - 107
     - 108
+    journeys_frozen_forest:
+    - 112
+    - 113
+    - 114
+    - 115
     snacker_tactics: 104
+    smores_tactics: 111
 play:
   journey_cards_per_day: 4
   use_core_depths: false
@@ -16,7 +22,8 @@ play:
   reason_key: band
   tactic_table: snacker_tactics
   tactic_legacy: snacker
-journey_heading: '**Frozen Forest** — exploration events'
+journey_heading: '**The Warmth of the First Frost** — celebration events'
+frozen_forest_heading: '**Adventures in the Frozen Forest** — exploration events'
 journeys:
   hearts:
     '2':
@@ -290,7 +297,321 @@ journeys:
         -5, Supplies -5
       morale: -5
       supplies: -5
+journeys_frozen_forest:
+  hearts:
+    '2':
+      label: As you navigate the snowy paths, you discover a series of carved stones that tell the origin story
+        of The First Frost, filling you with a deep sense of connection to the forest.
+      body: As you navigate the snowy paths, you discover a series of carved stones that tell the origin story of
+        The First Frost, filling you with a deep sense of connection to the forest.
+      morale: 2
+    '3':
+      label: You help a Bristleborn artisan collect rare frozen berries, which they use to make a dye for the festival's
+        banners.
+      body: You help a Bristleborn artisan collect rare frozen berries, which they use to make a dye for the festival's
+        banners.
+      supplies: 3
+    '4':
+      label: A sudden snowstorm forces you to seek shelter with a Bushborn hermit, who shares stories of winter
+        spirits.
+      body: A sudden snowstorm forces you to seek shelter with a Bushborn hermit, who shares stories of winter spirits.
+      morale: 4
+    '5':
+      label: You find a frozen lake that perfectly reflects the starry night sky, giving you a moment of peace and
+        clarity.
+      body: You find a frozen lake that perfectly reflects the starry night sky, giving you a moment of peace and
+        clarity.
+      morale: 5
+    '6':
+      label: In a hidden part of the forest, you discover a cluster of thermal springs that rejuvenate your weary
+        body.
+      body: In a hidden part of the forest, you discover a cluster of thermal springs that rejuvenate your weary
+        body.
+      health: 6
+    '7':
+      label: You assist in setting up the Grand Frostfire, learning old techniques of fire-making from the elders.
+      body: You assist in setting up the Grand Frostfire, learning old techniques of fire-making from the elders.
+      supplies: 7
+    '8':
+      label: A group of young Gnawborn invites you to join their snow sculpture contest, boosting your spirits with
+        competition.
+      body: A group of young Gnawborn invites you to join their snow sculpture contest, boosting your spirits with
+        competition.
+      morale: 8
+    '9':
+      label: Deep in the forest, you uncover a hibernating creature surrounded by icicles, inspiring awe and curiosity.
+      body: Deep in the forest, you uncover a hibernating creature surrounded by icicles, inspiring awe and curiosity.
+      supplies: 9
+    '10':
+      label: You lead a twilight procession through the woods, strengthening community ties and your reputation.
+      body: You lead a twilight procession through the woods, strengthening community ties and your reputation.
+      morale: 10
+    jack:
+      label: A mythical beast emerges, challenging your resolve in a fierce battle.
+      body: A mythical beast emerges, challenging your resolve in a fierce battle.
+      combat: true
+    queen:
+      label: You stumble upon an ice sculpture guarding a frozen treasure, initiating a dangerous skirmish.
+      body: You stumble upon an ice sculpture guarding a frozen treasure, initiating a dangerous skirmish.
+      combat: true
+    king:
+      label: An guardian of the forest challenges you to prove your worth through combat.
+      body: An guardian of the forest challenges you to prove your worth through combat.
+      combat: true
+    ace:
+      label: A rare event illuminates the forest, providing you with a once-in-a-lifetime experience that enriches
+        your spirit.
+      body: A rare event illuminates the forest, providing you with a once-in-a-lifetime experience that enriches
+        your spirit.
+      health: 3
+      morale: 3
+      supplies: 3
+  diamonds:
+    '2':
+      label: You repair a crucial bridge over a frozen stream, ensuring safe passage for all.
+      body: You repair a crucial bridge over a frozen stream, ensuring safe passage for all.
+      supplies: 2
+    '3':
+      label: Finding a lost supply cache buried under the snow, you distribute its contents among the needy.
+      body: Finding a lost supply cache buried under the snow, you distribute its contents among the needy.
+      supplies: 1
+      health: 2
+    '4':
+      label: You organise a group to clear heavy snow from vital paths, preserving community access and morale.
+      body: You organise a group to clear heavy snow from vital paths, preserving community access and morale.
+      morale: 2
+      supplies: 2
+    '5':
+      label: Cooking a large feast for a group of cold travellers, you boost both health and community spirit.
+      body: Cooking a large feast for a group of cold travellers, you boost both health and community spirit.
+      health: 2
+      morale: 3
+    '6':
+      label: You mend the winter clothes and gear of several Bushborn children, protecting them against the cold.
+      body: You mend the winter clothes and gear of several Bushborn children, protecting them against the cold.
+      health: 3
+      supplies: 3
+    '7':
+      label: Leading a search for firewood, you find a rare medicinal herb, boosting both health and supplies.
+      body: Leading a search for firewood, you find a rare medicinal herb, boosting both health and supplies.
+      health: 4
+      supplies: 3
+    '8':
+      label: After a heavy snowfall, you help dig out the main square, finding forgotten items of value.
+      body: After a heavy snowfall, you help dig out the main square, finding forgotten items of value.
+      supplies: 5
+      morale: 2
+    '9':
+      label: During a particularly harsh cold snap, you maintain the spirits of your group with stories and games.
+      body: During a particularly harsh cold snap, you maintain the spirits of your group with stories and games.
+      morale: 6
+      health: 1
+    '10':
+      label: You craft ice sculptures that symbolise the community's resilience, lifting everyone's spirits.
+      body: You craft ice sculptures that symbolise the community's resilience, lifting everyone's spirits.
+      morale: 5
+      supplies: 2
+    jack:
+      label: You face off against a creature that has been terrorising the outskirts of the village.
+      body: You face off against a creature that has been terrorising the outskirts of the village.
+      combat: true
+    queen:
+      label: A creature haunts the old mill; you confront it to lay it to rest peacefully.
+      body: A creature haunts the old mill; you confront it to lay it to rest peacefully.
+      combat: true
+    king:
+      label: An ancient beast blocks your path; a battle ensues as you try to negotiate passage.
+      body: An ancient beast blocks your path; a battle ensues as you try to negotiate passage.
+      combat: true
+    ace:
+      label: You discover an ancient frozen shrine that, once restored, brings blessings of health and abundance
+        to the village.
+      body: You discover an ancient frozen shrine that, once restored, brings blessings of health and abundance
+        to the village.
+      health: 5
+      morale: 5
+  spades:
+    '2':
+      label: A sudden frostbite catches you off guard, affecting your ability to move freely.
+      body: A sudden frostbite catches you off guard, affecting your ability to move freely.
+      health: -2
+    '3':
+      label: You accidentally drop essential supplies into a frozen creek during a crossing.
+      body: You accidentally drop essential supplies into a frozen creek during a crossing.
+      supplies: -3
+    '4':
+      label: A misstep on slick ice leads to a painful fall, causing both injury and morale drop.
+      body: A misstep on slick ice leads to a painful fall, causing both injury and morale drop.
+      health: -2
+      morale: -1
+    '5':
+      label: Strong winter winds disperse part of your camp, forcing you to spend time and resources rebuilding.
+      body: Strong winter winds disperse part of your camp, forcing you to spend time and resources rebuilding.
+      supplies: -4
+    '6':
+      label: You encounter a patch of dangerously thin ice, resulting in minor injuries and lost time.
+      body: You encounter a patch of dangerously thin ice, resulting in minor injuries and lost time.
+      health: -3
+      morale: -1
+    '7':
+      label: Misreading a map in a snowstorm leads you off the safe path, exhausting supplies and energy.
+      body: Misreading a map in a snowstorm leads you off the safe path, exhausting supplies and energy.
+      supplies: -4
+      morale: -2
+    '8':
+      label: A concealed ice pit traps you temporarily, leading to exposure and resource depletion.
+      body: A concealed ice pit traps you temporarily, leading to exposure and resource depletion.
+      health: -2
+      supplies: -2
+    '9':
+      label: An unexpected blizzard overtakes your group, causing confusion and scattering essential gear.
+      body: An unexpected blizzard overtakes your group, causing confusion and scattering essential gear.
+      supplies: -5
+      health: -1
+    '10':
+      label: Night falls quicker than expected, forcing an unplanned, resource-draining overnight stay in the cold.
+      body: Night falls quicker than expected, forcing an unplanned, resource-draining overnight stay in the cold.
+      supplies: -6
+    jack:
+      label: You face off against ice monsters, leading to a taxing and dangerous situation.
+      body: You face off against ice monsters, leading to a taxing and dangerous situation.
+      combat: true
+    queen:
+      label: A haunting frost spectre challenges your courage and resolve, sapping your warmth and will.
+      body: A haunting frost spectre challenges your courage and resolve, sapping your warmth and will.
+      combat: true
+    king:
+      label: Encounter with a powerful blizzard elemental drains your resources and threatens your safety.
+      body: Encounter with a powerful blizzard elemental drains your resources and threatens your safety.
+      combat: true
+    ace:
+      label: A critical navigation error leads you into a perilous area, causing extensive resource loss and lowering
+        morale.
+      body: A critical navigation error leads you into a perilous area, causing extensive resource loss and lowering
+        morale.
+      supplies: -7
+      morale: -3
+  clubs:
+    '2':
+      label: A heated debate over navigation routes causes division and wastes time.
+      body: A heated debate over navigation routes causes division and wastes time.
+      morale: -2
+    '3':
+      label: Miscommunication during a gathering causes you to prepare the wrong supplies, leading to waste.
+      body: Miscommunication during a gathering causes you to prepare the wrong supplies, leading to waste.
+      supplies: -3
+    '4':
+      label: A misunderstanding with a Bristleborn artisan leads to a damaged piece of vital equipment.
+      body: A misunderstanding with a Bristleborn artisan leads to a damaged piece of vital equipment.
+      supplies: -2
+      morale: -1
+    '5':
+      label: Your attempt to organise a group activity fails, resulting in frustration and decreased morale.
+      body: Your attempt to organise a group activity fails, resulting in frustration and decreased morale.
+      morale: -3
+    '6':
+      label: Accidentally offending a Bushborn elder causes social tension and discomfort within the group.
+      body: Accidentally offending a Bushborn elder causes social tension and discomfort within the group.
+      morale: -3
+      health: -1
+    '7':
+      label: Failing to mediate a dispute over resource allocation leads to inefficient use and loss of supplies.
+      body: Failing to mediate a dispute over resource allocation leads to inefficient use and loss of supplies.
+      supplies: -4
+    '8':
+      label: A cultural misstep during a community ritual alienates you from the group, affecting cooperation.
+      body: A cultural misstep during a community ritual alienates you from the group, affecting cooperation.
+      morale: -4
+    '9':
+      label: Misjudging the mood during a storytelling session dampens the spirits of your companions.
+      body: Misjudging the mood during a storytelling session dampens the spirits of your companions.
+      morale: -5
+    '10':
+      label: A poorly planned communal meal results in food spoilage and wasted resources.
+      body: A poorly planned communal meal results in food spoilage and wasted resources.
+      supplies: -6
+    jack:
+      label: A failed attempt to pass a local creature escalates into a conflict, straining resources.
+      body: A failed attempt to pass a local creature escalates into a conflict, straining resources.
+      combat: true
+    queen:
+      label: Misunderstandings lead to a brief but intense battle, depleting energy and resources.
+      body: Misunderstandings lead to a brief but intense battle, depleting energy and resources.
+      combat: true
+    king:
+      label: The lack of stealth in a local area leads to you being caught out by a creature.
+      body: The lack of stealth in a local area leads to you being caught out by a creature.
+      combat: true
+    ace:
+      label: A critical miscommunication during a survival strategy meeting leads to a costly mistake.
+      body: A critical miscommunication during a survival strategy meeting leads to a costly mistake.
+      supplies: -7
+      morale: -3
 scene_tables:
+  smores_tactics:
+    '2':
+      label: Sticky Dodge
+      body: Smores catches a projectile with his sticky spikes, reducing incoming damage by 2.
+      reduce_incoming: 2
+      reduce_incoming_attacks: 1
+    '3':
+      label: Marshmallow Muddle
+      body: Throws a marshmallow to blind an opponent, causing them to miss their next attack.
+      evade_next: 1
+    '4':
+      label: Sweet Roll
+      body: Smores rolls towards the enemy, dealing 3 damage and retreating swiftly to avoid a counterattack.
+      damage: 3
+    '5':
+      label: Sugary Soothe
+      body: Uses a marshmallow to restore 2 morale to a teammate and heal them for 1 health.
+      morale: 2
+      heal: 1
+    '6':
+      label: Protective Puff
+      body: Puffs up to shield an ally, absorbing the next attack directed at them (up to 3 damage).
+      reduce_incoming: 3
+      reduce_incoming_attacks: 1
+    '7':
+      label: Spike Flurry
+      body: Shakes off marshmallows causing 2 damage and confusion (enemies miss 50% of their attacks next turn).
+      damage: 2
+      opponent_miss_chance_next: 50
+    '8':
+      label: Sugar Rush
+      body: Grants Smores or an ally a burst of energy, allowing for an immediate additional 2 actions after this
+        card is played.
+      extra_turns: 2
+    '9':
+      label: Candy Counter
+      body: Uses sticky marshmallows to immobilise an enemy, preventing their next action.
+      skip_opponent_turns: 1
+    '10':
+      label: Frosty Fortitude
+      body: Smores fortifies himself against the cold, gaining 4 temporary health for the next 2 turns.
+      temporary_health: 4
+      temporary_health_turns: 2
+    jack:
+      label: Jolt
+      body: Smores energises himself and all allies, increasing speed and reducing incoming damage by 1 for the next
+        turn.
+      reduce_incoming: 1
+      reduce_incoming_attacks: 1
+    queen:
+      label: Quiet Quell
+      body: Calms a hostile creature, reducing its damage output by half (rounded-down) for the next 2 turns.
+      halve_opponent_damage_turns: 2
+      halve_opponent_damage_round: down
+    king:
+      label: Guard
+      body: Assumes a defensive stance, doubling his defence and reflecting 2 damage back at the attacker for 3 turns.
+      reflect_damage: 2
+      reflect_turns: 3
+    ace:
+      label: Sticky Ambush
+      body: Executes a powerful attack dealing damage equal to the total number of marshmallows on him. (Draw a card
+        and halve the value - rounded up).
+      damage_formula: draw_half_up
   snacker_tactics:
     '2':
       label: Skillet Shield

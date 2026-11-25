@@ -128,3 +128,82 @@ def test_pumpkin_scene_is_festival_and_journey_day_is_patch():
     assert _adventure_draw_plan("winter_gift", for_scene=False) == _adventure_draw_plan(
         "winter_gift"
     )
+
+
+def test_frozen_forest_tables_and_phase_lookup():
+    from backend.games.brambletrek.modules.loader import (
+        format_module_journey_events,
+        load_module,
+        lookup_module_journey_event,
+        module_journey_tables,
+    )
+
+    celebration = module_journey_tables("first_frost") or {}
+    forest = module_journey_tables("first_frost", "journeys_frozen_forest") or {}
+    assert len(celebration.get("spades") or {}) == 13
+    for suit in ("hearts", "diamonds", "clubs", "spades"):
+        assert len(forest.get(suit) or {}) == 13
+    # celebration 7 of spades is unchanged (p. 107)
+    ev = lookup_module_journey_event("first_frost", "7 of spades")
+    assert ev and ev.get("health") == -2 and ev.get("morale") == -1
+    ff7 = lookup_module_journey_event(
+        "first_frost", "7 of hearts", table_key="journeys_frozen_forest"
+    )
+    assert ff7 and ff7.get("supplies") == 7
+    ace = lookup_module_journey_event(
+        "first_frost", "ace of hearts", table_key="journeys_frozen_forest"
+    )
+    assert ace and ace.get("health") == 3 and ace.get("morale") == 3 and ace.get("supplies") == 3
+    dia3 = lookup_module_journey_event(
+        "first_frost", "3 of diamonds", table_key="journeys_frozen_forest"
+    )
+    assert dia3 and dia3.get("supplies") == 1 and dia3.get("health") == 2
+    king = lookup_module_journey_event(
+        "first_frost", "king of hearts", table_key="journeys_frozen_forest"
+    )
+    assert king and king.get("combat") and "through combat" in (king.get("body") or "")
+    text = format_module_journey_events(
+        "first_frost",
+        ["7 of hearts"],
+        table_key="journeys_frozen_forest",
+    )
+    assert "Adventures in the Frozen Forest" in text
+    assert "The Warmth of the First Frost" in (
+        load_module("first_frost").get("journey_heading") or ""
+    )
+    smores = (load_module("first_frost").get("scene_tables") or {}).get("smores_tactics") or {}
+    assert smores["queen"]["halve_opponent_damage_round"] == "down"
+    assert smores["ace"]["damage_formula"] == "draw_half_up"
+    assert "rounded-down" in smores["queen"]["body"]
+    assert "rounded up" in smores["ace"]["body"]
+
+
+def test_begin_frozen_forest_shortcut_and_phase(isolated_saves):
+    from backend.games.brambletrek.actions import (
+        match_brambletrek_shortcut,
+        run_shortcut,
+        run_shortcut_for_plugin,
+        shortcuts_for_character,
+    )
+    from backend.games.brambletrek.play_handlers import (
+        FIRST_FROST_PHASE_KEY,
+        begin_frozen_forest_phase,
+    )
+    from backend.storage import create_session
+
+    assert match_brambletrek_shortcut("Begin Adventures in the Frozen Forest") == (
+        "begin_frozen_forest"
+    )
+    labels = [s["id"] for s in shortcuts_for_character(active_adventure="first_frost")]
+    assert "begin_frozen_forest" in labels
+    run = run_shortcut("begin_frozen_forest", active_adventure="first_frost")
+    assert "Frozen Forest" in run["user_message"]
+    plugin = run_shortcut_for_plugin("begin_frozen_forest", active_adventure="first_frost")
+    assert plugin.get("set_first_frost_phase") == "frozen_forest"
+    sid = create_session(character_id="bt-frost", adventure_id="first_frost")
+    out = begin_frozen_forest_phase(sid)
+    assert out["first_frost_phase"] == "frozen_forest"
+    from backend.storage import get_session
+
+    extras = (get_session(sid) or {}).get("extras") or {}
+    assert extras.get(FIRST_FROST_PHASE_KEY) == "frozen_forest"

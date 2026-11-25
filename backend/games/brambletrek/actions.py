@@ -104,6 +104,16 @@ def match_brambletrek_shortcut(text: str, *, active_adventure: str = "") -> str 
     """Map natural-language Brambletrek requests to sidebar shortcut ids."""
     lower = text.lower().strip()
 
+    frozen_forest_phrases = (
+        "begin adventures in the frozen forest",
+        "adventures in the frozen forest",
+        "enter the frozen forest",
+        "start the frozen forest",
+        "celebration fades",
+    )
+    if any(p in lower for p in frozen_forest_phrases):
+        return "begin_frozen_forest"
+
     adventure_scene_phrases = (
         "adventure scene",
         "next scene",
@@ -280,6 +290,14 @@ def shortcuts_for_character(*, active_adventure: str = "") -> list[BrambletrekSh
             else:
                 item["label"] = f"Journey day ({n} cards){suffix}"
         out.append(item)
+    if active_adventure == "first_frost":
+        out.append(
+            {
+                "id": "begin_frozen_forest",
+                "label": "Begin Adventures in the Frozen Forest",
+                "kind": "static",
+            }
+        )
     return out
 
 
@@ -361,9 +379,21 @@ def run_shortcut(
     char_id: str | None = None,
     card_source: str = "virtual",
     combat_context: dict | None = None,
+    first_frost_phase: str = "",
 ) -> ShortcutRun:
     """Build user-visible text and the prompt for the answer pipeline."""
     draw_kw = {"char_id": char_id, "card_source": card_source}
+    if shortcut_id == "begin_frozen_forest":
+        msg = (
+            "As the joyous echoes of The First Frost celebration fade, a serene yet "
+            "untamed wilderness unfolds. You begin **Adventures in the Frozen Forest**. "
+            "Journey days now use the Frozen Forest exploration tables (Complete Digital "
+            "Edition printed pp. 112–115). Smores can join you as an ally (pp. 110–111): "
+            "he takes his turn after you in combat, and you draw tactics for him as if he "
+            "is another player. Each day he may use Shield (reduce damage by 3, once) or "
+            "Sweet Treat (restore 2 health and 1 morale, once)."
+        )
+        return {"user_message": msg, "prompt": msg, "kind": "static"}
     if shortcut_id in _CARD_RAG_PROMPTS:
         prompt = _CARD_RAG_PROMPTS[shortcut_id]
         return {
@@ -593,11 +623,17 @@ def run_shortcut(
                     depths_note += " Set aside (not resolved today): " + ", ".join(set_aside) + "."
         curated = ""
         if adventure_id:
+            table_key = (
+                "journeys_frozen_forest"
+                if adventure_id == "first_frost" and first_frost_phase == "frozen_forest"
+                else None
+            )
             curated = format_adventure_scene(
                 adventure_id,
                 route_cards,
                 activity_cards,
                 scene_table=exploration_table,
+                table_key=table_key,
             )
         if not curated:
             event_labels = [f"Event {i + 1}" for i in range(len(route_cards))]
@@ -782,6 +818,7 @@ def run_shortcut_for_plugin(shortcut_id: str, **char) -> dict:
         combat_context=char.get("combat_context")
         if isinstance(char.get("combat_context"), dict)
         else None,
+        first_frost_phase=str(char.get("first_frost_phase") or ""),
     )
     kind = run.get("kind", "static")
     base = {
@@ -790,7 +827,10 @@ def run_shortcut_for_plugin(shortcut_id: str, **char) -> dict:
         "summary": run.get("user_message", ""),
     }
     if kind == "static":
-        return {**base, "task": "rules_help"}
+        out = {**base, "task": "rules_help"}
+        if shortcut_id == "begin_frozen_forest":
+            out["set_first_frost_phase"] = "frozen_forest"
+        return out
     if kind in {"rag_only", "multi_draw_rag", "roll_rag", "card_rag"}:
         out = {**base, "task": "rag_direct"}
         if run.get("journey_cards"):

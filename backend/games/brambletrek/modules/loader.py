@@ -73,9 +73,15 @@ def module_play_config(adventure_id: str) -> dict[str, Any]:
     }
 
 
-def module_journey_tables(adventure_id: str) -> dict[str, Any] | None:
+def module_journey_tables(
+    adventure_id: str,
+    table_key: str | None = None,
+) -> dict[str, Any] | None:
     mod = load_module(adventure_id)
-    journeys = mod.get("journeys")
+    key = table_key or "journeys"
+    journeys = mod.get(key)
+    if (not isinstance(journeys, dict) or not journeys) and key != "journeys":
+        journeys = mod.get("journeys")
     if not isinstance(journeys, dict) or not journeys:
         return None
     return journeys
@@ -119,6 +125,7 @@ def lookup_module_journey_event(
     card: str,
     *,
     in_depths: bool = False,
+    table_key: str | None = None,
 ) -> dict[str, Any] | None:
     """Resolve a card against module journey tables (module play ignores Aldwund unless configured)."""
     from backend.games.brambletrek.dm.curated import parse_playing_card
@@ -131,7 +138,7 @@ def lookup_module_journey_event(
     parsed = parse_playing_card(card)
     if not parsed:
         return None
-    tables = module_journey_tables(adventure_id)
+    tables = module_journey_tables(adventure_id, table_key)
     if not tables:
         return None
     row = (tables.get(parsed["suit"]) or {}).get(parsed["rank_key"])
@@ -231,17 +238,26 @@ def format_module_journey_events(
     adventure_id: str,
     cards: list[str],
     labels: list[str] | None = None,
+    *,
+    table_key: str | None = None,
 ) -> str:
     from backend.games.brambletrek.dm.curated import _stat_line as journey_event_stat_preview
 
     mod = load_module(adventure_id)
     labels = labels or [f"Event {i + 1}" for i in range(len(cards))]
-    header = str(
-        mod.get("journey_heading") or f"**{mod.get('label', adventure_id)}** — exploration events"
-    )
+    if table_key == "journeys_frozen_forest":
+        header = str(
+            mod.get("frozen_forest_heading")
+            or "**Adventures in the Frozen Forest** — exploration events"
+        )
+    else:
+        header = str(
+            mod.get("journey_heading")
+            or f"**{mod.get('label', adventure_id)}** — exploration events"
+        )
     lines = [header]
     for label, card in zip(labels, cards):
-        event = lookup_module_journey_event(adventure_id, card)
+        event = lookup_module_journey_event(adventure_id, card, table_key=table_key)
         if not event:
             lines.append(f"- **{label}** ({card}): _no curated row_")
             continue
@@ -292,15 +308,18 @@ def format_adventure_scene(
     activity_cards: list[str] | None = None,
     *,
     scene_table: str = "",
+    table_key: str | None = None,
 ) -> str:
     """Format curated adventure draws (journey, scene tables, or exploration)."""
     mod = load_module(adventure_id)
     festival_route = bool(
         module_scene_tables(adventure_id).get("choose_adventure") and activity_cards
     )
-    if module_journey_tables(adventure_id) and not festival_route:
+    if module_journey_tables(adventure_id, table_key) and not festival_route:
         labels = [f"Event {i + 1}" for i in range(len(route_cards))]
-        return format_module_journey_events(adventure_id, route_cards, labels)
+        return format_module_journey_events(
+            adventure_id, route_cards, labels, table_key=table_key
+        )
 
     play = module_play_config(adventure_id)
     table_id = scene_table or play.get("default_scene_table") or ""

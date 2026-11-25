@@ -62,8 +62,13 @@ def router_node(state: DMState) -> DMState:
         extra = {
             "card_source": extras.get("card_source", "virtual"),
             "story_mode": extras.get("story_mode", "player"),
+            "first_frost_phase": extras.get("first_frost_phase", ""),
         }
         result = game_plugin(char).run_shortcut(shortcut, **char, **extra)
+        if result.get("set_first_frost_phase") and state.get("session_id"):
+            from backend.games.brambletrek.play_handlers import begin_frozen_forest_phase
+
+            begin_frozen_forest_phase(state["session_id"])
         updates["shortcut_result"] = result
         updates["mechanics_summary"] = (
             result.get("summary")

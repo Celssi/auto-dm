@@ -19,10 +19,15 @@ def _shortcut_extras(session: dict) -> dict[str, Any]:
     return {
         "card_source": extras.get("card_source", "virtual"),
         "story_mode": extras.get("story_mode", "player"),
+        "first_frost_phase": extras.get("first_frost_phase", ""),
     }
 
 
 def _on_shortcut_result(session_id: str, char: dict, result: dict) -> None:
+    if result.get("set_first_frost_phase"):
+        from backend.games.brambletrek.play_handlers import begin_frozen_forest_phase
+
+        begin_frozen_forest_phase(session_id)
     if result.get("journey_cards"):
         from backend.games.brambletrek.play_handlers import stash_pending_journey
 
