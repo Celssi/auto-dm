@@ -222,10 +222,13 @@ export const api = {
       body: JSON.stringify({ character }),
     }),
   previewCharacter: (character: Record<string, unknown>, finalize = true) =>
-    request<{ character: Record<string, unknown>; summary?: Record<string, unknown> }>(`/characters/preview?finalize=${finalize ? 'true' : 'false'}`, {
-      method: 'POST',
-      body: JSON.stringify({ character }),
-    }),
+    request<{ character: Record<string, unknown>; summary?: Record<string, unknown> }>(
+      `/characters/preview?finalize=${finalize ? 'true' : 'false'}`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ character }),
+      },
+    ),
   updateCharacter: (id: string, character: Record<string, unknown>) =>
     request<{ character: Record<string, unknown> }>(`/characters/${id}`, {
       method: 'PUT',
@@ -549,6 +552,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ event_index: eventIndex }),
     }),
+  brambletrekStartCombat: (sessionId: string, rank: string, suit: string) =>
+    request<{ combat_preview?: string; combat?: import('../types').BrambletrekCombatState | null }>(
+      `/brambletrek/sessions/${sessionId}/combat/start`,
+      { method: 'POST', body: JSON.stringify({ rank, suit }) },
+    ),
   brambletrekGetCombat: (sessionId: string) =>
     request<{ combat: import('../types').BrambletrekCombatState | null }>(`/brambletrek/sessions/${sessionId}/combat`),
   brambletrekCombatAction: (sessionId: string, action: string, handIndex = -1) =>

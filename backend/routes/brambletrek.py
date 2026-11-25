@@ -67,6 +67,11 @@ class DragonkeepActionBody(BaseModel):
     event_index: int = -1
 
 
+class ManualCombatBody(BaseModel):
+    rank: str
+    suit: str
+
+
 class CombatActionBody(BaseModel):
     action: str
     hand_index: int = -1
@@ -274,6 +279,15 @@ def get_dragonkeep(session_id: str):
     sess = get_session(session_id)
     if not sess:
         raise HTTPException(404, "Session not found")
+    char = get_character(sess["character_id"]) or {}
+    if str(char.get("active_adventure") or "") != "dragonkeep":
+        # Not a Dragonkeep run: nothing to show (the play view polls this for every session).
+        from backend.games.brambletrek.play_handlers import pending_journey_payload
+
+        return {
+            "dragonkeep": None,
+            "pending_journey": pending_journey_payload(session_id, sess["character_id"]),
+        }
     try:
         return get_dragonkeep_state(session_id, sess["character_id"])
     except ValueError as e:
@@ -328,6 +342,19 @@ def combat_act(session_id: str, body: CombatActionBody):
             body.action,
             hand_index=body.hand_index,
         )
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
+
+
+@router.post("/sessions/{session_id}/combat/start")
+def combat_start(session_id: str, body: ManualCombatBody):
+    sess = get_session(session_id)
+    if not sess:
+        raise HTTPException(404, "Session not found")
+    from backend.games.brambletrek.play_handlers import start_manual_combat
+
+    try:
+        return start_manual_combat(session_id, sess["character_id"], body.rank, body.suit)
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
 

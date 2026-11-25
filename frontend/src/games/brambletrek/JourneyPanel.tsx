@@ -250,7 +250,7 @@ export default function JourneyPanel({
   onDiscard,
   embedded,
 }: Props) {
-  const [footerLoading, setFooterLoading] = useState<'finish' | 'discard' | null>(null);
+  const [footerLoading, setFooterLoading] = useState<'finish' | 'discard' | 'apply_all' | null>(null);
   const [footerError, setFooterError] = useState<string | null>(null);
 
   if (!journey?.events?.length) {
@@ -268,7 +268,21 @@ export default function JourneyPanel({
   const total = journey.events.length;
   const progress = total > 0 ? (appliedCount / total) * 100 : 0;
 
-  const runFooter = async (kind: 'finish' | 'discard', action: () => Promise<void>) => {
+  // Apply events in order until a combat card (combat must be fought before moving on).
+  const pendingStatEvents: number[] = [];
+  for (const ev of journey.events) {
+    if (ev.applied) continue;
+    if (ev.combat) break;
+    pendingStatEvents.push(ev.index);
+  }
+  const applyAll = async () => {
+    for (const index of pendingStatEvents) {
+      const res = await onApply(index);
+      if (res.item_error) throw new Error(res.item_error);
+    }
+  };
+
+  const runFooter = async (kind: 'finish' | 'discard' | 'apply_all', action: () => Promise<void>) => {
     setFooterLoading(kind);
     setFooterError(null);
     try {
@@ -295,6 +309,16 @@ export default function JourneyPanel({
         <p className="text-[11px] text-muted mt-2 leading-relaxed">
           Resolve in order. Apply each card before the next. Pause for combat between events.
         </p>
+        {pendingStatEvents.length > 1 && (
+          <button
+            type="button"
+            className="btn-primary w-full mt-2 text-xs"
+            disabled={footerLoading !== null}
+            onClick={() => runFooter('apply_all', applyAll)}
+          >
+            {footerLoading === 'apply_all' ? 'Applying…' : `Apply ${pendingStatEvents.length} events to sheet`}
+          </button>
+        )}
       </div>
 
       <div className="space-y-0">

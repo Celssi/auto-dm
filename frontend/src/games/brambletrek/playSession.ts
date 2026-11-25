@@ -157,6 +157,7 @@ const brambletrekExtensions: PlaySessionExtensions = {
         refreshSessionLogs(sessionId),
         refreshJourney(sessionId, dispatch),
         refreshDragonkeep(sessionId, dispatch),
+        refreshCombat(sessionId, dispatch),
       ]);
       return true;
     } catch (e) {
@@ -254,6 +255,13 @@ const brambletrekExtensions: PlaySessionExtensions = {
   },
   combatHandlers: {
     async onAction(sessionId, action, handIndex, dispatch, refreshSessionLogs) {
+      if (action.startsWith('start:')) {
+        const [, rank = 'jack', suit = 'clubs'] = action.split(':');
+        const started = await api.brambletrekStartCombat(sessionId, rank, suit);
+        dispatch({ type: 'set', patch: { brambletrekCombat: started.combat ?? null } });
+        await refreshSessionLogs(sessionId);
+        return;
+      }
       const index = typeof handIndex === 'number' ? handIndex : -1;
       const res = await api.brambletrekCombatAction(sessionId, action, index);
       dispatch({

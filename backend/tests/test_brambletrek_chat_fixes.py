@@ -69,7 +69,14 @@ def test_shortcut_route_passes_session_card_source():
 
     captured = {}
 
+    class Play:
+        @staticmethod
+        def on_shortcut_result(*_args):
+            return None
+
     class Plugin:
+        play = Play()
+
         def run_shortcut(self, shortcut_id, **params):
             captured.update(params)
             return {"summary": "ok"}

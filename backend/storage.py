@@ -353,6 +353,10 @@ def list_adventures_for_campaign(campaign_id: str) -> list[dict[str, str]]:
 
 
 def get_adventure(adv_id: str) -> dict | None:
+    if not (ADVENTURES_DIR / adv_id / "adventure.json").is_file():
+        # Created on another Cloud Run instance: pull it from the saves bucket first.
+        for name in ("adventure.json", "outline.md", "log.md", "summary.md"):
+            _refresh_saves_file(ADVENTURES_DIR / adv_id / name)
     meta = _read_json(ADVENTURES_DIR / adv_id / "adventure.json")
     if not meta:
         return None

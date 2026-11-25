@@ -15,10 +15,14 @@ def resolve_response_node(state: DMState) -> DMState:
     if state.get("response"):
         return {}
     parts: list[str] = []
+    shortcut = state.get("shortcut_result") or {}
+    if shortcut.get("task") == "journey" and shortcut.get("summary"):
+        # The draw itself is already shown as the player's line; just say what to do next.
+        text = str(shortcut["summary"])
+        return {"response": text, "narrative": text}
     if state.get("mechanics_summary"):
         parts.append(state["mechanics_summary"])
-    shortcut = state.get("shortcut_result") or {}
-    if shortcut.get("user_message"):
+    if shortcut.get("user_message") and shortcut["user_message"] not in parts:
         parts.append(shortcut["user_message"])
     if not parts:
         return {}

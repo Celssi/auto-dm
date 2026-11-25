@@ -90,6 +90,13 @@ export default function PlayToolsPanel({
   const combatForced = brambletrekCombat?.status === 'active' && tabs.includes('combat');
   const activeLogTab = combatForced ? 'combat' : logTab;
   const [deckRemaining, setDeckRemaining] = useState(52);
+  const journeyKey = pendingJourney?.events?.map((e) => e.card).join('|') ?? '';
+
+  // New journey draws: open the Journey tab so Apply / Finish day are right there.
+  useEffect(() => {
+    if (journeyKey && tabs.includes('journey')) setLogTab('journey');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [journeyKey]);
   const [shortcutLoading, setShortcutLoading] = useState<string | null>(null);
 
   useEffect(() => {
@@ -217,10 +224,86 @@ function PlayToolTabContent({
   if (activeLogTab === 'deck' && characterId) {
     return <DeckPanel characterId={characterId} remaining={deckRemaining} onAction={onRefreshDeck} embedded />;
   }
-  if (activeLogTab === 'combat' && brambletrekCombat) {
-    return <BrambletrekCombatPanel combat={brambletrekCombat} onAction={onBrambletrekCombatAction} embedded />;
+  if (activeLogTab === 'combat') {
+    const active = brambletrekCombat?.status === 'active';
+    return (
+      <div>
+        {brambletrekCombat && (
+          <BrambletrekCombatPanel combat={brambletrekCombat} onAction={onBrambletrekCombatAction} embedded />
+        )}
+        {!active && <ManualCombatStart onStart={(rank, suit) => onBrambletrekCombatAction(`start:${rank}:${suit}`)} />}
+      </div>
+    );
   }
   if (activeLogTab === 'lonelog') return <PlayLonelogView lonelog={lonelog} />;
   if (activeLogTab === 'audit') return <PlayAuditView auditEvents={auditEvents} />;
   return null;
+}
+
+const COMBAT_RANKS = [
+  { id: 'jack', label: 'Jack (10 Health)' },
+  { id: 'queen', label: 'Queen (12 Health)' },
+  { id: 'king', label: 'King (14 Health)' },
+];
+const COMBAT_SUITS = ['hearts', 'diamonds', 'spades', 'clubs'];
+
+function ManualCombatStart({ onStart }: { onStart: (rank: string, suit: string) => Promise<void> }) {
+  const [rank, setRank] = useState('jack');
+  const [suit, setSuit] = useState('clubs');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  return (
+    <div className="mt-3 rounded-xl border border-border bg-bg/40 p-3">
+      <div className="section-heading mb-2">Start combat</div>
+      <p className="text-[11px] text-muted mb-2 leading-relaxed">
+        Face cards mean combat. Journey face cards have their own Start combat button; use this for a physical-deck draw
+        or a narrated encounter. Hearts/Diamonds are the red table (item on victory).
+      </p>
+      <div className="flex gap-2 mb-2">
+        <select
+          className="input flex-1 text-xs"
+          value={rank}
+          onChange={(e) => setRank(e.target.value)}
+          aria-label="Opponent card"
+        >
+          {COMBAT_RANKS.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.label}
+            </option>
+          ))}
+        </select>
+        <select
+          className="input flex-1 text-xs"
+          value={suit}
+          onChange={(e) => setSuit(e.target.value)}
+          aria-label="Suit"
+        >
+          {COMBAT_SUITS.map((s) => (
+            <option key={s} value={s}>
+              {s[0].toUpperCase() + s.slice(1)}
+            </option>
+          ))}
+        </select>
+      </div>
+      <button
+        type="button"
+        className="btn-primary w-full text-xs"
+        disabled={busy}
+        onClick={async () => {
+          setBusy(true);
+          setError('');
+          try {
+            await onStart(rank, suit);
+          } catch (e) {
+            setError(e instanceof Error ? e.message : 'Could not start combat');
+          } finally {
+            setBusy(false);
+          }
+        }}
+      >
+        {busy ? 'Starting…' : 'Start combat'}
+      </button>
+      {error && <p className="mt-2 text-xs text-red-300">{error}</p>}
+    </div>
+  );
 }

@@ -437,6 +437,11 @@ def apply_journey_event(session_id: str, char_id: str, event_index: int) -> dict
             event_index,
             event,
         )
+    lore = None
+    if event and "lore" in (event.get("tags") or []):
+        lore = _draw_lore_fragment(session_id, char_id, extras, adventure_id)
+        if lore and lore.get("text"):
+            summary = f"{summary}\n\n**LORE** — {lore['text']}"
     extras[PENDING_JOURNEY_KEY] = pending
     _set_extras(session_id, extras)
     entity = _save(char_id, char)
@@ -450,10 +455,47 @@ def apply_journey_event(session_id: str, char_id: str, event_index: int) -> dict
         "summary": summary,
         "recoveries": recoveries,
         "item_error": item_error,
+        "lore": lore,
         "character": entity,
         "header": character_header(char_id),
         "pending_journey": pending_journey_payload(session_id, char_id),
     }
+
+
+LORE_FOUND_KEY = "brambletrek_lore_found"
+
+
+def _draw_lore_fragment(
+    session_id: str, char_id: str, extras: dict, adventure_id: str
+) -> dict[str, Any] | None:
+    """(LORE) in the World Tree: draw a Heimstre's Prophecy fragment (p. 51).
+
+    "If you draw a fragment you already found, then simply redraw until you get a new one."
+    """
+    from backend.games.brambletrek.modules.loader import lookup_module_scene_row
+
+    if not lookup_module_scene_row(adventure_id, "prophecy", "2 of hearts"):
+        return None
+    found = set(extras.get(LORE_FOUND_KEY) or [])
+    for _ in range(52):
+        result = draw_cards(count=1, game_id=GAME_ID, char_id=char_id)
+        if not result.get("ok"):
+            reset_deck(GAME_ID, char_id)
+            result = draw_cards(count=1, game_id=GAME_ID, char_id=char_id)
+            if not result.get("ok"):
+                return {"error": result.get("error") or "Could not draw a LORE card"}
+        card = result["cards"][0]
+        row = lookup_module_scene_row(adventure_id, "prophecy", card) or {}
+        rank = card.split(" of ")[0].strip().lower()
+        if rank in found and len(found) < 13:
+            continue
+        found.add(rank)
+        extras[LORE_FOUND_KEY] = sorted(found)
+        text = str(row.get("body") or row.get("label") or "")
+        log_draw(session_id, [card], label="LORE (Heimstre's Prophecy)")
+        log_mechanical(session_id, f"Prophecy fragment: {text}")
+        return {"card": card, "text": text, "found": len(found)}
+    return None
 
 
 def finish_journey_day(session_id: str, char_id: str) -> dict:
@@ -685,6 +727,46 @@ def start_journey_combat(session_id: str, char_id: str, event_index: int) -> dic
         dk = ensure_dragonkeep_state(extras)
         out["dragonkeep"] = dragonkeep_payload(dk, has_pending_journey=True)
     return out
+
+
+MANUAL_COMBAT_RANKS = ("jack", "queen", "king")
+MANUAL_COMBAT_SUITS = ("hearts", "diamonds", "spades", "clubs")
+
+
+def start_manual_combat(session_id: str, char_id: str, rank: str, suit: str) -> dict[str, Any]:
+    """Start core combat for an encounter card the player names (e.g. a physical deck draw).
+
+    Face cards mean combat (Core Rulebook p. 30); the rank sets the opponent's Health
+    (Jack 10, Queen 12, King 14) and Hearts/Diamonds use the red table (item reward).
+    """
+    rank = (rank or "").strip().lower()
+    suit = (suit or "").strip().lower()
+    if rank not in MANUAL_COMBAT_RANKS:
+        raise ValueError("Combat starts from a face card: jack, queen or king")
+    if suit not in MANUAL_COMBAT_SUITS:
+        raise ValueError("Unknown suit")
+    extras = _session_extras(session_id)
+    current = extras.get(COMBAT_STATE_KEY)
+    if isinstance(current, dict) and current.get("status") == "active":
+        raise ValueError("A combat is already active")
+    char = _char(char_id)
+    adventure_id = str(char.active_adventure or "")
+    if adventure_id == DRAGONKEEP_ID:
+        adventure_id = ""  # Dragonkeep foes come from its own tables; manual uses core rules.
+    card = f"{rank} of {suit}"
+    ctx = build_combat_context(adventure_id, card, {"combat": True, "label": "Encounter"})
+    _set_combat_context(session_id, extras, ctx)
+    combat_state = begin_combat(char, ctx, char_id=char_id, mode="standard")
+    extras[COMBAT_STATE_KEY] = combat_state
+    _set_extras(session_id, extras)
+    preview = combat_preview_from_context(ctx)
+    log_mechanical(session_id, f"Combat begins ({card_short_label(card)}): {preview}")
+    return {
+        "combat_context": ctx,
+        "combat_preview": preview,
+        "combat": combat_payload(combat_state),
+        "header": character_header(char_id),
+    }
 
 
 def _combat_item_reward(session_id: str, char_id: str, char: BrambletrekCharacter) -> dict:

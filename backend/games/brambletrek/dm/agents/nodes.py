@@ -22,6 +22,8 @@ from backend.settings_store import load_settings
 from backend.storage import get_session
 
 RAG_DIRECT_TASKS = frozenset({"rag_direct"})
+# Deterministic draws: curated rows are the ground truth, no rules retrieval needed.
+NO_RULES_TASKS = frozenset({"journey"})
 
 
 def detect_brambletrek_shortcut(message: str, char_dict: dict | None = None) -> str | None:
@@ -89,6 +91,8 @@ def router_node(state: DMState) -> DMState:
 
 def rules_facilitator_node(state: DMState) -> DMState:
     shortcut = state.get("shortcut_result") or {}
+    if shortcut.get("task") in NO_RULES_TASKS:
+        return {"rules_context": "", "rules_sources": []}
     if shortcut.get("task") in RAG_DIRECT_TASKS:
         msg = shortcut.get("prompt") or state.get("user_message", "")
     elif not state.get("needs_rules") and not shortcut:
@@ -174,6 +178,9 @@ def facilitator_node(state: DMState) -> DMState:
     )
     llm = get_langchain_chat_llm("claude")
     user_parts = [state.get("user_message", "")]
+    shortcut = state.get("shortcut_result") or {}
+    if shortcut.get("task") in NO_RULES_TASKS and shortcut.get("prompt"):
+        user_parts.append(f"Instructions: {shortcut['prompt']}")
     if state.get("mechanics_summary"):
         user_parts.append(f"Mechanical result: {state['mechanics_summary']}")
     if state.get("rules_context") and not state.get("response"):

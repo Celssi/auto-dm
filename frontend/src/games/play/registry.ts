@@ -30,7 +30,7 @@ const GAME_PLAY_CONFIG: Record<string, GamePlayConfig> = {
     campaignThemeRequired: false,
     usesAiCampaignGeneration: false,
     showFaerunToggle: false,
-    extraToolTabs: ['journey', 'deck'],
+    extraToolTabs: ['journey', 'combat', 'deck'],
     shortcutGroups: true,
   },
 };

@@ -383,8 +383,13 @@ def legacy_options() -> dict[str, dict[str, str]]:
             summary = abilities[0]["label"] if abilities else ""
             if len(abilities) > 1:
                 summary = f"{len(abilities)} daily abilities"
+            label = str(meta.get("label", str(leg_id)))
+            if meta.get("module"):
+                label = (
+                    f"{label} ({adventure_meta(str(meta['module'])).get('label', meta['module'])})"
+                )
             options[str(leg_id)] = {
-                "label": meta.get("label", str(leg_id)),
+                "label": label,
                 "boost": meta.get("boost", ""),
                 "flaw": meta.get("flaw", ""),
                 "ability": summary,
@@ -392,8 +397,14 @@ def legacy_options() -> dict[str, dict[str, str]]:
     return options
 
 
+def _core_legacy_ids() -> list[str]:
+    """Legacies on the Core Rulebook roll (module legacies such as Snacker are picked)."""
+    data = _legacies_data().get("legacies") or {}
+    return [k for k, v in data.items() if k and not (isinstance(v, dict) and v.get("module"))]
+
+
 def legacy_by_roll(total: int) -> str:
-    ids = [k for k in (_legacies_data().get("legacies") or {}) if k]
+    ids = _core_legacy_ids()
     if not ids:
         return "Seer"
     meta = (_legacies_data().get("legacies") or {}).get(ids[(total - 1) % len(ids)], {})
@@ -401,7 +412,7 @@ def legacy_by_roll(total: int) -> str:
 
 
 def legacy_id_by_roll(total: int) -> str:
-    ids = [k for k in (_legacies_data().get("legacies") or {}) if k]
+    ids = _core_legacy_ids()
     if not ids:
         return "seer"
     return ids[(total - 1) % len(ids)]
@@ -485,6 +496,30 @@ def apply_event_deltas(char: BrambletrekCharacter, event: dict[str, Any]) -> Non
     char.clamp_stats()
 
 
+def order_depths_last(
+    cards: list[str], *, start_in_aldwund: bool, adventure_id: str = ""
+) -> tuple[list[str], list[str]]:
+    """(DEPTHS) cards always resolve as the last card of the day (Core Rulebook p. 24).
+
+    The first DEPTHS card drawn becomes the day's last event and ends the day's draws;
+    any further DEPTHS cards are set aside (there is only one last card of the day).
+    Returns (resolution order, set-aside DEPTHS cards).
+    """
+    if start_in_aldwund:
+        return list(cards), []
+    surface: list[str] = []
+    depths: list[str] = []
+    for card in cards:
+        event = lookup_journey_event(card, in_depths=False, adventure_id=adventure_id)
+        if event and "depths" in (event.get("tags") or []):
+            depths.append(card)
+        else:
+            surface.append(card)
+    if not depths:
+        return surface, []
+    return surface + depths[:1], depths[1:]
+
+
 def journey_depths_trace(
     cards: list[str],
     *,
@@ -493,14 +528,20 @@ def journey_depths_trace(
 ) -> list[bool]:
     """For each card, whether Aldwund depths table applies at resolution time."""
     in_depths = start_in_aldwund
+    entered_today = False
     trace: list[bool] = []
     for card in cards:
-        trace.append(in_depths)
-        event = lookup_journey_event(card, in_depths=in_depths, adventure_id=adventure_id)
+        # Once a (DEPTHS) card resolved, the day ends on the surface table: any further
+        # DEPTHS cards (moved to the end of the day) still read the surface row.
+        trace.append(in_depths and not entered_today)
+        event = lookup_journey_event(
+            card, in_depths=in_depths and not entered_today, adventure_id=adventure_id
+        )
         if event:
             tags = event.get("tags") or []
-            if "depths" in tags:
+            if "depths" in tags and not in_depths:
                 in_depths = True
+                entered_today = True
             if "exit" in tags:
                 in_depths = False
     return trace

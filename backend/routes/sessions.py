@@ -178,6 +178,8 @@ def _execute_shortcut(session_id: str, body: ShortcutBody) -> dict:
         result["user_message"] = sanitize_narration_dashes(result["user_message"])
     if isinstance(result.get("summary"), str):
         result["summary"] = sanitize_narration_dashes(result["summary"])
+    # e.g. Brambletrek: stash journey draws so the Journey panel can Apply / Finish day.
+    plugin.play.on_shortcut_result(session_id, {**char, "id": sess["character_id"]}, result)
     return result
 
 

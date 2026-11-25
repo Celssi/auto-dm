@@ -16,6 +16,7 @@ from backend.games.brambletrek.dm.curated import (
     format_recovery_draw,
     legacy_by_roll,
     legacy_id_by_roll,
+    order_depths_last,
 )
 from backend.games.brambletrek.modules.loader import (
     format_adventure_scene,
@@ -576,6 +577,20 @@ def run_shortcut(
         route_cards = cards[:n]
         activity_cards = cards[n : n * 2] if paired else None
         adventure_id = "" if use_depths else active_adventure
+        depths_note = ""
+        if not paired and not exploration_table:
+            drawn_order = list(route_cards)
+            route_cards, set_aside = order_depths_last(
+                route_cards, start_in_aldwund=use_depths, adventure_id=adventure_id
+            )
+            if route_cards != drawn_order:
+                depths_note = (
+                    f"\n\n**(DEPTHS)** — {route_cards[-1]} resolves as the last card of the "
+                    "day and ends the day's draws (Core Rulebook p. 24). From the next day "
+                    "you draw from the Aldwund tables."
+                )
+                if set_aside:
+                    depths_note += " Set aside (not resolved today): " + ", ".join(set_aside) + "."
         curated = ""
         if adventure_id:
             curated = format_adventure_scene(
@@ -600,13 +615,17 @@ def run_shortcut(
             + (" + activity results" if paired else "")
             + f", tables pp. {pages}.\n"
             f"{curated}\n\n"
-            "Using the curated rows above as ground truth, write a brief narrative "
-            "for each event in order. Do not contradict the listed stat changes, "
-            "Combat, (DEPTHS), (EXIT), (LORE), or (ITEM) tags."
+            f"{depths_note}\n\n"
+            "Using the curated rows above as ground truth, write a SHORT narrative "
+            "(2-3 sentences per event) in the order listed. Do not contradict the listed "
+            "stat changes, Combat, (DEPTHS), (EXIT), (LORE), or (ITEM) tags. A (DEPTHS) "
+            "card is always the last event of the day. The app applies the stat changes "
+            "when the player presses Apply in the Journey panel; do not tell the player "
+            "to edit the sheet."
         )
         user = (
-            f"**{title}** — {n} exploration event(s) (resolve in order).\n\n"
-            f"{deck_block}\n\n{curated}"
+            f"**{title}** — {len(route_cards)} exploration event(s) (resolve in order).\n\n"
+            f"{deck_block}\n\n{curated}{depths_note}"
         )
         return {
             "user_message": user,
@@ -775,7 +794,15 @@ def run_shortcut_for_plugin(shortcut_id: str, **char) -> dict:
     if kind in {"rag_only", "multi_draw_rag", "roll_rag", "card_rag"}:
         out = {**base, "task": "rag_direct"}
         if run.get("journey_cards"):
+            # Journey draws are resolved deterministically by the Journey panel (Apply /
+            # Finish day); no RAG answer generation, only optional short narration.
+            out["task"] = "journey"
             out["journey_cards"] = run["journey_cards"]
             out["journey_shortcut_id"] = shortcut_id
+            out["summary"] = (
+                f"Drew {len(run['journey_cards'])} card(s). Open the **Journey** panel: "
+                "**Apply** each event in order (stats, items and DEPTHS are applied by the "
+                "app), start combat on face cards, then **Finish day**."
+            )
         return out
     return {**base, "task": "rag_direct"}
