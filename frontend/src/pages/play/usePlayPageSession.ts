@@ -322,7 +322,18 @@ export function usePlayPageSession(
       });
       try {
         const { session } = await api.getSession(id);
-        if (seq !== loadSeqRef.current || !session.character_id) return;
+        if (seq !== loadSeqRef.current) return;
+        if (!session.character_id) {
+          dispatch({
+            type: 'set',
+            patch: {
+              sessionLoaded: true,
+              worldLoading: false,
+              loadError: 'This session has no character attached.',
+            },
+          });
+          return;
+        }
 
         const fetchCore = () =>
           Promise.all([
@@ -373,7 +384,18 @@ export function usePlayPageSession(
           fetchCore(),
           api.getAdventure(session.adventure_id).catch(() => null),
         ]);
-        if (seq !== loadSeqRef.current || !ch) return;
+        if (seq !== loadSeqRef.current) return;
+        if (!ch) {
+          dispatch({
+            type: 'set',
+            patch: {
+              sessionLoaded: true,
+              worldLoading: false,
+              loadError: 'Could not load the character for this session.',
+            },
+          });
+          return;
+        }
 
         const adventure = adventureResult?.adventure;
         let journalEntities: PlayState['journalEntities'] = [];
