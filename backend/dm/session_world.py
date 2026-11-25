@@ -154,10 +154,31 @@ def cached_world_entries(cache: dict[str, Any] | None) -> list[dict[str, str]]:
     return entries
 
 
+_LIST_MARKERS = " \t-*+•>#0123456789.)"
+
+
+def _inline_bold_names(text: str) -> list[str]:
+    """Bold names used inside a sentence; skip headings, list labels and "**Label**:" lines.
+
+    DM replies use bold for section headings ("**Day Summary**") and list labels
+    ("- **Precious Minerals** (+2 Morale)"); those are not people or places.
+    """
+    out: list[str] = []
+    for line in (text or "").splitlines():
+        for match in _MARKDOWN_NAME.finditer(line):
+            before = line[: match.start()].strip(_LIST_MARKERS)
+            after = line[match.end() :].lstrip()
+            if before and any(ch.isalpha() for ch in before):
+                out.append(match.group(1))
+            elif after and (after[0].isalpha() or after.startswith(("'s", "’s", ","))):
+                out.append(match.group(1))
+    return out
+
+
 def extract_marked_names(text: str) -> list[str]:
     names: list[str] = []
     seen: set[str] = set()
-    for match in _MARKDOWN_NAME.findall(text or ""):
+    for match in _inline_bold_names(text):
         name = match.strip()
         key = _norm(name)
         if key in seen or key in _COMMON_FALSE_POSITIVES or len(key) < 2:

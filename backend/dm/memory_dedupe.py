@@ -9,6 +9,7 @@ does the same for display only; it never rewrites stored data.
 from __future__ import annotations
 
 import re
+from functools import lru_cache
 
 UPDATE_MARKER = "[Update]"
 
@@ -36,6 +37,13 @@ _RULE_NAME_BLOCKLIST = {
     "reaction", "hit dice", "lay on hands", "concentration", "initiative",
     "death save", "armor class", "spell slot", "cantrip", "unarmed strike",
     "grapple", "shove", "help", "hide", "search", "ready", "dash", "disengage",
+}  # fmt: skip
+# Words that mark a heading or rules/mechanics label rather than a person or place.
+_RULE_TERM_WORDS = {
+    "summary", "reminder", "reminders", "table", "tables", "recovery", "journey",
+    "round", "tactic", "tactics", "rule", "rules", "note", "notes", "event", "events",
+    "deck", "stat", "stats", "morale", "health", "supplies", "mechanics", "initiative",
+    "outcome", "outcomes", "result", "results", "options", "next steps", "recap",
 }  # fmt: skip
 _NAME_PARTICLES = {"of", "the", "de", "du", "van", "von", "da", "del", "la", "le", "and", "in"}
 
@@ -130,6 +138,36 @@ _CONDITION_NAMES = {
 }
 
 
+@lru_cache(maxsize=1)
+def _curated_item_names() -> frozenset[str]:
+    """Item names from curated item tables (e.g. "Precious Minerals") are not NPCs."""
+    try:
+        import yaml
+
+        from backend.config import CURATED_DIR
+    except Exception:
+        return frozenset()
+    names: set[str] = set()
+
+    def walk(node: object) -> None:
+        if isinstance(node, dict):
+            label = node.get("label")
+            if isinstance(label, str) and 0 < len(label) <= 40:
+                names.add(label.strip().lower())
+            for value in node.values():
+                walk(value)
+        elif isinstance(node, list):
+            for value in node:
+                walk(value)
+
+    for path in sorted(CURATED_DIR.glob("*items*.yaml")):
+        try:
+            walk(yaml.safe_load(path.read_text(encoding="utf-8")))
+        except Exception:
+            continue
+    return frozenset(names)
+
+
 def looks_like_entity_name(name: str) -> bool:
     """Reject player options such as "Ask Dalla to come with you" posing as names."""
     cleaned = re.sub(r"\s+", " ", (name or "").strip().strip("*").strip())
@@ -139,6 +177,10 @@ def looks_like_entity_name(name: str) -> bool:
         return False
     words = cleaned.split(" ")
     if len(words) > 6:
+        return False
+    if any(w.lower().strip("'\"(),:-") in _RULE_TERM_WORDS for w in words):
+        return False
+    if cleaned.lower() in _curated_item_names():
         return False
     if words[0].lower() in _ACTION_VERBS and len(words) > 1:
         return False
