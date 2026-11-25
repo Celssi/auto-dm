@@ -72,7 +72,9 @@ from backend.games.brambletrek.modules.dragonkeep_state import (
 )
 from backend.games.brambletrek.rag_config import GAME_ID
 from backend.games.brambletrek.recovery import (
+    apply_pending_recoveries,
     format_recovery,
+    merge_pending_recovery_stats,
     resolve_zero_resources,
     rest_at_day_end,
 )
@@ -82,6 +84,30 @@ from backend.storage import get_character, get_session, save_character, update_s
 PENDING_JOURNEY_KEY = "pending_journey"
 COMBAT_CONTEXT_KEY = "combat_context"
 RECOVERY_SKIP_DAY_KEY = "recovery_skip_day"
+PENDING_RECOVERY_STATS_KEY = "pending_recovery_stats"
+
+
+def _pending_recovery_stats(extras: dict) -> list[str]:
+    raw = extras.get(PENDING_RECOVERY_STATS_KEY) or []
+    return [str(s) for s in raw if s]
+
+
+def _mark_zero_resources(char, extras: dict) -> list[str]:
+    pending = merge_pending_recovery_stats(_pending_recovery_stats(extras), char)
+    extras[PENDING_RECOVERY_STATS_KEY] = pending
+    return pending
+
+
+def _log_pending_recovery(
+    session_id: str, extras: dict, before: list[str], after: list[str]
+) -> None:
+    newly = [stat for stat in after if stat not in before]
+    for stat in newly:
+        log_mechanical(
+            session_id,
+            f"{stat.title()} reached 0. Spend the following day recovering "
+            f"(Core Rulebook p. 16); {stat} will return to half of maximum (rounded up).",
+        )
 
 
 def _log_recoveries(session_id: str, extras: dict, recoveries: list[dict]) -> None:
@@ -312,10 +338,12 @@ def pending_journey_payload(session_id: str, char_id: str) -> dict | None:
                 "combat_preview": combat_preview,
             }
         )
+    extras = _session_extras(session_id)
     return {
         "events": events,
         "shortcut_id": pending.get("shortcut_id"),
         "exploration_table": exploration_table,
+        "pending_recoveries": _pending_recovery_stats(extras),
     }
 
 
@@ -425,8 +453,10 @@ def apply_journey_event(session_id: str, char_id: str, event_index: int) -> dict
         )
     applied[event_index] = True
     pending["applied"] = applied
-    recoveries = resolve_zero_resources(char, char_id=char_id)
-    _log_recoveries(session_id, extras, recoveries)
+    marked_before = _pending_recovery_stats(extras)
+    pending_recoveries = _mark_zero_resources(char, extras)
+    _log_pending_recovery(session_id, extras, marked_before, pending_recoveries)
+    recoveries: list[dict] = []
     item_error = None
     if event_needs_item_draw(event):
         item_error = _draw_journey_item_card(
@@ -437,6 +467,7 @@ def apply_journey_event(session_id: str, char_id: str, event_index: int) -> dict
             event_index,
             event,
         )
+        pending_recoveries = _mark_zero_resources(char, extras)
     lore = None
     if event and "lore" in (event.get("tags") or []):
         lore = _draw_lore_fragment(session_id, char_id, extras, adventure_id)
@@ -454,6 +485,7 @@ def apply_journey_event(session_id: str, char_id: str, event_index: int) -> dict
     return {
         "summary": summary,
         "recoveries": recoveries,
+        "pending_recoveries": pending_recoveries,
         "item_error": item_error,
         "lore": lore,
         "character": entity,
@@ -504,7 +536,9 @@ def finish_journey_day(session_id: str, char_id: str) -> dict:
     pending = extras.get(PENDING_JOURNEY_KEY) or {}
     exploration_table = str(pending.get("exploration_table") or "")
 
-    rest = rest_at_day_end(char, char_id=char_id)
+    # p. 15: rest after today's events, then p. 16: the following day is spent
+    # recovering any resource that reached 0 (one lost day, even if several stats).
+    rest = rest_at_day_end(char, char_id=char_id, resolve_zeros=False)
     if rest["rested"]:
         log_mechanical(
             session_id,
@@ -512,7 +546,13 @@ def finish_journey_day(session_id: str, char_id: str) -> dict:
         )
     else:
         log_mechanical(session_id, "Fewer than 4 Supplies to rest: Supplies Recovery Table.")
-    _log_recoveries(session_id, extras, rest["recoveries"])
+        extras[PENDING_RECOVERY_STATS_KEY] = merge_pending_recovery_stats(
+            _pending_recovery_stats(extras) + ["supplies"], char
+        )
+    pending_stats = _mark_zero_resources(char, extras)
+    recoveries = apply_pending_recoveries(char, pending_stats, char_id=char_id)
+    extras.pop(PENDING_RECOVERY_STATS_KEY, None)
+    _log_recoveries(session_id, extras, recoveries)
     lost_day = bool(extras.pop(RECOVERY_SKIP_DAY_KEY, False))
     char.journey_day = max(1, char.journey_day + 1 + (1 if lost_day else 0))
     if lost_day:

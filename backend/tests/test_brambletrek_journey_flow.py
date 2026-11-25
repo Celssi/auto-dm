@@ -162,3 +162,67 @@ def test_ui_labels_are_not_npcs():
         "start **Combat** on face cards, then **Finish day**."
     )
     assert extract_marked_names(text) == []
+
+
+def test_zero_stats_restore_on_the_following_day_and_cost_one_day(isolated_saves):
+    """Core Rulebook p. 16: hitting 0 mid-day does not restore immediately.
+
+    Restore to half of max (rounded up) happens on the following day, which is
+    lost (no event cards). Several resources reaching 0 still cost one day.
+    Sequence from the QA session starting Day 2, HP 8, Morale 11, Supplies 13.
+    """
+    from backend.games.brambletrek import play_handlers
+    from backend.storage import create_session, get_character, save_character
+
+    save_character(
+        "qa2",
+        {
+            "id": "qa2",
+            "game_id": "brambletrek",
+            "name": "QA Bramble 2",
+            "legacy": "seer",
+            "health": 8,
+            "morale": 11,
+            "supplies": 13,
+            "journey_day": 2,
+        },
+    )
+    sid = create_session(character_id="qa2", adventure_id="")
+    cards = ["9 of clubs", "ace of clubs", "7 of spades", "8 of diamonds"]
+    result = _journey_shortcut(sid, cards=cards)
+    assert result["journey_cards"] == cards
+
+    item = {"ok": True, "cards": ["2 of clubs"], "remaining": 40}
+    rec_draws = [
+        {"ok": True, "cards": [c], "remaining": n}
+        for n, c in ((39, "jack of diamonds"), (38, "4 of diamonds"), (37, "9 of spades"))
+    ]
+    # Item draw goes through play_handlers.draw_cards; recovery through recovery.draw_cards.
+    with (
+        patch("backend.games.brambletrek.play_handlers.draw_cards", return_value=item),
+        patch("backend.games.brambletrek.recovery.draw_cards", side_effect=rec_draws),
+    ):
+        after = [play_handlers.apply_journey_event(sid, "qa2", i) for i in range(4)]
+
+    char = get_character("qa2")
+    # Mid-day: no half-max restore. 8-9→0, all-10 stays 0 / M 1 / S 3,
+    # then M-3 & S-3 → 0, 8♦ Supplies +8, pebble +1 Health.
+    assert (char["health"], char["morale"], char["supplies"]) == (1, 0, 8)
+    assert char["in_aldwund"] is True
+    assert char["journey_day"] == 2
+    assert after[-1]["pending_recoveries"] == ["health", "morale", "supplies"]
+    # Must not have already skipped a day or restored to 10 mid-apply.
+    assert all(not ev.get("recoveries") for ev in after)
+
+    with patch(
+        "backend.games.brambletrek.recovery.draw_cards",
+        side_effect=rec_draws,
+    ):
+        out = play_handlers.finish_journey_day(sid, "qa2")
+    char = get_character("qa2")
+    # Rest first (p. 15): -4 Supplies, +2 Health → HP 3, S 4.
+    # Recovery day (p. 16): each marked stat to half of 20, rounded up (10).
+    # One lost day + the normal +1: Day 2 → 4.
+    assert out["lost_day"] is True
+    assert (char["health"], char["morale"], char["supplies"]) == (10, 10, 10)
+    assert char["journey_day"] == 4

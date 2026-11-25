@@ -219,6 +219,7 @@ export interface PendingJourney {
   events: JourneyEvent[];
   shortcut_id?: string;
   exploration_table?: string;
+  pending_recoveries?: string[];
 }
 
 export interface DragonkeepGemOption {

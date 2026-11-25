@@ -51,21 +51,64 @@ def resolve_zero_resources(char: BrambletrekCharacter, *, char_id: str) -> list[
     ]
 
 
-def rest_at_day_end(char: BrambletrekCharacter, *, char_id: str) -> dict[str, Any]:
+def stats_at_zero(char: BrambletrekCharacter) -> list[str]:
+    return [stat for stat in RECOVERY_STATS if int(getattr(char, stat)) <= 0]
+
+
+def merge_pending_recovery_stats(
+    pending: list[str] | None, char: BrambletrekCharacter
+) -> list[str]:
+    """Keep a mark for every resource that reached 0; later gains do not cancel it (p. 16)."""
+    marked = {str(s) for s in (pending or []) if s in RECOVERY_STATS}
+    marked.update(stats_at_zero(char))
+    return [stat for stat in RECOVERY_STATS if stat in marked]
+
+
+def apply_pending_recoveries(
+    char: BrambletrekCharacter, stats: list[str], *, char_id: str
+) -> list[dict[str, Any]]:
+    """Restore each marked stat to half of max on the recovery day (one table draw per stat)."""
+    recoveries: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    for stat in RECOVERY_STATS:
+        if stat not in stats or stat in seen:
+            continue
+        seen.add(stat)
+        recoveries.append(recover_resource(char, stat, char_id=char_id))
+    return recoveries
+
+
+def rest_at_day_end(
+    char: BrambletrekCharacter, *, char_id: str, resolve_zeros: bool = True
+) -> dict[str, Any]:
     """End-of-day rest (p. 15): pay 4 Supplies for +2 Health, else Supplies Recovery now."""
     if int(char.supplies) >= REST_SUPPLY_COST:
         char.supplies = int(char.supplies) - REST_SUPPLY_COST
         before = int(char.health)
         char.health = min(MAX_STAT, before + REST_HEALTH_GAIN)
+        recoveries = resolve_zero_resources(char, char_id=char_id) if resolve_zeros else []
         return {
             "rested": True,
             "supplies_spent": REST_SUPPLY_COST,
             "health_gained": int(char.health) - before,
-            "recoveries": resolve_zero_resources(char, char_id=char_id),
+            "recoveries": recoveries,
         }
-    recoveries = [recover_resource(char, "supplies", char_id=char_id)]
-    recoveries.extend(resolve_zero_resources(char, char_id=char_id))
-    return {"rested": False, "supplies_spent": 0, "health_gained": 0, "recoveries": recoveries}
+    if resolve_zeros:
+        recoveries = [recover_resource(char, "supplies", char_id=char_id)]
+        recoveries.extend(resolve_zero_resources(char, char_id=char_id))
+        return {
+            "rested": False,
+            "supplies_spent": 0,
+            "health_gained": 0,
+            "recoveries": recoveries,
+        }
+    return {
+        "rested": False,
+        "supplies_spent": 0,
+        "health_gained": 0,
+        "recoveries": [],
+        "needs_supplies_recovery": True,
+    }
 
 
 def format_recovery(rec: dict[str, Any]) -> str:

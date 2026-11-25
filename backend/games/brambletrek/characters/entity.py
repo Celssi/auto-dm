@@ -162,6 +162,13 @@ def default_character() -> BrambletrekCharacter:
     return BrambletrekCharacter()
 
 
+def _int_or(data: dict, key: str, default: int) -> int:
+    """Parse an int field; 0 is a valid resource value and must not fall back to default."""
+    if key not in data or data[key] is None or data[key] == "":
+        return default
+    return int(data[key])
+
+
 def character_from_dict(data: dict | None) -> BrambletrekCharacter:
     if not data:
         return default_character()
@@ -173,9 +180,9 @@ def character_from_dict(data: dict | None) -> BrambletrekCharacter:
         background_band=str(data.get("background_band", "") or ""),
         trinket_band=str(data.get("trinket_band", "") or ""),
         legacy=str(data.get("legacy", "") or ""),
-        health=int(data.get("health", 10) or 10),
-        morale=int(data.get("morale", 10) or 10),
-        supplies=int(data.get("supplies", 10) or 10),
+        health=_int_or(data, "health", 10),
+        morale=_int_or(data, "morale", 10),
+        supplies=_int_or(data, "supplies", 10),
         journey_day=int(data.get("journey_day", 1) or 1),
         in_aldwund=bool(data.get("in_aldwund", False)),
         active_adventure=str(data.get("active_adventure", "") or ""),

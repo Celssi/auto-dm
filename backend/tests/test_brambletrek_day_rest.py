@@ -80,3 +80,19 @@ def test_draw_error_key_present():
 
     out = draw_cards(0, game_id="brambletrek", char_id="x")
     assert out["ok"] is False and out["error"]
+
+
+def test_later_gain_does_not_cancel_recovery_mark():
+    from backend.games.brambletrek.recovery import merge_pending_recovery_stats
+
+    char = BrambletrekCharacter(name="R", health=1, morale=0, supplies=8)
+    pending = merge_pending_recovery_stats(["health"], char)
+    assert pending == ["health", "morale"]
+
+
+def test_zero_resources_survive_reload():
+    from backend.games.brambletrek.characters.entity import character_from_dict, character_to_dict
+
+    char = BrambletrekCharacter(name="R", health=0, morale=0, supplies=0)
+    loaded = character_from_dict(character_to_dict(char))
+    assert (loaded.health, loaded.morale, loaded.supplies) == (0, 0, 0)
