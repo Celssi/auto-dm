@@ -143,3 +143,48 @@ legacies:
         label: Calm
         description: "Draw an extra card and subtract its value from a negative event outcome."
         tags: [exploration]
+
+  # Module legacies (not part of the Core Rulebook legacy roll).
+  snacker:
+    label: Snacker
+    module: first_frost
+    source: "The Warmth of the First Frost (Complete Digital Edition, module p. 3)"
+    boost: "+5 Health"
+    flaw: "−3 Supplies"
+    health_delta: 5
+    supplies_delta: -3
+    abilities:
+      - id: culinary_assault
+        label: Culinary Assault
+        description: "Once per day, attack by throwing your items, draw a card and deal that much damage but lose supplies equal to half the value (rounded down)."
+      - id: scavenger
+        label: Scavenger
+        description: "Each time you discover supplies, gain 1 health too."
+      - id: feast
+        label: Feast
+        description: "Once per day, during combat, eat any number of supplies and gain temporary health equal to the amount eaten. (Temporary health acts like a shield and any damage is dealt to that first and it disappears at the end of combat.)"
+      - id: quick_meal
+        label: Quick Meal
+        description: "Once per day, restore 3 supplies or 3 health."
+
+  surveyor:
+    label: Surveyor
+    module: winter_gift
+    source: "A Winter Gift p. 1"
+    boost: "+5 Supplies"
+    flaw: "−3 Morale"
+    supplies_delta: 5
+    morale_delta: -3
+    abilities:
+      - id: chart_the_path
+        label: Chart the Path
+        description: "Once per day, redraw an exploration event card and choose which result to resolve."
+      - id: careful_notes
+        label: Careful Notes
+        description: "Once per day, reduce the resource loss from an event or attack by 3."
+      - id: mapped_retreat
+        label: Mapped Retreat
+        description: "Once per day, during combat, ignore all damage from a single attack by repositioning using terrain knowledge."
+      - id: recorded_insight
+        label: Recorded Insight
+        description: "Once per day, draw one additional card. You may keep it aside and use it later the same day."
