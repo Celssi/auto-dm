@@ -471,6 +471,19 @@ def resolve_opponent_turn_effects(state: dict[str, Any], *, skipped: bool) -> li
     minion = opponent.get("minion") if isinstance(opponent.get("minion"), dict) else None
     if not skipped and minion and int(minion.get("hp") or 0) > 0:
         damage_player(state, int(minion.get("damage") or 0), lines, source=str(minion.get("label")))
+    dots = list(buffs.get("player_dots") or [])
+    keep = []
+    for row in dots:
+        if row.get("fresh"):
+            row["fresh"] = False
+            keep.append(row)
+            continue
+        if int(row.get("damage") or 0) > 0 and int(row.get("turns") or 0) > 0:
+            damage_player(state, int(row["damage"]), lines, source="lingering effect")
+            row["turns"] = int(row["turns"]) - 1
+        if int(row.get("turns") or 0) > 0:
+            keep.append(row)
+    buffs["player_dots"] = keep
     return lines
 
 
@@ -519,9 +532,10 @@ def _apply_opponent_side(
         lost = before - int(player_state(state)["morale"])
         if tactic.get("morale_temporary") and lost:
             buffs.setdefault("morale_temp", []).append({"amount": lost, "age": 0})
-    if tactic.get("skip_turn"):
-        _inc(buffs, "skip_player")
-        lines.append("You lose your next turn.")
+    if tactic.get("skip_turn") or tactic.get("skip_turns"):
+        n = int(tactic.get("skip_turns") or 1)
+        _inc(buffs, "skip_player", n)
+        lines.append("You lose your next turn." if n == 1 else f"You lose your next {n} turns.")
     if int(tactic.get("self_damage") or 0) > 0:
         sd = int(tactic["self_damage"])
         opponent["hp"] = max(0, int(opponent.get("hp") or 0) - sd)
@@ -554,13 +568,40 @@ def _apply_opponent_side(
     if tactic.get("player_attacks_miss_turns"):
         _inc(buffs, "player_attacks_miss_turns", int(tactic["player_attacks_miss_turns"]))
     if tactic.get("reduce_player_damage"):
+        turns = 999 if tactic.get("reduce_player_damage_until_end") else int(
+            tactic.get("reduce_player_damage_turns") or 1
+        )
         add_timed(
             state,
             "reduce_player_damage",
             int(tactic["reduce_player_damage"]),
-            int(tactic.get("reduce_player_damage_turns") or 1),
+            turns,
             created_by="opponent",
         )
+    if tactic.get("player_dot_damage"):
+        buffs.setdefault("player_dots", []).append(
+            {
+                "damage": int(tactic["player_dot_damage"]),
+                "turns": int(tactic.get("player_dot_turns") or 1),
+                "fresh": True,
+            }
+        )
+        lines.append(
+            f"You will take {int(tactic['player_dot_damage'])} damage "
+            f"for the next {int(tactic.get('player_dot_turns') or 1)} turn(s)."
+        )
+    if tactic.get("steal_last_item") or tactic.get("destroy_last_item"):
+        items = list(state.get("combat_items") or [])
+        verb = "steals" if tactic.get("steal_last_item") else "destroys"
+        if items:
+            taken = items.pop()
+            state["combat_items"] = items
+            lines.append(f"{label} {verb} your {taken}.")
+        elif state.get("last_item"):
+            taken = state.pop("last_item")
+            lines.append(f"{label} {verb} your {taken}.")
+        else:
+            lines.append(f"{label} tries to {verb[:-1]} an item, but you have none at hand.")
     if tactic.get("opponent_armor"):
         add_timed(
             state,

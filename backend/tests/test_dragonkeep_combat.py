@@ -46,16 +46,52 @@ def test_water_elemental_tactic_band():
     assert opp and opp.get("health") == 14
     tactic = lookup_opponent_tactic("dragonkeep", "water_elemental", "5 of hearts")
     assert tactic and tactic.get("band") == "5-7"
-    assert "Aqua Dart" in tactic.get("label", "")
+    assert "Mist Veil" in tactic.get("label", "")
 
 
 def test_face_card_tactic_jack():
     tactic = lookup_opponent_tactic("dragonkeep", "naiad", "jack of spades")
     assert tactic and tactic.get("band") == "jack"
-    assert "Whirlpool" in tactic.get("label", "")
+    assert "Siren's Song" in tactic.get("label", "")
 
 
 def test_exploration_face_card_jack():
     row = lookup_module_exploration_row("dragonkeep", "path_of_tempest", "jack of hearts")
     assert row is not None
     assert row.get("combat") is True
+
+
+def test_water_elemental_and_naiad_tables_match_book():
+    we = lookup_opponent_tactic("dragonkeep", "water_elemental", "2 of hearts")
+    na = lookup_opponent_tactic("dragonkeep", "naiad", "2 of clubs")
+    assert we and we.get("label", "").startswith("Ripple Strike")
+    assert na and na.get("label", "").startswith("Soothing Melody")
+    ace = lookup_opponent_tactic("dragonkeep", "water_elemental", "ace of spades")
+    assert ace and "Torrential Wrath" in ace.get("label", "")
+
+
+def test_king_crab_dangerous_waters_is_player_dot():
+    tactic = lookup_opponent_tactic("dragonkeep", "king_crab", "queen of hearts")
+    assert tactic and tactic.get("player_dot_damage") == 2
+    assert tactic.get("player_dot_turns") == 3
+
+
+def test_enchanted_treant_sap_coating_is_armor():
+    tactic = lookup_opponent_tactic("dragonkeep", "enchanted_treant", "6 of diamonds")
+    assert tactic and tactic.get("opponent_armor") == 3
+    assert "reduce_player_damage" not in tactic or not tactic.get("reduce_player_damage")
+
+
+def test_enchanted_treant_timber_smash_self_damage():
+    tactic = lookup_opponent_tactic("dragonkeep", "enchanted_treant", "king of clubs")
+    assert tactic and tactic.get("damage") == 7 and tactic.get("self_damage") == 4
+
+
+def test_fire_elemental_book_tactics():
+    jack = lookup_opponent_tactic("dragonkeep", "fire_elemental", "jack of hearts")
+    queen = lookup_opponent_tactic("dragonkeep", "fire_elemental", "queen of hearts")
+    ace = lookup_opponent_tactic("dragonkeep", "fire_elemental", "ace of hearts")
+    assert jack and jack.get("reduce_player_damage") == 1
+    assert jack.get("reduce_player_damage_until_end")
+    assert queen and queen.get("destroy_last_item")
+    assert ace and ace.get("damage") == 5 and ace.get("reduce_player_damage_turns") == 3

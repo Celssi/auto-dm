@@ -234,3 +234,53 @@ def test_combat_route_lost_triggers_health_recovery(isolated_saves, monkeypatch)
     assert out["combat"]["status"] == "lost"
     assert out["character"]["health"] == 10  # half of max 20, rounded up (p. 16)
     assert out["combat"]["recovery"][0]["stat"] == "health"
+
+
+def test_player_dot_ticks_on_following_opponent_turns():
+    from backend.games.brambletrek.combat.effects import (
+        apply_tactic_effects,
+        resolve_opponent_turn_effects,
+    )
+
+    state = {"opponent": {"label": "Crab", "hp": 12, "max_hp": 12}, "player": {"hp": 10}}
+    apply_tactic_effects(
+        state,
+        {"label": "Dangerous Waters", "player_dot_damage": 2, "player_dot_turns": 3},
+        actor="opponent",
+    )
+    assert state["player"]["hp"] == 10
+    # Same opponent turn as the tactic: DoT is armed but does not tick yet.
+    resolve_opponent_turn_effects(state, skipped=False)
+    assert state["player"]["hp"] == 10
+    resolve_opponent_turn_effects(state, skipped=False)
+    assert state["player"]["hp"] == 8
+    resolve_opponent_turn_effects(state, skipped=False)
+    assert state["player"]["hp"] == 6
+    resolve_opponent_turn_effects(state, skipped=False)
+    assert state["player"]["hp"] == 4
+    resolve_opponent_turn_effects(state, skipped=False)
+    assert state["player"]["hp"] == 4
+
+
+def test_skip_turns_counts_two_player_turns():
+    from backend.games.brambletrek.combat.effects import apply_tactic_effects
+
+    state = {
+        "opponent": {"label": "Sprite", "hp": 8, "max_hp": 8},
+        "player": {"hp": 10},
+        "buffs": {},
+    }
+    apply_tactic_effects(
+        state,
+        {"label": "Enchanted Whirl", "damage": 3, "skip_turn": True, "skip_turns": 2},
+        actor="opponent",
+    )
+    assert state["player"]["hp"] == 7
+    assert int((state.get("buffs") or {}).get("skip_player") or 0) == 2
+
+
+def test_molten_golem_regeneration_is_hot():
+    from backend.games.brambletrek.modules.combat import lookup_opponent_tactic
+
+    tactic = lookup_opponent_tactic("dragonkeep", "molten_golem", "queen of spades")
+    assert tactic and tactic.get("heal_per_turn") == 2 and tactic.get("heal_per_turn_turns") == 3

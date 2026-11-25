@@ -297,6 +297,62 @@ combat:
       health: 14
       tactics:
         2-4:
+          label: 'Ripple Strike: Quick water lash, dealing 2 damage.'
+          damage: 2
+        5-7:
+          label: 'Mist Veil: Evades the next attack.'
+          opponent_evades_next: 1
+        8-10:
+          label: 'Surge Blast: Strong water jet, dealing 3 damage.'
+          damage: 3
+        jack:
+          label: 'Whirlpool Spin: Reduces player''s attack by 1 next turn.'
+          reduce_player_damage: 1
+          reduce_player_damage_turns: 1
+        queen:
+          label: 'Hydro Heal: Restores 2 health points to itself.'
+          heal: 2
+        king:
+          label: 'Tidal Wave: Powerful wave attack, dealing 4 damage.'
+          damage: 4
+        ace:
+          label: 'Torrential Wrath: Unleashes a fierce storm, dealing 5 damage and skipping the player''s next turn.'
+          damage: 5
+          skip_turn: true
+    king_crab:
+      label: King Crab
+      health: 16
+      tactics:
+        2-4:
+          label: 'Brackish Snap: Quick pincer attack, dealing 2 damage.'
+          damage: 2
+        5-7:
+          label: 'Shell Guard: Reduces next damage taken by half (rounded up).'
+          opponent_halve_next: 1
+        8-10:
+          label: 'Tidal Pincer: Strong claw attack, dealing 3 damage.'
+          damage: 3
+        jack:
+          label: 'Saltwater Spray: Reduces player''s attack damage by 3 next turn.'
+          reduce_player_damage: 3
+          reduce_player_damage_turns: 1
+        queen:
+          label: 'Dangerous Waters: Deal 2 damage to the player for next 3 turns.'
+          player_dot_damage: 2
+          player_dot_turns: 3
+        king:
+          label: 'Crushing Claw: Powerful grip, dealing 4 damage.'
+          damage: 4
+        ace:
+          label: 'Ocean''s Fury: Summons an ally to deal 5 damage and reduce damage taken by 3 next turn.'
+          damage: 5
+          opponent_armor: 3
+          opponent_armor_turns: 1
+    naiad:
+      label: Naiad
+      health: 12
+      tactics:
+        2-4:
           label: 'Soothing Melody: Lowers damage taken by 1 next 3 turns.'
           opponent_armor: 1
           opponent_armor_turns: 3
@@ -320,59 +376,6 @@ combat:
           damage: 5
           reduce_player_damage: 2
           reduce_player_damage_turns: 1
-    king_crab:
-      label: King Crab
-      health: 16
-      tactics:
-        2-4:
-          label: 'Brackish Snap: Quick pincer attack, dealing 2 damage.'
-          damage: 2
-        5-7:
-          label: 'Shell Guard: Reduces next damage taken by half (rounded up).'
-          opponent_halve_next: 1
-        8-10:
-          label: 'Tidal Pincer: Strong claw attack, dealing 3 damage.'
-          damage: 3
-        jack:
-          label: 'Saltwater Spray: Reduces player''s attack damage by 3 next turn.'
-          reduce_player_damage: 3
-          reduce_player_damage_turns: 1
-        queen:
-          label: 'Dangerous Waters: Deal 2 damage to the player for next 3 turns.'
-          damage: 2
-        king:
-          label: 'Crushing Claw: Powerful grip, dealing 4 damage.'
-          damage: 4
-        ace:
-          label: 'Ocean''s Fury: Ally deals 5 damage; reduce damage taken by 3 next turn.'
-          damage: 5
-    naiad:
-      label: Naiad
-      health: 12
-      tactics:
-        2-4:
-          label: 'Ripple Strike: Quick water lash, dealing 2 damage.'
-          damage: 2
-        5-7:
-          label: 'Mist Veil: Evades the next attack.'
-          opponent_evades_next: 1
-        8-10:
-          label: 'Surge Blast: Strong water jet, dealing 3 damage.'
-          damage: 3
-        jack:
-          label: 'Whirlpool Spin: Reduces player''s attack by 1 next turn.'
-          reduce_player_damage: 1
-          reduce_player_damage_turns: 1
-        queen:
-          label: 'Hydro Heal: Restores 2 health points to itself.'
-          heal: 2
-        king:
-          label: 'Tidal Wave: Powerful wave attack, dealing 4 damage.'
-          damage: 4
-        ace:
-          label: 'Abyssal Torrent: Deals 5 damage and stuns the player next turn.'
-          damage: 5
-          skip_turn: true
     fire_elemental:
       label: Elemental of Embers
       health: 14
@@ -388,18 +391,21 @@ combat:
           label: 'Inferno Burst: Fiery explosion, dealing 3 damage.'
           damage: 3
         jack:
-          label: 'Cinder Dance: Disorients the player, reducing attack by 2 next turn.'
-          reduce_player_damage: 2
-          reduce_player_damage_turns: 1
+          label: 'Cinder Dance: Disorients, reducing player attack by 1 until end of combat.'
+          reduce_player_damage: 1
+          reduce_player_damage_until_end: true
         queen:
-          label: 'Flame Renewal: Restores 3 health to itself.'
-          heal: 3
+          label: 'Molten Heat: Destroy the last item used.'
+          destroy_last_item: true
         king:
-          label: 'Volcanic Strike: Deals 4 damage.'
+          label: 'Flame Vortex: Creates a swirling firestorm, dealing 4 damage.'
           damage: 4
         ace:
-          label: 'Inferno: Deals 5 damage and burns for 2 over next 2 turns.'
+          label: 'Firestorm Fury: Engulfs the area in fire, dealing 5 damage and reducing the player''s attack by
+            1 for 3 turns.'
           damage: 5
+          reduce_player_damage: 1
+          reduce_player_damage_turns: 3
     molten_golem:
       label: Molten Golem
       health: 18
@@ -418,8 +424,10 @@ combat:
           opponent_damage_bonus: 2
           opponent_damage_bonus_turns: 2
         queen:
-          label: 'Regeneration: Heals 2 health per turn for 3 turns.'
+          label: 'Regeneration: Slowly restores its stony form, heals 2 health per turn for 3 turns.'
           heal: 2
+          heal_per_turn: 2
+          heal_per_turn_turns: 3
         king:
           label: 'Volcanic Smash: Deals 4 damage.'
           damage: 4
@@ -450,8 +458,10 @@ combat:
           label: 'Solar Flare: Deals 4 damage.'
           damage: 4
         ace:
-          label: 'Pyre Burst: Deals 5 damage and 1 damage per turn for 2 turns.'
+          label: 'Pyre Burst: Dealing 5 damage & 1 damage per turn for 2 turns.'
           damage: 5
+          player_dot_damage: 1
+          player_dot_turns: 2
     forest_elemental:
       label: Forest Elemental
       health: 14
@@ -468,8 +478,10 @@ combat:
           label: 'Leafstorm: Whirls leaves to deal 2 damage.'
           damage: 2
         jack:
-          label: 'Nature''s Embrace: Restores 1 health for the next 3 turns.'
+          label: 'Nature''s Embrace: Restores health by 1 for the next 3 turns.'
           heal: 1
+          heal_per_turn: 1
+          heal_per_turn_turns: 3
         queen:
           label: 'Entangling Vines: Player skips a turn.'
           skip_turn: true
@@ -477,8 +489,10 @@ combat:
           label: 'Crushing Limbs: Deals 4 damage.'
           damage: 4
         ace:
-          label: 'Ancient Growth: Restores 5 health and +4 damage on next tactic.'
+          label: 'Ancient Growth: Restores 5 health and deals +4 damage on the next tactic card.'
           heal: 5
+          opponent_damage_bonus: 4
+          opponent_damage_bonus_turns: 1
     enchanted_treant:
       label: Enchanted Treant
       health: 20
@@ -487,12 +501,13 @@ combat:
           label: 'Branch Whip: Strikes with a long branch, dealing 3 damage.'
           damage: 3
         5-7:
-          label: 'Sap Coating: Reduces damage taken by 3.'
-          reduce_player_damage: 3
-          reduce_player_damage_turns: 1
+          label: 'Sap Coating: Creates a sap layer that reduces damage taken by 3.'
+          opponent_armor: 3
+          opponent_armor_turns: 1
         8-10:
-          label: 'Twig Barrage: 2 damage per turn for 3 turns.'
-          damage: 2
+          label: 'Twig Barrage: Launches a flurry of sharp twigs to deal 2 damage per turn for 3 turns.'
+          player_dot_damage: 2
+          player_dot_turns: 3
         jack:
           label: 'Woodland Stealth: Evades the next tactic card.'
           opponent_evades_next: 1
@@ -500,11 +515,13 @@ combat:
           label: 'Healing Roots: Heals 5 health points.'
           heal: 5
         king:
-          label: 'Timber Smash: Deals 7 damage to opponent and 4 to itself.'
+          label: 'Timber Smash: A heavy, smashing attack that deals 7 damage to the opponent and 4 damage to itself.'
           damage: 7
+          self_damage: 4
         ace:
-          label: 'Forest''s Fury: 2 damage per turn for 2 turns.'
-          damage: 2
+          label: 'Forest''s Fury: Uses all nature nearby to deal 2 damage per turn for 2 turns.'
+          player_dot_damage: 2
+          player_dot_turns: 2
     woodland_sprite:
       label: Woodland Sprite
       health: 10
@@ -527,9 +544,12 @@ combat:
           evade: true
         king:
           label: 'Sprite''s Mischief: Steals the last item found by the player.'
+          steal_last_item: true
         ace:
-          label: 'Enchanted Whirl: Deals 3 damage; player skips next 2 turns.'
+          label: 'Enchanted Whirl: Magic that deals 3 damage, skips the player''s next 2 turns.'
           damage: 3
+          skip_turn: true
+          skip_turns: 2
     forest_wyrm:
       label: Forest Wyrm
       health: 18
@@ -539,6 +559,7 @@ combat:
           damage: 3
         5-7:
           label: 'Scale Armour: Halves next damage.'
+          opponent_halve_next: 1
         8-10:
           label: 'Tail Sweep: Deals 4 damage.'
           damage: 4
