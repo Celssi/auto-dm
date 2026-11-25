@@ -86,9 +86,46 @@ def build_standard_deck() -> list[str]:
     return cards
 
 
+def _deck_path(scope_key: str):
+    """Deck state lives under saves/decks/ so it survives restarts and Cloud Run instances."""
+    import backend.storage as storage
+
+    safe = re.sub(r"[^A-Za-z0-9_.-]+", "_", scope_key)
+    return storage.SAVES_DIR / "decks" / f"{safe}.json"
+
+
+def _load_deck(scope_key: str) -> list[str] | None:
+    import backend.storage as storage
+
+    path = _deck_path(scope_key)
+    if not path.is_file():
+        try:
+            from backend.gcs_sync import refresh_saves_path
+
+            refresh_saves_path(path)
+        except Exception:  # pragma: no cover - best effort on cold start
+            pass
+    data = storage._read_json(path, None)
+    if isinstance(data, dict) and isinstance(data.get("cards"), list):
+        return [str(c) for c in data["cards"]]
+    return None
+
+
+def _save_deck(scope_key: str) -> None:
+    import backend.storage as storage
+
+    storage._write_json(_deck_path(scope_key), {"cards": _deck_store.get(scope_key, [])})
+
+
 def _ensure_deck(scope_key: str) -> None:
-    if scope_key not in _deck_store:
-        _deck_store[scope_key] = build_standard_deck()
+    if scope_key in _deck_store:
+        return
+    loaded = _load_deck(scope_key)
+    if loaded is not None:
+        _deck_store[scope_key] = loaded
+        return
+    _deck_store[scope_key] = build_standard_deck()
+    _save_deck(scope_key)
 
 
 def deck_remaining(game_id: str, char_id: str | None = None) -> int:
@@ -100,6 +137,7 @@ def deck_remaining(game_id: str, char_id: str | None = None) -> int:
 def reset_deck(game_id: str, char_id: str | None = None) -> dict[str, Any]:
     scope = deck_scope_key(game_id, char_id)
     _deck_store[scope] = build_standard_deck()
+    _save_deck(scope)
     remaining = len(_deck_store[scope])
     return {
         "ok": True,
@@ -122,17 +160,21 @@ def draw_cards(
             "cards": [],
             "remaining": deck_remaining(game_id, char_id),
             "summary": "Draw count must be at least 1.",
+            "error": "Draw count must be at least 1.",
         }
     _ensure_deck(scope)
     deck = _deck_store[scope]
     if len(deck) < count:
+        msg = f"Not enough cards left (requested {count}, {len(deck)} remaining). Reset the deck."
         return {
             "ok": False,
             "cards": deck.copy(),
             "remaining": len(deck),
-            "summary": f"Not enough cards left (requested {count}, {len(deck)} remaining). Reset the deck.",
+            "summary": msg,
+            "error": msg,
         }
     drawn = [deck.pop() for _ in range(count)]
+    _save_deck(scope)
     remaining = len(deck)
     if count == 1:
         summary = f"Drew **{drawn[0]}** ({remaining} cards left)."
@@ -146,4 +188,5 @@ def format_card_result(result: dict[str, Any]) -> str:
 
 
 def clear_deck_store() -> None:
+    """Drop the in-process cache (persisted deck files are reloaded on next use)."""
     _deck_store.clear()
