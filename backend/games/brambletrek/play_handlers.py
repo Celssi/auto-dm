@@ -71,11 +71,25 @@ from backend.games.brambletrek.modules.dragonkeep_state import (
     to_door,
 )
 from backend.games.brambletrek.rag_config import GAME_ID
-from backend.play_tools import draw_cards, format_card_result
+from backend.games.brambletrek.recovery import (
+    format_recovery,
+    resolve_zero_resources,
+    rest_at_day_end,
+)
+from backend.play_tools import draw_cards, format_card_result, reset_deck
 from backend.storage import get_character, get_session, save_character, update_session_extras
 
 PENDING_JOURNEY_KEY = "pending_journey"
 COMBAT_CONTEXT_KEY = "combat_context"
+RECOVERY_SKIP_DAY_KEY = "recovery_skip_day"
+
+
+def _log_recoveries(session_id: str, extras: dict, recoveries: list[dict]) -> None:
+    """Log Recovery Table results; a recovery costs the following day (p. 16)."""
+    for rec in recoveries:
+        log_mechanical(session_id, format_recovery(rec))
+    if recoveries:
+        extras[RECOVERY_SKIP_DAY_KEY] = True
 
 
 def get_session_combat_context(session_id: str) -> dict[str, Any] | None:
@@ -252,7 +266,8 @@ def pending_journey_payload(session_id: str, char_id: str) -> dict | None:
             exploration_table=exploration_table,
         )
         item_card = item_cards[i] if i < len(item_cards) else None
-        item = lookup_item(item_card) if item_card else None
+        item_depths = bool(in_depths and not exploration_table)
+        item = lookup_item(item_card, in_depths=item_depths) if item_card else None
         zone = zone_label or ("Depths" if in_depths else "Surface")
         item_label = item.get("label") if item else None
         is_combat = bool(event and event.get("combat"))
@@ -321,10 +336,11 @@ def _draw_journey_item_card(
     item_card = result["cards"][0]
     item_cards[event_index] = item_card
     pending["item_cards"] = item_cards
-    item = lookup_item(item_card)
+    in_depths = bool(event and event.get("zone") == "aldwund")
+    item = lookup_item(item_card, in_depths=in_depths)
     effect_line = apply_item_effects(char, item) if item else ""
-    log_draw(session_id, [item_card], label="Item draw")
-    log_mechanical(session_id, format_item_draw(item_card))
+    log_draw(session_id, [item_card], label="Aldwund item draw" if in_depths else "Item draw")
+    log_mechanical(session_id, format_item_draw(item_card, in_depths=in_depths))
     if effect_line and effect_line != "No immediate stat change":
         log_mechanical(session_id, effect_line)
     return None
@@ -404,6 +420,8 @@ def apply_journey_event(session_id: str, char_id: str, event_index: int) -> dict
         )
     applied[event_index] = True
     pending["applied"] = applied
+    recoveries = resolve_zero_resources(char, char_id=char_id)
+    _log_recoveries(session_id, extras, recoveries)
     item_error = None
     if event_needs_item_draw(event):
         item_error = _draw_journey_item_card(
@@ -425,6 +443,7 @@ def apply_journey_event(session_id: str, char_id: str, event_index: int) -> dict
     )
     return {
         "summary": summary,
+        "recoveries": recoveries,
         "item_error": item_error,
         "character": entity,
         "header": character_header(char_id),
@@ -438,10 +457,24 @@ def finish_journey_day(session_id: str, char_id: str) -> dict:
     pending = extras.get(PENDING_JOURNEY_KEY) or {}
     exploration_table = str(pending.get("exploration_table") or "")
 
-    char.journey_day = max(1, char.journey_day + 1)
+    rest = rest_at_day_end(char, char_id=char_id)
+    if rest["rested"]:
+        log_mechanical(
+            session_id,
+            f"Rest: -{rest['supplies_spent']} Supplies, +{rest['health_gained']} Health.",
+        )
+    else:
+        log_mechanical(session_id, "Fewer than 4 Supplies to rest: Supplies Recovery Table.")
+    _log_recoveries(session_id, extras, rest["recoveries"])
+    lost_day = bool(extras.pop(RECOVERY_SKIP_DAY_KEY, False))
+    char.journey_day = max(1, char.journey_day + 1 + (1 if lost_day else 0))
+    if lost_day:
+        log_mechanical(session_id, "A day is lost to recovery: no event cards are drawn for it.")
     reset_daily_legacy_abilities(char)
     char.clamp_stats()
     entity = _save(char_id, char)
+    reset_deck(GAME_ID, char_id)
+    log_mechanical(session_id, "New day: the deck is reshuffled.")
     log_mechanical(session_id, format_scene_header(char))
     log_mechanical(
         session_id,
@@ -459,6 +492,8 @@ def finish_journey_day(session_id: str, char_id: str) -> dict:
         "character": entity,
         "header": character_header(char_id),
         "pending_journey": None,
+        "rest": rest,
+        "lost_day": lost_day,
     }
     if str(char.active_adventure or "") == DRAGONKEEP_ID:
         dk = ensure_dragonkeep_state(extras)
@@ -647,6 +682,30 @@ def start_journey_combat(session_id: str, char_id: str, event_index: int) -> dic
     return out
 
 
+def _combat_item_reward(session_id: str, char_id: str, char: BrambletrekCharacter) -> dict:
+    """Beating a Heart/Diamond (red table) opponent always gives an ITEM (pp. 8, 28)."""
+    result = draw_cards(count=1, game_id=GAME_ID, char_id=char_id)
+    if not result.get("ok"):
+        reset_deck(GAME_ID, char_id)
+        result = draw_cards(count=1, game_id=GAME_ID, char_id=char_id)
+    if not result.get("ok"):
+        return {"error": result.get("error") or "Could not draw item card"}
+    card = result["cards"][0]
+    in_depths = bool(char.in_aldwund)
+    item = lookup_item(card, in_depths=in_depths)
+    effect = apply_item_effects(char, item) if item else ""
+    log_draw(session_id, [card], label="Combat item reward")
+    log_mechanical(session_id, format_item_draw(card, in_depths=in_depths))
+    if effect and effect != "No immediate stat change":
+        log_mechanical(session_id, effect)
+    return {
+        "card": card,
+        "label": (item or {}).get("label", ""),
+        "preview": item_effect_preview(item) if item else "",
+        "effect": effect,
+    }
+
+
 def get_session_combat(session_id: str) -> dict[str, Any] | None:
     extras = _session_extras(session_id)
     state = extras.get(COMBAT_STATE_KEY)
@@ -674,22 +733,27 @@ def session_combat_action(
         char_id=char_id,
         hand_index=hand_index,
     )
-    extras[COMBAT_STATE_KEY] = state
-    _save(char_id, char)
-    if state.get("status") in ("won", "lost"):
-        for line in lines:
-            log_mechanical(session_id, line.replace("**", ""))
-        if state.get("mode") == "aerith_finale" and state.get("status") == "won":
+    for line in lines:
+        log_mechanical(session_id, line.replace("**", ""))
+    state["log"] = (list(state.get("log") or []) + list(lines))[-60:]
+    status = state.get("status")
+    if status == "won":
+        if state.get("mode") == "aerith_finale":
             dk = extras.get(DRAGONKEEP_STATE_KEY)
             if isinstance(dk, dict):
                 from backend.games.brambletrek.modules.dragonkeep_state import complete_aerith
 
                 complete_aerith(dk)
-        if state.get("status") == "lost":
-            log_mechanical(session_id, "Your Gnawborn will reawaken in the deep forest.")
-    else:
-        for line in lines:
-            log_mechanical(session_id, line.replace("**", ""))
+        if state.get("reward_item") is True:
+            state["reward_item"] = _combat_item_reward(session_id, char_id, char)
+    elif status == "lost":
+        recoveries = resolve_zero_resources(char, char_id=char_id)
+        _log_recoveries(session_id, extras, recoveries)
+        state["recovery"] = recoveries
+    elif status == "retreated":
+        log_mechanical(session_id, "You retreat from combat.")
+    extras[COMBAT_STATE_KEY] = state
+    _save(char_id, char)
     _set_extras(session_id, extras)
     out: dict[str, Any] = {
         "combat": combat_payload(state),

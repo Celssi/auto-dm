@@ -84,7 +84,7 @@ def test_depths_hearts_diamonds_8_swapped():
 
 def test_sneaker_eight_is_poisoned_blade():
     data = _yaml("brambletrek_player_tactics.yaml")
-    text = data["player_tactics"]["sneaker"]["8"].lower()
+    text = data["player_tactics"]["sneaker"]["8"]["label"].lower()
     assert "poisoned blade" in text
     assert "shadow strike" not in text
 

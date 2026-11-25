@@ -13,33 +13,54 @@ opponent_type_by_suit:
 
 rules:
   initiative: "Draw initiative for you and opponent; Ace=11, face=10; higher goes first."
-  tactics: "Draw 4 tactic cards for your hand; play one per turn; redraw 4 when hand empty (new round)."
+  tactics: "Draw 4 tactic cards for your hand; play one per turn. Out of cards: retreat or redraw 4 for Round 2 (pp. 8, 30)."
   opponent_tactics: "On opponent turn, draw a card and use value from Opponent Tactics table (p. 30)."
 
 opponent_tactics:
+  # label = book text (Core Rulebook p. 30). Structured fields drive the combat engine.
   "2":
-    label: "Wild Swipe — 2 physical damage"
+    label: "Wild Swipe — The opponent attacks, dealing 2 physical damage."
+    damage: 2
   "3":
-    label: "Charging Assault — 3 damage, you lose next turn"
+    label: "Charging Assault — The opponent charges, dealing 3 physical damage and stunning you for your next turn. (You lose your turn)"
+    damage: 3
+    skip_turn: true
   "4":
-    label: "Rapid Cut — draw 1, damage half value (round up)"
+    label: "Rapid Cut — The opponent attacks, draw 1 card. The opponent deals damage equal to half the value of the card. (Rounded up)"
+    damage_from_draw_half: true
   "5":
-    label: "Savage Roar — Morale −2 next turn"
+    label: "Savage Roar — The opponent roars, reducing your Morale by 2 for the next turn. (Returns to normal at the end of opponent's next turn)"
+    morale_damage: 2
+    morale_temporary: true
   "6":
-    label: "Defensive Stance — your next attack −3 damage"
+    label: "Defensive Stance — The opponent raises their defences, reducing the damage of your next attack by 3."
+    reduce_player_damage: 3
+    reduce_player_damage_turns: 1
   "7":
-    label: "Terrifying Howl — Morale −3"
+    label: "Terrifying Howl — The opponent howls, reducing your Morale by 3."
+    morale_damage: 3
   "8":
-    label: "Vicious Bite — 4 physical damage"
+    label: "Vicious Bite — The opponent bites, dealing 4 physical damage."
+    damage: 4
   "9":
-    label: "Predatory Leap — 4 damage, you lose your turn"
+    label: "Predatory Leap — The opponent leaps and attacks, dealing 4 physical damage and stunning you for your turn. (You lose your turn)"
+    damage: 4
+    skip_turn: true
   "10":
-    label: "Feral Rage — 5 damage, opponent takes 2"
+    label: "Feral Rage — The opponent enters a rage, dealing 5 physical damage but receives 2 damage in their frenzy."
+    damage: 5
+    self_damage: 2
   jack:
-    label: "Pack Attack — adds 3 HP ally, 2 damage per turn"
+    label: "Pack Attack — The opponent calls for help, adding a secondary opponent with 3 Health that deals 2 damage per opponent turn."
+    summon_hp: 3
+    summon_damage: 2
   queen:
-    label: "Regeneration — heals 2 HP per turn for 2 turns"
+    label: "Regeneration — The opponent begins to heal, restoring 2 Health each turn for the next two turns."
+    heal_per_turn: 2
+    heal_per_turn_turns: 2
   king:
-    label: "Roar of Defiance — your next attack damage halved"
+    label: "Roar of Defiance — The opponent roars, reducing the damage of the Gnawborn's next attack by half. (Rounded up)"
+    opponent_halve_next: 1
   ace:
-    label: "Deadly Assault — damage equal to opponent remaining Health"
+    label: "Deadly Assault — The opponent attacks with all their might, dealing damage equal to their remaining Health."
+    damage_formula: own_hp

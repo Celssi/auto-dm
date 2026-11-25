@@ -167,9 +167,23 @@ export interface BrambletrekCharacter {
 export interface BrambletrekCombatState {
   status: string;
   mode?: string;
-  opponent?: { id?: string; label?: string; hp?: number; max_hp?: number };
-  player?: { hp?: number };
+  opponent?: {
+    id?: string;
+    label?: string;
+    hp?: number;
+    max_hp?: number;
+    minion?: { label?: string; hp?: number; damage?: number };
+  };
+  player?: { hp?: number; morale?: number; max_hp?: number };
   initiative?: { player_card?: string; opponent_card?: string; first?: string };
+  round?: number;
+  needs_new_round?: boolean;
+  must_discard?: number;
+  discard_pool?: string[] | null;
+  red_table?: boolean;
+  reward_item?: { card?: string; label?: string; preview?: string; error?: string } | null;
+  recovery?: { stat: string; card: string; label: string; before: number; after: number }[] | null;
+  defeat_stat?: string;
   tactic_hand?: string[];
   turn?: string;
   finale_phase?: string;

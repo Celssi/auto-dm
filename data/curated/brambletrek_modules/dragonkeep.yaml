@@ -386,11 +386,14 @@ combat:
           damage: 2
         5-7:
           label: 'Rocky Armour: Halves the next attack''s damage.'
+          opponent_halve_next: 1
         8-10:
           label: 'Magma Surge: Erupts with molten lava, dealing 3 damage.'
           damage: 3
         jack:
           label: 'Quake Stomp: Increase damage dealt by 2 for 2 turns.'
+          opponent_damage_bonus: 2
+          opponent_damage_bonus_turns: 2
         queen:
           label: 'Regeneration: Heals 2 health per turn for 3 turns.'
           heal: 2
@@ -417,6 +420,7 @@ combat:
           damage: 3
         jack:
           label: 'Rebirth: If defeated, restores half health once (redraw if drawn again).'
+          rebirth_half: true
         queen:
           label: 'Scorching Cry: Reduces player''s defence.'
         king:
@@ -461,6 +465,8 @@ combat:
           damage: 3
         5-7:
           label: 'Sap Coating: Reduces damage taken by 3.'
+          reduce_player_damage: 3
+          reduce_player_damage_turns: 1
         8-10:
           label: 'Twig Barrage: 2 damage per turn for 3 turns.'
           damage: 2
@@ -482,6 +488,8 @@ combat:
       tactics:
         2-4:
           label: 'Sparkle Dust: Player attacks reduced by 2 damage for 3 turns.'
+          reduce_player_damage: 2
+          reduce_player_damage_turns: 3
         5-7:
           label: 'Healing Chant: Heals itself by 4.'
           heal: 4

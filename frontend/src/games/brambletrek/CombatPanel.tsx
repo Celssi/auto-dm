@@ -52,6 +52,8 @@ export default function BrambletrekCombatPanel({ combat, onAction, embedded }: P
   };
 
   const playerHp = combat.player?.hp ?? 0;
+  const playerMaxHp = combat.player?.max_hp ?? 20;
+  const playerMorale = combat.player?.morale;
   const opp = combat.opponent ?? { label: 'Opponent', hp: 0, max_hp: 0 };
   const turn = combat.turn ?? 'opponent';
   const isActive = combat.status === 'active';
@@ -61,13 +63,21 @@ export default function BrambletrekCombatPanel({ combat, onAction, embedded }: P
     <div className="flex flex-col gap-3 min-h-0">
       <CombatHeading combat={combat} turn={turn} />
       <CombatFinaleBanner combat={combat} isFinale={isFinale} />
-      <HpBar current={playerHp} max={20} label="Your health" accent="bg-success" />
+      <HpBar current={playerHp} max={playerMaxHp} label="Your health" accent="bg-success" />
+      {playerMorale !== undefined && (
+        <HpBar current={playerMorale} max={20} label="Your morale" accent="bg-amber-400" />
+      )}
       <HpBar
         current={opp.hp ?? 0}
         max={opp.max_hp ?? opp.hp ?? 10}
         label={opp.label || 'Opponent'}
         accent="bg-red-500"
       />
+      {opp.minion && (opp.minion.hp ?? 0) > 0 && (
+        <div className="text-[11px] text-muted">
+          Secondary opponent: {opp.minion.hp} HP, {opp.minion.damage} damage per opponent turn
+        </div>
+      )}
       <CombatInitiative initiative={combat.initiative} />
       <CombatPlayerChoices combat={combat} isActive={isActive} turn={turn} loading={loading} onRun={run} />
       <CombatTurnButtons
@@ -142,7 +152,9 @@ function CombatPlayerChoices({
   loading: string | null;
   onRun: (action: string, handIndex?: number) => Promise<void>;
 }) {
+  const mustDiscard = combat.must_discard ?? 0;
   const showHand = isActive && turn === 'player' && (combat.tactic_hand?.length ?? 0) > 0;
+  const discardable = (card: string) => !combat.discard_pool || combat.discard_pool.includes(card);
   const showSearch = isActive && turn === 'player' && combat.can_search_item && !combat.item_used_this_phase;
   return (
     <>
@@ -150,7 +162,9 @@ function CombatPlayerChoices({
         <div>
           <div className="text-[11px] text-muted mb-2 flex items-center gap-1">
             <Shield className="w-3 h-3" />
-            Tactic hand: play one card
+            {mustDiscard > 0
+              ? `Discard ${mustDiscard} card${mustDiscard > 1 ? 's' : ''} first`
+              : `Tactic hand (round ${combat.round ?? 1}): play one card`}
           </div>
           <div className="grid grid-cols-2 gap-2">
             {tacticHandKeys(combat.tactic_hand ?? []).map(({ card, key, slot }) => (
@@ -158,8 +172,8 @@ function CombatPlayerChoices({
                 key={key}
                 type="button"
                 className="rounded-lg border border-border bg-bg/60 p-2 hover:border-accent/50 transition-colors"
-                disabled={loading !== null}
-                onClick={() => onRun('play_tactic', slot)}
+                disabled={loading !== null || (mustDiscard > 0 && !discardable(card))}
+                onClick={() => onRun(mustDiscard > 0 ? 'discard_tactic' : 'play_tactic', slot)}
               >
                 <PlayingCard card={card} size="sm" />
               </button>
@@ -202,6 +216,26 @@ function CombatTurnButtons({
   if (!isActive) return null;
   return (
     <div className="flex flex-col gap-2">
+      {turn === 'player' && combat.needs_new_round && (
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            className="btn-primary w-full text-xs"
+            disabled={loading !== null}
+            onClick={() => onRun('new_round')}
+          >
+            {loading === 'new_round' ? 'Drawing…' : 'Round 2: draw 4 cards'}
+          </button>
+          <button
+            type="button"
+            className="btn-ghost w-full text-xs border border-border"
+            disabled={loading !== null}
+            onClick={() => onRun('retreat')}
+          >
+            {loading === 'retreat' ? 'Retreating…' : 'Retreat'}
+          </button>
+        </div>
+      )}
       {combat.can_advance_phase && (
         <button
           type="button"
@@ -247,20 +281,42 @@ function CombatOutcome({ combat, error }: { combat: BrambletrekCombatState; erro
   return (
     <>
       {combat.status === 'won' && (
-        <div className="rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-xs text-success flex items-center gap-1.5">
-          <Heart className="w-3.5 h-3.5" />
-          Victory! Apply the journey event when ready.
+        <div className="rounded-lg border border-success/40 bg-success/10 px-3 py-2 text-xs text-success space-y-1">
+          <div className="flex items-center gap-1.5">
+            <Heart className="w-3.5 h-3.5" />
+            Victory! Apply the journey event when ready.
+          </div>
+          {combat.reward_item?.label && (
+            <div>
+              ITEM reward ({combat.reward_item.card}): {combat.reward_item.label}
+              {combat.reward_item.preview ? ` (${combat.reward_item.preview})` : ''}
+            </div>
+          )}
         </div>
       )}
       {combat.status === 'lost' && (
-        <div className="rounded-lg border border-red-500/40 bg-red-900/20 px-3 py-2 text-xs text-red-200">
-          Defeated. Your Gnawborn will reawaken in the deep forest.
+        <div className="rounded-lg border border-red-500/40 bg-red-900/20 px-3 py-2 text-xs text-red-200 space-y-1">
+          <div>
+            Defeated ({combat.defeat_stat === 'morale' ? 'Morale' : 'Health'} reached 0). You are forced to retreat and
+            lose a day recovering.
+          </div>
+          {(combat.recovery ?? []).map((rec) => (
+            <div key={`${rec.stat}-${rec.card}`}>
+              {rec.stat} recovery ({rec.card}): {rec.label} ({rec.before} → {rec.after})
+            </div>
+          ))}
+        </div>
+      )}
+      {combat.status === 'retreated' && (
+        <div className="rounded-lg border border-border bg-bg/60 px-3 py-2 text-xs text-muted">
+          You retreated from combat.
         </div>
       )}
       {(combat.log?.length ?? 0) > 0 && (
         <div className="text-[11px] text-muted space-y-1 max-h-32 overflow-y-auto border-t border-border pt-2">
-          {(combat.log ?? []).map((line) => (
-            <p key={line} className="leading-relaxed">
+          {(combat.log ?? []).map((line, i) => (
+            // eslint-disable-next-line react/no-array-index-key -- log lines repeat
+            <p key={`${i}-${line}`} className="leading-relaxed">
               {line.replace(/\*\*/g, '')}
             </p>
           ))}

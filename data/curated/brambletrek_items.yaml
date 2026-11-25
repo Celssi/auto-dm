@@ -42,3 +42,46 @@ items:
   ace:
     label: "Hero's Sigil"
     note: "Restore all Health and Morale to maximum"
+
+# Aldwund Items (Core Rulebook p. 29). Used for ITEM results while in the Aldwund depths.
+# Items usable in or out of battle; in combat they take no action and only on your turn.
+aldwund_items:
+  "2":
+    label: "Rope Bridge"
+    note: "Once a day redraw any exploration card - 3 Uses Only"
+  "3":
+    label: "Ancient Relic"
+    note: "Consumable - Doubles your damage for 3 attacks"
+  "4":
+    label: "Precious Minerals"
+    note: "Increase Morale by +2 every 5 days when resting"
+  "5":
+    label: "Luminous Amulet"
+    note: "Gain +2 Supplies on all Black Event Cards with a value of 8"
+  "6":
+    label: "Luna Blossom"
+    note: "Consumable - Grants invisibility for one turn in combat, allowing you to retreat or dodge up to 5 damage"
+  "7":
+    label: "Mist Cloak"
+    note: "Consumable - Allows you to skip a single combat encounter"
+  "8":
+    label: "Enchanted Compass"
+    note: "Redraw any negative event once per day - 3 Uses Only"
+  "9":
+    label: "Starfall Crystal"
+    note: "Used to distract enemies, skipping their turn - 3 Uses Only"
+  "10":
+    label: "Druid's Cane"
+    note: "Instead of combat, talk to the opponent and draw initiative. If yours is higher you skip combat. If theirs is higher, they take the first turn and win initiative - 3 Uses Only"
+  jack:
+    label: "Windrider's Feather"
+    note: "Escape Combat or Aldwund at any point - 3 Uses Only"
+  queen:
+    label: "Sunstone"
+    note: "Restore 3 health at any time - 3 Uses Only"
+  king:
+    label: "Fae Whistle"
+    note: "Consumable - Summon a companion who deals 2 damage on each of your turns during a combat encounter"
+  ace:
+    label: "Eternal Bloom Herbs"
+    note: "Consumable - Instantly restore all stats to their maximum"

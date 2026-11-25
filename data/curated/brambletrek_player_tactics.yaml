@@ -1,86 +1,296 @@
-# Player combat tactic cards by Legacy (Core Rulebook pp. 31-32).
+# Player combat tactic cards by Legacy (Core Rulebook pp. 31-32; CDE PDF pp. 30-31).
+# label = book text. Structured fields drive the combat engine
+# (backend/games/brambletrek/combat/effects.py). Halving always rounds up (p. 8).
 player_tactics:
   seer:
-    '2': Arcane Shield — reduce next attack damage by 2.
-    '3': Mystic Flare — 3 magic damage.
-    '4': Ancient Wisdom — 2 damage; draw two extra tactic cards next turn.
-    '5': Healing Touch — restore 3 Health.
-    '6': Teleport — evade opponent's next attack.
-    '7': Elemental Burst — 4 magic damage.
-    '8': Divine Calling — opponent skips next turn.
-    '9': Magic Missile — 3 damage per turn for opponent's next 2 turns.
-    '10': Energy Drain — 2 damage; recover 2 Health.
-    jack: Time Warp — take two extra turns in a row after this card.
-    queen: Summon Elemental — elemental deals 2 damage per turn you take.
-    king: Mind Control — opponent loses next turn.
-    ace: Arcane Overload — damage equal to half Morale (round up).
+    '2':
+      label: Arcane Shield. Create a barrier, reducing the next attack's damage by 2.
+      reduce_incoming: 2
+      reduce_incoming_attacks: 1
+    '3':
+      label: Mystic Flare. Deal 3 magic damage to the opponent.
+      damage: 3
+    '4':
+      label: Ancient Wisdom. Deal 2 damage and draw two additional tactic cards next turn.
+      damage: 2
+      draw_tactics: 2
+    '5':
+      label: Healing Touch. Restore 3 points of Health.
+      heal: 3
+    '6':
+      label: Teleport. Evade the opponent's next attack.
+      evade_next: 1
+    '7':
+      label: Elemental Burst. Deal 4 magic damage to the opponent.
+      damage: 4
+    '8':
+      label: Divine Calling. Force the opponent to skip their next turn. (Effects that apply on an opponent turn are also skipped)
+      skip_opponent_turns: 1
+      skip_opponent_effects: true
+    '9':
+      label: Magic Missile. On the opponents next 2 turns deal 3 damage per turn.
+      dot_damage: 3
+      dot_turns: 2
+    '10':
+      label: Energy Drain. Deal 2 damage and recover 2 Health.
+      damage: 2
+      heal: 2
+    jack:
+      label: Time Warp. Take two extra turns in a row after this card is played.
+      extra_turns: 2
+    queen:
+      label: Summon Elemental. Summon an Elemental that can deal 2 damage per turn that you take.
+      companion_damage: 2
+    king:
+      label: Mind Control. You take control of the opponent and cause them to lose their next turn.
+      skip_opponent_turns: 1
+    ace:
+      label: Arcane Overload. Deal damage equal to half the amount of Morale left. (Rounded up)
+      damage_formula: half_morale
   scrapper:
-    '2': Dodge — evade next attack; +2 damage on your next attack.
-    '3': Haymaker — 4 physical damage.
-    '4': Second Wind — restore 3 Health.
-    '5': Stunning Blow — 2 damage; opponent loses next turn.
-    '6': Battle Cry — next two attacks +2 damage.
-    '7': Savage Strike — 3 damage per turn for opponent's next 2 turns.
-    '8': Shield Bash — 3 damage; stun opponent next turn.
-    '9': Reckless Charge — 5 damage; take 2 damage.
-    '10': Berserk — double damage on next attack.
-    jack: Unbreakable Will — ignore damage from next attack.
-    queen: Piercing Strikes — damage = opponent HP minus 2.
-    king: Earthquake Slam — 5 damage; stun 2 turns.
-    ace: Heroic Strike — damage = half remaining Health (round up).
+    '2':
+      label: Dodge. Evade the opponent's next attack and deal an extra 2 damage on your next attack.
+      evade_next: 1
+      damage_bonus: 2
+      damage_bonus_attacks: 1
+    '3':
+      label: Haymaker. Deal 4 physical damage to the opponent.
+      damage: 4
+    '4':
+      label: Second Wind. Restore 3 points of Health.
+      heal: 3
+    '5':
+      label: Stunning Blow. Deal 2 damage & the opponent loses their next turn.
+      damage: 2
+      skip_opponent_turns: 1
+    '6':
+      label: Battle Cry. Increase the damage of your next two attacks by 2.
+      damage_bonus: 2
+      damage_bonus_attacks: 2
+    '7':
+      label: Savage Strike. For the opponents next 2 turns, deal 3 damage per turn.
+      dot_damage: 3
+      dot_turns: 2
+    '8':
+      label: Shield Bash. Deal 3 damage and stun the opponent for the next turn.
+      damage: 3
+      skip_opponent_turns: 1
+    '9':
+      label: Reckless Charge. Deal 5 damage, but take 2 damage.
+      damage: 5
+      self_damage: 2
+    '10':
+      label: Berserk. Double your damage for your next attack.
+      critical: true
+    jack:
+      label: Unbreakable Will. Ignore damage from the next attack.
+      evade_next: 1
+    queen:
+      label: Piercing Strikes. Deal damage equal to opponent's remaining health minus 2.
+      damage_formula: opponent_hp_minus_2
+    king:
+      label: Earthquake Slam. Deal 5 damage to the opponent and stun them for the next 2 turns.
+      damage: 5
+      skip_opponent_turns: 2
+    ace:
+      label: Heroic Strike. Deal damage equal to half your remaining health. (Rounded up)
+      damage_formula: half_health
   storyteller:
-    '2': Inspiring Tune — you and allies' next attacks +2 damage.
-    '3': Ancient Harmony — 3 damage; draw extra tactic next turn.
-    '4': Soothing Melody — restore 2 Morale to self and allies.
-    '5': Rhythmic Distraction — opponent loses next turn.
-    '6': Ballad of Bravery — +2 damage and Health for your next two turns.
-    '7': Song of Despair — opponent deals 2 less on next attack.
-    '8': Melodic Mirror — reflect next attack for half damage (round up).
-    '9': Sonic Blast — 4 sonic damage.
-    '10': Epic Recital — allies +5 Morale; 5 damage end of next turn.
-    jack: Symphony of Shadows — opponent misses; next tactic +2 damage.
-    queen: Sonnet of Slumber — opponent sleeps next turn.
-    king: Masterful Performance — draw 3 tactics; replace any in hand.
-    ace: Song of the Hero — restore all Health and Morale to max (self and allies).
+    '2':
+      label: Inspiring Tune. Increase the damage of your and all ally's next attacks by 2.
+      damage_bonus: 2
+      damage_bonus_attacks: 1
+    '3':
+      label: Ancient Harmony. Deal 3 damage and draw an additional tactic card next turn.
+      damage: 3
+      draw_tactics: 1
+    '4':
+      label: Soothing Melody. Restore 2 points of Morale to yourself and allies.
+      restore_morale: 2
+    '5':
+      label: Rhythmic Distraction. Opponent loses their next turn.
+      skip_opponent_turns: 1
+    '6':
+      label: Ballad of Bravery. Increase yours and ally damage and Health by 2 for the next two of your turns.
+      damage_bonus: 2
+      damage_bonus_attacks: 2
+      heal_per_turn: 2
+      heal_per_turn_turns: 2
+    '7':
+      label: Song of Despair. Opponent deals 2 less damage on their next attack.
+      reduce_incoming: 2
+      reduce_incoming_attacks: 1
+    '8':
+      label: Melodic Mirror. Reflect the opponent's next attack back at them for half the damage they would have dealt. (Rounded up)
+      reflect_half_next: 1
+    '9':
+      label: Sonic Blast. Deal 4 sonic damage to the opponent.
+      damage: 4
+    '10':
+      label: Epic Recital. Increase ally Morale only by 5. Deal 5 damage at the end of your next turn.
+      delayed_damage: 5
+    jack:
+      label: Symphony of Shadows. Opponent's next attack misses and your next tactic deals an extra 2 damage.
+      evade_next: 1
+      damage_bonus: 2
+      damage_bonus_attacks: 1
+    queen:
+      label: Sonnet of Slumber. Puts opponent to sleep for their next turn.
+      skip_opponent_turns: 1
+    king:
+      label: Masterful Performance. Draw 3 tactic cards, replace any number of cards in your hand with these new cards.
+      draw_tactics: 3
+      replace_hand: true
+    ace:
+      label: Song of the Hero. Restore all Health and Morale to their max values for yourself and all allies.
+      heal_formula: full
+      restore_morale_full: true
   seeker:
-    '2': Quick Shot — 3 physical damage.
-    '3': Hunter's Mark — next attack +2 damage.
-    '4': Camouflage — evade next attack.
-    '5': Nature's Bounty — +2 Supplies; 2 damage.
-    '6': Piercing Arrow — 4 physical damage.
-    '7': Tracking — draw 2 tactics; use one now.
-    '8': Explosive Trap — 5 damage on opponent's next turn.
-    '9': Rebound and Regroup — evade next attack; restore 2 Health.
-    '10': Double Shot — 3 damage per turn for next two turns.
-    jack: Poisoned Arrow — 2 damage + 1 per turn for 2 turns.
-    queen: Animal Companion — companion 2 damage per turn on your turns.
-    king: Swift Strike — two turns in a row; extra tactic per extra turn.
-    ace: Call of the Wild — restore all Health; gain companion next encounter.
+    '2':
+      label: Quick Shot. Deal 3 physical damage to the opponent.
+      damage: 3
+    '3':
+      label: Hunter's Mark. Your next attack deals an additional 2 damage.
+      damage_bonus: 2
+      damage_bonus_attacks: 1
+    '4':
+      label: Camouflage. Evade the opponent's next attack.
+      evade_next: 1
+    '5':
+      label: Nature's Bounty. Restore 2 points of Supplies and deal 2 damage.
+      supplies: 2
+      damage: 2
+    '6':
+      label: Piercing Arrow. Deal 4 physical damage to the opponent.
+      damage: 4
+    '7':
+      label: Tracking. Draw two additional tactic cards and pick one to use now, discarding the other.
+      pick_from_draw: 2
+    '8':
+      label: Explosive Trap. Deal 5 damage on the opponent's next turn.
+      dot_damage: 5
+      dot_turns: 1
+    '9':
+      label: Rebound and Regroup. Evade the next attack and restore 2 Health.
+      evade_next: 1
+      heal: 2
+    '10':
+      label: Double Shot. Deal 3 damage per turn for the next two turns.
+      dot_damage: 3
+      dot_turns: 2
+    jack:
+      label: Poisoned Arrow. Deal 2 damage, and deal 1 damage per turn for the next 2 turns.
+      damage: 2
+      dot_damage: 1
+      dot_turns: 2
+    queen:
+      label: Animal Companion. Call a companion that can deal 2 damage per turn on your turns.
+      companion_damage: 2
+    king:
+      label: Swift Strike. Take two turns in a row. Draw an extra tactic card for each additional turn.
+      extra_turns: 1
+      draw_tactics: 1
+    ace:
+      label: Call of the Wild. Restore all Health and gain a companion for the next encounter.
+      heal_formula: full
+      companion_next_encounter: true
   sneaker:
-    '2': Quick Dodge — evade next attack.
-    '3': Precise Jab — 3 physical damage.
-    '4': Trap Set — opponent takes 2 at end of next turn and loses following turn.
-    '5': Confusing Blow — 2 damage; opponent damage −2 for 2 turns.
-    '6': Rapid Strike — 6 damage split across 3 hits.
-    '7': Steal and Stab — 2 damage; draw card (face/Ace = item after combat).
-    '8': "Poisoned Blade: 1 damage per turn for the next 3 turns."
-    '9': Shadow Strike — 5 if unhurt this combat else 2.
-    '10': Hidden Blade — +5 on next attack.
-    jack: Misty Movement — you or ally avoid next attack.
-    queen: Evade & Counter — dodge next attack; deal half back (round up).
-    king: Sneak Attack — 10 at max Health, −1 per 3 HP below max.
-    ace: Masterful Counter — opponent HP halved; half damage for 2 turns.
+    '2':
+      label: Quick Dodge. Evade the opponent's next attack.
+      evade_next: 1
+    '3':
+      label: Precise Jab. Deal 3 physical damage to the opponent.
+      damage: 3
+    '4':
+      label: Trap Set. At the end of the opponent's next turn they take 2 points of damage and lose their following turn.
+      dot_damage: 2
+      dot_turns: 1
+      skip_opponent_after_next: 1
+    '5':
+      label: Confusing Blow. Deal 2 damage & the opponent's damage is reduced by 2 points per turn for 2 turns.
+      damage: 2
+      reduce_incoming: 2
+      reduce_incoming_attacks: 2
+    '6':
+      label: Rapid Strike. Hit 3 times and deal 6 damage that is split however you like across the 3 attacks.
+      damage: 6
+    '7':
+      label: Steal and Stab. Deal 2 damage and draw a card, if it is a Face Card or Ace, you gain an item after combat.
+      damage: 2
+      steal_draw: true
+    '8':
+      label: Poisoned Blade. Deal 1 damage per turn for the next 3 turns.
+      dot_damage: 1
+      dot_turns: 3
+    '9':
+      label: Shadow Strike. Deal 5 damage if you haven't been hit this combat and 2 damage if you have.
+      damage_formula: shadow_strike
+    '10':
+      label: Hidden Blade. Deal an extra 5 points of damage on your next attack.
+      damage_bonus: 5
+      damage_bonus_attacks: 1
+    jack:
+      label: Misty Movement. You or an ally can avoid damage from the next attack.
+      evade_next: 1
+    queen:
+      label: Evade & Counter. Dodge the opponent's next attack and deal half that damage back. (Rounded up)
+      evade_next: 1
+      counter_half: true
+    king:
+      label: Sneak Attack. Deal 10 damage if at max health, reduced by -1 for every 3 health below max.
+      damage_formula: sneak_attack
+    ace:
+      label: Masterful Counter. Reduce the opponent's health by half and take half damage for 2 turns. (Rounded up)
+      damage_formula: halve_opponent_hp
+      halve_incoming_turns: 2
   soother:
-    '2': Healing Prayer — restore 5 Health (self and allies).
-    '3': Divine Light — 2 damage per turn to opponent for 3 turns.
-    '4': Blessed Strike — 3 damage; draw card; heal half value (Ace=11, round up).
-    '5': Holy Blast — 5 damage; heal 2 per turn for 2 turns.
-    '6': Spiritual Guard — −2 damage for next 2 opponent attacks.
-    '7': Sanctuary — shield negates one attack for self or ally.
-    '8': Mystical Heal — restore half current Health (round up) for self and allies.
-    '9': Purifying Light — 3 damage; heal 3 Health.
-    '10': Angelic Aid — guardian reduces damage by 2; 2 damage ×3 turns.
-    jack: Holy Presence — opponent's next 2 attacks −2 each.
-    queen: Serene Strike — damage = Morale ÷ 3.
-    king: Divine Intervention — negate opponent's strongest attack once.
-    ace: Miraculous Recovery — restore all Health; +5 max Health until encounter ends.
+    '2':
+      label: Healing Prayer. Restore 5 Health to yourself and all allies.
+      heal: 5
+    '3':
+      label: Divine Light. Deal 2 damage per turn to the opponent for the next 3 turns they take.
+      dot_damage: 2
+      dot_turns: 3
+    '4':
+      label: Blessed Strike. Deal 3 damage, and draw a card. Heal for half its value. (Ace is 11) (Rounded up)
+      damage: 3
+      heal_from_draw_half: true
+    '5':
+      label: Holy Blast. Deal 5 damage, heal yourself and allies per turn by 2 health for 2 of your turns.
+      damage: 5
+      heal_per_turn: 2
+      heal_per_turn_turns: 2
+    '6':
+      label: Spiritual Guard. Reduce incoming damage for yourself and allies by 2 for the next 2 opponent attacks.
+      reduce_incoming: 2
+      reduce_incoming_attacks: 2
+    '7':
+      label: Sanctuary. Create a shield for yourself and one ally that negates damage from one attack.
+      evade_next: 1
+    '8':
+      label: Mystical Heal. Restore yours and ally Health by half of their current values. (Rounded up)
+      heal_formula: half_current
+    '9':
+      label: Purifying Light. Deal 3 damage to the opponent and heal yourself for 3 Health.
+      damage: 3
+      heal: 3
+    '10':
+      label: Angelic Aid. Summon a guardian, reduce incoming damage by 2 and deal 2 damage per turn for 3 turns.
+      reduce_incoming: 2
+      reduce_incoming_attacks: 3
+      dot_damage: 2
+      dot_turns: 3
+    jack:
+      label: Holy Presence. Opponent's next 2 attacks are reduced by 2 damage per attack.
+      reduce_incoming: 2
+      reduce_incoming_attacks: 2
+    queen:
+      label: Serene Strike. Deal damage equal to your Morale divided by 3.
+      damage_formula: morale_div_3
+    king:
+      label: Divine Intervention. Negate the opponent's strongest attack once in combat.
+      negate_strongest: true
+    ace:
+      label: Miraculous Recovery. Restore all Health and Increase max health by 5 points until the end of the encounter.
+      heal_formula: full
+      max_hp_bonus: 5

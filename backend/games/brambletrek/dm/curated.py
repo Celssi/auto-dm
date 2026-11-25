@@ -285,14 +285,16 @@ def lookup_recovery(stat: str, card: str) -> dict[str, Any] | None:
     return {**row, "stat": stat, "band": band, "card": parsed["card"]}
 
 
-def lookup_item(card: str) -> dict[str, Any] | None:
+def lookup_item(card: str, *, in_depths: bool = False) -> dict[str, Any] | None:
+    """Item Table (p. 28) on the surface; Aldwund Items (p. 29) while in the depths."""
     parsed = parse_playing_card(card)
     if not parsed:
         return None
-    row = (_items_table().get("items") or {}).get(parsed["rank_key"])
+    table = "aldwund_items" if in_depths else "items"
+    row = (_items_table().get(table) or {}).get(parsed["rank_key"])
     if not isinstance(row, dict):
         return None
-    return {**row, "card": parsed["card"]}
+    return {**row, "card": parsed["card"], "zone": "aldwund" if in_depths else "surface"}
 
 
 def event_needs_item_draw(event: dict[str, Any] | None) -> bool:
@@ -312,12 +314,13 @@ def item_effect_preview(item: dict[str, Any]) -> str:
     return ", ".join(parts) if parts else "One-time use — keep until spent"
 
 
-def format_item_draw(card: str) -> str:
-    row = lookup_item(card)
+def format_item_draw(card: str, *, in_depths: bool = False) -> str:
+    row = lookup_item(card, in_depths=in_depths)
+    title = "Aldwund item" if in_depths else "Item"
     if not row:
-        return f"**Item** — {card}: _no curated row_"
+        return f"**{title}** — {card}: _no curated row_"
     preview = item_effect_preview(row)
-    return f"**Item** — {card}: **{row.get('label', '?')}** ({preview})"
+    return f"**{title}** — {card}: **{row.get('label', '?')}** ({preview})"
 
 
 def apply_item_effects(char: BrambletrekCharacter, item: dict[str, Any]) -> str:
@@ -593,11 +596,15 @@ def lookup_player_tactic(legacy_id: str, card: str) -> dict[str, Any] | None:
     row = (_player_tactics().get("player_tactics") or {}).get(legacy_id, {}).get(parsed["rank_key"])
     if not row:
         return None
+    fields = dict(row) if isinstance(row, dict) else {"label": str(row)}
+    label = str(fields.get("label") or "")
     return {
+        **fields,
         "legacy": legacy_id,
         "rank_key": parsed["rank_key"],
         "card": parsed["card"],
-        "effect": str(row),
+        "label": label,
+        "effect": label,
     }
 
 
