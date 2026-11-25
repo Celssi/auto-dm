@@ -39,6 +39,7 @@ interface Props {
   entity: Record<string, unknown>;
   onChange: (entity: Record<string, unknown>) => void;
   onSaved?: (entity: Record<string, unknown>) => void;
+  onCreated?: (id: string, entity: Record<string, unknown>) => void;
 }
 
 function CardDrawnDisplay({ bandId, card, cardBands }: { bandId: string; card?: string; cardBands: TableOption[] }) {
@@ -127,7 +128,7 @@ function mapResourceDraft(res: ResourceDraftResponse): ResourceDraft {
   };
 }
 
-export default function CharacterSetupPanel({ characterId, entity, onChange, onSaved }: Props) {
+export default function CharacterSetupPanel({ characterId, entity, onChange, onSaved, onCreated }: Props) {
   const toast = useToast();
   const [resourceDraft, setResourceDraft] = useState<ResourceDraft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -190,15 +191,27 @@ export default function CharacterSetupPanel({ characterId, entity, onChange, onS
 
   const patch = (key: string, value: unknown) => onChange({ ...entity, [key]: value });
 
-  const drawTable = async (table: 'reason' | 'background' | 'trinket') => {
-    if (!characterId) {
-      setError('Save the character first to draw from the deck.');
-      return;
+  /**
+   * Deck actions run against the stored record and return it. Persist the form first so the
+   * response never wipes unsaved edits, and create the record on the first draw — not on page open.
+   */
+  const ensureCharacterId = async (): Promise<string> => {
+    if (characterId) {
+      await api.updateCharacter(characterId, entity);
+      return characterId;
     }
+    const res = await api.createCharacter({ ...entity, game_id: 'brambletrek' });
+    onChange(res.character);
+    onCreated?.(res.id, res.character);
+    return res.id;
+  };
+
+  const drawTable = async (table: 'reason' | 'background' | 'trinket') => {
     setDrawing(table);
     setError(null);
     try {
-      const res = await api.brambletrekDrawTable(characterId, table);
+      const id = await ensureCharacterId();
+      const res = await api.brambletrekDrawTable(id, table);
       onChange(res.character);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Draw failed');
@@ -246,14 +259,11 @@ export default function CharacterSetupPanel({ characterId, entity, onChange, onS
   };
 
   const rollLegacy = async () => {
-    if (!characterId) {
-      setError('Save the character first to roll legacy.');
-      return;
-    }
     setDrawing('legacy');
     setError(null);
     try {
-      const res = await api.brambletrekRollLegacy(characterId);
+      const id = await ensureCharacterId();
+      const res = await api.brambletrekRollLegacy(id);
       changeLegacy(res.legacy_id);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Legacy roll failed');
@@ -263,14 +273,11 @@ export default function CharacterSetupPanel({ characterId, entity, onChange, onS
   };
 
   const drawResources = async () => {
-    if (!characterId) {
-      setError('Save the character first to draw resources.');
-      return;
-    }
     setResourceBusy('draw');
     setError(null);
     try {
-      const res = await api.brambletrekDrawResources(characterId);
+      const id = await ensureCharacterId(); // saved legacy drives the final stats
+      const res = await api.brambletrekDrawResources(id);
       setResourceDraft(mapResourceDraft(res));
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Resource draw failed');
@@ -298,7 +305,10 @@ export default function CharacterSetupPanel({ characterId, entity, onChange, onS
     setResourceBusy('apply');
     setError(null);
     try {
-      const res = await api.brambletrekApplyResources(characterId, undefined, resourceDraft.draft);
+      // Save unsaved form edits (name, legacy, bands…) first; the backend applies the draft to the
+      // stored record and returns it, which used to wipe anything typed since the last save.
+      const id = await ensureCharacterId();
+      const res = await api.brambletrekApplyResources(id, undefined, resourceDraft.draft);
       setResourceDraft(null);
       onChange(res.character);
       toast.success('Resources applied');
@@ -363,7 +373,6 @@ export default function CharacterSetupPanel({ characterId, entity, onChange, onS
         trinketBand={trinketBand}
         tablePreviews={tablePreviews}
         drawing={drawing}
-        characterId={characterId}
         onChange={onChange}
         onDrawTable={drawTable}
       />
@@ -373,7 +382,6 @@ export default function CharacterSetupPanel({ characterId, entity, onChange, onS
         options={options}
         selectedLegacy={selectedLegacy}
         drawing={drawing}
-        characterId={characterId}
         onChangeLegacy={changeLegacy}
         onRollLegacy={rollLegacy}
       />
@@ -381,7 +389,6 @@ export default function CharacterSetupPanel({ characterId, entity, onChange, onS
         entity={entity}
         resourceDraft={resourceDraft}
         resourceBusy={resourceBusy}
-        characterId={characterId}
         onDrawResources={drawResources}
         onDrawBonus={drawResourceBonus}
         onApply={applyResources}
@@ -410,7 +417,6 @@ function SetupTableDraws({
   trinketBand,
   tablePreviews,
   drawing,
-  characterId,
   onChange,
   onDrawTable,
 }: {
@@ -421,7 +427,6 @@ function SetupTableDraws({
   trinketBand: string;
   tablePreviews: { reason: string; background: string; trinket: string };
   drawing: string | null;
-  characterId: string | null;
   onChange: (entity: Record<string, unknown>) => void;
   onDrawTable: (table: 'reason' | 'background' | 'trinket') => void;
 }) {
@@ -436,7 +441,6 @@ function SetupTableDraws({
         preview={tablePreviews.reason}
         options={options.reasons}
         drawing={drawing === 'reason'}
-        disabled={!characterId}
         onChange={(id) => onChange({ ...entity, reason_band: id, reason_card: '' })}
         onDraw={() => onDrawTable('reason')}
       />
@@ -449,7 +453,6 @@ function SetupTableDraws({
         preview={tablePreviews.background}
         options={options.backgrounds}
         drawing={drawing === 'background'}
-        disabled={!characterId}
         onChange={(id) => onChange({ ...entity, background_band: id, background_card: '' })}
         onDraw={() => onDrawTable('background')}
       />
@@ -462,7 +465,6 @@ function SetupTableDraws({
         preview={tablePreviews.trinket}
         options={options.trinkets}
         drawing={drawing === 'trinket'}
-        disabled={!characterId}
         onChange={(id) => onChange({ ...entity, trinket_band: id, trinket_card: '' })}
         onDraw={() => onDrawTable('trinket')}
       />
@@ -484,7 +486,6 @@ function SetupLegacy({
   options,
   selectedLegacy,
   drawing,
-  characterId,
   onChangeLegacy,
   onRollLegacy,
 }: {
@@ -492,7 +493,6 @@ function SetupLegacy({
   options: CharacterOptions;
   selectedLegacy?: LegacyOption;
   drawing: string | null;
-  characterId: string | null;
   onChangeLegacy: (id: string) => void;
   onRollLegacy: () => void;
 }) {
@@ -504,7 +504,7 @@ function SetupLegacy({
           <button
             type="button"
             className="btn-ghost text-[11px] px-2.5 py-1.5 border border-border rounded-md inline-flex items-center gap-1 text-muted hover:text-accent shrink-0"
-            disabled={drawing === 'legacy' || !characterId}
+            disabled={drawing === 'legacy'}
             onClick={onRollLegacy}
           >
             {drawing === 'legacy' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shuffle className="w-3 h-3" />}
@@ -564,7 +564,6 @@ function SetupResources({
   entity,
   resourceDraft,
   resourceBusy,
-  characterId,
   onDrawResources,
   onDrawBonus,
   onApply,
@@ -573,7 +572,6 @@ function SetupResources({
   entity: Record<string, unknown>;
   resourceDraft: ResourceDraft | null;
   resourceBusy: string | null;
-  characterId: string | null;
   onDrawResources: () => void;
   onDrawBonus: (stat: 'health' | 'morale' | 'supplies') => void;
   onApply: () => void;
@@ -592,7 +590,7 @@ function SetupResources({
         <button
           type="button"
           className="btn-ghost text-[11px] px-2.5 py-1.5 border border-border rounded-md inline-flex items-center gap-1 text-muted hover:text-accent shrink-0"
-          disabled={Boolean(resourceBusy) || !characterId}
+          disabled={Boolean(resourceBusy)}
           onClick={onDrawResources}
         >
           {resourceBusy === 'draw' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Shuffle className="w-3 h-3" />}

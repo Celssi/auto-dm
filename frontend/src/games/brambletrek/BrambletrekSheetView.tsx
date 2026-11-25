@@ -31,7 +31,7 @@ export default function BrambletrekSheetView({ character: c, summary }: Props) {
   const background = String(summary?.background || c.background_band || EMPTY_FIELD);
   const trinket = String(summary?.trinket || c.trinket_band || EMPTY_FIELD);
   const legacy = String(summary?.legacy || c.legacy || EMPTY_FIELD);
-  const adventure = String(c.active_adventure || EMPTY_FIELD);
+  const adventure = String(summary?.active_adventure_label || c.active_adventure || EMPTY_FIELD);
 
   return (
     <div className="space-y-4">

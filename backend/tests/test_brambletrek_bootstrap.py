@@ -126,3 +126,13 @@ def test_rag_answer_uses_langchain_not_llamaindex(monkeypatch):
     out = engine._generate_rag_answer("sys", "ctx", "q?", "claude")
     assert out == "answer text"
     assert "ctx" in captured["messages"][1].content
+
+
+def test_summary_labels_hyhill_solo_for_empty_active_adventure():
+    from backend.games.brambletrek.characters.character_builder import character_creation_summary
+    from backend.games.brambletrek.characters.entity import default_character
+
+    char = default_character()
+    assert character_creation_summary(char)["active_adventure_label"] == "Hyhill solo (core rules)"
+    char.active_adventure = "dragonkeep"
+    assert character_creation_summary(char)["active_adventure_label"] == "Dungeons of Dragonkeep"

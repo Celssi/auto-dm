@@ -87,6 +87,7 @@ function CharactersWorkspace({
   saveChar,
   onConfirmDelete,
   onRebuild,
+  onRosterChanged,
   dispatch,
   navigate,
 }: {
@@ -103,6 +104,7 @@ function CharactersWorkspace({
   saveChar: (c: Character, opts?: SaveCharOptions) => Promise<void>;
   onConfirmDelete: () => void;
   onRebuild: (id: string) => void;
+  onRosterChanged: () => Promise<void>;
   dispatch: Dispatch<CharactersAction>;
   navigate: NavigateFunction;
 }) {
@@ -127,6 +129,11 @@ function CharactersWorkspace({
           creatingImmediate={creatingImmediate}
           onSave={saveChar}
           onChange={(c) => dispatch({ type: 'set', patch: { character: c } })}
+          onCreated={(id, entity) => {
+            dispatch({ type: 'set', patch: { activeId: id, character: entity as Character } });
+            void onRosterChanged();
+            navigate(`/characters/${id}/edit`, { replace: true });
+          }}
           onCancel={() => navigate(activeId ? `/characters/${activeId}` : '/characters')}
         />
       )}
@@ -246,6 +253,7 @@ export default function CharactersPage() {
             }
           })();
         }}
+        onRosterChanged={load}
         dispatch={dispatch}
         navigate={navigate}
       />
@@ -392,11 +400,7 @@ function CharactersRoster({
       ) : (
         roster.map((r) => (
           <div key={r.id} className="relative">
-            <ListCard
-              title={r.name}
-              subtitle={characterRosterSubtitle(r) || undefined}
-              onClick={() => onOpen(r.id)}
-            />
+            <ListCard title={r.name} subtitle={characterRosterSubtitle(r) || undefined} onClick={() => onOpen(r.id)} />
             <button
               type="button"
               className="absolute top-3 right-3 z-10 text-[10px] text-accent/80 hover:text-accent hover:underline"
@@ -423,6 +427,7 @@ function CharactersWizardViews({
   creatingImmediate,
   onSave,
   onChange,
+  onCreated,
   onCancel,
 }: {
   isNew: boolean;
@@ -432,6 +437,7 @@ function CharactersWizardViews({
   creatingImmediate: boolean;
   onSave: (c: Character, opts?: SaveCharOptions) => Promise<void>;
   onChange: (c: Character) => void;
+  onCreated: (id: string, entity: Record<string, unknown>) => void;
   onCancel: () => void;
 }) {
   const showWizard = getGameCharacterConfig(gameId).creationFlow === 'wizard';
@@ -454,6 +460,7 @@ function CharactersWizardViews({
             onSaved={async (entity) => {
               await onSave(entity as Character, { silentToast: true, alreadyPersisted: true });
             }}
+            onCreated={onCreated}
           />
           <button type="button" className="btn-ghost mt-3 text-sm" onClick={onCancel}>
             {activeId ? 'Done' : 'Cancel'}

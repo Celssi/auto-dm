@@ -36,7 +36,16 @@ def character_creation_summary(char: BrambletrekCharacter) -> dict[str, Any]:
         else "",
         "trinket": label_for_band("trinkets", char.trinket_band) if char.trinket_band else "",
         "active_adventure": char.active_adventure,
+        "active_adventure_label": _adventure_label(char.active_adventure),
     }
+
+
+def _adventure_label(adventure_id: str) -> str:
+    """Human label for the active module; "" is the Hyhill solo core-rules game."""
+    from backend.games.brambletrek.dm.curated import adventure_meta
+
+    meta = adventure_meta(adventure_id or "")
+    return str(meta.get("label") or adventure_id or "")
 
 
 def character_from_dict_rebuild(data: dict | None) -> BrambletrekCharacter:

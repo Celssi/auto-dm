@@ -78,16 +78,16 @@ export function useCharactersPageActions(
       setCreatingImmediate(true);
       dispatch({ type: 'set', patch: { error: null } });
       try {
-        const res = await api.createCharacter({ game_id: targetGameId, name: '' });
-        await load();
-        navigate(`/characters/${res.id}/edit`, { replace: true });
+        // Build an unsaved draft only — the record is created on Save (or the first deck draw).
+        const res = await api.previewCharacter({ game_id: targetGameId, name: '' }, true);
+        dispatch({ type: 'set', patch: { activeId: null, character: res.character as Character, summary: {} } });
       } catch (e) {
         reportError(e, 'Failed to create character', dispatch, toast);
       } finally {
         setCreatingImmediate(false);
       }
     },
-    [dispatch, load, navigate, setCreatingImmediate, toast],
+    [dispatch, setCreatingImmediate, toast],
   );
 
   const levelUp = useCallback(
@@ -171,7 +171,7 @@ async function persistCharacter({
   navigate: NavigateFunction;
   toast: { success: (msg: string) => void; error: (msg: string) => void };
 }) {
-  let id = activeId || characterId || null;
+  let id = activeId || characterId || (opts?.alreadyPersisted ? String(character.id || '') || null : null);
   try {
     if (!opts?.alreadyPersisted) {
       if (id) {

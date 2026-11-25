@@ -14,6 +14,8 @@ type SetupProps = {
   entity: Record<string, unknown>;
   onChange: (entity: Record<string, unknown>) => void;
   onSaved: (entity: Record<string, unknown>) => void | Promise<void>;
+  /** Called when the setup panel had to create the record (e.g. first deck draw on a new character). */
+  onCreated?: (id: string, entity: Record<string, unknown>) => void;
 };
 
 const CHARACTER_WIZARDS: Partial<Record<string, ComponentType<WizardProps>>> = {
