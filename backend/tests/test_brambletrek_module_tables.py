@@ -96,3 +96,35 @@ def test_module_tactic_fields_apply():
     apply_tactic_effects(state, {"halve_incoming_attacks": 2}, actor="player")
     damage_player(state, 6, [], source="opponent")
     assert state["player"]["hp"] == 7
+
+
+def test_pumpkin_patch_journeys_from_book():
+    jt = module_journey_tables("pumpkin_party")
+    assert set(jt) == set(SUITS)
+    assert all(len(jt[s]) == 13 for s in SUITS)
+    assert jt["hearts"]["jack"]["combat"] is True
+    assert jt["spades"]["ace"]["supplies"] == -4 and jt["spades"]["ace"]["health"] == -4
+    assert module_play_config("pumpkin_party")["journey_cards_per_day"] == 4
+
+
+def test_world_tree_items_use_artefacts_table():
+    from backend.games.brambletrek.dm.curated import format_item_draw, lookup_item
+
+    row = lookup_item("ace of spades", adventure_id="world_tree")
+    assert row["label"] == "Blade of the Guardian"
+    assert "Artefact" in format_item_draw("ace of spades", adventure_id="world_tree")
+    # Other adventures keep the core Item Table.
+    assert lookup_item("ace of spades")["label"] != "Blade of the Guardian"
+    prophecy = lookup_module_scene_row("world_tree", "prophecy", "2 of clubs")
+    assert prophecy["label"].startswith("Whispers soft")
+
+
+def test_pumpkin_scene_is_festival_and_journey_day_is_patch():
+    from backend.games.brambletrek.actions import _adventure_draw_plan
+
+    assert _adventure_draw_plan("pumpkin_party") == (3, True, "")
+    assert _adventure_draw_plan("pumpkin_party", for_scene=False) == (4, False, "")
+    # Modules without a festival keep their journey plan either way.
+    assert _adventure_draw_plan("winter_gift", for_scene=False) == _adventure_draw_plan(
+        "winter_gift"
+    )

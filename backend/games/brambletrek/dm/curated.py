@@ -285,11 +285,22 @@ def lookup_recovery(stat: str, card: str) -> dict[str, Any] | None:
     return {**row, "stat": stat, "band": band, "card": parsed["card"]}
 
 
-def lookup_item(card: str, *, in_depths: bool = False) -> dict[str, Any] | None:
-    """Item Table (p. 28) on the surface; Aldwund Items (p. 29) while in the depths."""
+def lookup_item(
+    card: str, *, in_depths: bool = False, adventure_id: str = ""
+) -> dict[str, Any] | None:
+    """Item Table (p. 28) on the surface; Aldwund Items (p. 29) while in the depths.
+
+    Adventures with their own ITEM table (World Tree: Artefacts within Heimstre) use it.
+    """
     parsed = parse_playing_card(card)
     if not parsed:
         return None
+    if adventure_id and not in_depths:
+        from backend.games.brambletrek.modules.loader import module_items
+
+        mod_row = module_items(adventure_id).get(parsed["rank_key"])
+        if isinstance(mod_row, dict):
+            return {**mod_row, "card": parsed["card"], "zone": adventure_id}
     table = "aldwund_items" if in_depths else "items"
     row = (_items_table().get(table) or {}).get(parsed["rank_key"])
     if not isinstance(row, dict):
@@ -314,9 +325,11 @@ def item_effect_preview(item: dict[str, Any]) -> str:
     return ", ".join(parts) if parts else "One-time use — keep until spent"
 
 
-def format_item_draw(card: str, *, in_depths: bool = False) -> str:
-    row = lookup_item(card, in_depths=in_depths)
+def format_item_draw(card: str, *, in_depths: bool = False, adventure_id: str = "") -> str:
+    row = lookup_item(card, in_depths=in_depths, adventure_id=adventure_id)
     title = "Aldwund item" if in_depths else "Item"
+    if row and row.get("zone") not in (None, "surface", "aldwund"):
+        title = "Artefact"
     if not row:
         return f"**{title}** — {card}: _no curated row_"
     preview = item_effect_preview(row)

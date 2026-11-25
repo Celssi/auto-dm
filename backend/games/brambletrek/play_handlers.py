@@ -267,7 +267,11 @@ def pending_journey_payload(session_id: str, char_id: str) -> dict | None:
         )
         item_card = item_cards[i] if i < len(item_cards) else None
         item_depths = bool(in_depths and not exploration_table)
-        item = lookup_item(item_card, in_depths=item_depths) if item_card else None
+        item = (
+            lookup_item(item_card, in_depths=item_depths, adventure_id=adventure_id)
+            if item_card
+            else None
+        )
         zone = zone_label or ("Depths" if in_depths else "Surface")
         item_label = item.get("label") if item else None
         is_combat = bool(event and event.get("combat"))
@@ -337,10 +341,11 @@ def _draw_journey_item_card(
     item_cards[event_index] = item_card
     pending["item_cards"] = item_cards
     in_depths = bool(event and event.get("zone") == "aldwund")
-    item = lookup_item(item_card, in_depths=in_depths)
+    adv = str(char.active_adventure or "")
+    item = lookup_item(item_card, in_depths=in_depths, adventure_id=adv)
     effect_line = apply_item_effects(char, item) if item else ""
     log_draw(session_id, [item_card], label="Aldwund item draw" if in_depths else "Item draw")
-    log_mechanical(session_id, format_item_draw(item_card, in_depths=in_depths))
+    log_mechanical(session_id, format_item_draw(item_card, in_depths=in_depths, adventure_id=adv))
     if effect_line and effect_line != "No immediate stat change":
         log_mechanical(session_id, effect_line)
     return None
@@ -692,10 +697,11 @@ def _combat_item_reward(session_id: str, char_id: str, char: BrambletrekCharacte
         return {"error": result.get("error") or "Could not draw item card"}
     card = result["cards"][0]
     in_depths = bool(char.in_aldwund)
-    item = lookup_item(card, in_depths=in_depths)
+    adv = str(char.active_adventure or "")
+    item = lookup_item(card, in_depths=in_depths, adventure_id=adv)
     effect = apply_item_effects(char, item) if item else ""
     log_draw(session_id, [card], label="Combat item reward")
-    log_mechanical(session_id, format_item_draw(card, in_depths=in_depths))
+    log_mechanical(session_id, format_item_draw(card, in_depths=in_depths, adventure_id=adv))
     if effect and effect != "No immediate stat change":
         log_mechanical(session_id, effect)
     return {

@@ -12,12 +12,331 @@ source:
     - 91
     - 92
 play:
-  journey_cards_per_day: 1
+  journey_cards_per_day: 4
   use_core_depths: false
   use_core_combat: true
   reason_key: band
   default_scene_table: choose_adventure
-journey_heading: '**Pumpkin Party** — choose your activity (up to 3 draws)'
+journey_heading: '**The Pumpkin Party** — Adventures in the Pumpkin Patch'
+journeys:
+  hearts:
+    '2':
+      label: The scent of cinnamon wafts from a series of intricately carved pumpkins, reviving your spirits
+        and filling you with warmth.
+      body: The scent of cinnamon wafts from a series of intricately carved pumpkins, reviving your spirits
+        and filling you with warmth. Morale +1
+      morale: 1
+    '3':
+      label: You discover a cluster of golden pumpkins emitting a soft hum that restores a sense of peace
+        and wellbeing.
+      body: You discover a cluster of golden pumpkins emitting a soft hum that restores a sense of peace
+        and wellbeing. Health +2
+      health: 2
+    '4':
+      label: Among the vines, you find an old watering can that, when tipped, spills out water that refreshes
+        your supplies.
+      body: Among the vines, you find an old watering can that, when tipped, spills out water that refreshes
+        your supplies. Morale +3
+      morale: 3
+    '5':
+      label: A pumpkin carved with celestial patterns glows under the moonlight, its light guides you
+        to a forgotten path.
+      body: A pumpkin carved with celestial patterns glows under the moonlight, its light guides you to
+        a forgotten path. Morale +4
+      morale: 4
+    '6':
+      label: You trip over a hidden root and find a buried chest filled with old masks, reviving forgotten
+        traditions and joy.
+      body: You trip over a hidden root and find a buried chest filled with old masks, reviving forgotten
+        traditions and joy. Morale +5
+      morale: 5
+    '7':
+      label: Digging in the soil, your hands uncover a cache of ancient seeds, promising the potential
+        of growth and renewal.
+      body: Digging in the soil, your hands uncover a cache of ancient seeds, promising the potential
+        of growth and renewal. Health +6
+      health: 6
+    '8':
+      label: A whispering pumpkin beckons you to listen to old tales of the forest, rejuvenating your
+        soul and purpose.
+      body: A whispering pumpkin beckons you to listen to old tales of the forest, rejuvenating your soul
+        and purpose. Health +7
+      health: 7
+    '9':
+      label: A luminous mushroom circle under a pumpkin vine reveals a secret stash of nourishing forest
+        fruits.
+      body: A luminous mushroom circle under a pumpkin vine reveals a secret stash of nourishing forest
+        fruits. Morale +8
+      morale: 8
+    '10':
+      label: The oldest pumpkin in the patch opens up to reveal a hidden compartment with a map of forgotten
+        trails.
+      body: The oldest pumpkin in the patch opens up to reveal a hidden compartment with a map of forgotten
+        trails. Health +4, Morale +5
+      health: 4
+      morale: 5
+    jack:
+      label: You find a playful spirit trapped in a pumpkin; releasing it grants you a blessing of vitality
+        and mirth.
+      body: You find a playful spirit trapped in a pumpkin; releasing it grants you a blessing of vitality
+        and mirth. Combat
+      combat: true
+    queen:
+      label: A regal pumpkin adorned with silver leaves showers you with wisdom from the elders, enriching
+        your journey.
+      body: A regal pumpkin adorned with silver leaves showers you with wisdom from the elders, enriching
+        your journey. Combat
+      combat: true
+    king:
+      label: In the heart of the patch, a pumpkin engraved with victories of past festivals fills you
+        with inspiration.
+      body: In the heart of the patch, a pumpkin engraved with victories of past festivals fills you with
+        inspiration. Combat
+      combat: true
+    ace:
+      label: You unearth an ancient scroll wrapped in a pumpkin leaf, detailing the origins of the Pumpkin
+        Party, imbued with magical lore.
+      body: You unearth an ancient scroll wrapped in a pumpkin leaf, detailing the origins of the Pumpkin
+        Party, imbued with magical lore. Morale +10
+      morale: 10
+  diamonds:
+    '2':
+      label: You stumble upon two Gnawborn sharing tales over spiced pumpkin brew, inviting you to join
+        and share your own stories.
+      body: You stumble upon two Gnawborn sharing tales over spiced pumpkin brew, inviting you to join
+        and share your own stories. Morale +2
+      morale: 2
+    '3':
+      label: A group of youngsters playing hide and seek among the pumpkins beckons you to join their
+        playful game.
+      body: A group of youngsters playing hide and seek among the pumpkins beckons you to join their playful
+        game. Morale +1, Supplies +1
+      morale: 1
+      supplies: 1
+    '4':
+      label: You find a circle of elders reminiscing about past festivals; their wisdom and laughter enrich
+        your spirit.
+      body: You find a circle of elders reminiscing about past festivals; their wisdom and laughter enrich
+        your spirit. Morale +3
+      morale: 3
+    '5':
+      label: A couple of artisans are sculpting a giant pumpkin, inviting you to carve your mark alongside
+        theirs.
+      body: A couple of artisans are sculpting a giant pumpkin, inviting you to carve your mark alongside
+        theirs. Supplies +2
+      supplies: 2
+    '6':
+      label: A spontaneous dance erupts as musicians strike up a lively tune, pulling you into the rhythm.
+      body: A spontaneous dance erupts as musicians strike up a lively tune, pulling you into the rhythm.
+        Health +2
+      health: 2
+    '7':
+      label: You join a communal pumpkin soup tasting, where each spoonful is a warm exchange of smiles
+        and recipes.
+      body: You join a communal pumpkin soup tasting, where each spoonful is a warm exchange of smiles
+        and recipes. Health +2, Morale +1
+      health: 2
+      morale: 1
+    '8':
+      label: A competition unfolds to stack pumpkins; your participation earns you cheers and newfound
+        friends.
+      body: A competition unfolds to stack pumpkins; your participation earns you cheers and newfound
+        friends. Supplies +1, Morale +2
+      supplies: 1
+      morale: 2
+    '9':
+      label: You're drawn into a heartfelt conversation with a visiting trader about the wonders beyond
+        the forest.
+      body: You're drawn into a heartfelt conversation with a visiting trader about the wonders beyond
+        the forest. Morale +4
+      morale: 4
+    '10':
+      label: The lighting of the lanterns ceremony begins, and you are handed a lantern to place among
+        the trees.
+      body: The lighting of the lanterns ceremony begins, and you are handed a lantern to place among
+        the trees. Morale +3, Supplies +1
+      morale: 3
+      supplies: 1
+    jack:
+      label: A group of Gnawborn invites you to judge their pumpkin carving contest, a role that fills
+        you with honor and joy.
+      body: A group of Gnawborn invites you to judge their pumpkin carving contest, a role that fills
+        you with honor and joy. Morale +5
+      morale: 5
+    queen:
+      label: You help organize a small play about the history of the Pumpkin Party, acting alongside enthusiastic
+        villagers.
+      body: You help organize a small play about the history of the Pumpkin Party, acting alongside enthusiastic
+        villagers. Morale +3, Health +1
+      morale: 3
+      health: 1
+    king:
+      label: You are invited to lead the final toast of the evening, a moment that solidifies your role
+        within the community.
+      body: You are invited to lead the final toast of the evening, a moment that solidifies your role
+        within the community. Morale +6
+      morale: 6
+    ace:
+      label: You discover a secret gathering planning next year's festival, and they eagerly include you
+        in their visionary circle.
+      body: You discover a secret gathering planning next year's festival, and they eagerly include you
+        in their visionary circle. Morale +4, Supplies +2
+      morale: 4
+      supplies: 2
+  spades:
+    '2':
+      label: A sudden gust of wind scatters your supplies, spreading them into the dark woods.
+      body: A sudden gust of wind scatters your supplies, spreading them into the dark woods. Supplies
+        -2
+      supplies: -2
+    '3':
+      label: You accidentally step on a rotten pumpkin, slipping and bruising yourself in the fall.
+      body: You accidentally step on a rotten pumpkin, slipping and bruising yourself in the fall. Health
+        -1, Supplies -1
+      health: -1
+      supplies: -1
+    '4':
+      label: A mischievous spirit plays tricks on you, leading you astray and away from the group.
+      body: A mischievous spirit plays tricks on you, leading you astray and away from the group. Morale
+        -2, Supplies -1
+      morale: -2
+      supplies: -1
+    '5':
+      label: You encounter a thorny bush that scratches you as you navigate through the darker parts of
+        the patch.
+      body: You encounter a thorny bush that scratches you as you navigate through the darker parts of
+        the patch. Health -3
+      health: -3
+    '6':
+      label: A wrong turn leads you into a patch of stinging nettles, causing discomfort and slight injury.
+      body: A wrong turn leads you into a patch of stinging nettles, causing discomfort and slight injury.
+        Health -2, Morale -1
+      health: -2
+      morale: -1
+    '7':
+      label: An old, forgotten well swallows some of your belongings as you explore near it.
+      body: An old, forgotten well swallows some of your belongings as you explore near it. Supplies -4
+      supplies: -4
+    '8':
+      label: Chilly winds and eerie shadows dampen your spirits and the festive atmosphere.
+      body: Chilly winds and eerie shadows dampen your spirits and the festive atmosphere. Morale -4
+      morale: -4
+    '9':
+      label: You find a lantern that unfortunately goes out, leaving you in the dark and slightly disoriented.
+      body: You find a lantern that unfortunately goes out, leaving you in the dark and slightly disoriented.
+        Supplies -2, Morale -2
+      supplies: -2
+      morale: -2
+    '10':
+      label: An old fence collapses under your weight, resulting in minor injuries and a loss of medical
+        supplies.
+      body: An old fence collapses under your weight, resulting in minor injuries and a loss of medical
+        supplies. Health -5, Supplies -2
+      health: -5
+      supplies: -2
+    jack:
+      label: You stumble upon a hidden ditch covered by fallen leaves, losing some time and resources
+        recovering.
+      body: You stumble upon a hidden ditch covered by fallen leaves, losing some time and resources recovering.
+        Health -4, Supplies -3
+      health: -4
+      supplies: -3
+    queen:
+      label: You accidentally disturb a beehive, resulting in a frantic escape and multiple stings.
+      body: You accidentally disturb a beehive, resulting in a frantic escape and multiple stings. Health
+        -4, Morale -3
+      health: -4
+      morale: -3
+    king:
+      label: The sudden appearance of a wild animal scares you, causing you to drop and break essential
+        supplies.
+      body: The sudden appearance of a wild animal scares you, causing you to drop and break essential
+        supplies. Health -3, Supplies -4
+      health: -3
+      supplies: -4
+    ace:
+      label: A deep fog sets in, leading you far from the path; it takes hours to find your way back,
+        exhausting your resources.
+      body: A deep fog sets in, leading you far from the path; it takes hours to find your way back, exhausting
+        your resources. Health -4, Morale -3, Supplies -4
+      health: -4
+      morale: -3
+      supplies: -4
+  clubs:
+    '2':
+      label: You accidentally offend a fellow Gnawborn with a misunderstood joke, leading to an awkward
+        silence.
+      body: You accidentally offend a fellow Gnawborn with a misunderstood joke, leading to an awkward
+        silence. Morale -2
+      morale: -2
+    '3':
+      label: Miscommunication leads to a small argument over the last piece of pumpkin pie.
+      body: Miscommunication leads to a small argument over the last piece of pumpkin pie. Morale -1,
+        Supplies -1
+      morale: -1
+      supplies: -1
+    '4':
+      label: You lose a game of pumpkin toss, resulting in a small wager paid out from your supplies.
+      body: You lose a game of pumpkin toss, resulting in a small wager paid out from your supplies. Supplies
+        -3
+      supplies: -3
+    '5':
+      label: An old friend misinterprets your comments about the festival, dampening the evening's spirits.
+      body: An old friend misinterprets your comments about the festival, dampening the evening's spirits.
+        Morale -3
+      morale: -3
+    '6':
+      label: A playful prank goes wrong, causing slight injuries and embarrassment.
+      body: A playful prank goes wrong, causing slight injuries and embarrassment. Health -2, Morale -2
+      health: -2
+      morale: -2
+    '7':
+      label: You spill a drink on a prominent village elder, causing a moment of tension.
+      body: You spill a drink on a prominent village elder, causing a moment of tension. Supplies -2,
+        Morale -2
+      supplies: -2
+      morale: -2
+    '8':
+      label: A heated debate over the best pumpkin carving techniques sours the mood around you.
+      body: A heated debate over the best pumpkin carving techniques sours the mood around you. Morale
+        -4
+      morale: -4
+    '9':
+      label: You get lost while escorting a group of Gnawborn kids, causing panic and using up resources.
+      body: You get lost while escorting a group of Gnawborn kids, causing panic and using up resources.
+        Supplies -2, Morale -3
+      supplies: -2
+      morale: -3
+    '10':
+      label: Misplaced festival decorations are blamed on you, putting you in an uncomfortable spotlight.
+      body: Misplaced festival decorations are blamed on you, putting you in an uncomfortable spotlight.
+        Morale -5
+      morale: -5
+    jack:
+      label: A competitive spirit gets the better of you during a relay race, leading to strained relations.
+      body: A competitive spirit gets the better of you during a relay race, leading to strained relations.
+        Morale -3, Health -2
+      morale: -3
+      health: -2
+    queen:
+      label: A well-intentioned surprise for a friend backfires, leading to misunderstandings.
+      body: A well-intentioned surprise for a friend backfires, leading to misunderstandings. Morale -4,
+        Supplies -1
+      morale: -4
+      supplies: -1
+    king:
+      label: You take the blame for a mishap you didn't cause, to keep the peace, exhausting your patience
+        and supplies.
+      body: You take the blame for a mishap you didn't cause, to keep the peace, exhausting your patience
+        and supplies. Morale -3, Supplies -3
+      morale: -3
+      supplies: -3
+    ace:
+      label: A major misstep in a public performance leaves you feeling embarrassed and drained.
+      body: A major misstep in a public performance leaves you feeling embarrassed and drained. Morale
+        -5, Supplies -3
+      morale: -5
+      supplies: -3
 scene_tables:
   festival_role:
     '3':

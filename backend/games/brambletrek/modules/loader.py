@@ -101,6 +101,13 @@ def module_exploration_tables(adventure_id: str) -> dict[str, Any]:
     return dict(tables) if isinstance(tables, dict) else {}
 
 
+def module_items(adventure_id: str) -> dict[str, Any]:
+    """Module-specific ITEM table (e.g. Artefacts within Heimstre), keyed by rank."""
+    mod = load_module(adventure_id)
+    raw = mod.get("items") if mod else None
+    return raw if isinstance(raw, dict) else {}
+
+
 def module_path_locations(adventure_id: str) -> dict[str, Any]:
     mod = load_module(adventure_id)
     rows = mod.get("path_locations")
@@ -288,7 +295,10 @@ def format_adventure_scene(
 ) -> str:
     """Format curated adventure draws (journey, scene tables, or exploration)."""
     mod = load_module(adventure_id)
-    if module_journey_tables(adventure_id):
+    festival_route = bool(
+        module_scene_tables(adventure_id).get("choose_adventure") and activity_cards
+    )
+    if module_journey_tables(adventure_id) and not festival_route:
         labels = [f"Event {i + 1}" for i in range(len(route_cards))]
         return format_module_journey_events(adventure_id, route_cards, labels)
 

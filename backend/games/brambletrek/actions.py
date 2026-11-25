@@ -31,11 +31,17 @@ from backend.play_tools import draw_cards, format_card_result, format_dice_resul
 GAME_BRAMBLETREK = "brambletrek"
 
 
-def _adventure_draw_plan(active_adventure: str) -> tuple[int, bool, str]:
-    """Return route card count, whether activity cards follow, and exploration table id."""
+def _adventure_draw_plan(active_adventure: str, *, for_scene: bool = True) -> tuple[int, bool, str]:
+    """Return route card count, whether activity cards follow, and exploration table id.
+
+    Festival modules (Pumpkin Party) use the choose-your-adventure routing for the
+    adventure scene; their Journey day uses the module's daily prompts when it has them.
+    """
     if not active_adventure:
         return 4, False, ""
-    if module_scene_tables(active_adventure).get("choose_adventure"):
+    if module_scene_tables(active_adventure).get("choose_adventure") and (
+        for_scene or not module_journey_tables(active_adventure)
+    ):
         return 3, True, ""
     exploration = module_exploration_tables(active_adventure)
     table_id = str(module_play_config(active_adventure).get("default_scene_table") or "")
@@ -265,7 +271,7 @@ def shortcuts_for_character(*, active_adventure: str = "") -> list[BrambletrekSh
             and item["id"] == "journey_day"
             and module_has_curated_tables(active_adventure)
         ):
-            n, paired, _ = _adventure_draw_plan(active_adventure)
+            n, paired, _ = _adventure_draw_plan(active_adventure, for_scene=False)
             adv = adventure_meta(active_adventure)
             suffix = f" — {adv.get('label', active_adventure)}"
             if paired:
@@ -547,14 +553,13 @@ def run_shortcut(
         if not use_depths and active_adventure and module_has_curated_tables(active_adventure):
             adv = adventure_meta(active_adventure)
             adv_label = f" — {adv.get('label', active_adventure)}"
-            title = (
-                f"Adventure day{adv_label}"
-                if module_scene_tables(active_adventure).get("choose_adventure")
-                else f"Journey day{adv_label}"
-            )
         n, paired, exploration_table = (
-            (4, False, "") if use_depths else _adventure_draw_plan(active_adventure)
+            (4, False, "")
+            if use_depths
+            else _adventure_draw_plan(active_adventure, for_scene=False)
         )
+        if adv_label:
+            title = f"Adventure day{adv_label}" if paired else f"Journey day{adv_label}"
         if use_depths:
             n = 4
         draw_count = n * 2 if paired else n

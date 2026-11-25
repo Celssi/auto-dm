@@ -517,3 +517,92 @@ combat:
       ace:
         label: Legendary Outlaw
         health: 26
+items:
+  '2':
+    label: Heartwood Amulet
+    note: When worn, grants +1 damage to all combat card draws.
+  '3':
+    label: Leaf of Eon
+    note: Consumable. Instantly negate an opponent's tactic card.
+    consumable: true
+  '4':
+    label: Whispering Twig Wand
+    note: Channel during turn to draw two tactics and keep one.
+  '5':
+    label: Ring of the Ancients
+    note: Once per combat, you can redraw a tactic card.
+  '6':
+    label: Moonlit Dew Flask
+    note: Consumable. Recover a tactic card played in combat.
+    consumable: true
+  '7':
+    label: Star-threaded Quiver
+    note: Arrows provide +2 damage to your next three combat cards.
+  '8':
+    label: Pendant of the Sylva
+    note: Reflect an opponent's tactic card once every 2 days of rest.
+  '9':
+    label: Rootbound Bracers
+    note: Reduce health lost from tactics by 1 during combat.
+  '10':
+    label: Luminous Berry Pouch
+    note: Consumable. Distract opponent, redraw their next tactic.
+    consumable: true
+  jack:
+    label: Barkbound Shield
+    note: Block the next attack completely, once per combat.
+  queen:
+    label: Sap of Renewal
+    note: Consumable. Play two tactic cards at once.
+    consumable: true
+  king:
+    label: Orb of Forest's Breath
+    note: Force an opponent to redraw and play their weakest card.
+  ace:
+    label: Blade of the Guardian
+    note: Adds +3 damage to your next attack card.
+scene_tables:
+  prophecy:
+    title: Heimstre's Prophecy
+    intro: As you journey into the World Tree, you'll encounter LORE, at which point you can draw upon
+      this table to see which of these mystical fragments you find. If you draw a fragment you already
+      found, then simply redraw until you get a new one.
+    '2':
+      label: Whispers soft, from shadows deep, an ancient guardian wakes from sleep.
+      body: '"Whispers soft, from shadows deep, an ancient guardian wakes from sleep."'
+    '3':
+      label: In groves sacred, magic's song, heralds an age where old wrongs are gone.
+      body: '"In groves sacred, magic''s song, heralds an age where old wrongs are gone."'
+    '4':
+      label: Darkness seeks the tree's vast heart, a battle of ages is about to start.
+      body: '"Darkness seeks the tree''s vast heart, a battle of ages is about to start."'
+    '5':
+      label: When fates converge and stars align, lost relics of power will again shine.
+      body: '"When fates converge and stars align, lost relics of power will again shine."'
+    '6':
+      label: Brave souls will tread paths unknown, to reclaim a throne overthrown.
+      body: '"Brave souls will tread paths unknown, to reclaim a throne overthrown."'
+    '7':
+      label: Beneath the tree's watchful eye, a fallen spirit will again fly.
+      body: '"Beneath the tree''s watchful eye, a fallen spirit will again fly."'
+    '8':
+      label: A pact of old will be renewed, as secrets of the tree are viewed.
+      body: '"A pact of old will be renewed, as secrets of the tree are viewed."'
+    '9':
+      label: With destiny's dance and the wind's soft song, the Gnawborn will right a grave wrong.
+      body: '"With destiny''s dance and the wind''s soft song, the Gnawborn will right a grave wrong."'
+    '10':
+      label: Guardians from legends of old, will rise again, brave and bold.
+      body: '"Guardians from legends of old, will rise again, brave and bold."'
+    jack:
+      label: In the moon's embrace and sun's warm light, a hidden door will come in sight.
+      body: '"In the moon''s embrace and sun''s warm light, a hidden door will come in sight."'
+    queen:
+      label: Where knowledge flows and waters meet, a hidden foe will face defeat.
+      body: '"Where knowledge flows and waters meet, a hidden foe will face defeat."'
+    king:
+      label: As darkness fades and hope stands tall, Heimstre's blessing will befall.
+      body: '"As darkness fades and hope stands tall, Heimstre''s blessing will befall."'
+    ace:
+      label: Endless tales the branches weave, for one true heir the tree believes.
+      body: '"Endless tales the branches weave, for one true heir the tree believes."'
