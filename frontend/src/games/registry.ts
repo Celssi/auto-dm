@@ -12,8 +12,8 @@ export const GAMES = [
     id: 'brambletrek',
     label: 'Brambletrek',
     description: 'Card-driven solo journeys for a Gnawborn. Draw, travel, and journal what happens.',
-    accent: '#6b8f4e',
-    accentDim: '#55723d',
+    accent: '#d4af37',
+    accentDim: '#a8882a',
   },
 ] as const;
 
