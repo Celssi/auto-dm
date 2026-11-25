@@ -81,6 +81,9 @@ def router_node(state: DMState) -> DMState:
                 result,
                 result.get("journey_shortcut_id") or shortcut or "journey_day",
             )
+    elif msg.strip():
+        # Free-form message: look up the rules so the facilitator can answer it.
+        updates["needs_rules"] = True
     return updates
 
 
@@ -141,7 +144,12 @@ def _should_run_facilitator(state: DMState) -> bool:
         return False
     sess = get_session(state.get("session_id", "")) or {}
     story_mode = (sess.get("extras") or {}).get("story_mode", "player")
-    return story_mode == "ai_narrator"
+    if story_mode == "ai_narrator":
+        return True
+    # Player mode: shortcut results answer themselves (resolve node). A free-form
+    # message has no mechanical answer, so the facilitator replies as a rules helper
+    # instead of leaving the chat empty.
+    return not state.get("response") and bool(str(state.get("user_message") or "").strip())
 
 
 def facilitator_node(state: DMState) -> DMState:

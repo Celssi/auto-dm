@@ -73,11 +73,7 @@ function preferLiveSheet(fetched: Character, streamed: Character | null): Charac
   return next;
 }
 
-function applyBookkeepingStreamEvent(
-  event: string,
-  sessionId: string,
-  dispatch: Dispatch<PlayAction>,
-) {
+function applyBookkeepingStreamEvent(event: string, sessionId: string, dispatch: Dispatch<PlayAction>) {
   if (event === 'logs') {
     void Promise.all([api.getLonelog(sessionId), api.getAudit(sessionId)])
       .then(([log, audit]) => {
@@ -367,7 +363,7 @@ export function usePlayPageSession(
               shortcuts: sessionShortcuts,
             },
           });
-          if (gameId) await refreshJourney(id, gameId);
+          if (gameId) await getPlaySessionExtensions(gameId).afterLoadSession(id, gameId, dispatch);
           await loadRecapAndWorld(id, (session.messages || []).length, seq);
           return;
         }
@@ -430,7 +426,9 @@ export function usePlayPageSession(
         });
         const loadedGameId = String((ch as Character).game_id || 'dnd5e');
         setGameId(loadedGameId);
-        if (loadedGameId) await refreshJourney(id, loadedGameId);
+        if (loadedGameId) {
+          await getPlaySessionExtensions(loadedGameId).afterLoadSession(id, loadedGameId, dispatch);
+        }
         await loadRecapAndWorld(id, (session.messages || []).length, seq);
       } catch (e) {
         if (seq !== loadSeqRef.current) return;
@@ -444,7 +442,7 @@ export function usePlayPageSession(
         });
       }
     },
-    [dispatch, loadSeqRef, campaignIdRef, refreshJourney, setGameId, loadRecapAndWorld],
+    [dispatch, loadSeqRef, campaignIdRef, setGameId, loadRecapAndWorld],
   );
 
   const startSession = async () => {

@@ -23,3 +23,7 @@ class GamePlayAdapter:
     bootstrap_campaign: Callable[..., dict[str, Any]]
     generate_opening: Callable[..., str]
     build_graph: Callable[[], Any]
+    # D&D-only story director (campaign beats) runs after each turn unless skipped.
+    skip_story_director: bool = False
+    # Keep HP/slots/etc. from the live sheet when rebuilding the character.
+    preserve_live_resources: bool = False

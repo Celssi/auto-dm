@@ -158,6 +158,10 @@ def _execute_shortcut(session_id: str, body: ShortcutBody) -> dict:
         ctx = get_session_combat_context(session_id)
         if ctx:
             params["combat_context"] = ctx
+        # Honour the session's play settings (physical deck / story mode) like chat does.
+        extras = sess.get("extras") or {}
+        params.setdefault("card_source", extras.get("card_source", "virtual"))
+        params.setdefault("story_mode", extras.get("story_mode", "player"))
     if body.pre_rolled is not None:
         if not body.pre_rolled:
             raise HTTPException(400, "pre_rolled must not be empty")

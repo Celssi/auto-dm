@@ -57,4 +57,5 @@ BRAMBLETREK_PLAY_ADAPTER = GamePlayAdapter(
     bootstrap_campaign=bootstrap_brambletrek_campaign,
     generate_opening=generate_brambletrek_opening,
     build_graph=build_brambletrek_graph,
+    skip_story_director=True,
 )

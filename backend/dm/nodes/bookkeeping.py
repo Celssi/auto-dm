@@ -52,7 +52,7 @@ def character_keeper_node(state: DMState) -> DMState:
     after_dict = plugin.character_to_dict(char)
     from backend.games.registry import preserve_live_resources
 
-    if resolve_game_id(after_dict) == "dnd5e":
+    if game_plugin(after_dict).play.preserve_live_resources:
         after_dict = preserve_live_resources(char_dict, after_dict)
         for key in (
             "hp",
@@ -265,12 +265,13 @@ def run_deferred_bookkeeping(payload: dict) -> None:
         chronicler_node(state)
     except Exception:
         pass
-    try:
-        from backend.games.dnd5e.dm.agents.nodes import story_director_update_node
+    if not game_plugin(state.get("character")).play.skip_story_director:
+        try:
+            from backend.games.dnd5e.dm.agents.nodes import story_director_update_node
 
-        story_director_update_node(state)
-    except Exception:
-        pass
+            story_director_update_node(state)
+        except Exception:
+            pass
     try:
         journal_keeper_node(state)
     except Exception:

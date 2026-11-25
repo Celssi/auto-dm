@@ -63,4 +63,5 @@ DND_PLAY_ADAPTER = GamePlayAdapter(
     bootstrap_campaign=_bootstrap_campaign,
     generate_opening=_generate_opening,
     build_graph=build_dnd_graph,
+    preserve_live_resources=True,
 )

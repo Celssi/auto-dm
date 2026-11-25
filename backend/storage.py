@@ -92,6 +92,13 @@ LIVE_CHARACTER_KEYS = (
     "death_save_failures",
     "exhaustion",
     "savage_attacker_used_this_turn",
+    # Brambletrek live resources (sheet edits must not be overwritten by stale snapshots)
+    "health",
+    "morale",
+    "supplies",
+    "journey_day",
+    "in_aldwund",
+    "legacy_abilities_used",
 )
 _LONELOG_PREFIX = re.compile(r"^(@|=>)\s+\S+\s+")
 
