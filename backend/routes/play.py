@@ -56,7 +56,7 @@ def play_bootstrap(body: BootstrapBody):
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     except Exception as e:
-        raise http_provider_error(e) from e
+        raise http_provider_error(e, context="play/bootstrap") from e
     return result
 
 
@@ -75,7 +75,7 @@ def play_bootstrap_adventure(body: BootstrapAdventureBody):
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     except Exception as e:
-        raise http_provider_error(e) from e
+        raise http_provider_error(e, context="play/bootstrap-adventure") from e
     return result
 
 
@@ -94,5 +94,5 @@ def play_generate_campaign(body: GenerateCampaignBody):
     except ValueError as e:
         raise HTTPException(400, str(e)) from e
     except Exception as e:
-        raise http_provider_error(e) from e
+        raise http_provider_error(e, context="play/generate-campaign") from e
     return result

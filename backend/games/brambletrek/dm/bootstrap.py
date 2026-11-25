@@ -107,6 +107,17 @@ Guidelines:
     return sanitize_narration_dashes(pkg.opening_scene.strip())
 
 
+def _unique_adventure_id(base: str) -> str:
+    from backend.storage import get_adventure
+
+    adv_id = base
+    n = 2
+    while get_adventure(adv_id):
+        adv_id = f"{base}-{n}"
+        n += 1
+    return adv_id
+
+
 def bootstrap_brambletrek_campaign(
     *,
     character_id: str,
@@ -115,6 +126,12 @@ def bootstrap_brambletrek_campaign(
     include_faerun: bool = False,
     campaign_name: str = "",
 ) -> dict[str, Any]:
+    """Create campaign + adventure + session for a Gnawborn.
+
+    All LLM work (opening scene, canon summary) runs before anything is persisted,
+    and any failure after the first write rolls the new records back so a failed
+    bootstrap never leaves an empty campaign behind.
+    """
     del mode, include_faerun  # Brambletrek always uses book modules, not D&D bootstrap modes.
     char = get_character(character_id)
     if not char:
@@ -125,45 +142,53 @@ def bootstrap_brambletrek_campaign(
     theme_text = theme.strip() or str(meta.get("synopsis", adv_label)).strip()
     gnawborn_name = str(char.get("name") or "Gnawborn").strip()
     camp_name = campaign_name.strip() or f"Brambletrek: {gnawborn_name}"
-    campaign_id = slugify(camp_name)
-    save_campaign(
-        campaign_id,
-        {
-            "name": camp_name,
-            "story_arc": format_adventure_context(active) or theme_text,
-            "status": "active",
-            "character_ids": [character_id],
-            "game_id": "brambletrek",
-        },
-    )
-    adventure_id = slugify(f"{adv_label}-{gnawborn_name}")
     outline = _brambletrek_outline(active, meta, theme_text)
+
+    # Generate first: nothing is written if the DM / RAG step fails.
     opening = generate_brambletrek_opening(char)
-    save_adventure(
-        adventure_id,
-        {
-            "name": adv_label,
-            "mode": "module",
-            "theme": theme_text,
-            "character_id": character_id,
-            "campaign_id": campaign_id,
-            "status": "active",
-            "game_id": "brambletrek",
-            "source_module": active,
-        },
-        outline=outline,
-        log=f"# Adventure log\n\n{opening}\n",
-    )
     summary = generate_opening_summary(log=opening, opening_scene=opening, game_id="brambletrek")
-    write_adventure_summary(adventure_id, summary)
-    ensure_story_progress(adventure_id, outline)
-    session_id = create_session(
-        character_id=character_id,
-        adventure_id=adventure_id,
-        name=f"{adv_label} - session 1",
-        include_faerun=False,
-    )
-    attach_opening_to_session(session_id=session_id, opening=opening)
+
+    campaign_id = ""
+    adventure_id = ""
+    session_id = ""
+    try:
+        campaign_id = save_campaign(
+            slugify(camp_name),
+            {
+                "name": camp_name,
+                "story_arc": format_adventure_context(active) or theme_text,
+                "status": "active",
+                "character_ids": [character_id],
+                "game_id": "brambletrek",
+            },
+        )
+        adventure_id = save_adventure(
+            _unique_adventure_id(slugify(f"{adv_label}-{gnawborn_name}")),
+            {
+                "name": adv_label,
+                "mode": "module",
+                "theme": theme_text,
+                "character_id": character_id,
+                "campaign_id": campaign_id,
+                "status": "active",
+                "game_id": "brambletrek",
+                "source_module": active,
+            },
+            outline=outline,
+            log=f"# Adventure log\n\n{opening}\n",
+        )
+        write_adventure_summary(adventure_id, summary)
+        ensure_story_progress(adventure_id, outline)
+        session_id = create_session(
+            character_id=character_id,
+            adventure_id=adventure_id,
+            name=f"{adv_label} - session 1",
+            include_faerun=False,
+        )
+        attach_opening_to_session(session_id=session_id, opening=opening)
+    except Exception:
+        _rollback_bootstrap(campaign_id, adventure_id, session_id)
+        raise
     return {
         "session_id": session_id,
         "campaign_id": campaign_id,
@@ -171,3 +196,23 @@ def bootstrap_brambletrek_campaign(
         "opening_scene": opening,
         "counts": {"npcs": 0, "locations": 0},
     }
+
+
+def _rollback_bootstrap(campaign_id: str, adventure_id: str, session_id: str) -> None:
+    import logging
+
+    from backend.journal_storage import delete_campaign
+    from backend.storage import delete_adventure, delete_session
+
+    log = logging.getLogger(__name__)
+    for label, fn, key in (
+        ("session", delete_session, session_id),
+        ("adventure", delete_adventure, adventure_id),
+        ("campaign", delete_campaign, campaign_id),
+    ):
+        if not key:
+            continue
+        try:
+            fn(key)
+        except Exception:  # pragma: no cover - best effort cleanup
+            log.exception("Brambletrek bootstrap rollback failed for %s %s", label, key)

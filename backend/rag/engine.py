@@ -11,7 +11,7 @@ from llama_index.core.schema import NodeWithScore
 
 from backend.config import TOP_K_DEFAULT
 from backend.games.registry import DEFAULT_GAME_ID, get_game
-from backend.llm import ChatProvider, get_llamaindex_chat_llm
+from backend.llm import ChatProvider
 from backend.rag.retrieval_core import (
     build_index,
     dedupe_nodes,
@@ -187,8 +187,33 @@ def query_rules(
 
     context = _format_context(nodes)
     system = plugin.rag.system_prompt(factions)
-    llm = get_llamaindex_chat_llm(chat_provider)
-    prompt = f"{system}\n\nContext:\n{context}\n\nQuestion: {question}\n\nAnswer:"
-    response = llm.complete(prompt)
-    answer = str(response).strip()
+    answer = _generate_rag_answer(system, context, question, chat_provider)
     return RagResult(answer=answer, sources=sources)
+
+
+def _generate_rag_answer(
+    system: str, context: str, question: str, chat_provider: ChatProvider
+) -> str:
+    """Answer from retrieved excerpts via the LangChain chat model.
+
+    llama-index-llms-anthropic 0.13 builds ``MessageParam(...)`` directly, which raises
+    ``TypeError: Cannot instantiate typing.Union`` with anthropic>=2 before any request is
+    sent. That broke every RAG answer (Brambletrek opening scene, rules search) and was
+    reported to players as "The DM is unavailable". The LangChain client is the same one
+    the DM pipeline already uses successfully.
+    """
+    from langchain_core.messages import HumanMessage, SystemMessage
+
+    from backend.llm import get_langchain_chat_llm, invoke_chat_llm, message_text
+
+    llm = get_langchain_chat_llm(chat_provider, effort="medium")
+    response = invoke_chat_llm(
+        llm,
+        [
+            SystemMessage(content=system),
+            HumanMessage(content=f"Context:\n{context}\n\nQuestion: {question}\n\nAnswer:"),
+        ],
+        agent="rules_rag",
+        provider=chat_provider,
+    )
+    return message_text(response).strip()
