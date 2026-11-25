@@ -79,6 +79,7 @@ export default function BrambletrekCombatPanel({ combat, onAction, embedded }: P
         </div>
       )}
       <CombatInitiative initiative={combat.initiative} />
+      <SmoresStatus combat={combat} isActive={isActive} turn={turn} loading={loading} onRun={run} />
       <CombatPlayerChoices combat={combat} isActive={isActive} turn={turn} loading={loading} onRun={run} />
       <CombatTurnButtons
         combat={combat}
@@ -96,6 +97,100 @@ export default function BrambletrekCombatPanel({ combat, onAction, embedded }: P
   return <div className="panel-glow p-3">{content}</div>;
 }
 
+function turnLabel(turn: string) {
+  if (turn === 'smores') return 'Smores';
+  if (turn === 'eolan') return 'Eolan';
+  return turn;
+}
+
+function SmoresStatus({
+  combat,
+  isActive,
+  turn,
+  loading,
+  onRun,
+}: {
+  combat: BrambletrekCombatState;
+  isActive: boolean;
+  turn: string;
+  loading: string | null;
+  onRun: (action: string, handIndex?: number) => Promise<void>;
+}) {
+  const ally = combat.ally;
+  if (!ally || ally.id !== 'smores') return null;
+  const dailyUsed = ally.daily_used || combat.smores_daily_used || '';
+  const canDaily = isActive && !dailyUsed;
+  return (
+    <div className="rounded-lg border border-accent/30 bg-bg/40 p-2 space-y-2">
+      <div className="text-[11px] flex items-center justify-between gap-2">
+        <span>Smores (ally)</span>
+        <span className="text-muted">
+          {ally.temp_hp
+            ? `Temp HP ${ally.temp_hp} (${ally.temp_hp_turns ?? 0} turn${(ally.temp_hp_turns ?? 0) === 1 ? '' : 's'})`
+            : 'No Health value in the book'}
+        </span>
+      </div>
+      <p className="text-[11px] text-muted leading-relaxed">
+        He acts after you. Draw and play his tactics as if he is another player (CDE p. 110).
+      </p>
+      {isActive && (
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            className="btn-ghost w-full text-[11px] border border-border"
+            disabled={loading !== null || !canDaily}
+            onClick={() => onRun('smores_shield')}
+          >
+            {loading === 'smores_shield' ? 'Arming…' : dailyUsed ? `Daily used (${dailyUsed})` : 'Shield you (−3)'}
+          </button>
+          <button
+            type="button"
+            className="btn-ghost w-full text-[11px] border border-border"
+            disabled={loading !== null || !canDaily}
+            onClick={() => onRun('smores_shield_self')}
+          >
+            {loading === 'smores_shield_self' ? 'Arming…' : 'Shield Smores (−3)'}
+          </button>
+          <button
+            type="button"
+            className="btn-ghost w-full text-[11px] border border-border"
+            disabled={loading !== null || !canDaily}
+            onClick={() => onRun('smores_sweet_treat')}
+          >
+            {loading === 'smores_sweet_treat' ? 'Sharing…' : 'Sweet Treat (+2 HP, +1 Morale)'}
+          </button>
+          <button
+            type="button"
+            className="btn-ghost w-full text-[11px] border border-accent/40"
+            disabled={loading !== null}
+            onClick={() => onRun('smores_intercept')}
+          >
+            {ally.intercept_next ? 'Cancel intercept' : 'Intercept next attack'}
+          </button>
+        </div>
+      )}
+      {isActive && turn === 'smores' && (ally.hand?.length ?? 0) > 0 && (
+        <div>
+          <div className="text-[11px] text-muted mb-2">Smores&apos; tactic hand — play one card</div>
+          <div className="grid grid-cols-2 gap-2">
+            {tacticHandKeys(ally.hand ?? []).map(({ card, key, slot }) => (
+              <button
+                key={key}
+                type="button"
+                className="rounded-lg border border-accent/40 bg-bg/60 p-2 hover:border-accent/70 transition-colors"
+                disabled={loading !== null}
+                onClick={() => onRun('play_smores_tactic', slot)}
+              >
+                <PlayingCard card={card} size="sm" />
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CombatHeading({ combat, turn }: { combat: BrambletrekCombatState; turn: string }) {
   return (
     <div className="flex items-center justify-between gap-2">
@@ -104,7 +199,7 @@ function CombatHeading({ combat, turn }: { combat: BrambletrekCombatState; turn:
         Combat
       </div>
       <span className="text-[10px] uppercase tracking-wide text-accent">
-        {combat.status === 'active' ? `Turn: ${turn}` : combat.status}
+        {combat.status === 'active' ? `Turn: ${turnLabel(turn)}` : combat.status}
       </span>
     </div>
   );
@@ -244,6 +339,16 @@ function CombatTurnButtons({
           onClick={() => onRun('advance_phase')}
         >
           {loading === 'advance_phase' ? 'Advancing…' : 'Advance to next phase'}
+        </button>
+      )}
+      {turn === 'smores' && combat.ally?.needs_new_round && (
+        <button
+          type="button"
+          className="btn-primary w-full text-xs"
+          disabled={loading !== null}
+          onClick={() => onRun('smores_new_round')}
+        >
+          {loading === 'smores_new_round' ? 'Drawing…' : "Draw Smores' 4 tactic cards"}
         </button>
       )}
       {turn === 'opponent' && (

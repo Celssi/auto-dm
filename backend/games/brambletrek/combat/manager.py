@@ -16,6 +16,14 @@ from backend.games.brambletrek.combat.effects import (
     start_player_turn,
     tick_timed,
 )
+from backend.games.brambletrek.combat.smores import (
+    lookup_smores_tactic,
+    new_smores_ally,
+    set_intercept,
+    smores_ally,
+    smores_present,
+    use_daily_ability,
+)
 from backend.games.brambletrek.combat.state import default_combat_state
 from backend.games.brambletrek.dm.curated import lookup_player_tactic, parse_playing_card
 from backend.games.brambletrek.modules.combat import (
@@ -278,6 +286,22 @@ def begin_combat(
     if mode == "aerith_finale":
         state["log"].append("Turn order: Aerith → You → Eolan.")
         state["can_search_item"] = True
+    elif str(combat_context.get("ally") or "") == "smores":
+        hand = _draw_hand(char_id, 4)
+        state["ally"] = new_smores_ally(
+            hand=hand,
+            daily_used=str(combat_context.get("smores_daily_used") or ""),
+        )
+        state["smores_daily_used"] = state["ally"]["daily_used"]
+        first_note = (
+            "the opponent still won initiative, then you, then Smores"
+            if first == "opponent"
+            else "you, then Smores, then the opponent"
+        )
+        state["log"].append(
+            "Smores joins you as an ally (CDE p. 110). "
+            f"Turn order: {first_note}. Draw and play his tactics as if he is another player."
+        )
     return state
 
 
@@ -342,15 +366,23 @@ def _advance_turn(state: dict[str, Any], lines: list[str] | None = None) -> None
     mode = state.get("mode")
     if mode == "aerith_finale":
         order = ("opponent", "player", "eolan")
-        idx = order.index(turn) if turn in order else 0
-        state["turn"] = order[(idx + 1) % 3]
+    elif smores_present(state):
+        first = str((state.get("initiative") or {}).get("first") or "player")
+        if first == "opponent":
+            order = ("opponent", "player", "smores")
+        else:
+            order = ("player", "smores", "opponent")
     else:
-        state["turn"] = "player" if turn == "opponent" else "opponent"
+        order = ("player", "opponent")
+    idx = order.index(turn) if turn in order else 0
+    state["turn"] = order[(idx + 1) % len(order)]
     if state["turn"] == "opponent":
         prog = state.setdefault("phase_progress", {})
         prog["rounds"] = int(prog.get("rounds") or 0) + 1
     if state["turn"] == "player":
         _begin_player_turn(state, lines)
+    elif state["turn"] == "smores":
+        _begin_smores_turn(state, lines)
 
 
 def _finish_player_action(
@@ -456,6 +488,38 @@ def _opponent_turn(state: dict[str, Any], char_id: str, lines: list[str]) -> Non
     lines.extend(resolve_opponent_turn_effects(state, skipped=False))
 
 
+def _begin_smores_turn(state: dict[str, Any], lines: list[str]) -> None:
+    if not smores_present(state):
+        return
+    ally = smores_ally(state)
+    if not ally.get("hand"):
+        ally["needs_new_round"] = True
+        lines.append(
+            "Smores is out of tactic cards: draw 4 new cards for him to play."
+        )
+
+
+def _finish_smores_action(
+    state: dict[str, Any], char: BrambletrekCharacter, lines: list[str]
+) -> None:
+    _sync_char(state, char)
+    end = _check_end(state)
+    if end:
+        lines.append(end)
+        return
+    ally = smores_ally(state)
+    if int(ally.get("extra_turns") or 0) > 0:
+        ally["extra_turns"] = int(ally["extra_turns"]) - 1
+        if ally["extra_turns"] <= 0:
+            ally["extra_turns"] = 0
+        lines.append("Smores takes another action.")
+        _begin_smores_turn(state, lines)
+        return
+    _advance_turn(state, lines)
+    if str(state.get("turn")) == "smores":
+        _begin_smores_turn(state, lines)
+
+
 def combat_action(
     state: dict[str, Any],
     char: BrambletrekCharacter,
@@ -544,6 +608,71 @@ def combat_action(
         )
         _apply_hand_effects(state, tactic, char_id, lines)
         _finish_player_action(state, char, lines)
+        return state, lines
+
+    if action == "play_smores_tactic":
+        if not smores_present(state):
+            raise ValueError("Smores is not in this fight")
+        if str(state.get("turn")) != "smores":
+            raise ValueError("Not Smores' turn")
+        ally = smores_ally(state)
+        if ally.get("needs_new_round"):
+            raise ValueError("Smores is out of cards: draw a new round first")
+        hand = list(ally.get("hand") or [])
+        if hand_index < 0 or hand_index >= len(hand):
+            raise ValueError("Invalid Smores tactic card index")
+        card = hand.pop(hand_index)
+        ally["hand"] = hand
+        tactic = lookup_smores_tactic(card)
+        if not tactic:
+            raise ValueError(f"No Smores tactic for {card}")
+        lines.append(f"Smores plays **{card}**.")
+        lines.extend(
+            apply_tactic_effects(
+                state, tactic, actor="smores", draw=lambda n: _draw(char_id, n)
+            )
+        )
+        if tactic.get("extra_turns"):
+            ally["extra_turns"] = int(ally.get("extra_turns") or 0) + int(
+                tactic["extra_turns"]
+            )
+        _finish_smores_action(state, char, lines)
+        return state, lines
+
+    if action == "smores_new_round":
+        if not smores_present(state):
+            raise ValueError("Smores is not in this fight")
+        if str(state.get("turn")) != "smores":
+            raise ValueError("Not Smores' turn")
+        ally = smores_ally(state)
+        if ally.get("hand"):
+            raise ValueError("Smores still has tactic cards")
+        ally["hand"] = _draw_hand(char_id, 4)
+        ally["needs_new_round"] = False
+        lines.append("Smores draws 4 new tactic cards.")
+        return state, lines
+
+    if action == "smores_shield":
+        lines.extend(use_daily_ability(state, "shield", target="player"))
+        _sync_char(state, char)
+        return state, lines
+
+    if action == "smores_shield_self":
+        lines.extend(use_daily_ability(state, "shield", target="smores"))
+        _sync_char(state, char)
+        return state, lines
+
+    if action == "smores_sweet_treat":
+        lines.extend(use_daily_ability(state, "sweet_treat"))
+        _sync_char(state, char)
+        end = _check_end(state)
+        if end:
+            lines.append(end)
+        return state, lines
+
+    if action == "smores_intercept":
+        ally = smores_ally(state) if smores_present(state) else {}
+        lines.extend(set_intercept(state, not bool(ally.get("intercept_next"))))
         return state, lines
 
     if action == "eolan_turn":
@@ -671,6 +800,12 @@ def combat_payload(state: dict[str, Any] | None) -> dict[str, Any] | None:
         "reward_item": state.get("reward_item") or None,
         "recovery": state.get("recovery") or None,
         "defeat_stat": state.get("defeat_stat") or None,
+        "ally": state.get("ally") if smores_present(state) else None,
+        "smores_daily_used": (
+            str((state.get("ally") or {}).get("daily_used") or "")
+            if smores_present(state)
+            else ""
+        ),
     }
 
 

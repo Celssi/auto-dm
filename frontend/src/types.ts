@@ -197,6 +197,19 @@ export interface BrambletrekCombatState {
   can_search_item?: boolean;
   combat_items?: string[];
   buffs?: Record<string, unknown>;
+  ally?: {
+    id?: string;
+    label?: string;
+    temp_hp?: number;
+    temp_hp_turns?: number;
+    hand?: string[];
+    needs_new_round?: boolean;
+    intercept_next?: boolean;
+    daily_used?: string;
+    shield_armed?: boolean;
+    extra_turns?: number;
+  } | null;
+  smores_daily_used?: string;
 }
 
 export interface JourneyEvent {

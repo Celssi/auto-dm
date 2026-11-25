@@ -84,6 +84,7 @@ from backend.storage import get_character, get_session, save_character, update_s
 PENDING_JOURNEY_KEY = "pending_journey"
 FIRST_FROST_PHASE_KEY = "first_frost_phase"
 FROZEN_FOREST_TABLE = "journeys_frozen_forest"
+SMORES_DAILY_KEY = "smores_daily_used"
 COMBAT_CONTEXT_KEY = "combat_context"
 RECOVERY_SKIP_DAY_KEY = "recovery_skip_day"
 PENDING_RECOVERY_STATS_KEY = "pending_recovery_stats"
@@ -617,6 +618,7 @@ def finish_journey_day(session_id: str, char_id: str) -> dict:
         log_mechanical(session_id, "Returned to the Room of Gems.")
 
     extras.pop(PENDING_JOURNEY_KEY, None)
+    extras.pop(SMORES_DAILY_KEY, None)
     _set_extras(session_id, extras)
     out: dict[str, Any] = {
         "character": entity,
@@ -759,6 +761,15 @@ def init_dragonkeep_state(session_id: str, char_id: str) -> dict[str, Any]:
     return _dragonkeep_response(session_id, char_id, extras)
 
 
+
+def _with_smores_context(extras: dict, adventure_id: str, ctx: dict) -> dict:
+    if adventure_id == "first_frost" and extras.get(FIRST_FROST_PHASE_KEY) == "frozen_forest":
+        ctx = dict(ctx)
+        ctx["ally"] = "smores"
+        ctx["smores_daily_used"] = str(extras.get(SMORES_DAILY_KEY) or "")
+    return ctx
+
+
 def start_journey_combat(session_id: str, char_id: str, event_index: int) -> dict[str, Any]:
     extras = _session_extras(session_id)
     pending = extras.get(PENDING_JOURNEY_KEY)
@@ -793,6 +804,7 @@ def start_journey_combat(session_id: str, char_id: str, event_index: int) -> dic
     else:
         ctx = build_combat_context(adventure_id, card, event, exploration_table=exploration_table)
 
+    ctx = _with_smores_context(extras, adventure_id, ctx)
     _set_combat_context(session_id, extras, ctx)
     mode = "aerith_finale" if ctx.get("finale") else "standard"
     combat_state = begin_combat(char, ctx, char_id=char_id, mode=mode)
@@ -839,6 +851,7 @@ def start_manual_combat(session_id: str, char_id: str, rank: str, suit: str) -> 
         adventure_id = ""  # Dragonkeep foes come from its own tables; manual uses core rules.
     card = f"{rank} of {suit}"
     ctx = build_combat_context(adventure_id, card, {"combat": True, "label": "Encounter"})
+    ctx = _with_smores_context(extras, str(char.active_adventure or ""), ctx)
     _set_combat_context(session_id, extras, ctx)
     combat_state = begin_combat(char, ctx, char_id=char_id, mode="standard")
     extras[COMBAT_STATE_KEY] = combat_state
@@ -924,6 +937,9 @@ def session_combat_action(
         state["recovery"] = recoveries
     elif status == "retreated":
         log_mechanical(session_id, "You retreat from combat.")
+    used = str((state.get("ally") or {}).get("daily_used") or state.get("smores_daily_used") or "")
+    if used:
+        extras[SMORES_DAILY_KEY] = used
     extras[COMBAT_STATE_KEY] = state
     _save(char_id, char)
     _set_extras(session_id, extras)

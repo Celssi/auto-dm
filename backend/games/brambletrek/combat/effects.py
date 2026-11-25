@@ -26,6 +26,7 @@ TIMED_TICK_SIDE = {
     "reduce_player_damage": "player",  # weakens your attacks
     "opponent_armor": "player",
     "damage_bonus": "player",  # legacy module "+N damage for N turns"
+    "halve_opponent_output": "opponent",  # Quiet Quell, Smores Queen
 }
 
 Draw = Callable[[int], list[str]]
@@ -200,11 +201,27 @@ def damage_opponent(
 
 def damage_player(state: dict[str, Any], damage: int, lines: list[str], *, source: str) -> int:
     """Resolve an incoming attack against the Gnawborn, applying defensive buffs."""
+    import random
+
+    from backend.games.brambletrek.combat.smores import (
+        apply_incoming_to_smores,
+        smores_ally,
+        smores_present,
+    )
+
     buffs = _buffs(state)
     p = player_state(state)
     damage = int(damage)
     if damage <= 0:
         return 0
+    chance = int(buffs.pop("opponent_miss_chance_next", 0) or 0)
+    if chance:
+        roll = state.pop("next_chance_roll", None)
+        if roll is None:
+            roll = random.randrange(100)
+        if int(roll) < chance:
+            lines.append(f"{source}'s attack misses in the confusion!")
+            return 0
     if _consume(buffs, "evade_next"):
         lines.append(f"You avoid {source}'s attack!")
         if buffs.pop("counter_half", None):
@@ -234,6 +251,20 @@ def damage_player(state: dict[str, Any], damage: int, lines: list[str], *, sourc
     ):
         damage = half_up(damage)
         lines.append("Incoming damage halved.")
+    if damage <= 0:
+        return 0
+    intercept = False
+    if smores_present(state):
+        ally = smores_ally(state)
+        intercept = bool(ally.get("intercept_next"))
+        if not intercept and ally.get("shield_armed") and not ally.get("intercept_next"):
+            # Shield armed for the player (ally), not an intercept.
+            cut = min(3, damage)
+            damage -= cut
+            ally["shield_armed"] = False
+            lines.append(f"Smores' Shield absorbs {cut} damage.")
+        elif intercept:
+            damage = apply_incoming_to_smores(state, damage, lines, source=source)
     if damage <= 0:
         return 0
     p["hp"] = max(0, int(p["hp"]) - damage)
@@ -311,7 +342,18 @@ def _apply_player_side(
         lines.append(f"Max Health +{tactic['max_hp_bonus']} until the encounter ends.")
 
     formula = str(tactic.get("damage_formula") or "")
-    damage = _formula_damage(state, formula) if formula else int(tactic.get("damage") or 0)
+    damage = 0
+    if formula == "draw_half_up":
+        if draw:
+            card = draw(1)[0]
+            damage = half_up(card_value(card))
+            lines.append(
+                f"Drew **{card}** — damage equals half its value, rounded up ({damage})."
+            )
+    elif formula:
+        damage = _formula_damage(state, formula)
+    else:
+        damage = int(tactic.get("damage") or 0)
     if formula == "halve_opponent_hp":
         # Not an attack: the opponent's health is halved outright.
         damage_opponent(state, damage, lines, actor_label=actor_label, attack=False)
@@ -335,8 +377,8 @@ def _apply_player_side(
 
     if tactic.get("restore_morale_full"):
         change_morale(state, MAX_STAT, lines)
-    elif int(tactic.get("restore_morale") or 0) > 0:
-        change_morale(state, int(tactic["restore_morale"]), lines)
+    elif int(tactic.get("restore_morale") or tactic.get("morale") or 0) > 0:
+        change_morale(state, int(tactic.get("restore_morale") or tactic.get("morale") or 0), lines)
     if int(tactic.get("supplies") or 0):
         p["supplies_delta"] = int(p.get("supplies_delta") or 0) + int(tactic["supplies"])
         lines.append(f"Supplies +{int(tactic['supplies'])}.")
@@ -404,6 +446,51 @@ def _apply_player_side(
             buffs["skip_opponent_effects"] = True
     if tactic.get("skip_opponent_after_next"):
         _inc(buffs, "skip_opponent_after_next", int(tactic["skip_opponent_after_next"]))
+    if tactic.get("halve_opponent_damage_turns"):
+        add_timed(
+            state,
+            "halve_opponent_output",
+            1,
+            int(tactic["halve_opponent_damage_turns"]),
+            created_by="player",
+        )
+        buffs["halve_opponent_output_round"] = str(
+            tactic.get("halve_opponent_damage_round") or "up"
+        )
+        mode = buffs["halve_opponent_output_round"]
+        lines.append(
+            f"The opponent's damage is halved (rounded {mode}) "
+            f"for {int(tactic['halve_opponent_damage_turns'])} turn(s)."
+        )
+    if tactic.get("opponent_miss_chance_next"):
+        buffs["opponent_miss_chance_next"] = int(tactic["opponent_miss_chance_next"])
+        lines.append(
+            f"The opponent misses {int(tactic['opponent_miss_chance_next'])}% "
+            "of its attacks next turn."
+        )
+    if tactic.get("temporary_health"):
+        from backend.games.brambletrek.combat.smores import smores_ally, smores_present
+
+        if smores_present(state):
+            ally = smores_ally(state)
+            ally["temp_hp"] = int(ally.get("temp_hp") or 0) + int(tactic["temporary_health"])
+            ally["temp_hp_turns"] = max(
+                int(ally.get("temp_hp_turns") or 0),
+                int(tactic.get("temporary_health_turns") or 1),
+            )
+            ally["temp_hp_fresh"] = True
+            lines.append(
+                f"Smores gains {int(tactic['temporary_health'])} temporary health "
+                f"for {int(tactic.get('temporary_health_turns') or 1)} turn(s)."
+            )
+    if tactic.get("reflect_damage"):
+        buffs["smores_reflect"] = int(tactic["reflect_damage"])
+        buffs["smores_reflect_turns"] = int(tactic.get("reflect_turns") or 1)
+        buffs["smores_reflect_fresh"] = True
+        lines.append(
+            f"Smores reflects {int(tactic['reflect_damage'])} damage "
+            f"for {int(tactic.get('reflect_turns') or 1)} turn(s)."
+        )
     if tactic.get("dot_damage"):
         buffs.setdefault("dots", []).append(
             {"damage": int(tactic["dot_damage"]), "turns": int(tactic.get("dot_turns") or 1)}
@@ -505,6 +592,9 @@ def end_opponent_turn(state: dict[str, Any]) -> list[str]:
     if int(buffs.get("skip_opponent_after_next") or 0) > 0:
         buffs["skip_opponent_after_next_armed"] = int(buffs.pop("skip_opponent_after_next"))
     tick_timed(state, "opponent")
+    from backend.games.brambletrek.combat.smores import tick_smores_durations
+
+    lines.extend(tick_smores_durations(state))
     return lines
 
 
@@ -524,6 +614,13 @@ def _apply_opponent_side(
         damage = int(opponent.get("hp") or 0)
     if damage > 0:
         damage += timed_value(state, "opponent_damage_bonus")
+        if timed_value(state, "halve_opponent_output"):
+            mode = str(buffs.get("halve_opponent_output_round") or "up")
+            raw = damage
+            damage = damage // 2 if mode == "down" else half_up(damage)
+            lines.append(
+                f"Quiet Quell halves {raw} damage to {damage} (rounded {mode})."
+            )
         damage_player(state, damage, lines, source=label)
     if int(tactic.get("morale_damage") or 0) > 0:
         amount = int(tactic["morale_damage"])
@@ -637,6 +734,7 @@ def apply_tactic_effects(
         "player": "You",
         "opponent": opponent_label(state),
         "eolan": "Eolan",
+        "smores": "Smores",
         "item": "Item",
     }.get(actor, actor)
     lines: list[str] = [f"**{who}** — {tactic.get('label', tactic.get('effect', '?'))}"]
@@ -647,7 +745,7 @@ def apply_tactic_effects(
             state,
             tactic,
             lines,
-            actor_label={"player": "You", "eolan": "Eolan", "item": "Item"}.get(actor, actor),
+            actor_label=who,
             use_player_bonuses=actor in ("player", "item"),
             draw=draw,
         )
