@@ -45,6 +45,19 @@ _RULE_TERM_WORDS = {
     "deck", "stat", "stats", "morale", "health", "supplies", "mechanics", "initiative",
     "outcome", "outcomes", "result", "results", "options", "next steps", "recap",
 }  # fmt: skip
+# UI / button labels and Brambletrek panel names, including single-word controls
+# like "Apply" and "Combat" that otherwise look like proper nouns.
+_UI_CONTROL_WORDS = {
+    "apply", "applying", "applied", "start", "starting", "finish", "finishing",
+    "discard", "discarding", "retreat", "retreating", "cancel", "close", "save",
+    "saving", "reload", "refresh", "shuffle", "confirm", "submit", "previous",
+    "panel", "shortcut", "shortcuts", "lonelog", "audit", "combat", "deck",
+    "tactics", "resources", "heal", "defence", "defense", "healing",
+}  # fmt: skip
+_UI_CONTROL_PHRASES = {
+    "finish day", "start combat", "apply to sheet", "apply previous first",
+    "draw item", "new round", "today's draws", "record card",
+}  # fmt: skip
 _NAME_PARTICLES = {"of", "the", "de", "du", "van", "von", "da", "del", "la", "le", "and", "in"}
 
 
@@ -178,9 +191,14 @@ def looks_like_entity_name(name: str) -> bool:
     words = cleaned.split(" ")
     if len(words) > 6:
         return False
+    lowered = cleaned.lower()
+    if lowered in _UI_CONTROL_WORDS or lowered in _UI_CONTROL_PHRASES:
+        return False
     if any(w.lower().strip("'\"(),:-") in _RULE_TERM_WORDS for w in words):
         return False
-    if cleaned.lower() in _curated_item_names():
+    if any(w.lower().strip("'\"(),:-") in _UI_CONTROL_WORDS for w in words):
+        return False
+    if lowered in _curated_item_names():
         return False
     if words[0].lower() in _ACTION_VERBS and len(words) > 1:
         return False

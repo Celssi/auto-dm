@@ -148,3 +148,17 @@ def test_dm_headings_are_not_npcs():
         "**Supplies Recovery Table**\nYou meet **Mira Thornfoot** at the gate."
     )
     assert extract_marked_names(text) == ["Mira Thornfoot"]
+
+
+def test_ui_labels_are_not_npcs():
+    from backend.dm.memory_dedupe import looks_like_entity_name
+    from backend.dm.session_world import extract_marked_names
+
+    for label in ("Apply", "Combat", "Finish day", "Start combat", "Journey", "Deck"):
+        assert looks_like_entity_name(label) is False, label
+    assert looks_like_entity_name("Mira Thornfoot") is True
+    text = (
+        "Drew 2 card(s). Open the **Journey** panel: **Apply** each event in order, "
+        "start **Combat** on face cards, then **Finish day**."
+    )
+    assert extract_marked_names(text) == []

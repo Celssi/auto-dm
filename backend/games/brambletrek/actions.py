@@ -800,9 +800,9 @@ def run_shortcut_for_plugin(shortcut_id: str, **char) -> dict:
             out["journey_cards"] = run["journey_cards"]
             out["journey_shortcut_id"] = shortcut_id
             out["summary"] = (
-                f"Drew {len(run['journey_cards'])} card(s). Open the **Journey** panel: "
-                "**Apply** each event in order (stats, items and DEPTHS are applied by the "
-                "app), start combat on face cards, then **Finish day**."
+                f"Drew {len(run['journey_cards'])} card(s). Open the Journey panel: "
+                "Apply each event in order (stats, items and DEPTHS are applied by the "
+                "app), start combat on face cards, then Finish day."
             )
         return out
     return {**base, "task": "rag_direct"}

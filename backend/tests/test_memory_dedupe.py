@@ -47,6 +47,8 @@ def test_entity_name_filter():
     assert not looks_like_entity_name("Ask Dalla to come with you")
     assert not looks_like_entity_name("Search the docks")
     assert not looks_like_entity_name("What now?")
+    assert not looks_like_entity_name("Apply")
+    assert not looks_like_entity_name("Combat")
 
 
 def test_apply_journal_updates_dedupes_and_filters(isolated_saves):
