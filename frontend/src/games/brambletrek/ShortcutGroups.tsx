@@ -61,14 +61,15 @@ function CollapsibleGroup({
         <span className="ml-auto text-[10px] opacity-60">{items.length}</span>
       </button>
       {open && (
-        <div className="grid grid-cols-2 gap-1.5 p-2 pt-0">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 p-2 pt-0">
           {items.map((s) => (
             <button
               key={s.id}
               type="button"
-              className="play-chip text-left text-xs px-2 py-1.5 truncate"
+              className="play-chip text-left text-xs px-2 py-1.5 whitespace-normal leading-snug"
               disabled={loading === s.id}
               onClick={() => onRun(s.id)}
+              title={s.label}
             >
               {loading === s.id ? '…' : s.label}
             </button>

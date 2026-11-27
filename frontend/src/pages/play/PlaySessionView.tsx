@@ -313,7 +313,7 @@ function PlaySessionLayout({
         {viewport === 'desktop' && showSheet && <div className="col-span-3 min-h-0 flex flex-col">{sheet}</div>}
         {viewport === 'phone' && showSheet && <div className="min-h-0 flex flex-col">{sheet}</div>}
         {showChat && (
-          <div className={`min-h-0 flex flex-col ${viewport === 'desktop' ? 'col-span-6' : ''}`}>{chat}</div>
+          <div className={`min-h-0 flex flex-col ${viewport === 'desktop' ? 'col-span-5' : ''}`}>{chat}</div>
         )}
         {viewport === 'tablet' && (
           <div className="min-h-0 flex flex-col gap-2">
@@ -329,7 +329,7 @@ function PlaySessionLayout({
           </div>
         )}
         {viewport !== 'tablet' && showTools && (
-          <div className={`min-h-0 flex flex-col ${viewport === 'desktop' ? 'col-span-3' : ''}`}>{tools}</div>
+          <div className={`min-h-0 flex flex-col ${viewport === 'desktop' ? 'col-span-4' : ''}`}>{tools}</div>
         )}
       </div>
       {viewport === 'phone' && <PlayPaneBar active={phonePane} onChange={onPhonePane} />}
