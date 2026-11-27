@@ -19,7 +19,7 @@ export default function HomePage({ indexed, claudeOk, recentSession, sessionsLoa
   const { game, gameId } = useGame();
 
   return (
-    <AnimatedPage className="max-w-4xl mx-auto space-y-10">
+    <AnimatedPage className="space-y-10">
       <PageHeader title="Auto-DM" subtitle={`${game.label}. ${game.description}`} />
       <HomeStatus indexed={indexed} claudeOk={claudeOk} />
       <HomeStart recentSession={recentSession} sessionsLoaded={sessionsLoaded} />
@@ -65,9 +65,7 @@ function HomeStart({ recentSession, sessionsLoaded }: Pick<Props, 'recentSession
 
       {sessionsLoaded && !recentSession && (
         <div className="panel p-5 flex items-center min-h-[10.5rem]">
-          <p className="text-sm text-muted">
-            No sessions yet. Create a character, then start a campaign from Play.
-          </p>
+          <p className="text-sm text-muted">No sessions yet. Create a character, then start a campaign from Play.</p>
         </div>
       )}
     </m.div>

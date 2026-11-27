@@ -56,57 +56,56 @@ export default function PlayWizard({
   const { characters, gameAdventures, sessions, campaignPlay } = playWizardContext(state, gameId);
 
   return (
-    <AnimatedPage className="max-w-xl mx-auto space-y-6">
+    <AnimatedPage className="space-y-6">
       <LongJobOverlay
         active={bootstrapping}
         title="Generating campaign"
         message="Keep this tab open. The opening scene is written as part of this step."
         progress
       />
-      <PageHeader
-        title="Play"
-        subtitle="Continue a session, or generate a campaign from a character and a theme."
-      />
+      <PageHeader title="Play" subtitle="Continue a session, or generate a campaign from a character and a theme." />
 
-      <TabBar
-        tabs={[
-          { id: 'continue', label: 'Continue' },
-          { id: 'new', label: 'New campaign' },
-        ]}
-        active={wizardTab}
-        onChange={(id) => onWizardTabChange(id as 'continue' | 'new')}
-      />
+      <div className="max-w-xl space-y-6">
+        <TabBar
+          tabs={[
+            { id: 'continue', label: 'Continue' },
+            { id: 'new', label: 'New campaign' },
+          ]}
+          active={wizardTab}
+          onChange={(id) => onWizardTabChange(id as 'continue' | 'new')}
+        />
 
-      <AnimatePresence mode="wait">
-        {wizardTab === 'continue' && (
-          <PlayContinueTab
-            metaLoaded={metaLoaded}
-            sessions={sessions}
-            characters={characters}
-            gameAdventures={gameAdventures}
-            newSession={newSession}
-            includeFaerun={includeFaerun}
-            showFaerun={campaignPlay.showFaerunToggle}
-            onNavigateSession={onNavigateSession}
-            onRenameSession={onRenameSession}
-            onArchiveSession={onArchiveSession}
-            onPatchNewSession={onPatchNewSession}
-            onIncludeFaerunChange={onIncludeFaerunChange}
-            onStartSession={onStartSession}
-          />
-        )}
-        {wizardTab === 'new' && (
-          <PlayNewCampaignTab
-            characters={characters}
-            newCampaign={newCampaign}
-            campaignPlay={campaignPlay}
-            bootstrapError={bootstrapError}
-            bootstrapping={bootstrapping}
-            onPatchNewCampaign={onPatchNewCampaign}
-            onBootstrapAndPlay={onBootstrapAndPlay}
-          />
-        )}
-      </AnimatePresence>
+        <AnimatePresence mode="wait">
+          {wizardTab === 'continue' && (
+            <PlayContinueTab
+              metaLoaded={metaLoaded}
+              sessions={sessions}
+              characters={characters}
+              gameAdventures={gameAdventures}
+              newSession={newSession}
+              includeFaerun={includeFaerun}
+              showFaerun={campaignPlay.showFaerunToggle}
+              onNavigateSession={onNavigateSession}
+              onRenameSession={onRenameSession}
+              onArchiveSession={onArchiveSession}
+              onPatchNewSession={onPatchNewSession}
+              onIncludeFaerunChange={onIncludeFaerunChange}
+              onStartSession={onStartSession}
+            />
+          )}
+          {wizardTab === 'new' && (
+            <PlayNewCampaignTab
+              characters={characters}
+              newCampaign={newCampaign}
+              campaignPlay={campaignPlay}
+              bootstrapError={bootstrapError}
+              bootstrapping={bootstrapping}
+              onPatchNewCampaign={onPatchNewCampaign}
+              onBootstrapAndPlay={onBootstrapAndPlay}
+            />
+          )}
+        </AnimatePresence>
+      </div>
     </AnimatedPage>
   );
 }
@@ -278,8 +277,8 @@ function PlayNewCampaignTab({
       className="panel-glow p-5 space-y-4"
     >
       <p className="text-sm text-muted leading-relaxed">
-        Generate a campaign, adventure, journal entries, and opening scene, then jump into play. Keep
-        this tab open while it generates.
+        Generate a campaign, adventure, journal entries, and opening scene, then jump into play. Keep this tab open
+        while it generates.
       </p>
       {characters.length === 0 && (
         <p className="text-sm text-muted rounded-lg border border-border bg-bg/40 px-3 py-2">

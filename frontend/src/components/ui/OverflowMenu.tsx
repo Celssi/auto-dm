@@ -36,13 +36,7 @@ export default function OverflowMenu({ items, label = 'More actions', children }
       >
         {children ?? <MoreHorizontal size={16} />}
       </button>
-      <AnchoredPopover
-        open={open}
-        triggerRef={triggerRef}
-        onClose={close}
-        role="menu"
-        className="sheet-menu"
-      >
+      <AnchoredPopover open={open} triggerRef={triggerRef} onClose={close} role="menu" className="sheet-menu">
         {items.map((item) => (
           <button
             key={item.label}

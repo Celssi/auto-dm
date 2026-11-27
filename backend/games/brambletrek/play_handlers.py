@@ -200,9 +200,41 @@ def persist_character(char_id: str, data: dict) -> dict:
     return _save(char_id, char)
 
 
+STORY_MODES = frozenset({"player", "ai_narrator"})
+CARD_SOURCES = frozenset({"virtual", "physical"})
+
+
 def get_play_settings(session_id: str) -> tuple[str, str]:
     extras = _session_extras(session_id)
-    return extras.get("story_mode", "player"), extras.get("card_source", "virtual")
+    story = str(extras.get("story_mode") or "player")
+    cards = str(extras.get("card_source") or "virtual")
+    if story not in STORY_MODES:
+        story = "player"
+    if cards not in CARD_SOURCES:
+        cards = "virtual"
+    return story, cards
+
+
+def set_play_settings(
+    session_id: str,
+    *,
+    story_mode: str | None = None,
+    card_source: str | None = None,
+) -> dict[str, str]:
+    extras = _session_extras(session_id)
+    if story_mode is not None:
+        mode = str(story_mode).strip().lower()
+        if mode not in STORY_MODES:
+            raise ValueError("story_mode must be player or ai_narrator")
+        extras["story_mode"] = mode
+    if card_source is not None:
+        source = str(card_source).strip().lower()
+        if source not in CARD_SOURCES:
+            raise ValueError("card_source must be virtual or physical")
+        extras["card_source"] = source
+    _set_extras(session_id, extras)
+    story, cards = get_play_settings(session_id)
+    return {"story_mode": story, "card_source": cards}
 
 
 def journey_event_stat_preview(event: dict) -> str:
@@ -579,6 +611,16 @@ def finish_journey_day(session_id: str, char_id: str) -> dict:
     extras = _session_extras(session_id)
     pending = extras.get(PENDING_JOURNEY_KEY) or {}
     exploration_table = str(pending.get("exploration_table") or "")
+    cards = pending.get("cards") or []
+    applied = list(pending.get("applied") or [False] * len(cards))
+    if cards and any(not (applied[i] if i < len(applied) else False) for i in range(len(cards))):
+        remaining = sum(
+            1 for i in range(len(cards)) if not (applied[i] if i < len(applied) else False)
+        )
+        raise ValueError(
+            f"Resolve all journey events before finishing the day ({remaining} still open). "
+            "Use Discard to abandon today's draws."
+        )
 
     # p. 15: rest after today's events, then p. 16: the following day is spent
     # recovering any resource that reached 0 (one lost day, even if several stats).

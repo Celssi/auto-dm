@@ -42,7 +42,10 @@ function assert(condition: unknown, message: string): asserts condition {
 }
 
 async function main() {
-  assert(characterPdfFilename('Larry Swordstein') === 'Larry Swordstein-sheet.pdf', 'filename keeps the character name');
+  assert(
+    characterPdfFilename('Larry Swordstein') === 'Larry Swordstein-sheet.pdf',
+    'filename keeps the character name',
+  );
   assert(!characterPdfFilename('A/B').includes('/'), 'filename strips path separators');
   const blob = await renderCharacterPdfBlob(sampleFighter(), {
     class_features: { fighter: ['Fighting Style', 'Second Wind'] },

@@ -323,6 +323,8 @@ export function usePlayPageSession(
       try {
         const { session } = await api.getSession(id);
         if (seq !== loadSeqRef.current) return;
+        const storyMode = session.extras?.story_mode === 'ai_narrator' ? 'ai_narrator' : 'player';
+        const cardSource = session.extras?.card_source === 'physical' ? 'physical' : 'virtual';
         if (!session.character_id) {
           dispatch({
             type: 'set',
@@ -330,6 +332,8 @@ export function usePlayPageSession(
               sessionLoaded: true,
               worldLoading: false,
               loadError: 'This session has no character attached.',
+              storyMode,
+              cardSource,
             },
           });
           return;
@@ -372,6 +376,8 @@ export function usePlayPageSession(
               adventureComplete: false,
               nextAdventure: null,
               shortcuts: sessionShortcuts,
+              storyMode,
+              cardSource,
             },
           });
           if (gameId) await getPlaySessionExtensions(gameId).afterLoadSession(id, gameId, dispatch);
@@ -444,6 +450,8 @@ export function usePlayPageSession(
             nextAdventure: null,
             shortcuts: (await api.getShortcuts(String((ch as Character).game_id || 'dnd5e'), session.character_id))
               .shortcuts,
+            storyMode,
+            cardSource,
           },
         });
         const loadedGameId = String((ch as Character).game_id || 'dnd5e');
@@ -1092,6 +1100,30 @@ export function usePlayPageSession(
     await loadMeta();
   };
 
+  const setStoryMode = useCallback(
+    async (storyMode: 'player' | 'ai_narrator') => {
+      if (!state.sessionId) return;
+      const previous = state.storyMode;
+      dispatch({ type: 'set', patch: { storyMode } });
+      try {
+        const res = await api.updatePlaySettings(state.sessionId, { story_mode: storyMode });
+        dispatch({
+          type: 'set',
+          patch: { storyMode: res.story_mode, cardSource: res.card_source },
+        });
+      } catch (e) {
+        dispatch({
+          type: 'set',
+          patch: {
+            storyMode: previous,
+            chatError: e instanceof Error ? e.message : 'Could not update story mode',
+          },
+        });
+      }
+    },
+    [state.sessionId, state.storyMode, dispatch],
+  );
+
   const toggleHeroicInspiration = useCallback(
     async (next: boolean) => {
       if (!state.characterId || !state.character) return;
@@ -1165,5 +1197,6 @@ export function usePlayPageSession(
     toggleHeroicInspiration,
     renameSession,
     archiveSession,
+    setStoryMode,
   };
 }

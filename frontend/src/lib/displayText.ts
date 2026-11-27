@@ -51,9 +51,7 @@ export function coerceChoiceList(raw: unknown): string[] {
   if (typeof raw !== 'string') return [];
   const text = raw.trim();
   if (!(text.startsWith('[') && text.endsWith(']'))) return [];
-  return [...text.matchAll(/'([^']*)'|"([^"]*)"/g)]
-    .map((match) => (match[1] ?? match[2] ?? '').trim())
-    .filter(Boolean);
+  return [...text.matchAll(/'([^']*)'|"([^"]*)"/g)].map((match) => (match[1] ?? match[2] ?? '').trim()).filter(Boolean);
 }
 
 /** Comma-separated labels for class choices (languages, expertise, spells, mastery). */

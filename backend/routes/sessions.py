@@ -27,6 +27,7 @@ from backend.storage import (
     list_sessions,
     patch_session,
     save_session_messages,
+    update_session_extras,
 )
 
 router = APIRouter(prefix="/api/sessions", tags=["sessions"])
@@ -63,6 +64,11 @@ class CombatActionBody(BaseModel):
 class SessionPatchBody(BaseModel):
     name: str | None = None
     archived: bool | None = None
+
+
+class PlaySettingsBody(BaseModel):
+    story_mode: str | None = None
+    card_source: str | None = None
 
 
 @router.get("")
@@ -105,6 +111,47 @@ def patch(session_id: str, body: SessionPatchBody):
     if not sess:
         raise HTTPException(404, "Session not found")
     return {"session": sess}
+
+
+def _normalize_play_settings(extras: dict | None) -> dict[str, str]:
+    data = extras or {}
+    story = str(data.get("story_mode") or "player").strip().lower()
+    cards = str(data.get("card_source") or "virtual").strip().lower()
+    if story not in ("player", "ai_narrator"):
+        story = "player"
+    if cards not in ("virtual", "physical"):
+        cards = "virtual"
+    return {"story_mode": story, "card_source": cards}
+
+
+@router.get("/{session_id}/play-settings")
+def read_play_settings(session_id: str):
+    sess = get_session(session_id)
+    if not sess:
+        raise HTTPException(404, "Session not found")
+    return _normalize_play_settings(sess.get("extras"))
+
+
+@router.patch("/{session_id}/play-settings")
+def update_play_settings(session_id: str, body: PlaySettingsBody):
+    if body.story_mode is None and body.card_source is None:
+        raise HTTPException(400, "Provide story_mode or card_source")
+    sess = get_session(session_id)
+    if not sess:
+        raise HTTPException(404, "Session not found")
+    extras = dict(sess.get("extras") or {})
+    if body.story_mode is not None:
+        mode = str(body.story_mode).strip().lower()
+        if mode not in ("player", "ai_narrator"):
+            raise HTTPException(400, "story_mode must be player or ai_narrator")
+        extras["story_mode"] = mode
+    if body.card_source is not None:
+        source = str(body.card_source).strip().lower()
+        if source not in ("virtual", "physical"):
+            raise HTTPException(400, "card_source must be virtual or physical")
+        extras["card_source"] = source
+    update_session_extras(session_id, extras)
+    return _normalize_play_settings(extras)
 
 
 @router.get("/{session_id}/recap")

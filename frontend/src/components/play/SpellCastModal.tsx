@@ -20,7 +20,10 @@ interface Props {
 }
 
 function norm(name: string) {
-  return name.trim().toLowerCase().replace(/[^a-z0-9]+/g, '');
+  return name
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '');
 }
 
 export function listCastableSpells(character: Character): SpellOption[] {

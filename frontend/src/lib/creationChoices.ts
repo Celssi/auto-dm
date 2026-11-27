@@ -136,7 +136,12 @@ function expandChoice(
         })),
       };
     }
-    if (key === 'languages' || key === 'standard_languages' || key === 'origin_languages' || key === 'extra_languages') {
+    if (
+      key === 'languages' ||
+      key === 'standard_languages' ||
+      key === 'origin_languages' ||
+      key === 'extra_languages'
+    ) {
       const langs = ((options.languages as string[]) || []).map(String);
       const skipCant = key === 'origin_languages' || key === 'extra_languages';
       const skipCommon = key === 'origin_languages';
@@ -183,9 +188,7 @@ export function choicesForDraft(
   const classId = String(char.class_name || '').toLowerCase();
   const level = Number(char.level || 1);
 
-  const lineage = String(
-    ((char.feature_choices || {}) as Record<string, unknown>).elven_lineage || '',
-  )
+  const lineage = String(((char.feature_choices || {}) as Record<string, unknown>).elven_lineage || '')
     .toLowerCase()
     .replace(/ /g, '_');
 
@@ -217,7 +220,8 @@ export function choicesForDraft(
       };
     }
     if (raw.id === 'weapon_mastery') {
-      const weapons = (options.weapons as { id: string; label?: string; category?: string; properties?: string[] }[]) || [];
+      const weapons =
+        (options.weapons as { id: string; label?: string; category?: string; properties?: string[] }[]) || [];
       expanded = {
         ...expanded,
         options: weapons
@@ -310,10 +314,7 @@ export function draftSkillProficiencies(char: Character, options: Record<string,
   return skills;
 }
 
-function weaponAllowedForMastery(
-  classId: string,
-  weapon: { category?: string; properties?: string[] },
-): boolean {
+function weaponAllowedForMastery(classId: string, weapon: { category?: string; properties?: string[] }): boolean {
   const category = String(weapon.category || '').toLowerCase();
   const props = new Set((weapon.properties || []).map((p) => String(p).toLowerCase()));
   if (['barbarian', 'fighter', 'paladin', 'ranger'].includes(classId)) {

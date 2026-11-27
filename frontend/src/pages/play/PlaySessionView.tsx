@@ -55,6 +55,7 @@ interface Props {
   onToggleHeroicInspiration?: (next: boolean) => void;
   onConfirmReaction?: () => void;
   onDeclineReaction?: () => void;
+  onStoryModeChange: (mode: 'player' | 'ai_narrator') => void;
 }
 
 export default function PlaySessionView({
@@ -87,6 +88,7 @@ export default function PlaySessionView({
   onToggleHeroicInspiration,
   onConfirmReaction,
   onDeclineReaction,
+  onStoryModeChange,
 }: Props) {
   const {
     sessionLoaded,
@@ -118,6 +120,7 @@ export default function PlaySessionView({
     startingNext,
     campaignId,
     combatState,
+    storyMode,
     brambletrekCombat,
     diceModal,
     spellCastModal,
@@ -212,6 +215,8 @@ export default function PlaySessionView({
             loading={loading}
             combatState={combatState}
             brambletrekCombat={brambletrekCombat}
+            storyMode={storyMode}
+            onStoryModeChange={onStoryModeChange}
             onRunOracle={onRunOracle}
             onRunShortcut={onRunShortcut}
             onJourneyApply={onJourneyApply}
@@ -387,7 +392,11 @@ function PlayCharacterPanel({
         <h2 className="section-heading">Character</h2>
         <div className="flex items-center gap-2 shrink-0">
           {onRebuildSheet && characterId && (
-            <button type="button" className="text-[10px] text-accent/80 hover:text-accent hover:underline" onClick={onRebuildSheet}>
+            <button
+              type="button"
+              className="text-[10px] text-accent/80 hover:text-accent hover:underline"
+              onClick={onRebuildSheet}
+            >
               Rebuild sheet
             </button>
           )}
@@ -544,13 +553,14 @@ function PlayChatArea({
             </m.div>
           ))}
         </AnimatePresence>
-        {loading && !(messages[messages.length - 1]?.role === 'assistant' && messages[messages.length - 1]?.content) && (
-          <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
-            <div className="rounded-xl px-4 py-3 bg-bg/80 border border-border border-l-2 border-l-accent/60">
-              <p className="text-sm text-muted animate-pulse">DM is thinking…</p>
-            </div>
-          </m.div>
-        )}
+        {loading &&
+          !(messages[messages.length - 1]?.role === 'assistant' && messages[messages.length - 1]?.content) && (
+            <m.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex justify-start">
+              <div className="rounded-xl px-4 py-3 bg-bg/80 border border-border border-l-2 border-l-accent/60">
+                <p className="text-sm text-muted animate-pulse">DM is thinking…</p>
+              </div>
+            </m.div>
+          )}
         <div ref={bottomRef} />
       </>
     </div>
@@ -719,12 +729,7 @@ function PlayChatInput({
           placeholder={loading || sheetUpdating ? 'Queue the next message…' : 'What do you do?'}
           aria-label="Message to the DM"
         />
-        <button
-          type="button"
-          className="btn-primary px-5 py-2.5 shrink-0"
-          onClick={onSend}
-          disabled={!input.trim()}
-        >
+        <button type="button" className="btn-primary px-5 py-2.5 shrink-0" onClick={onSend} disabled={!input.trim()}>
           {loading || sheetUpdating ? 'Queue' : 'Send'}
         </button>
       </div>

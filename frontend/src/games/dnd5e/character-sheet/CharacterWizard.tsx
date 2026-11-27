@@ -94,8 +94,7 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
 
   const backgroundAbilities = useMemo(() => {
     const row = backgrounds.find((b) => b.id === char.background) as
-      | (WizardOption & { ability_scores?: string[] })
-      | undefined;
+      (WizardOption & { ability_scores?: string[] }) | undefined;
     return (row?.ability_scores || []).map((ab) => String(ab).toLowerCase());
   }, [backgrounds, char.background]);
 
@@ -263,8 +262,8 @@ export default function CharacterWizard({ initial, onSave, onCancel }: Props) {
   return (
     <div className="panel-glow p-5 md:p-6 space-y-5">
       <p className="text-sm text-muted leading-relaxed">
-        Work through each step to build a 2024 character. Dotted labels explain terms. You can edit the
-        sheet after you save.
+        Work through each step to build a 2024 character. Dotted labels explain terms. You can edit the sheet after you
+        save.
       </p>
       <div className="flex gap-1 text-xs flex-wrap p-1 rounded-lg bg-bg/50 border border-border w-fit">
         {WIZARD_STEPS.map((s, i) => (

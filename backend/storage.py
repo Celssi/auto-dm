@@ -581,6 +581,7 @@ def patch_session(session_id: str, updates: dict) -> dict | None:
 
 def update_session_extras(session_id: str, extras: dict) -> None:
     path = SESSIONS_DIR / session_id / "session.json"
+    _refresh_saves_file(path)
     meta = _read_json(path, {})
     meta["extras"] = extras
     meta["updated_at"] = _now_iso()

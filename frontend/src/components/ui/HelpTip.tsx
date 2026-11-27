@@ -51,9 +51,7 @@ export function LabelWithTip({
 }) {
   return (
     <HelpTip id={id} name={label} wrapperClassName={wrapperClassName}>
-      <span
-        className={`${className} cursor-help underline decoration-dotted decoration-muted/50 underline-offset-2`}
-      >
+      <span className={`${className} cursor-help underline decoration-dotted decoration-muted/50 underline-offset-2`}>
         {label}
       </span>
     </HelpTip>

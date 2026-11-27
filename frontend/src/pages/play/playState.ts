@@ -12,11 +12,14 @@ import type {
   Source,
   SpellConfirmation,
   ReactionPrompt,
+  StoryMode,
+  CardSource,
 } from '../../api/client';
 import type { Character, DragonkeepState, PendingJourney } from '../../types';
 
 export type PlayMode = 'freeform' | 'module';
 export type Advantage = 'normal' | 'advantage' | 'disadvantage';
+export type { StoryMode, CardSource };
 
 export interface SpellCastModalState {
   spellName: string;
@@ -102,6 +105,8 @@ export interface PlayState {
   queuedCount: number;
   pendingJourney: PendingJourney | null;
   dragonkeep: DragonkeepState | null;
+  storyMode: StoryMode;
+  cardSource: CardSource;
 }
 
 export type PlayAction =
@@ -170,6 +175,8 @@ export function createInitialPlayState(sessionId = '', wizardTab: 'continue' | '
     queuedCount: 0,
     pendingJourney: null,
     dragonkeep: null,
+    storyMode: 'player',
+    cardSource: 'virtual',
   };
 }
 

@@ -148,12 +148,7 @@ export function CombatStat({
     <div className={`sheet-combat-stat ${accent ? 'sheet-combat-stat-accent' : ''}`}>
       <div className="sheet-combat-stat-label">
         {tipId ? (
-          <LabelWithTip
-            id={tipId}
-            label={label}
-            className="sheet-label leading-none"
-            wrapperClassName="leading-none"
-          />
+          <LabelWithTip id={tipId} label={label} className="sheet-label leading-none" wrapperClassName="leading-none" />
         ) : (
           <div className="sheet-label leading-none">{label}</div>
         )}

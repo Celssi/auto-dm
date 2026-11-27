@@ -29,9 +29,6 @@ export function splitNotes(text: string): { appearance: string; backstory: strin
   return { appearance, backstory };
 }
 
-export function weaponAttack(
-  c: Character,
-  w: { name?: string; ability?: string; proficient?: boolean },
-): string {
+export function weaponAttack(c: Character, w: { name?: string; ability?: string; proficient?: boolean }): string {
   return formatMod(weaponAttackBonus(c, w));
 }

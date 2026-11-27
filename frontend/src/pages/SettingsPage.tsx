@@ -197,96 +197,106 @@ export default function SettingsPage() {
     );
 
   return (
-    <AnimatedPage className="max-w-2xl space-y-8">
+    <AnimatedPage className="space-y-8">
       <PageHeader title="Settings" subtitle="Player preferences, then admin tools for this app." />
 
-      {health ? <SettingsHealth health={health} /> : null}
+      <div className="max-w-2xl space-y-8">
+        {health ? <SettingsHealth health={health} /> : null}
 
-      {isInstallable && !isInstalled && (
-        <m.div variants={fadeUp}>
-          <button type="button" className="btn-ghost inline-flex items-center gap-2" onClick={() => void installPWA()}>
-            <Download size={16} />
-            Install app
+        {isInstallable && !isInstalled && (
+          <m.div variants={fadeUp}>
+            <button
+              type="button"
+              className="btn-ghost inline-flex items-center gap-2"
+              onClick={() => void installPWA()}
+            >
+              <Download size={16} />
+              Install app
+            </button>
+          </m.div>
+        )}
+
+        <m.div variants={fadeUp} className="panel-glow p-5 space-y-5">
+          <div className="flex items-center gap-2">
+            <Settings2 size={18} className="text-accent" />
+            <h2 className="display-title text-base">Player</h2>
+          </div>
+          <p className="text-sm text-muted leading-relaxed">
+            These options are defaults. You can still turn Faerun books on or off when you start a session.
+          </p>
+          {gameId === 'dnd5e' && (
+            <Toggle
+              checked={settings.include_faerun}
+              onChange={(include_faerun) => setSettings({ ...settings, include_faerun })}
+              label="Include Heroes of Faerûn and Adventures in Faerûn in rules search"
+              description="Default for new D&D sessions. Forgotten Realms names and adventures stay out of search unless this is on."
+            />
+          )}
+          <button type="button" className="btn-primary" onClick={save}>
+            Save settings
           </button>
         </m.div>
-      )}
 
-      <m.div variants={fadeUp} className="panel-glow p-5 space-y-5">
-        <div className="flex items-center gap-2">
-          <Settings2 size={18} className="text-accent" />
-          <h2 className="display-title text-base">Player</h2>
-        </div>
-        <p className="text-sm text-muted leading-relaxed">
-          These options are defaults. You can still turn Faerun books on or off when you start a session.
-        </p>
-        {gameId === 'dnd5e' && (
+        <m.div variants={fadeUp} className="panel-glow p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <Database size={18} className="text-accent" />
+            <h2 className="display-title text-base">Admin</h2>
+          </div>
+          <p className="text-sm text-muted leading-relaxed">
+            Indexing and search quality tools. Keep this tab open during a long index so the connection stays alive.
+          </p>
           <Toggle
-            checked={settings.include_faerun}
-            onChange={(include_faerun) => setSettings({ ...settings, include_faerun })}
-            label="Include Heroes of Faerûn and Adventures in Faerûn in rules search"
-            description="Default for new D&D sessions. Forgotten Realms names and adventures stay out of search unless this is on."
+            checked={settings.use_rerank}
+            onChange={(use_rerank) => setSettings({ ...settings, use_rerank })}
+            label="Use cross-encoder reranking (Quality+)"
+            description="Slower rules search, better ranking. Leave on unless a search is hanging."
           />
+          <button type="button" className="btn-ghost" onClick={save}>
+            Save admin settings
+          </button>
+          <p className="text-sm text-muted leading-relaxed">
+            Index core only removes Heroes of Faerun and Adventures in Faerun from the D&D index. Prefer Index core +
+            Faerun, or Index all books, unless you intend to drop those books. Brambletrek lives in a separate index, so
+            D&D indexing does not replace it.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <IndexButton
+              busy={indexing}
+              primary
+              label="Index all books (D&D + Faerun + Brambletrek)"
+              onClick={() => reindex(true, false, 'all')}
+            />
+            <IndexButton busy={indexing} label="Index core + Faerun" onClick={() => reindex(true, false, 'dnd5e')} />
+            <IndexButton
+              busy={indexing}
+              label="Index Brambletrek"
+              onClick={() => reindex(false, false, 'brambletrek')}
+            />
+            <IndexButton
+              busy={indexing}
+              label="Index core (PHB, DMG, MM)"
+              onClick={() => {
+                const ok = window.confirm(
+                  'Index core only deletes Faerun books from the rules index. Continue only if you want that.',
+                );
+                if (ok) reindex(false, true, 'dnd5e');
+              }}
+            />
+          </div>
+        </m.div>
+
+        <LongJobOverlay active={indexing} title="Indexing rulebooks" message={indexStatus} />
+
+        {message && (
+          <m.p
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="text-sm text-accent flex items-center gap-2"
+          >
+            <Sparkles size={14} /> {message}
+          </m.p>
         )}
-        <button type="button" className="btn-primary" onClick={save}>
-          Save settings
-        </button>
-      </m.div>
-
-      <m.div variants={fadeUp} className="panel-glow p-5 space-y-4">
-        <div className="flex items-center gap-2">
-          <Database size={18} className="text-accent" />
-          <h2 className="display-title text-base">Admin</h2>
-        </div>
-        <p className="text-sm text-muted leading-relaxed">
-          Indexing and search quality tools. Keep this tab open during a long index so the connection stays alive.
-        </p>
-        <Toggle
-          checked={settings.use_rerank}
-          onChange={(use_rerank) => setSettings({ ...settings, use_rerank })}
-          label="Use cross-encoder reranking (Quality+)"
-          description="Slower rules search, better ranking. Leave on unless a search is hanging."
-        />
-        <button type="button" className="btn-ghost" onClick={save}>
-          Save admin settings
-        </button>
-        <p className="text-sm text-muted leading-relaxed">
-          Index core only removes Heroes of Faerun and Adventures in Faerun from the D&D index. Prefer Index core +
-          Faerun, or Index all books, unless you intend to drop those books. Brambletrek lives in a separate index, so
-          D&D indexing does not replace it.
-        </p>
-        <div className="flex flex-wrap gap-2">
-          <IndexButton
-            busy={indexing}
-            primary
-            label="Index all books (D&D + Faerun + Brambletrek)"
-            onClick={() => reindex(true, false, 'all')}
-          />
-          <IndexButton busy={indexing} label="Index core + Faerun" onClick={() => reindex(true, false, 'dnd5e')} />
-          <IndexButton busy={indexing} label="Index Brambletrek" onClick={() => reindex(false, false, 'brambletrek')} />
-          <IndexButton
-            busy={indexing}
-            label="Index core (PHB, DMG, MM)"
-            onClick={() => {
-              const ok = window.confirm(
-                'Index core only deletes Faerun books from the rules index. Continue only if you want that.',
-              );
-              if (ok) reindex(false, true, 'dnd5e');
-            }}
-          />
-        </div>
-      </m.div>
-
-      <LongJobOverlay active={indexing} title="Indexing rulebooks" message={indexStatus} />
-
-      {message && (
-        <m.p
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-sm text-accent flex items-center gap-2"
-        >
-          <Sparkles size={14} /> {message}
-        </m.p>
-      )}
+      </div>
     </AnimatedPage>
   );
 }

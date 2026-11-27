@@ -166,8 +166,8 @@ function DndResources({
   onToggleHeroicInspiration?: (next: boolean) => void;
 }) {
   const paladinLevel = Number(
-    (c.classes || []).find((entry) => String(entry.class_name || '').toLowerCase() === 'paladin')?.level
-      ?? (String(c.class_name || '').toLowerCase() === 'paladin' ? c.level : 0),
+    (c.classes || []).find((entry) => String(entry.class_name || '').toLowerCase() === 'paladin')?.level ??
+      (String(c.class_name || '').toLowerCase() === 'paladin' ? c.level : 0),
   );
   const lohMax = Number(summary?.lay_on_hands_max ?? (paladinLevel > 0 ? paladinLevel * 5 : 0));
   const loh = Number(c.lay_on_hands_remaining ?? (lohMax > 0 ? lohMax : -1));

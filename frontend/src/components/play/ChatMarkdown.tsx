@@ -22,13 +22,7 @@ function enrichText(
       const seenKey = entity.name.toLowerCase();
       if (linkedNames.has(seenKey)) return part;
       linkedNames.add(seenKey);
-      return (
-        <JournalTip
-          key={`${keyPrefix}-${entity.kind}-${entity.name}`}
-          entity={entity}
-          text={part}
-        />
-      );
+      return <JournalTip key={`${keyPrefix}-${entity.kind}-${entity.name}`} entity={entity} text={part} />;
     }
     return part;
   });
@@ -47,11 +41,7 @@ function enrichChildren(
       return enrichText(child, entities, matcher, childPrefix, linkedNames);
     }
     if (isValidElement<{ children?: ReactNode }>(child) && child.props.children) {
-      return cloneElement(
-        child,
-        {},
-        enrichChildren(child.props.children, entities, matcher, childPrefix, linkedNames),
-      );
+      return cloneElement(child, {}, enrichChildren(child.props.children, entities, matcher, childPrefix, linkedNames));
     }
     return child;
   });

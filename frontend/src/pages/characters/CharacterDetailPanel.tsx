@@ -276,11 +276,7 @@ function DndCharacterDetail({
           <p className="text-xs text-muted">
             Origin feat spells and other picks. Magic Initiate cantrips and the 1st-level spell can be changed here.
           </p>
-          <CreationChoicesForm
-            char={character}
-            options={charOptions}
-            patch={(p) => onChange({ ...character, ...p })}
-          />
+          <CreationChoicesForm char={character} options={charOptions} patch={(p) => onChange({ ...character, ...p })} />
         </div>
       )}
 

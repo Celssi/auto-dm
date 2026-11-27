@@ -263,7 +263,10 @@ def journey_finish(session_id: str):
     sess = get_session(session_id)
     if not sess:
         raise HTTPException(404, "Session not found")
-    return finish_journey_day(session_id, sess["character_id"])
+    try:
+        return finish_journey_day(session_id, sess["character_id"])
+    except ValueError as e:
+        raise HTTPException(400, str(e)) from e
 
 
 @router.post("/sessions/{session_id}/journey/discard")

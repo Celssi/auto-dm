@@ -373,9 +373,7 @@ function Page1FeaturesGear({
         </div>
         <div>
           <LabelWithTip id="feats" label="Feats" className="sheet-label mb-1.5" />
-          <GlossaryTagList
-            items={uniqueFeatLabels([c.origin_feat, c.versatile_origin_feat, ...(c.feats || [])])}
-          />
+          <GlossaryTagList items={uniqueFeatLabels([c.origin_feat, c.versatile_origin_feat, ...(c.feats || [])])} />
         </div>
         <div>
           <div className="sheet-label mb-1.5">Weapons</div>

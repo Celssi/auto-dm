@@ -18,12 +18,7 @@ interface Props {
   backgroundAbilities: string[];
 }
 
-export default function WizardAbilitiesStep({
-  char,
-  patch,
-  onApplyStandardArray,
-  backgroundAbilities,
-}: Props) {
+export default function WizardAbilitiesStep({ char, patch, onApplyStandardArray, backgroundAbilities }: Props) {
   const options = backgroundAbilities.map((ab) => ({
     value: ab,
     label: ab.toUpperCase(),

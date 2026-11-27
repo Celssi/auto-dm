@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../../api/client';
-import type { AuditEvent, CombatStateSnapshot, Shortcut, Source } from '../../api/client';
+import type { AuditEvent, CombatStateSnapshot, Shortcut, Source, StoryMode } from '../../api/client';
 import type { DragonkeepState, PendingJourney, BrambletrekCombatState } from '../../types';
 import { getGamePlayConfig } from '../../games/play/registry';
 import JourneyPanel from '../../games/brambletrek/JourneyPanel';
@@ -15,6 +15,7 @@ import PlayOracleGrid from './PlayOracleGrid';
 import PlayShortcutGrid from './PlayShortcutGrid';
 import PlaySourcesList from './PlaySourcesList';
 import PlayToolsShell from './PlayToolsShell';
+import SegmentedControl from '../ui/forms/SegmentedControl';
 
 const BASE_LOG_TABS: PlayLogTab[] = ['lonelog', 'audit'];
 
@@ -33,6 +34,8 @@ interface Props {
   loading: boolean;
   combatState: CombatStateSnapshot | null;
   brambletrekCombat: BrambletrekCombatState | null;
+  storyMode: StoryMode;
+  onStoryModeChange: (mode: StoryMode) => void;
   onRunOracle: (id: string) => void;
   onRunShortcut: (id: string) => void;
   onJourneyApply: (index: number) => Promise<{ summary?: string; item_error?: string | null }>;
@@ -62,6 +65,8 @@ export default function PlayToolsPanel({
   loading,
   combatState,
   brambletrekCombat,
+  storyMode,
+  onStoryModeChange,
   onRunOracle,
   onRunShortcut,
   onJourneyApply,
@@ -130,6 +135,22 @@ export default function PlayToolsPanel({
 
   return (
     <PlayToolsShell>
+      <div className="shrink-0 mb-2">
+        <div className="section-heading mb-1.5">Story</div>
+        <SegmentedControl
+          value={storyMode}
+          onChange={(value) => onStoryModeChange(value as StoryMode)}
+          options={[
+            { value: 'player', label: 'Facilitator' },
+            { value: 'ai_narrator', label: 'AI narrator' },
+          ]}
+        />
+        <p className="text-[11px] text-muted mt-1.5 leading-relaxed">
+          {storyMode === 'ai_narrator'
+            ? 'Shortcuts and chat get short scene prose after the mechanics.'
+            : 'Mechanics and rules help only. No invented story beats.'}
+        </p>
+      </div>
       {config.usesCombatPanel && combatState?.status === 'active' && (
         <CombatPanel state={combatState} onAction={onCombatAction} />
       )}
@@ -261,7 +282,7 @@ function ManualCombatStart({ onStart }: { onStart: (rank: string, suit: string) 
       </p>
       <div className="flex gap-2 mb-2">
         <select
-          className="input flex-1 text-xs"
+          className="select flex-1 text-xs"
           value={rank}
           onChange={(e) => setRank(e.target.value)}
           aria-label="Opponent card"
@@ -273,7 +294,7 @@ function ManualCombatStart({ onStart }: { onStart: (rank: string, suit: string) 
           ))}
         </select>
         <select
-          className="input flex-1 text-xs"
+          className="select flex-1 text-xs"
           value={suit}
           onChange={(e) => setSuit(e.target.value)}
           aria-label="Suit"

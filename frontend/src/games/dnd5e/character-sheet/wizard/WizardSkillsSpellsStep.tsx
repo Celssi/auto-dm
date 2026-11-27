@@ -72,9 +72,7 @@ export default function WizardSkillsSpellsStep({
                 value={char.spellbook || []}
                 onChange={(picks) => {
                   const nextBook = picks.slice(0, spellbookMax);
-                  const prepared = ((char.prepared_spells || []) as string[]).filter((name) =>
-                    nextBook.includes(name),
-                  );
+                  const prepared = ((char.prepared_spells || []) as string[]).filter((name) => nextBook.includes(name));
                   patch({ spellbook: nextBook, prepared_spells: prepared });
                 }}
                 options={spellOptions}
@@ -102,8 +100,8 @@ export default function WizardSkillsSpellsStep({
       {magicInitiateChoices.length > 0 && (
         <div className="space-y-3 rounded-lg border border-border p-4">
           <p className="text-sm text-muted leading-relaxed">
-            Sage and other Magic Initiate backgrounds pick two cantrips and one 1st-level spell here. You can cast
-            the 1st-level spell once per Long Rest without a slot.
+            Sage and other Magic Initiate backgrounds pick two cantrips and one 1st-level spell here. You can cast the
+            1st-level spell once per Long Rest without a slot.
           </p>
           <CreationChoicesForm char={char} options={options} patch={patch} choices={magicInitiateChoices} />
         </div>

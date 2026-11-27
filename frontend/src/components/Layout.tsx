@@ -39,11 +39,7 @@ export default function Layout() {
   return (
     <div className={`flex flex-col ${isPlaySession ? 'h-dvh overflow-hidden' : 'min-h-screen'}`}>
       <nav className="border-b border-border/80 bg-panel/70 backdrop-blur-md shrink-0 z-20">
-        <div
-          className={`mx-auto px-3 sm:px-4 py-2.5 flex items-center gap-2 sm:gap-3 md:gap-6 min-w-0 ${
-            isPlaySession ? 'max-w-[1600px]' : 'max-w-7xl'
-          }`}
-        >
+        <div className="mx-auto max-w-7xl px-4 py-2.5 flex items-center gap-2 sm:gap-3 md:gap-6 min-w-0">
           <Link to="/" className="flex items-center gap-2 group shrink-0 min-h-11" aria-label="Auto-DM home">
             <m.span whileHover={{ rotate: 8 }} transition={{ type: 'spring', stiffness: 300 }} className="shrink-0">
               <img src="/icons/icon-192x192.png" alt="" width={28} height={28} className="rounded-md" />
@@ -103,10 +99,8 @@ export default function Layout() {
       </nav>
 
       <main
-        className={`flex-1 w-full mx-auto px-4 min-h-0 ${
-          isPlaySession
-            ? 'py-2 max-w-[1600px] overflow-hidden flex flex-col flex-1'
-            : 'py-6 md:py-8 max-w-7xl pb-24 md:pb-8'
+        className={`flex-1 w-full mx-auto max-w-7xl px-4 min-h-0 ${
+          isPlaySession ? 'py-2 overflow-hidden flex flex-col flex-1' : 'py-6 md:py-8 pb-24 md:pb-8'
         }`}
       >
         <Outlet key={loc.pathname} />

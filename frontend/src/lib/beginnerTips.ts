@@ -129,8 +129,7 @@ export const BEGINNER_TIPS: Record<string, BeginnerTip> = {
   push: {
     title: 'Push',
     kind: 'feature',
-    summary:
-      'On a hit, you can push a Large or smaller target up to 10 feet straight away from you. No saving throw.',
+    summary: 'On a hit, you can push a Large or smaller target up to 10 feet straight away from you. No saving throw.',
   },
   topple: {
     title: 'Topple',

@@ -49,6 +49,7 @@ export default function PlayPage() {
     toggleHeroicInspiration,
     renameSession,
     archiveSession,
+    setStoryMode,
   } = usePlayPageSession(state, dispatch, loadSeqRef, campaignIdRef);
 
   const { gameId } = useGame();
@@ -100,45 +101,46 @@ export default function PlayPage() {
       fallback={
         <div className="max-w-xl mx-auto p-6">
           <p className="text-sm text-danger rounded-lg border border-danger/30 bg-danger/10 px-4 py-3" role="alert">
-            The play screen hit an error. Reload this page to restore the session. Your last queued message is kept
-            and will send after reload.
+            The play screen hit an error. Reload this page to restore the session. Your last queued message is kept and
+            will send after reload.
           </p>
         </div>
       }
     >
-    <PlaySessionView
-      state={state}
-      bottomRef={bottomRef}
-      onBegin={beginSession}
-      onInputChange={(input) => dispatch({ type: 'set', patch: { input } })}
-      onSend={() => sendMessage(state.input)}
-      onConfirmSpellCast={() =>
-        state.spellConfirm && sendMessage(state.spellConfirm.free_use ? 'yes, Magic Initiate free' : 'yes')
-      }
-      onCancelSpellCast={() => sendMessage('cancel spell')}
-      onRunOracle={runOracle}
-      onRunShortcut={runShortcut}
-      onStartNextAdventure={startNextAdventure}
-      onDiceModalUpdate={handleDiceModalUpdate}
-      onDiceModalSubmit={handleDiceModalSubmit}
-      onDiceModalClose={handleDiceModalClose}
-      onSpellCastModalUpdate={handleSpellCastModalUpdate}
-      onSpellCastModalSubmit={handleSpellCastModalSubmit}
-      onSpellCastModalClose={handleSpellCastModalClose}
-      onJourneyApply={handleJourneyApply}
-      onJourneyDrawItem={handleJourneyDrawItem}
-      onJourneyFinish={handleJourneyFinish}
-      onJourneyDiscard={handleJourneyDiscard}
-      onJourneyStartCombat={handleJourneyStartCombat}
-      onDragonkeepAction={handleDragonkeepAction}
-      onDragonkeepInit={handleDragonkeepInit}
-      onBrambletrekCombatAction={handleBrambletrekCombatAction}
-      onCombatAction={handleCombatAction}
-      onRebuildSheet={() => void rebuildSheet()}
-      onToggleHeroicInspiration={(next) => void toggleHeroicInspiration(next)}
-      onConfirmReaction={() => sendMessage('Yes, I use my reaction.')}
-      onDeclineReaction={() => sendMessage('No, I do not use my reaction.')}
-    />
+      <PlaySessionView
+        state={state}
+        bottomRef={bottomRef}
+        onBegin={beginSession}
+        onInputChange={(input) => dispatch({ type: 'set', patch: { input } })}
+        onSend={() => sendMessage(state.input)}
+        onConfirmSpellCast={() =>
+          state.spellConfirm && sendMessage(state.spellConfirm.free_use ? 'yes, Magic Initiate free' : 'yes')
+        }
+        onCancelSpellCast={() => sendMessage('cancel spell')}
+        onRunOracle={runOracle}
+        onRunShortcut={runShortcut}
+        onStartNextAdventure={startNextAdventure}
+        onDiceModalUpdate={handleDiceModalUpdate}
+        onDiceModalSubmit={handleDiceModalSubmit}
+        onDiceModalClose={handleDiceModalClose}
+        onSpellCastModalUpdate={handleSpellCastModalUpdate}
+        onSpellCastModalSubmit={handleSpellCastModalSubmit}
+        onSpellCastModalClose={handleSpellCastModalClose}
+        onJourneyApply={handleJourneyApply}
+        onJourneyDrawItem={handleJourneyDrawItem}
+        onJourneyFinish={handleJourneyFinish}
+        onJourneyDiscard={handleJourneyDiscard}
+        onJourneyStartCombat={handleJourneyStartCombat}
+        onDragonkeepAction={handleDragonkeepAction}
+        onDragonkeepInit={handleDragonkeepInit}
+        onBrambletrekCombatAction={handleBrambletrekCombatAction}
+        onCombatAction={handleCombatAction}
+        onRebuildSheet={() => void rebuildSheet()}
+        onToggleHeroicInspiration={(next) => void toggleHeroicInspiration(next)}
+        onConfirmReaction={() => sendMessage('Yes, I use my reaction.')}
+        onDeclineReaction={() => sendMessage('No, I do not use my reaction.')}
+        onStoryModeChange={setStoryMode}
+      />
     </ErrorBoundary>
   );
 }

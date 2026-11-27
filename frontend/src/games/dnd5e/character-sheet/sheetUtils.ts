@@ -284,13 +284,12 @@ export function equipmentDisplayItems(char: Character): string[] {
 
 export function characterHasWeaponMastery(char: Character): boolean {
   const ids = [char.class_name, ...((char.classes as { class_name?: string }[]) || []).map((row) => row.class_name)];
-  return ids.some((id) => ['barbarian', 'fighter', 'paladin', 'ranger', 'rogue'].includes(String(id || '').toLowerCase()));
+  return ids.some((id) =>
+    ['barbarian', 'fighter', 'paladin', 'ranger', 'rogue'].includes(String(id || '').toLowerCase()),
+  );
 }
 
-export function weaponAbilityKey(
-  char: Character,
-  weapon: { name?: string; ability?: string },
-): 'str' | 'dex' {
+export function weaponAbilityKey(char: Character, weapon: { name?: string; ability?: string }): 'str' | 'dex' {
   const name = String(weapon.name || '');
   const catalogHint = String(weapon.ability || '').toLowerCase();
   const finesse = /dagger|rapier|scimitar|shortsword|whip/i.test(name);
@@ -314,14 +313,19 @@ export function weaponAttackBonus(
   return mod + (proficient ? pb : 0);
 }
 
-export function weaponAttackLine(char: Character, weapon: { name: string; damage?: string; damage_type?: string; ability?: string; proficient?: boolean }): string {
+export function weaponAttackLine(
+  char: Character,
+  weapon: { name: string; damage?: string; damage_type?: string; ability?: string; proficient?: boolean },
+): string {
   const ability = weaponAbilityKey(char, weapon);
   const mod = abilityMod(char.ability_scores?.[ability] ?? 10);
   const atk = weaponAttackBonus(char, weapon);
   const damage = weapon.damage || '1d6';
   const dmgType = weapon.damage_type || '';
   const masteryIds = new Set((char.weapon_mastery || []).map((id) => String(id).toLowerCase().replace(/ /g, '_')));
-  const weaponKey = String(weapon.name || '').toLowerCase().replace(/ /g, '_');
+  const weaponKey = String(weapon.name || '')
+    .toLowerCase()
+    .replace(/ /g, '_');
   const usesMastery = characterHasWeaponMastery(char) && masteryIds.has(weaponKey);
   let line = `${formatMod(atk)} to hit, ${damage}${formatMod(mod)} ${dmgType}`.trim();
   if (usesMastery) line += ', mastery';

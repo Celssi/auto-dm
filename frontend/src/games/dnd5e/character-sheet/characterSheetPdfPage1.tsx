@@ -1,6 +1,13 @@
 import type { Character } from '../../../types';
 import { displayLabel, displayLabels, EMPTY_FIELD, formatChoiceValue } from '../../../lib/displayText';
-import { formatMod, initiativeMod, passivePerception, proficiencyBonus, spellAttackBonus, uniqueFeatLabels } from './sheetUtils';
+import {
+  formatMod,
+  initiativeMod,
+  passivePerception,
+  proficiencyBonus,
+  spellAttackBonus,
+  uniqueFeatLabels,
+} from './sheetUtils';
 import type { PdfModule } from './characterSheetPdfTypes';
 import { pdfStyles as s } from './characterSheetPdfStyles';
 import { classLine, featureGroupLines, weaponAttack } from './characterSheetPdfUtils';

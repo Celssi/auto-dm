@@ -268,6 +268,7 @@ export default function JourneyPanel({
   const unappliedCount = journey.events.filter((e) => !e.applied).length;
   const total = journey.events.length;
   const progress = total > 0 ? (appliedCount / total) * 100 : 0;
+  const canFinishDay = unappliedCount === 0;
 
   // Apply events in order until a combat card (combat must be fought before moving on).
   const pendingStatEvents: number[] = [];
@@ -352,11 +353,17 @@ export default function JourneyPanel({
               : `Apply ${pendingStatEvents.length} event${pendingStatEvents.length === 1 ? '' : 's'} to sheet`}
           </button>
         )}
+        {!canFinishDay && (
+          <p className="text-[11px] text-muted leading-relaxed">
+            {unappliedCount} event{unappliedCount === 1 ? '' : 's'} still open. Apply{' '}
+            {unappliedCount === 1 ? 'it' : 'them'} (or Discard) before finishing the day.
+          </p>
+        )}
         <div className="flex gap-2">
           <button
             type="button"
             className="btn-primary flex-1 inline-flex items-center justify-center gap-1.5"
-            disabled={footerLoading !== null}
+            disabled={footerLoading !== null || !canFinishDay}
             onClick={() => runFooter('finish', onFinish)}
           >
             {footerLoading === 'finish' ? (

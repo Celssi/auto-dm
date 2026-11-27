@@ -64,6 +64,23 @@ def test_brambletrek_resources_are_live_keys():
         assert key in LIVE_CHARACTER_KEYS
 
 
+def test_play_settings_round_trip(isolated_saves):
+    from backend.routes import sessions as routes
+    from backend.storage import create_session, save_character
+
+    save_character(
+        "qa-settings",
+        {"id": "qa-settings", "game_id": "brambletrek", "name": "QA", "legacy": "seer"},
+    )
+    sid = create_session(character_id="qa-settings", adventure_id="")
+    assert routes.read_play_settings(sid) == {"story_mode": "player", "card_source": "virtual"}
+    out = routes.update_play_settings(
+        sid, routes.PlaySettingsBody(story_mode="ai_narrator", card_source="physical")
+    )
+    assert out == {"story_mode": "ai_narrator", "card_source": "physical"}
+    assert routes.read_play_settings(sid) == out
+
+
 def test_shortcut_route_passes_session_card_source():
     from backend.routes import sessions as routes
 

@@ -312,6 +312,13 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(body),
     }),
+  getPlaySettings: (id: string) =>
+    request<{ story_mode: StoryMode; card_source: CardSource }>(`/sessions/${id}/play-settings`),
+  updatePlaySettings: (id: string, body: { story_mode?: StoryMode; card_source?: CardSource }) =>
+    request<{ story_mode: StoryMode; card_source: CardSource }>(`/sessions/${id}/play-settings`, {
+      method: 'PATCH',
+      body: JSON.stringify(body),
+    }),
   deleteSession: (id: string) => request<{ ok: boolean }>(`/sessions/${id}`, { method: 'DELETE' }),
   getSessionRecap: (id: string, force = false) =>
     request<SessionRecap>(`/sessions/${id}/recap${force ? '?force=true' : ''}`),
@@ -727,10 +734,18 @@ export interface ChatMessage {
   content: string;
 }
 
+export type StoryMode = 'player' | 'ai_narrator';
+export type CardSource = 'virtual' | 'physical';
+
 export interface SessionFull extends SessionMeta {
   include_faerun?: boolean;
   messages?: ChatMessage[];
   lonelog?: string;
+  extras?: {
+    story_mode?: StoryMode;
+    card_source?: CardSource;
+    [key: string]: unknown;
+  };
 }
 
 export interface BeginSessionResult {

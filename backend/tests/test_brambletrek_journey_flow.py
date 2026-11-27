@@ -78,6 +78,21 @@ def test_apply_events_change_the_sheet_and_finish_day(isolated_saves):
     assert out["character"]["journey_day"] >= 2
 
 
+def test_finish_day_rejects_unapplied_events(isolated_saves):
+    from backend.games.brambletrek import play_handlers
+
+    sid = _setup(isolated_saves)
+    _journey_shortcut(sid, cards=["2 of spades", "3 of spades", "9 of clubs", "ace of spades"])
+    play_handlers.apply_journey_event(sid, "qa2", 0)
+    play_handlers.apply_journey_event(sid, "qa2", 1)
+    play_handlers.apply_journey_event(sid, "qa2", 2)
+    with pytest.raises(ValueError, match="Resolve all journey events"):
+        play_handlers.finish_journey_day(sid, "qa2")
+    play_handlers.apply_journey_event(sid, "qa2", 3)
+    out = play_handlers.finish_journey_day(sid, "qa2")
+    assert out["pending_journey"] is None
+
+
 def test_journey_turn_skips_rag_and_answers_with_next_steps():
     from backend.games.brambletrek.dm import pipeline
     from backend.games.brambletrek.dm.agents import nodes

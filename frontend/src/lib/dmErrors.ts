@@ -6,7 +6,10 @@ export function friendlyDmError(detail: unknown): string {
   const text =
     typeof detail === 'string'
       ? detail
-      : detail && typeof detail === 'object' && 'detail' in detail && typeof (detail as { detail: unknown }).detail === 'string'
+      : detail &&
+          typeof detail === 'object' &&
+          'detail' in detail &&
+          typeof (detail as { detail: unknown }).detail === 'string'
         ? (detail as { detail: string }).detail
         : '';
   const lower = text.toLowerCase();
@@ -14,7 +17,12 @@ export function friendlyDmError(detail: unknown): string {
   if (lower.includes('credits exhausted') || lower.includes('credit balance') || lower.includes('too low')) {
     return CREDITS;
   }
-  if (lower.includes('busy right now') || lower.includes('overloaded') || lower.includes('rate-limited') || lower.includes('rate limit')) {
+  if (
+    lower.includes('busy right now') ||
+    lower.includes('overloaded') ||
+    lower.includes('rate-limited') ||
+    lower.includes('rate limit')
+  ) {
     return BUSY;
   }
   if (lower.includes('unavailable right now')) return text;
