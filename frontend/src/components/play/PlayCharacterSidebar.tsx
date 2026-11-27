@@ -453,6 +453,21 @@ function BrambletrekPlaySidebar({
         {c.active_adventure && (
           <span className="rounded-md border border-border bg-bg/60 px-2 py-1 text-muted">{c.active_adventure}</span>
         )}
+        {Number(c.extra_tactics_next_combat || 0) > 0 && (
+          <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-100">
+            +{Number(c.extra_tactics_next_combat)} tactic next battle
+          </span>
+        )}
+        {Number(c.next_combat_damage_bonus || 0) > 0 && (
+          <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-100">
+            +{Number(c.next_combat_damage_bonus)} dmg next battle
+          </span>
+        )}
+        {Number(c.next_combat_damage_reduction || 0) > 0 && (
+          <span className="rounded-md border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-amber-100">
+            -{Number(c.next_combat_damage_reduction)} dmg taken next battle
+          </span>
+        )}
       </div>
     </div>
   );

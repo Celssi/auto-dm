@@ -48,6 +48,34 @@ def test_begin_combat_initializes_state():
     assert state["player"]["hp"] == 12
 
 
+def test_begin_combat_consumes_extra_tactic_boon():
+    char = _char(extra_tactics_next_combat=1, next_combat_damage_bonus=2)
+    ctx = build_combat_context("first_frost", "3 of spades", {"combat": True})
+    with patch(
+        "backend.games.brambletrek.combat.manager.draw_cards",
+        side_effect=[
+            {"ok": True, "cards": ["4 of hearts", "2 of clubs"]},
+            {
+                "ok": True,
+                "cards": [
+                    "5 of hearts",
+                    "6 of diamonds",
+                    "7 of clubs",
+                    "8 of spades",
+                    "9 of hearts",
+                ],
+            },
+        ],
+    ) as draw:
+        state = begin_combat(char, ctx, char_id="c1")
+    assert len(state["tactic_hand"]) == 5
+    assert char.extra_tactics_next_combat == 0
+    assert char.next_combat_damage_bonus == 0
+    assert state["buffs"]["damage_bonus_list"] == [{"value": 2, "attacks": 99}]
+    assert any("extra tactic" in line.lower() for line in state["log"])
+    assert any(call.kwargs.get("count") == 5 for call in draw.call_args_list)
+
+
 def test_combat_damage_and_win():
     char = _char(health=15)
     ctx = {"adventure_id": "first_frost", "type": "core", "card": "2 of clubs"}

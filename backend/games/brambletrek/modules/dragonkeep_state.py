@@ -558,15 +558,20 @@ def lookup_exploration_event(adventure_id: str, table_id: str, card: str) -> dic
 
 def apply_exploration_event(char: BrambletrekCharacter, event: dict[str, Any]) -> str:
     """Apply one Dragonkeep exploration row."""
+    from backend.games.brambletrek.dm.curated import _apply_deferred_combat_effects
+
     before = (char.health, char.morale, char.supplies)
     if event.get("combat"):
-        return f"**{event.get('label', '?')}** — Combat; resolve with **Combat setup**."
+        return f"**{event.get('label', '?')}**: Combat; resolve with **Combat setup**."
     apply_event_deltas(char, event)
+    deferred = _apply_deferred_combat_effects(char, event)
     char.clamp_stats()
     after = (char.health, char.morale, char.supplies)
     stat = _stat_line(event)
-    notes = [stat] if stat != "—" else []
+    notes = [stat] if stat not in ("—", "-") else []
     notes.append(
-        f"Health {before[0]}→{after[0]}, Morale {before[1]}→{after[1]}, Supplies {before[2]}→{after[2]}"
+        f"Health {before[0]}→{after[0]}, "
+        f"Morale {before[1]}→{after[1]}, Supplies {before[2]}→{after[2]}"
     )
-    return f"**{event.get('label', '?')}** — " + "; ".join(notes)
+    notes.extend(deferred)
+    return f"**{event.get('label', '?')}**: " + "; ".join(notes)

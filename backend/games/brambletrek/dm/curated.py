@@ -269,12 +269,35 @@ def lookup_journey_event(
     return {**row, "suit": suit, "rank_key": rank_key, "card": parsed["card"], "zone": zone}
 
 
+def _apply_deferred_combat_effects(char: BrambletrekCharacter, event: dict[str, Any]) -> list[str]:
+    """Persist structured next-combat boons from a curated event row."""
+    notes: list[str] = []
+    extra = int(event.get("extra_tactics_next_combat") or 0)
+    if extra > 0:
+        char.extra_tactics_next_combat = max(0, int(char.extra_tactics_next_combat or 0)) + extra
+        notes.append(
+            f"Next battle: draw {extra} extra tactic card{'s' if extra != 1 else ''} at start"
+        )
+    dmg = int(event.get("next_combat_damage_bonus") or 0)
+    if dmg > 0:
+        char.next_combat_damage_bonus = max(0, int(char.next_combat_damage_bonus or 0)) + dmg
+        notes.append(f"Next battle: +{dmg} damage")
+    reduce = int(event.get("next_combat_damage_reduction") or 0)
+    if reduce > 0:
+        char.next_combat_damage_reduction = (
+            max(0, int(char.next_combat_damage_reduction or 0)) + reduce
+        )
+        notes.append(f"Next battle: take {reduce} less damage per hit")
+    return notes
+
+
 def _apply_journey_tags(char: BrambletrekCharacter, event: dict[str, Any]) -> None:
     tags = event.get("tags") or []
     if "depths" in tags:
         char.in_aldwund = True
     if "exit" in tags:
         char.in_aldwund = False
+    _apply_deferred_combat_effects(char, event)
 
 
 def lookup_recovery(stat: str, card: str) -> dict[str, Any] | None:
@@ -570,14 +593,19 @@ def apply_single_journey_event(
 
     notes: list[str] = []
     if event.get("combat"):
-        notes.append("Combat — resolve with **Combat setup** (no automatic stat change).")
+        notes.append("Combat: resolve with **Combat setup** (no automatic stat change).")
     else:
         apply_event_deltas(char, event)
         stat = _stat_line(event)
-        if stat != "—":
+        if stat != "-":
             notes.append(stat)
 
-    _apply_journey_tags(char, event)
+    deferred_notes = _apply_deferred_combat_effects(char, event)
+    tags = event.get("tags") or []
+    if "depths" in tags:
+        char.in_aldwund = True
+    if "exit" in tags:
+        char.in_aldwund = False
     char.clamp_stats()
     after = (char.health, char.morale, char.supplies)
     if not event.get("combat"):
@@ -585,11 +613,14 @@ def apply_single_journey_event(
             f"Health {before[0]}→{after[0]}, "
             f"Morale {before[1]}→{after[1]}, Supplies {before[2]}→{after[2]}"
         )
+    notes.extend(deferred_notes)
+    if not deferred_notes and event.get("note"):
+        notes.append(str(event["note"]))
     if char.in_aldwund and not in_depths:
         notes.append("Entered Aldwund (Depths).")
     elif not char.in_aldwund and in_depths:
         notes.append("Returned to surface.")
-    return f"**{event.get('label', card)}** — " + "; ".join(notes)
+    return f"**{event.get('label', card)}**: " + "; ".join(notes)
 
 
 def apply_journey_to_character(

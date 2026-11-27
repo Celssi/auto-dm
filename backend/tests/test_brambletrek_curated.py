@@ -86,6 +86,15 @@ def test_journey_application() -> None:
     assert "fireflies" in format_reason_ending("jack").lower()
 
 
+def test_divine_boon_persists_extra_tactic() -> None:
+    char = BrambletrekCharacter(health=10, morale=10, supplies=10)
+    summary = apply_single_journey_event(char, "ace of diamonds", in_depths=False)
+    assert char.extra_tactics_next_combat == 1
+    assert "extra tactic" in summary.lower()
+    row = lookup_journey_event("ace of diamonds", in_depths=False)
+    assert row and int(row.get("extra_tactics_next_combat") or 0) == 1
+
+
 def test_combat_reference() -> None:
     assert lookup_opponent_tactic("7 of spades")["label"].startswith("Terrifying")
     assert lookup_player_tactic("seer", "5 of hearts")["effect"].startswith("Healing")

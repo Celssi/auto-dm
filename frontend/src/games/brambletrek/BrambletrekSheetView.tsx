@@ -68,6 +68,17 @@ export default function BrambletrekSheetView({ character: c, summary }: Props) {
           <p className="text-gray-200 mt-0.5">{adventure}</p>
         </div>
         {c.oracle_relic ? <p className="text-xs text-accent">Oracle relic: yes</p> : null}
+        {Number(c.extra_tactics_next_combat || 0) > 0 ? (
+          <p className="text-xs text-accent">Next battle: +{Number(c.extra_tactics_next_combat)} tactic at start</p>
+        ) : null}
+        {Number(c.next_combat_damage_bonus || 0) > 0 ? (
+          <p className="text-xs text-accent">Next battle: +{Number(c.next_combat_damage_bonus)} damage</p>
+        ) : null}
+        {Number(c.next_combat_damage_reduction || 0) > 0 ? (
+          <p className="text-xs text-accent">
+            Next battle: -{Number(c.next_combat_damage_reduction)} damage taken per hit
+          </p>
+        ) : null}
         {c.notes ? (
           <div>
             <div className="sheet-label">Journal notes</div>

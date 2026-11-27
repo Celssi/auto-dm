@@ -261,10 +261,18 @@ def journey_event_stat_preview(event: dict) -> str:
         parts.append(f"All stats {sign}{v}")
     if event.get("combat"):
         parts.append("Combat")
+    extra = int(event.get("extra_tactics_next_combat") or 0)
+    if extra > 0:
+        parts.append(f"+{extra} tactic next battle")
+    dmg = int(event.get("next_combat_damage_bonus") or 0)
+    if dmg > 0:
+        parts.append(f"+{dmg} dmg next battle")
+    reduce = int(event.get("next_combat_damage_reduction") or 0)
+    if reduce > 0:
+        parts.append(f"-{reduce} dmg taken next battle")
     for tag in event.get("tags") or []:
         parts.append(f"({tag.upper()})")
     return ", ".join(parts) if parts else "-"
-
 
 
 def first_frost_table_key(
@@ -816,7 +824,6 @@ def init_dragonkeep_state(session_id: str, char_id: str) -> dict[str, Any]:
     return _dragonkeep_response(session_id, char_id, extras)
 
 
-
 def _with_smores_context(extras: dict, adventure_id: str, ctx: dict) -> dict:
     if adventure_id == "first_frost" and extras.get(FIRST_FROST_PHASE_KEY) == "frozen_forest":
         ctx = dict(ctx)
@@ -863,6 +870,7 @@ def start_journey_combat(session_id: str, char_id: str, event_index: int) -> dic
     _set_combat_context(session_id, extras, ctx)
     mode = "aerith_finale" if ctx.get("finale") else "standard"
     combat_state = begin_combat(char, ctx, char_id=char_id, mode=mode)
+    _save(char_id, char)
     extras[COMBAT_STATE_KEY] = combat_state
     _set_extras(session_id, extras)
     preview = combat_preview_from_context(ctx)
@@ -909,6 +917,7 @@ def start_manual_combat(session_id: str, char_id: str, rank: str, suit: str) -> 
     ctx = _with_smores_context(extras, str(char.active_adventure or ""), ctx)
     _set_combat_context(session_id, extras, ctx)
     combat_state = begin_combat(char, ctx, char_id=char_id, mode="standard")
+    _save(char_id, char)
     extras[COMBAT_STATE_KEY] = combat_state
     _set_extras(session_id, extras)
     preview = combat_preview_from_context(ctx)
@@ -1089,6 +1098,7 @@ def dragonkeep_action(
         _set_combat_context(session_id, extras, ctx)
         if fin.get("finale_step") == "dragon" and ctx:
             combat_state = begin_combat(char, ctx, char_id=char_id, mode="aerith_finale")
+            _save(char_id, char)
             extras[COMBAT_STATE_KEY] = combat_state
         log_mechanical(session_id, f"Finale: {fin.get('finale_step', 'dragon')}.")
     elif action == "advance_finale_phase":

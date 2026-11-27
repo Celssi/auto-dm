@@ -161,6 +161,9 @@ export interface BrambletrekCharacter {
   resource_base_morale?: number | null;
   resource_base_supplies?: number | null;
   oracle_relic?: boolean;
+  extra_tactics_next_combat?: number;
+  next_combat_damage_bonus?: number;
+  next_combat_damage_reduction?: number;
   [key: string]: unknown;
 }
 

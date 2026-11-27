@@ -43,6 +43,9 @@ class BrambletrekCharacter:
     legacy_abilities_used: dict[str, bool] = field(default_factory=dict)
     resource_cards: dict[str, list[str]] = field(default_factory=dict)
     oracle_relic: bool = False
+    extra_tactics_next_combat: int = 0
+    next_combat_damage_bonus: int = 0
+    next_combat_damage_reduction: int = 0
     resource_base_health: int | None = None
     resource_base_morale: int | None = None
     resource_base_supplies: int | None = None
@@ -214,6 +217,9 @@ def character_from_dict(data: dict | None) -> BrambletrekCharacter:
             else None
         ),
         oracle_relic=bool(data.get("oracle_relic", False)),
+        extra_tactics_next_combat=max(0, int(data.get("extra_tactics_next_combat") or 0)),
+        next_combat_damage_bonus=max(0, int(data.get("next_combat_damage_bonus") or 0)),
+        next_combat_damage_reduction=max(0, int(data.get("next_combat_damage_reduction") or 0)),
     )
 
 
@@ -243,6 +249,9 @@ def character_to_dict(char: BrambletrekCharacter) -> dict:
         "resource_base_morale": char.resource_base_morale,
         "resource_base_supplies": char.resource_base_supplies,
         "oracle_relic": char.oracle_relic,
+        "extra_tactics_next_combat": max(0, int(char.extra_tactics_next_combat or 0)),
+        "next_combat_damage_bonus": max(0, int(char.next_combat_damage_bonus or 0)),
+        "next_combat_damage_reduction": max(0, int(char.next_combat_damage_reduction or 0)),
     }
 
 

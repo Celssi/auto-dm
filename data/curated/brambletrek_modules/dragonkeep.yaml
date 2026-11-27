@@ -80,7 +80,8 @@ path_locations:
         label: Inside the crate, you find preserved food. (+3 Supplies)
         supplies: 3
       diamonds:
-        label: A rare artefact. (Rune Amulet — Increase damage by +2 for next combat only)
+        label: A rare artefact. (Rune Amulet: Increase damage by +2 for next combat only)
+        next_combat_damage_bonus: 2
       clubs:
         label: A foul smell overcomes you (-2 Morale)
         morale: -2
@@ -117,7 +118,8 @@ path_locations:
       with their arcane promise and hidden knowledge.
     suit_outcomes:
       hearts:
-        label: The rune starts to glow. (Dwarf Rune - Take 1 less damage per turn in next combat)
+        label: The rune starts to glow. (Dwarf Rune: Take 1 less damage per turn in next combat)
+        next_combat_damage_reduction: 1
       diamonds:
         label: The runes reveal the location of a hidden treasure. (+3 Supplies)
         supplies: 3

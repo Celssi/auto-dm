@@ -249,8 +249,21 @@ def begin_combat(
     opp_meta = _opponent_from_context(
         combat_context, card=str(combat_context.get("card") or o_card)
     )
-    hand = _draw_hand(char_id, 4)
+    extra_tactics = max(0, int(getattr(char, "extra_tactics_next_combat", 0) or 0))
+    hand_size = 4 + extra_tactics
+    hand = _draw_hand(char_id, hand_size)
     state = default_combat_state()
+    log = [
+        f"Combat begins vs **{opp_meta['label']}** (HP {opp_meta['health']}).",
+        f"Initiative: you {p_card} vs {o_card}. "
+        + ("You go first." if first == "player" else "The opponent goes first."),
+    ]
+    if extra_tactics:
+        char.extra_tactics_next_combat = 0
+        log.append(
+            f"Carried boon: drew {extra_tactics} extra tactic "
+            f"card{'s' if extra_tactics != 1 else ''} ({hand_size} total)."
+        )
     state.update(
         {
             "status": "active",
@@ -276,13 +289,20 @@ def begin_combat(
             "finale_phase": str(combat_context.get("finale_phase") or "1"),
             "combat_context": combat_context,
             "red_table": _is_red_table_combat(combat_context),
-            "log": [
-                f"Combat begins vs **{opp_meta['label']}** (HP {opp_meta['health']}).",
-                f"Initiative: you {p_card} vs {o_card} — "
-                + ("you go first." if first == "player" else "the opponent goes first."),
-            ],
+            "log": log,
         }
     )
+    buffs = state.setdefault("buffs", {})
+    dmg_bonus = max(0, int(getattr(char, "next_combat_damage_bonus", 0) or 0))
+    if dmg_bonus:
+        char.next_combat_damage_bonus = 0
+        buffs.setdefault("damage_bonus_list", []).append({"value": dmg_bonus, "attacks": 99})
+        log.append(f"Carried boon: +{dmg_bonus} damage this combat.")
+    dmg_reduce = max(0, int(getattr(char, "next_combat_damage_reduction", 0) or 0))
+    if dmg_reduce:
+        char.next_combat_damage_reduction = 0
+        buffs.setdefault("reduce_incoming_list", []).append({"value": dmg_reduce, "attacks": 99})
+        log.append(f"Carried boon: take {dmg_reduce} less damage per hit this combat.")
     if mode == "aerith_finale":
         state["log"].append("Turn order: Aerith → You → Eolan.")
         state["can_search_item"] = True
@@ -494,9 +514,7 @@ def _begin_smores_turn(state: dict[str, Any], lines: list[str]) -> None:
     ally = smores_ally(state)
     if not ally.get("hand"):
         ally["needs_new_round"] = True
-        lines.append(
-            "Smores is out of tactic cards: draw 4 new cards for him to play."
-        )
+        lines.append("Smores is out of tactic cards: draw 4 new cards for him to play.")
 
 
 def _finish_smores_action(
@@ -628,14 +646,10 @@ def combat_action(
             raise ValueError(f"No Smores tactic for {card}")
         lines.append(f"Smores plays **{card}**.")
         lines.extend(
-            apply_tactic_effects(
-                state, tactic, actor="smores", draw=lambda n: _draw(char_id, n)
-            )
+            apply_tactic_effects(state, tactic, actor="smores", draw=lambda n: _draw(char_id, n))
         )
         if tactic.get("extra_turns"):
-            ally["extra_turns"] = int(ally.get("extra_turns") or 0) + int(
-                tactic["extra_turns"]
-            )
+            ally["extra_turns"] = int(ally.get("extra_turns") or 0) + int(tactic["extra_turns"])
         _finish_smores_action(state, char, lines)
         return state, lines
 
@@ -802,9 +816,7 @@ def combat_payload(state: dict[str, Any] | None) -> dict[str, Any] | None:
         "defeat_stat": state.get("defeat_stat") or None,
         "ally": state.get("ally") if smores_present(state) else None,
         "smores_daily_used": (
-            str((state.get("ally") or {}).get("daily_used") or "")
-            if smores_present(state)
-            else ""
+            str((state.get("ally") or {}).get("daily_used") or "") if smores_present(state) else ""
         ),
     }
 
