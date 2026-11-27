@@ -180,10 +180,10 @@ def test_ui_labels_are_not_npcs():
 
 
 def test_zero_stats_restore_on_the_following_day_and_cost_one_day(isolated_saves):
-    """Core Rulebook p. 16: hitting 0 mid-day does not restore immediately.
+    """Core Rulebook p. 16: recovery is checked after today's events, not mid-apply.
 
     Restore to half of max (rounded up) happens on the following day, which is
-    lost (no event cards). Several resources reaching 0 still cost one day.
+    lost (no event cards). Several resources still at 0 cost one day total.
     Sequence from the QA session starting Day 2, HP 8, Morale 11, Supplies 13.
     """
     from backend.games.brambletrek import play_handlers
@@ -225,7 +225,8 @@ def test_zero_stats_restore_on_the_following_day_and_cost_one_day(isolated_saves
     assert (char["health"], char["morale"], char["supplies"]) == (1, 0, 8)
     assert char["in_aldwund"] is True
     assert char["journey_day"] == 2
-    assert after[-1]["pending_recoveries"] == ["health", "morale", "supplies"]
+    # Only stats still at 0 after all events need recovery (Health and Supplies recovered).
+    assert after[-1]["pending_recoveries"] == ["morale"]
     # Must not have already skipped a day or restored to 10 mid-apply.
     assert all(not ev.get("recoveries") for ev in after)
 
@@ -236,8 +237,41 @@ def test_zero_stats_restore_on_the_following_day_and_cost_one_day(isolated_saves
         out = play_handlers.finish_journey_day(sid, "qa2")
     char = get_character("qa2")
     # Rest first (p. 15): -4 Supplies, +2 Health → HP 3, S 4.
-    # Recovery day (p. 16): each marked stat to half of 20, rounded up (10).
+    # Recovery day (p. 16): only Morale (still 0) to half of 20, rounded up (10).
     # One lost day + the normal +1: Day 2 → 4.
     assert out["lost_day"] is True
-    assert (char["health"], char["morale"], char["supplies"]) == (10, 10, 10)
+    assert (char["health"], char["morale"], char["supplies"]) == (3, 10, 4)
+    assert char["journey_day"] == 4
+
+
+def test_mid_day_zero_then_heal_skips_recovery(isolated_saves):
+    from backend.games.brambletrek import play_handlers
+    from backend.storage import create_session, get_character, save_character
+
+    save_character(
+        "qa2",
+        {
+            "id": "qa2",
+            "game_id": "brambletrek",
+            "name": "QA Bramble 2",
+            "legacy": "seer",
+            "health": 10,
+            "morale": 4,
+            "supplies": 10,
+            "journey_day": 3,
+        },
+    )
+    sid = create_session(character_id="qa2", adventure_id="")
+    cards = ["9 of spades", "5 of diamonds"]
+    _journey_shortcut(sid, cards=cards)
+    after0 = play_handlers.apply_journey_event(sid, "qa2", 0)
+    assert after0["pending_recoveries"] == ["morale"]
+    after1 = play_handlers.apply_journey_event(sid, "qa2", 1)
+    assert after1["pending_recoveries"] == []
+    char = get_character("qa2")
+    assert (char["health"], char["morale"], char["supplies"]) == (10, 5, 10)
+    out = play_handlers.finish_journey_day(sid, "qa2")
+    assert out["lost_day"] is False
+    char = get_character("qa2")
+    assert (char["health"], char["morale"], char["supplies"]) == (12, 5, 6)
     assert char["journey_day"] == 4

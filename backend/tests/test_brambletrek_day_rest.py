@@ -82,12 +82,16 @@ def test_draw_error_key_present():
     assert out["ok"] is False and out["error"]
 
 
-def test_later_gain_does_not_cancel_recovery_mark():
+def test_later_gain_clears_recovery_mark():
     from backend.games.brambletrek.recovery import merge_pending_recovery_stats
 
     char = BrambletrekCharacter(name="R", health=1, morale=0, supplies=8)
+    # Stale mid-day health mark is dropped once Health is above 0 again.
     pending = merge_pending_recovery_stats(["health"], char)
-    assert pending == ["health", "morale"]
+    assert pending == ["morale"]
+    # Can't-rest Supplies Recovery still forces a mark above 0.
+    forced = merge_pending_recovery_stats([], char, forced=["supplies"])
+    assert forced == ["morale", "supplies"]
 
 
 def test_zero_resources_survive_reload():

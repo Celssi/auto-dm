@@ -56,11 +56,21 @@ def stats_at_zero(char: BrambletrekCharacter) -> list[str]:
 
 
 def merge_pending_recovery_stats(
-    pending: list[str] | None, char: BrambletrekCharacter
+    pending: list[str] | None,
+    char: BrambletrekCharacter,
+    *,
+    forced: list[str] | None = None,
 ) -> list[str]:
-    """Keep a mark for every resource that reached 0; later gains do not cancel it (p. 16)."""
-    marked = {str(s) for s in (pending or []) if s in RECOVERY_STATS}
-    marked.update(stats_at_zero(char))
+    """Resources still at 0 after today's events (recovery is checked at day end).
+
+    A mid-day dip to 0 that a later event heals does not force a recovery day.
+    `forced` marks (e.g. Supplies Recovery when you cannot afford rest) stay even above 0.
+    Stale values in `pending` are ignored once the resource is above 0 again.
+    """
+    marked = set(stats_at_zero(char))
+    for stat in forced or []:
+        if stat in RECOVERY_STATS:
+            marked.add(str(stat))
     return [stat for stat in RECOVERY_STATS if stat in marked]
 
 

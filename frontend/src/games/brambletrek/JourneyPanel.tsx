@@ -328,9 +328,9 @@ export default function JourneyPanel({
 
       {Boolean(journey.pending_recoveries?.length) && (
         <p className="mt-2 text-xs text-amber-200 leading-relaxed">
-          {journey.pending_recoveries!.map((s) => s[0].toUpperCase() + s.slice(1)).join(', ')} reached 0. Finish day
-          will spend the following day recovering (Core Rulebook p. 16) and restore each to half of maximum (rounded
-          up). One day is lost in total, even if several resources hit 0.
+          {journey.pending_recoveries!.map((s) => s[0].toUpperCase() + s.slice(1)).join(', ')} still at 0 after
+          today&apos;s events. Finish day will spend the following day recovering (Core Rulebook p. 16) and restore each
+          to half of maximum (rounded up). One day is lost in total, even if several resources are at 0.
         </p>
       )}
       {footerError && (

@@ -95,8 +95,12 @@ def _pending_recovery_stats(extras: dict) -> list[str]:
     return [str(s) for s in raw if s]
 
 
-def _mark_zero_resources(char, extras: dict) -> list[str]:
-    pending = merge_pending_recovery_stats(_pending_recovery_stats(extras), char)
+def _mark_zero_resources(char, extras: dict, *, forced: list[str] | None = None) -> list[str]:
+    pending = merge_pending_recovery_stats(
+        _pending_recovery_stats(extras),
+        char,
+        forced=forced,
+    )
     extras[PENDING_RECOVERY_STATS_KEY] = pending
     return pending
 
@@ -105,11 +109,18 @@ def _log_pending_recovery(
     session_id: str, extras: dict, before: list[str], after: list[str]
 ) -> None:
     newly = [stat for stat in after if stat not in before]
+    cleared = [stat for stat in before if stat not in after]
     for stat in newly:
         log_mechanical(
             session_id,
-            f"{stat.title()} reached 0. Spend the following day recovering "
-            f"(Core Rulebook p. 16); {stat} will return to half of maximum (rounded up).",
+            f"{stat.title()} is at 0. If it is still 0 after today's events, Finish day "
+            f"spends the following day recovering (Core Rulebook p. 16) and restores "
+            f"{stat} to half of maximum (rounded up).",
+        )
+    for stat in cleared:
+        log_mechanical(
+            session_id,
+            f"{stat.title()} rose above 0 again; no recovery day needed for it.",
         )
 
 
@@ -409,11 +420,15 @@ def pending_journey_payload(session_id: str, char_id: str) -> dict | None:
             }
         )
     extras = _session_extras(session_id)
+    before = _pending_recovery_stats(extras)
+    pending_recoveries = _mark_zero_resources(char, extras)
+    if pending_recoveries != before:
+        _set_extras(session_id, extras)
     return {
         "events": events,
         "shortcut_id": pending.get("shortcut_id"),
         "exploration_table": exploration_table,
-        "pending_recoveries": _pending_recovery_stats(extras),
+        "pending_recoveries": pending_recoveries,
     }
 
 
@@ -623,19 +638,17 @@ def finish_journey_day(session_id: str, char_id: str) -> dict:
         )
 
     # p. 15: rest after today's events, then p. 16: the following day is spent
-    # recovering any resource that reached 0 (one lost day, even if several stats).
+    # recovering any resource still at 0 (one lost day, even if several stats).
     rest = rest_at_day_end(char, char_id=char_id, resolve_zeros=False)
     if rest["rested"]:
         log_mechanical(
             session_id,
             f"Rest: -{rest['supplies_spent']} Supplies, +{rest['health_gained']} Health.",
         )
+        pending_stats = _mark_zero_resources(char, extras)
     else:
         log_mechanical(session_id, "Fewer than 4 Supplies to rest: Supplies Recovery Table.")
-        extras[PENDING_RECOVERY_STATS_KEY] = merge_pending_recovery_stats(
-            _pending_recovery_stats(extras) + ["supplies"], char
-        )
-    pending_stats = _mark_zero_resources(char, extras)
+        pending_stats = _mark_zero_resources(char, extras, forced=["supplies"])
     recoveries = apply_pending_recoveries(char, pending_stats, char_id=char_id)
     extras.pop(PENDING_RECOVERY_STATS_KEY, None)
     _log_recoveries(session_id, extras, recoveries)
